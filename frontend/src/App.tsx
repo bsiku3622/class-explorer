@@ -336,7 +336,7 @@ const App: React.FC = () => {
             >
                 <NavbarBrand>
                     <p className="text-2xl font-black italic tracking-tighter text-white uppercase transform -skew-x-6">
-                        Class Finder
+                        Visualized Fail Finder
                     </p>
                 </NavbarBrand>
                 <NavbarContent

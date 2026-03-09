@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
 import re
-from backend import models, database
+from pyparsing import Word, infixNotation, opAssoc, CharsNotIn, Literal
+from backend import models
 from backend.database import engine, SessionLocal
 
 # DB 테이블 생성
@@ -23,34 +23,39 @@ def get_section_num(section_str):
 
 def evaluate_bool_expression(expression, pool):
     """
-    Evaluates boolean logic (+, &&, &, ()) against a pool of lowercase strings.
-    Operator priority: && > & > +
-    Note: Both && and & are treated as 'and' here, but the calling logic 
-    differentiates their behavior by how it calls this function.
+    Evaluates boolean logic (+, &&, &, ()) against a pool of lowercase strings using pyparsing.
+    Standard operator priority: AND (&&, &) > OR (+)
     """
+    if not expression:
+        return False
+        
     normalized_pool = [str(p).lower() for p in pool]
     
-    # 1. 전처리: 괄호와 연산자 주변 공백 확보 및 표준화
-    expr = expression.replace('(', ' ( ').replace(')', ' ) ')
-    expr = expr.replace('&&', ' and ').replace('&', ' and ').replace('+', ' or ')
+    # Define match logic for a single term
+    def check_match(t):
+        term = t[0].lower()
+        return any(term in item for item in normalized_pool)
+
+    # Grammar definition
+    # A term is any sequence of characters except operators and parentheses
+    term = CharsNotIn("()+& \t\n\r").set_parse_action(check_match)
     
-    # 2. 토큰화 및 평가
-    tokens = re.findall(r'\(|\)|\band\b|\bor\b|[^\s\(\)+&]+', expr)
+    # Operators: && and & are AND, + is OR
+    AND = (Literal("&&") | Literal("&"))
+    OR = Literal("+")
     
-    processed_tokens = []
-    for token in tokens:
-        token = token.strip()
-        if not token: continue
-        if token in ('(', ')', 'and', 'or'):
-            processed_tokens.append(token)
-        else:
-            term = token.lower()
-            match_found = any(term in item for item in normalized_pool)
-            processed_tokens.append('True' if match_found else 'False')
+    # Infix notation handles nested parentheses and operator precedence
+    expr = infixNotation(
+        term,
+        [
+            (AND, 2, opAssoc.LEFT, lambda t: all(t[0][::2])),
+            (OR, 2, opAssoc.LEFT, lambda t: any(t[0][::2])),
+        ],
+    )
     
-    py_expr = ' '.join(processed_tokens)
     try:
-        return eval(py_expr, {"__builtins__": None}, {})
+        parsed = expr.parse_string(expression, parse_all=True)
+        return bool(parsed[0])
     except Exception:
         return False
 

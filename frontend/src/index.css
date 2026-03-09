@@ -3,34 +3,37 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --color-retro-bg: #fff5d1;
-  --color-retro-fg: #222222;
-  --color-retro-primary: #ff4eba;
-  --color-retro-secondary: #7828c8;
-  --color-retro-accent1: #3decfd;
-  --color-retro-accent2: #ffd500;
-  --color-retro-accent3: #ff4eba;
-  --color-retro-accent4: #ff9100;
-  --color-retro-green: #00c22a;
-  --font-sans: 'Space Grotesk', system-ui, sans-serif;
+    --color-retro-bg: #fff5d1;
+    --color-retro-fg: #222222;
+    --color-retro-primary: #ff4eba;
+    --color-retro-secondary: #7828c8;
+    --color-retro-accent1: #3decfd;
+    --color-retro-accent2: #ffd500;
+    --color-retro-accent3: #ff4eba;
+    --color-retro-accent4: #ff9100;
+    --color-retro-green: #00c22a;
+    --font-sans: "Space Grotesk", system-ui, sans-serif;
 }
 
 body {
-  @apply bg-retro-bg text-retro-fg;
+    @apply bg-retro-bg text-retro-fg;
 }
 
 /* Retro components */
 .shadow-retro {
-  box-shadow: 4px 4px 0px 0px #000;
+    box-shadow: 4px 4px 0px 0px #000;
 }
 
 .shadow-retro-lg {
-  box-shadow: 8px 8px 0px 0px #000;
+    box-shadow: 8px 8px 0px 0px #000;
 }
 
 /* Override HeroUI default rounded corners to be sharp/retro */
-[data-slot="base"], [data-slot="trigger"], [data-slot="content"], [data-slot="input-wrapper"] {
-  @apply rounded-none! border!;
+[data-slot="base"],
+[data-slot="trigger"],
+[data-slot="content"],
+[data-slot="input-wrapper"] {
+    @apply rounded-none! border!;
 }
 
 /* Re-enable transitions for a smoother feel - DELETED per safe practice */
@@ -38,5 +41,5 @@ body {
 
 /* Custom styles for students list */
 .student-badge {
-  @apply inline-block bg-white border-2 px-2 py-1 text-xs font-bold rounded-none shadow-[2px_2px_0_0_rgba(0,0,0,0.1)] hover:bg-retro-accent1/10 cursor-default transition-all;
+    @apply inline-block bg-white border-2 px-2 py-1 text-xs font-bold rounded-none shadow-[2px_2px_0_0_rgba(0,0,0,0.1)] hover:bg-retro-accent1/10 cursor-default transition-all;
 }
