@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import {
     Navbar,
@@ -8,607 +8,31 @@ import {
     Card,
     CardBody,
     Chip,
-    Divider,
     Spinner,
     Tooltip,
 } from "@heroui/react";
 import {
     Search,
     User,
-    MapPin,
-    Users,
     BookOpen,
     Filter,
-    ChevronDown,
     HelpCircle,
     X,
+    Users,
 } from "lucide-react";
 import { getStudentColor } from "./lib/utils";
-
-interface StudentInfo {
-    stuId: string;
-    name: string;
-}
-
-interface Section {
-    id: number;
-    section: string;
-    teacher: string;
-    room: string;
-    students: StudentInfo[];
-    student_count: number;
-}
-
-interface SubjectData {
-    subject: string;
-    subject_student_count: number;
-    section_count: number;
-    sections: Section[];
-}
-
-interface Stats {
-    total_subjects: number;
-    total_sections: number;
-    total_active_students: number;
-}
-
-interface SearchEntity {
-    type: "student" | "teacher";
-    name: string;
-    id: string;
-    subject_count: number;
-    subjects: string[];
-}
-
-interface SearchResultStats {
-    keyword: string;
-    prefix: string;
-    entities: SearchEntity[];
-    total_subjects: number;
-    total_sections: number;
-}
-
-// 툴팁용 애니메이션 설정 (위치 튐 방지 및 순수 Opacity 전환)
-const tooltipMotionProps = {
-    initial: { opacity: 0, x: 0, y: 0, scale: 1 },
-    variants: {
-        enter: {
-            opacity: 1,
-            x: 0,
-            y: 0,
-            scale: 1,
-            transition: {
-                opacity: { duration: 0.1 },
-            },
-        },
-        exit: {
-            opacity: 0,
-            x: 0,
-            y: 0,
-            scale: 1,
-            transition: {
-                opacity: { duration: 0.1 },
-            },
-        },
-    },
-};
-
-// 개별 분반 정보를 렌더링하는 컴포넌트
-const SectionCard: React.FC<{
-    section: Section;
-    searchTerm: string;
-    handleSearchToggle: (v: string, isT?: boolean) => void;
-    studentSubjectMap: Record<string, string[]>;
-    teacherSubjectMap: Record<string, Record<string, string[]>>;
-    isModifierPressed: boolean;
-    hasStudentInSearch: boolean;
-    selectedYears: string[];
-}> = ({
-    section,
-    searchTerm,
-    handleSearchToggle,
-    studentSubjectMap,
-    teacherSubjectMap,
-    isModifierPressed,
-    hasStudentInSearch,
-    selectedYears,
-}) => {
-    const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
-
-    // 접두사 제거 및 모든 키워드 추출 (하이라이트용 평면 리스트)
-    const effectiveSearchTerms = React.useMemo(() => {
-        if (!searchTerm) return [];
-        const clean = searchTerm.trim();
-        let query = clean;
-        if (clean.includes(":")) {
-            const parts = clean.split(":", 2);
-            query = parts[1].trim();
-        }
-        // +, & 연산자 모두 분리하여 순수 단어들만 추출
-        return query
-            .split(/[+&]/)
-            .map((k) => k.trim().toLowerCase())
-            .filter((k) => k !== "");
-    }, [searchTerm]);
-
-    const isTeacherSearching = React.useMemo(() => {
-        return effectiveSearchTerms.some((term) =>
-            section.teacher.toLowerCase().includes(term),
-        );
-    }, [effectiveSearchTerms, section.teacher]);
-
-    // 선생님 담당 과목 정보 포맷팅
-    const teacherInfo = teacherSubjectMap[section.teacher] || {};
-    const teacherClasses = Object.entries(teacherInfo).map(
-        ([subject, sections]) => {
-            const cleanSubject = subject.split("(")[0];
-            const sectionNums = sections
-                .map((s) => s.replace(/[^0-9]/g, ""))
-                .sort()
-                .join(",");
-            return `${cleanSubject}(${sectionNums})`;
-        },
-    );
-
-    // 선택된 학번 필터 적용
-    const filteredStudents = section.students.filter((s) =>
-        selectedYears.includes(s.stuId.split("-")[0]),
-    );
-
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-            <div className="md:col-span-4 space-y-4">
-                <h3 className="text-lg font-black bg-retro-accent1 border-2 border-black px-4 py-1.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] inline-block uppercase italic">
-                    {section.section}
-                </h3>
-                <div className="space-y-3 pt-1">
-                    <Tooltip
-                        isOpen={
-                            isModifierPressed &&
-                            hoveredItemId === `teacher-${section.id}`
-                        }
-                        placement="top"
-                        offset={15}
-                        delay={0}
-                        closeDelay={0}
-                        motionProps={tooltipMotionProps}
-                        classNames={{
-                            base: "!transition-none",
-                            content:
-                                "p-0 rounded-none border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
-                        }}
-                        content={
-                            <div className="flex divide-x-2 divide-black min-w-75">
-                                <div className="p-4 bg-retro-secondary/10 flex flex-col justify-center min-w-25">
-                                    <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
-                                        Teacher
-                                    </p>
-                                    <p className="text-xl font-black text-retro-secondary italic tracking-tight">
-                                        {section.teacher}
-                                    </p>
-                                </div>
-                                <div className="p-4 flex-1 bg-white">
-                                    <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                        <BookOpen size={12} /> Assigned Classes
-                                    </p>
-                                    <div className="space-y-1.5">
-                                        {teacherClasses.map((cls, i) => (
-                                            <div
-                                                key={i}
-                                                className="text-[10px] font-bold text-black border-l-2 border-retro-secondary pl-1.5"
-                                            >
-                                                {cls}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                    >
-                        <div
-                            className={`flex items-center gap-3 text-sm font-black italic cursor-pointer transition-all px-2 py-1 -ml-2 border-2 ${
-                                isTeacherSearching
-                                    ? "bg-retro-secondary text-white border-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] scale-105"
-                                    : "hover:text-retro-secondary border-transparent"
-                            }`}
-                            onMouseEnter={() =>
-                                setHoveredItemId(`teacher-${section.id}`)
-                            }
-                            onMouseLeave={() => setHoveredItemId(null)}
-                            onClick={() =>
-                                handleSearchToggle(section.teacher, true)
-                            }
-                        >
-                            <User
-                                size={20}
-                                className={
-                                    isTeacherSearching
-                                        ? "text-white"
-                                        : "text-retro-secondary"
-                                }
-                            />
-                            <span>{section.teacher}</span>
-                        </div>
-                    </Tooltip>
-
-                    <div className="flex items-center gap-3 text-sm font-black italic text-black/70">
-                        <MapPin size={20} className="text-retro-primary" />
-                        <span>{section.room}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm font-black italic text-black/70">
-                        <Users size={20} className="text-retro-accent4" />
-                        <span>{section.student_count} Students</span>
-                    </div>
-                </div>
-            </div>
-            <div className="md:col-span-8">
-                <div className="flex flex-wrap gap-2.5">
-                    {filteredStudents.map((student) => {
-                        const color = getStudentColor(student.stuId);
-                        const isMatch = effectiveSearchTerms.some(
-                            (term) =>
-                                student.stuId.toLowerCase().includes(term) ||
-                                student.name.toLowerCase().includes(term),
-                        );
-
-                        // 검색 결과에 학생이 포함된 경우에만 하이라이트(그레이스케일) 효과 적용
-
-                        const shouldGrayOut = hasStudentInSearch && !isMatch;
-
-                        const mySubjects =
-                            studentSubjectMap[student.stuId] || [];
-
-                        return (
-                            <Tooltip
-                                key={student.stuId}
-                                isOpen={
-                                    isModifierPressed &&
-                                    hoveredItemId === student.stuId
-                                }
-                                placement="top"
-                                offset={15}
-                                delay={0}
-                                closeDelay={0}
-                                motionProps={tooltipMotionProps}
-                                classNames={{
-                                    base: "!transition-none",
-                                    content:
-                                        "p-0 rounded-none border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
-                                }}
-                                content={
-                                    <div className="flex divide-x-2 divide-black min-w-[320px] max-w-112.5">
-                                        {/* Left 'Page': Info */}
-                                        <div
-                                            className="p-4 flex flex-col justify-center min-w-30"
-                                            style={{
-                                                backgroundColor: `${color}26`,
-                                            }}
-                                        >
-                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
-                                                Student ID
-                                            </p>
-                                            <p className="text-xs font-black text-black leading-none mb-3">
-                                                {student.stuId}
-                                            </p>
-                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
-                                                Name
-                                            </p>
-                                            <p
-                                                className="text-xl font-black italic tracking-tight"
-                                                style={{ color: color }}
-                                            >
-                                                {student.name}
-                                            </p>
-                                        </div>
-                                        {/* Right 'Page': Subjects */}
-                                        <div className="p-4 flex-1 bg-white">
-                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                <BookOpen size={12} /> Enrolled
-                                                Classes
-                                            </p>
-                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                                                {mySubjects.map((sub, i) => (
-                                                    <div
-                                                        key={i}
-                                                        className="text-[10px] font-bold text-black border-l-2 pl-1.5 truncate"
-                                                        style={{
-                                                            borderColor: color,
-                                                        }}
-                                                    >
-                                                        {sub.split("(")[0]}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                            >
-                                <div
-                                    className={`student-badge cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200 ${
-                                        shouldGrayOut
-                                            ? "grayscale opacity-50 scale-95 border-black/20 shadow-none"
-                                            : ""
-                                    }`}
-                                    style={{
-                                        borderColor: shouldGrayOut
-                                            ? "#00000020"
-                                            : color,
-                                        backgroundColor: shouldGrayOut
-                                            ? "transparent"
-                                            : `${color}20`,
-                                        color: shouldGrayOut
-                                            ? "rgba(0,0,0,0.6)"
-                                            : color,
-                                    }}
-                                    onMouseEnter={() =>
-                                        setHoveredItemId(student.stuId)
-                                    }
-                                    onMouseLeave={() => setHoveredItemId(null)}
-                                    onClick={() =>
-                                        handleSearchToggle(student.stuId)
-                                    }
-                                >
-                                    {student.stuId.split("-")[0]} {student.name}
-                                </div>
-                            </Tooltip>
-                        );
-                    })}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// 커스텀 아코디언 아이템 컴포넌트
-const SubjectAccordionItem: React.FC<{
-    subject: SubjectData;
-    searchTerm: string;
-    handleSearchToggle: (v: string, isT?: boolean) => void;
-    studentSubjectMap: Record<string, string[]>;
-    teacherSubjectMap: Record<string, Record<string, string[]>>;
-    isModifierPressed: boolean;
-    hasStudentInSearch: boolean;
-    selectedYears: string[];
-    isOpen: boolean;
-    onToggle: () => void;
-    isSingleStudentSearch?: boolean;
-}> = ({
-    subject,
-    searchTerm,
-    handleSearchToggle,
-    studentSubjectMap,
-    teacherSubjectMap,
-    isModifierPressed,
-    hasStudentInSearch,
-    selectedYears,
-    isOpen,
-    onToggle,
-    isSingleStudentSearch,
-}) => {
-    const [hoveredTeacher, setHoveredTeacher] = useState<string | null>(null);
-
-    // 접두사 제거 및 모든 키워드 추출 (하이라이트용 평면 리스트)
-    const effectiveSearchTerms = React.useMemo(() => {
-        if (!searchTerm) return [];
-        const clean = searchTerm.trim();
-        let query = clean;
-        if (clean.includes(":")) {
-            const parts = clean.split(":", 2);
-            query = parts[1].trim();
-        }
-        // +, & 연산자 모두 분리하여 순수 단어들만 추출
-        return query
-            .split(/[+&]/)
-            .map((k) => k.trim().toLowerCase())
-            .filter((k) => k !== "");
-    }, [searchTerm]);
-
-    // 해당 과목의 선생님별 분반 요약 생성
-    const teacherSummary = React.useMemo(() => {
-        const summary: Record<string, string[]> = {};
-        subject.sections.forEach((s) => {
-            if (!summary[s.teacher]) summary[s.teacher] = [];
-            const num = s.section.replace(/[^0-9]/g, "");
-            if (num && !summary[s.teacher].includes(num))
-                summary[s.teacher].push(num);
-        });
-        return summary;
-    }, [subject.sections]);
-
-    // 필터링된 실제 학생 수 계산
-    const visibleStudentCount = React.useMemo(() => {
-        const uniqueIds = new Set<string>();
-        subject.sections.forEach((section) => {
-            section.students.forEach((student) => {
-                if (selectedYears.includes(student.stuId.split("-")[0])) {
-                    uniqueIds.add(student.stuId);
-                }
-            });
-        });
-        return uniqueIds.size;
-    }, [subject.sections, selectedYears]);
-
-    // 분반 표시 텍스트 및 색상 결정
-    const sectionDisplayText = isSingleStudentSearch
-        ? `SECTION ${subject.sections.map((s) => s.section.replace(/[^0-9]/g, "")).join(",")}`
-        : `${subject.section_count} SECTIONS`;
-
-    return (
-        <div className="border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] bg-white overflow-hidden rounded-none w-full mb-6 last:mb-0">
-            {/* Trigger */}
-            <button
-                onClick={onToggle}
-                className="w-full px-6 py-6 flex items-center justify-between hover:bg-retro-accent1/10 focus:outline-none group transition-colors"
-            >
-                <div className="flex flex-row items-center justify-between gap-4 flex-1 mr-6 text-left overflow-hidden">
-                    <span className="text-xl font-black text-black tracking-tight uppercase italic truncate flex-1">
-                        {subject.subject}
-                    </span>
-                    <div className="flex gap-3 shrink-0">
-                        <Chip
-                            size="lg"
-                            className={`${isSingleStudentSearch ? "bg-retro-accent1" : "bg-retro-accent2"} border-2 border-black text-xs font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-3 h-auto py-1.5 uppercase`}
-                        >
-                            {sectionDisplayText}
-                        </Chip>
-                        <Chip
-                            size="lg"
-                            className="bg-retro-accent3 border-2 border-black text-xs font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-3 h-auto py-1.5"
-                        >
-                            {visibleStudentCount} STUDENTS
-                        </Chip>
-                    </div>
-                </div>
-                <ChevronDown
-                    size={20}
-                    style={{ transition: "none" }}
-                    className={`text-black shrink-0 ${
-                        isOpen ? "rotate-180" : ""
-                    }`}
-                />
-            </button>
-
-            {/* Instant Content */}
-            {isOpen && (
-                <div className="overflow-hidden border-t-2 border-black bg-retro-bg/10">
-                    <div className="px-6 pb-12 pt-10 space-y-12">
-                        {/* Teacher Summary Section */}
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-white/50 border-2 border-black p-4 mb-12 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
-                            <span className="text-sm font-black uppercase italic text-black/50 flex items-center gap-2">
-                                <Users size={16} /> Teachers :
-                            </span>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1">
-                                {Object.entries(teacherSummary).map(
-                                    ([name, nums]) => {
-                                        const isSearching =
-                                            effectiveSearchTerms.some((term) =>
-                                                name
-                                                    .toLowerCase()
-                                                    .includes(term),
-                                            );
-                                        const teacherInfo =
-                                            teacherSubjectMap[name] || {};
-                                        const teacherClasses = Object.entries(
-                                            teacherInfo,
-                                        ).map(([sub, sections]) => {
-                                            const cleanSub = sub.split("(")[0];
-                                            const secStr = sections
-                                                .map((s) =>
-                                                    s.replace(/[^0-9]/g, ""),
-                                                )
-                                                .sort()
-                                                .join(",");
-                                            return `${cleanSub}(${secStr})`;
-                                        });
-
-                                        return (
-                                            <Tooltip
-                                                key={name}
-                                                isOpen={
-                                                    isModifierPressed &&
-                                                    hoveredTeacher === name
-                                                }
-                                                placement="top"
-                                                motionProps={tooltipMotionProps}
-                                                classNames={{
-                                                    base: "!transition-none",
-                                                    content:
-                                                        "p-0 rounded-none border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
-                                                }}
-                                                content={
-                                                    <div className="flex divide-x-2 divide-black min-w-75">
-                                                        <div className="p-4 bg-retro-secondary/10 flex flex-col justify-center min-w-25">
-                                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
-                                                                Teacher
-                                                            </p>
-                                                            <p className="text-xl font-black text-retro-secondary italic tracking-tight">
-                                                                {name}
-                                                            </p>
-                                                        </div>
-                                                        <div className="p-4 flex-1 bg-white">
-                                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                                <BookOpen
-                                                                    size={12}
-                                                                />{" "}
-                                                                Assigned Classes
-                                                            </p>
-                                                            <div className="space-y-1.5">
-                                                                {teacherClasses.map(
-                                                                    (
-                                                                        cls,
-                                                                        i,
-                                                                    ) => (
-                                                                        <div
-                                                                            key={
-                                                                                i
-                                                                            }
-                                                                            className="text-[10px] font-bold text-black border-l-2 border-retro-secondary pl-1.5"
-                                                                        >
-                                                                            {
-                                                                                cls
-                                                                            }
-                                                                        </div>
-                                                                    ),
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                }
-                                            >
-                                                <button
-                                                    className={`text-sm font-black transition-colors hover:text-retro-secondary cursor-pointer ${isSearching ? "text-retro-secondary underline decoration-2 underline-offset-4" : "text-black"}`}
-                                                    onMouseEnter={() =>
-                                                        setHoveredTeacher(name)
-                                                    }
-                                                    onMouseLeave={() =>
-                                                        setHoveredTeacher(null)
-                                                    }
-                                                    onClick={() =>
-                                                        handleSearchToggle(
-                                                            name,
-                                                            true,
-                                                        )
-                                                    }
-                                                >
-                                                    {name}(
-                                                    {nums.sort().join(",")})
-                                                </button>
-                                            </Tooltip>
-                                        );
-                                    },
-                                )}
-                            </div>
-                        </div>
-
-                        {subject.sections.map(
-                            (section: Section, idx: number) => (
-                                <React.Fragment key={section.id}>
-                                    {idx > 0 && (
-                                        <Divider className="mb-10 h-1 bg-black opacity-100" />
-                                    )}
-                                    <SectionCard
-                                        section={section}
-                                        searchTerm={searchTerm}
-                                        handleSearchToggle={handleSearchToggle}
-                                        studentSubjectMap={studentSubjectMap}
-                                        teacherSubjectMap={teacherSubjectMap}
-                                        isModifierPressed={isModifierPressed}
-                                        hasStudentInSearch={hasStudentInSearch}
-                                        selectedYears={selectedYears}
-                                    />
-                                </React.Fragment>
-                            ),
-                        )}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
+import type {
+    SubjectData,
+    Stats,
+    SearchEntity,
+    SearchResultStats,
+} from "./types";
+import { tooltipMotionProps } from "./constants/motion";
+import SubjectAccordionItem from "./components/SubjectAccordionItem";
 
 const App: React.FC = () => {
     const [data, setData] = useState<SubjectData[]>([]);
-    const [allClassesData, setAllClassesData] = useState<SubjectData[]>([]); // 툴팁용 전체 데이터 보관
+    const [allClassesData, setAllClassesData] = useState<SubjectData[]>([]);
     const [stats, setStats] = useState<Stats | null>(null);
     const [studentCounts, setStudentCounts] = useState<Record<string, number>>(
         {},
@@ -621,14 +45,16 @@ const App: React.FC = () => {
     const [searchResult, setSearchResult] = useState<SearchResultStats | null>(
         null,
     );
+    const [searchMode, setSearchMode] = useState<
+        "general" | "student" | "teacher"
+    >("general");
+    const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
 
-    // 검색 결과에 학생이 포함되어 있는지 여부 계산
-    const hasStudentInSearch = React.useMemo(() => {
+    const hasStudentInSearch = useMemo(() => {
         if (!searchResult) return false;
         return searchResult.entities.some((e) => e.type === "student");
     }, [searchResult]);
 
-    // 조합키 상태 추적 (Cmd or Ctrl)
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.metaKey || e.ctrlKey) setIsModifierPressed(true);
@@ -644,8 +70,7 @@ const App: React.FC = () => {
         };
     }, []);
 
-    // 학생별 수강 과목 맵핑 (검색 결과에 상관없이 전체 데이터 기준)
-    const studentSubjectMap = React.useMemo(() => {
+    const studentSubjectMap = useMemo(() => {
         const map: Record<string, string[]> = {};
         allClassesData.forEach((item) => {
             item.sections.forEach((section) => {
@@ -659,8 +84,7 @@ const App: React.FC = () => {
         return map;
     }, [allClassesData]);
 
-    // 선생님별 담당 과목/분반 맵핑 (검색 결과에 상관없이 전체 데이터 기준)
-    const teacherSubjectMap = React.useMemo(() => {
+    const teacherSubjectMap = useMemo(() => {
         const map: Record<string, Record<string, string[]>> = {};
         allClassesData.forEach((item) => {
             item.sections.forEach((section) => {
@@ -692,13 +116,11 @@ const App: React.FC = () => {
 
     const fetchStudentCounts = async () => {
         try {
-            // 1. 학번별 학생 수 가져오기
             const countResponse = await axios.get("/api/students_num_info");
             const years = Object.keys(countResponse.data);
             setStudentCounts(countResponse.data);
             setSelectedYears(years);
 
-            // 2. 툴팁용 전체 수업 데이터 미리 로드 (필터링되지 않은 원본)
             const allDataResponse = await axios.get("/api/classes_info");
             setAllClassesData(allDataResponse.data.data);
         } catch (error) {
@@ -711,6 +133,7 @@ const App: React.FC = () => {
             setData([]);
             setStats(null);
             setSearchResult(null);
+            setSearchMode("general");
             setLoading(false);
             return;
         }
@@ -721,8 +144,9 @@ const App: React.FC = () => {
                 let cleanKeyword = searchTerm.trim();
                 let effectiveQuery = cleanKeyword;
                 let apiUrl = `/api/search/${cleanKeyword}`;
+                let mode: "general" | "student" | "teacher" = "general";
 
-                // 접두사 파싱 (teacher:만 유지)
+                // 접두사 파싱
                 if (cleanKeyword.includes(":")) {
                     const parts = cleanKeyword.split(":", 2);
                     const prefix = parts[0].toLowerCase();
@@ -731,62 +155,64 @@ const App: React.FC = () => {
                     if (["t", "te", "teacher"].includes(prefix)) {
                         apiUrl = `/api/teacher/${query}`;
                         effectiveQuery = query;
+                        mode = "teacher";
+                    } else if (["s", "st", "student"].includes(prefix)) {
+                        apiUrl = `/api/student/${query}`;
+                        effectiveQuery = query;
+                        mode = "student";
                     } else {
                         apiUrl = `/api/search/${query}`;
                         effectiveQuery = query;
+                        mode = "general";
                     }
                 }
 
+                setSearchMode(mode);
                 const response = await axios.get(apiUrl);
-
-                // 검색 결과 데이터 정제: 논리 연산자(+, &) 지원 빈 아코디언 방지 로직
                 const rawData = response.data.data;
 
-                // 논리 구조 파싱: [[A, B], [C]] -> (A & B) + C
-                const orGroups = effectiveQuery
-                    .split("+")
-                    .map((g) =>
-                        g
-                            .split("&")
-                            .map((t) => t.trim())
-                            .map((t) => t.toLowerCase())
-                            .filter((t) => t !== ""),
-                    )
-                    .filter((g) => g.length > 0);
-
+                // 검색 결과 필터링 (학번 필터 적용)
                 const processedData = rawData
                     .map((subject: SubjectData) => {
                         const filteredSections = subject.sections.filter(
                             (section) => {
-                                // 1. 해당 분반에서 선택된 학번의 학생만 추출
+                                // 인물 검색 모드(student/teacher)인 경우, 필터와 관계없이 검색 대상이 포함된 분반은 보여줌
+                                if (mode === "student") {
+                                    const isTargetStudentIn =
+                                        section.students.some(
+                                            (s) =>
+                                                s.stuId
+                                                    .toLowerCase()
+                                                    .includes(
+                                                        effectiveQuery.toLowerCase(),
+                                                    ) ||
+                                                s.name
+                                                    .toLowerCase()
+                                                    .includes(
+                                                        effectiveQuery.toLowerCase(),
+                                                    ),
+                                        );
+                                    if (isTargetStudentIn) return true;
+                                }
+                                if (mode === "teacher") {
+                                    if (
+                                        section.teacher
+                                            .toLowerCase()
+                                            .includes(
+                                                effectiveQuery.toLowerCase(),
+                                            )
+                                    )
+                                        return true;
+                                }
+
+                                // 그 외에는 현재 선택된 학년 필터 적용
                                 const visibleStudents = section.students.filter(
                                     (s) =>
                                         selectedYears.includes(
                                             s.stuId.split("-")[0],
                                         ),
                                 );
-
-                                // 2. 선택된 학번의 학생이 한 명도 없다면 이 분반은 표시할 이유가 없음
-                                if (visibleStudents.length === 0) return false;
-
-                                // 3. 논리 연산 체크: ANY(OR 그룹) of ALL(AND 그룹)
-                                const classPool = [
-                                    section.teacher.toLowerCase(),
-                                    subject.subject.toLowerCase(),
-                                    section.section.toLowerCase(),
-                                    ...visibleStudents.flatMap((s) => [
-                                        s.name.toLowerCase(),
-                                        s.stuId.toLowerCase(),
-                                    ]),
-                                ];
-
-                                return orGroups.some((andGroup) =>
-                                    andGroup.every((term) =>
-                                        classPool.some((item) =>
-                                            item.includes(term),
-                                        ),
-                                    ),
-                                );
+                                return visibleStudents.length > 0;
                             },
                         );
 
@@ -798,13 +224,9 @@ const App: React.FC = () => {
 
                 setData(processedData);
 
-                // 검색 결과 엔티티 처리 (동명이인 등 다중 매칭 대응)
                 let entities: SearchEntity[] = response.data.entities || [];
-                if (
-                    !entities.length &&
-                    response.data.prefix === "student" &&
-                    response.data.name
-                ) {
+                // API에서 직접 인물 정보를 주는 경우 (student/teacher 전용 엔드포인트)
+                if (mode === "student" && response.data.stuId) {
                     entities = [
                         {
                             type: "student",
@@ -817,14 +239,14 @@ const App: React.FC = () => {
                         },
                     ];
                 } else if (
+                    mode === "teacher" &&
                     !entities.length &&
-                    response.data.prefix === "teacher" &&
                     response.data.data.length > 0
                 ) {
                     entities = [
                         {
                             type: "teacher",
-                            name: response.data.keyword || effectiveQuery,
+                            name: response.data.name || effectiveQuery,
                             id: "Teacher",
                             subject_count: response.data.total_subjects,
                             subjects: response.data.data.map(
@@ -846,9 +268,9 @@ const App: React.FC = () => {
                     total_sections: response.data.total_sections,
                 });
 
-                // 검색 결과 로드 완료 후 상단으로 부드럽게 이동
                 window.scrollTo({ top: 0, behavior: "smooth" });
             } else {
+                setSearchMode("general");
                 const params = { years: selectedYears.join(",") };
                 const response = await axios.get("/api/classes_info", {
                     params,
@@ -857,7 +279,6 @@ const App: React.FC = () => {
                 setStats(response.data.total_stats);
                 setSearchResult(null);
 
-                // 데이터 업데이트 완료 후 상단으로 부드럽게 이동
                 window.scrollTo({ top: 0, behavior: "smooth" });
             }
         } catch (error) {
@@ -868,12 +289,20 @@ const App: React.FC = () => {
     };
 
     const handleSearchToggle = (value: string, isTeacher: boolean = false) => {
-        const finalValue = isTeacher ? `teacher:${value}` : value;
+        const finalValue = isTeacher
+            ? `teacher:${value}`
+            : value.includes("-")
+              ? `student:${value}`
+              : value;
         setSearchTerm((prev) => (prev === finalValue ? "" : finalValue));
     };
 
     const handleSearchSelect = (value: string, isTeacher: boolean = false) => {
-        const finalValue = isTeacher ? `teacher:${value}` : value;
+        const finalValue = isTeacher
+            ? `teacher:${value}`
+            : isTeacher === false && value.includes("-")
+              ? `student:${value}`
+              : value;
         setSearchTerm(finalValue);
     };
 
@@ -885,12 +314,24 @@ const App: React.FC = () => {
         );
     };
 
+    const isLogicalSearch = useMemo(() => {
+        return (
+            searchTerm.includes("+") ||
+            searchTerm.includes("&") ||
+            searchTerm.includes("/") ||
+            searchTerm.includes("(")
+        );
+    }, [searchTerm]);
+
+    const isConsolidatedView = useMemo(() => {
+        return searchMode !== "general" || isLogicalSearch;
+    }, [searchMode, isLogicalSearch]);
+
     return (
         <div className="min-h-screen bg-retro-bg text-retro-fg pb-20 font-sans">
-            {/* Navbar */}
             <Navbar
                 isBordered={false}
-                className="fixed top-0 left-0 right-0 bg-retro-secondary border-b-2 border-black h-20 shadow-[0_4px_0_0_rgba(0,0,0,0.2)] z-1000"
+                className="fixed top-0 left-0 right-0 bg-retro-secondary border-b border-black h-20 shadow-[0_4px_0_0_rgba(0,0,0,0.2)] z-1000"
                 maxWidth="full"
             >
                 <NavbarBrand>
@@ -898,17 +339,20 @@ const App: React.FC = () => {
                         Class Finder
                     </p>
                 </NavbarBrand>
-                <NavbarContent className="hidden sm:flex" justify="end">
-                    <div className="relative">
+                <NavbarContent
+                    className="hidden sm:flex gap-4 h-12"
+                    justify="end"
+                >
+                    <div className="relative h-full">
                         <Input
                             labelPlacement="outside"
                             classNames={{
-                                base: "w-96",
-                                input: "text-base font-semibold px-2 pr-10 flex-1 h-full focus:outline-none",
+                                base: "w-96 h-full",
+                                input: "h-full text-base font-semibold px-2 pr-10 flex-1 h-full focus:outline-none",
                                 inputWrapper:
-                                    "h-12 bg-white border-2 border-black rounded-none shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] data-[hover=true]:border-black group-data-[focus=true]:border-black px-4 flex items-center outline-none ring-0 relative",
+                                    "h-full bg-white border-2 border-black rounded-none data-[hover=true]:border-black group-data-[focus=true]:border-black px-4 flex items-center outline-none ring-0 relative",
                                 innerWrapper:
-                                    "flex flex-row items-center gap-2 w-full h-full",
+                                    "h-full flex flex-row items-center gap-2 w-full h-full",
                             }}
                             placeholder="Search by Something..."
                             startContent={
@@ -920,68 +364,126 @@ const App: React.FC = () => {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
-                        {/* Unified Action Button (X or ?) - Standard Thin Style */}
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center">
-                            {searchTerm ? (
+                            {searchTerm && (
                                 <button
                                     onClick={() => setSearchTerm("")}
                                     className="text-black/40 hover:text-black/70 transition-colors p-1"
                                 >
                                     <X size={18} strokeWidth={2} />
                                 </button>
-                            ) : (
-                                <Tooltip
-                                    placement="bottom"
-                                    content={
-                                        <div className="p-3 space-y-3">
-                                            <p className="font-black text-sm border-b-2 border-black pb-1 mb-2">
-                                                SEARCH GUIDE
-                                            </p>
-                                            <div className="space-y-2">
-                                                <div className="flex items-start gap-2">
-                                                    <span className="bg-retro-accent1 px-1 text-[10px] font-black border border-black">
-                                                        BASIC
-                                                    </span>
-                                                    <p className="text-[10px] font-bold leading-tight">
-                                                        이름, 학번, 과목명을
-                                                        <br />
-                                                        자유롭게 입력하세요.
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-start gap-2">
-                                                    <span className="bg-retro-secondary text-white px-1 text-[10px] font-black border border-black">
-                                                        TEACHER
-                                                    </span>
-                                                    <p className="text-[10px] font-bold leading-tight">
-                                                        <span className="text-retro-secondary">
-                                                            teacher:성함
-                                                        </span>{" "}
-                                                        입력 시<br />
-                                                        강제로 선생님만
-                                                        검색합니다.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    }
-                                    motionProps={tooltipMotionProps}
-                                    classNames={{
-                                        content:
-                                            "rounded-none border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]",
-                                    }}
-                                >
-                                    <div className="text-black/40 hover:text-black/70 transition-colors cursor-help p-1">
-                                        <HelpCircle size={18} strokeWidth={2} />
-                                    </div>
-                                </Tooltip>
                             )}
                         </div>
                     </div>
+
+                    <Tooltip
+                        placement="bottom-end"
+                        content={
+                            <div className="p-6 space-y-6 min-w-96">
+                                <p className="font-black text-lg border-b border-black pb-2 mb-4 uppercase italic">
+                                    Search Guide
+                                </p>
+                                <div className="space-y-5">
+                                    <div>
+                                        <p className="text-xs font-black text-retro-secondary uppercase mb-1.5 tracking-widest">
+                                            Basic & Logic Search
+                                        </p>
+                                        <div className="space-y-3">
+                                            <div className="flex items-start gap-2">
+                                                <span className="bg-black text-white px-1.5 py-0.5 text-[11px] font-black shrink-0">
+                                                    키워드 검색
+                                                </span>
+                                                <p className="text-sm font-bold">
+                                                    이름, 학번, 과목, 선생님
+                                                    성함
+                                                </p>
+                                            </div>
+                                            <div className="flex items-start gap-2">
+                                                <span className="bg-black text-white px-1.5 py-0.5 text-[11px] font-black shrink-0">
+                                                    논리 연산
+                                                </span>
+                                                <div>
+                                                    <p className="text-sm font-bold">
+                                                        대상간의 공통/합집합
+                                                        분반을 리스트업
+                                                    </p>
+                                                    <p className="text-sm font-bold mt-1.5">
+                                                        <span className="text-retro-primary font-black">
+                                                            &
+                                                        </span>{" "}
+                                                        (같은 과목),{" "}
+                                                        <span className="text-retro-primary font-black">
+                                                            &&
+                                                        </span>{" "}
+                                                        (같은 분반)
+                                                    </p>
+                                                    <p className="text-sm font-bold">
+                                                        <span className="text-retro-primary font-black">
+                                                            +
+                                                        </span>{" "}
+                                                        (OR),{" "}
+                                                        <span className="text-retro-primary font-black">
+                                                            ()
+                                                        </span>{" "}
+                                                        (괄호) 지원
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-2">
+                                                <span className="bg-black text-white px-1.5 py-0.5 text-[11px] font-black shrink-0">
+                                                    과목 / 인물
+                                                </span>
+                                                <p className="text-sm font-bold leading-snug">
+                                                    특정 과목 내에서 특정 인물을
+                                                    검색
+                                                    <br />
+                                                    <span className="text-xs text-black/40 italic">
+                                                        예: 미적분학 / 유지원
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-black text-retro-secondary uppercase mb-1.5 tracking-widest">
+                                            Advanced Search
+                                        </p>
+                                        <div className="space-y-3">
+                                            <div className="flex items-start gap-2">
+                                                <span className="bg-black text-white px-1.5 py-0.5 text-[11px] font-black shrink-0">
+                                                    student:학번
+                                                </span>
+                                                <p className="text-sm font-bold">
+                                                    학생 집중 검색 (학번만 가능)
+                                                </p>
+                                            </div>
+                                            <div className="flex items-start gap-2">
+                                                <span className="bg-black text-white px-1.5 py-0.5 text-[11px] font-black shrink-0">
+                                                    teacher:성함
+                                                </span>
+                                                <p className="text-sm font-bold">
+                                                    선생님 집중 검색
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        motionProps={tooltipMotionProps}
+                        classNames={{
+                            content:
+                                "rounded-none border border-black bg-white shadow-[4px_4px_0_0_rgba(120,40,200,0.3)]",
+                        }}
+                    >
+                        <div className="w-12 h-12 flex items-center justify-center border-2 border-black bg-white text-black hover:bg-retro-accent1 cursor-help transition-colors active:translate-x-0.5 active:translate-y-0.5 active:shadow-none flex-none">
+                            <HelpCircle size={24} strokeWidth={2.5} />
+                        </div>
+                    </Tooltip>
                 </NavbarContent>
             </Navbar>
 
             <main className="max-w-6xl mx-auto px-6 pt-32">
-                {/* Filters */}
                 <div className="mb-10 bg-white border-2 border-black p-6 shadow-[6px_6px_0_0_rgba(0,0,0,0.1)]">
                     <div className="flex items-center gap-3 mb-6">
                         <Filter size={20} className="text-retro-secondary" />
@@ -1061,158 +563,711 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Search Report Box */}
                 {searchResult && (
                     <div className="mb-12 space-y-8">
-                        <div className="bg-white border-2 border-black p-8 shadow-[8px_8px_0_0_rgba(0,0,0,0.1)] relative overflow-hidden">
-                            <div className="absolute top-0 right-0 px-6 py-1.5 bg-black text-white text-xs font-black italic tracking-widest uppercase">
-                                Search Status
-                            </div>
-                            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-                                <div>
-                                    <p className="text-xs font-black text-black/40 uppercase tracking-widest mb-2">
-                                        Current Keyword
-                                    </p>
-                                    <div className="flex items-center gap-4">
-                                        <span className="text-4xl font-black italic text-black uppercase tracking-tighter">
-                                            {searchResult.prefix
-                                                ? `${searchResult.prefix}:`
-                                                : ""}
-                                            {searchResult.keyword}
-                                        </span>
-                                        <Chip className="bg-black text-white border-2 border-black rounded-none font-black text-xs py-1 px-3">
-                                            {searchResult.total_subjects}{" "}
-                                            SUBJECTS MATCHED
-                                        </Chip>
+                        {isConsolidatedView ? (
+                            /* Consolidated Search Result (Student, Teacher, Logical) */
+                            <div className="bg-white border border-black shadow-[10px_10px_0_0_rgba(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-black">
+                                {/* Left Side: Primary Entity or Logical Query */}
+                                <div
+                                    className={`p-8 md:w-1/2 flex flex-col justify-center relative ${
+                                        searchMode === "student"
+                                            ? ""
+                                            : searchMode === "teacher"
+                                              ? "bg-retro-secondary/5"
+                                              : "bg-retro-accent1/5"
+                                    }`}
+                                    style={
+                                        searchMode === "student" &&
+                                        searchResult.entities[0]
+                                            ? {
+                                                  backgroundColor: `${getStudentColor(searchResult.entities[0].id)}15`,
+                                              }
+                                            : {}
+                                    }
+                                >
+                                    <div className="absolute top-0 left-0 px-6 py-1.5 bg-black text-white text-[10px] font-black italic tracking-widest uppercase">
+                                        {searchMode === "student"
+                                            ? "Student Profile"
+                                            : searchMode === "teacher"
+                                              ? "Teacher Profile"
+                                              : "Logical Search"}
                                     </div>
-                                </div>
-                                <div className="flex gap-10 border-t-2 md:border-t-0 md:border-l-2 border-black/10 pt-6 md:pt-0 md:pl-10">
-                                    <div>
-                                        <p className="text-xs font-black text-black/40 uppercase tracking-widest mb-1">
-                                            Identified
-                                        </p>
-                                        <p className="text-xl font-black text-black">
-                                            {searchResult.entities.length}{" "}
-                                            People Found
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-black text-black/40 uppercase tracking-widest mb-1">
-                                            Match Scope
-                                        </p>
-                                        <p className="text-xl font-black text-black">
-                                            {searchResult.total_sections}{" "}
-                                            Sections
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Entity Profiles (Book Style) */}
-                        {searchResult.entities.length > 0 && (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                {searchResult.entities.map((entity, idx) => {
-                                    const entityColor =
-                                        entity.type === "student"
-                                            ? getStudentColor(entity.id)
-                                            : "#7828c8";
-                                    return (
-                                        <div
-                                            key={idx}
-                                            className="bg-white border-2 border-black shadow-[8px_8px_0_0_rgba(0,0,0,0.1)] flex divide-x-2 divide-black overflow-hidden cursor-pointer hover:-translate-y-1.5 transition-transform group"
-                                            onClick={() =>
-                                                handleSearchSelect(
-                                                    entity.type === "student"
-                                                        ? entity.id
-                                                        : entity.name,
-                                                    entity.type === "teacher",
-                                                )
-                                            }
-                                        >
-                                            {/* Profile Page */}
-                                            <div
-                                                className="p-6 min-w-40 flex flex-col justify-center relative"
-                                                style={{
-                                                    backgroundColor: `${entityColor}15`,
-                                                }}
-                                            >
-                                                <span
-                                                    className={`absolute top-3 left-3 px-3 py-1 text-[10px] font-black uppercase border border-black/20 ${entity.type === "student" ? "bg-white text-black" : "bg-retro-secondary text-white border-none"}`}
-                                                >
-                                                    {entity.type}
-                                                </span>
-                                                <p className="text-[10px] font-black text-black/30 uppercase tracking-tighter mt-4 mb-1">
-                                                    {entity.type === "student"
-                                                        ? "Student ID"
-                                                        : "Position"}
+                                    <div className="mt-4">
+                                        {searchMode !== "general" &&
+                                        searchResult.entities[0] ? (
+                                            <>
+                                                <p className="text-[10px] font-black text-black/30 uppercase tracking-tighter mb-1">
+                                                    {searchMode === "student"
+                                                        ? `Student ID: ${searchResult.entities[0].id}`
+                                                        : "Position: Faculty"}
                                                 </p>
-                                                <p className="text-sm font-black text-black mb-3">
-                                                    {entity.id}
-                                                </p>
-                                                <p
-                                                    className="text-3xl font-black italic tracking-tighter group-hover:scale-105 transition-transform"
+                                                <h2
+                                                    className="text-5xl font-black italic tracking-tighter"
                                                     style={{
-                                                        color: entityColor,
+                                                        color:
+                                                            searchMode ===
+                                                            "student"
+                                                                ? getStudentColor(
+                                                                      searchResult
+                                                                          .entities[0]
+                                                                          .id,
+                                                                  )
+                                                                : "#7828c8",
                                                     }}
                                                 >
-                                                    {entity.name}
+                                                    {
+                                                        searchResult.entities[0]
+                                                            .name
+                                                    }
+                                                </h2>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p className="text-[10px] font-black text-black/30 uppercase tracking-tighter mb-1">
+                                                    Active Query
                                                 </p>
+                                                <h2 className="text-4xl font-black italic tracking-tighter text-black uppercase break-all">
+                                                    {searchResult.prefix
+                                                        ? `${searchResult.prefix}:`
+                                                        : ""}
+                                                    {searchResult.keyword}
+                                                </h2>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* Logical Search Entity List (Compact) */}
+                                    {isLogicalSearch &&
+                                        searchResult.entities.length > 0 && (
+                                            <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2.5">
+                                                {searchResult.entities.map(
+                                                    (entity, i) => {
+                                                        const color =
+                                                            entity.type ===
+                                                            "student"
+                                                                ? getStudentColor(
+                                                                      entity.id,
+                                                                  )
+                                                                : "#7828c8";
+                                                        const entityKey = `logical-${entity.id}-${entity.name}-${i}`;
+
+                                                        if (
+                                                            entity.type ===
+                                                            "teacher"
+                                                        ) {
+                                                            return (
+                                                                <Tooltip
+                                                                    key={i}
+                                                                    isOpen={
+                                                                        isModifierPressed &&
+                                                                        hoveredEntityId ===
+                                                                            entityKey
+                                                                    }
+                                                                    placement="top"
+                                                                    offset={15}
+                                                                    delay={0}
+                                                                    closeDelay={
+                                                                        0
+                                                                    }
+                                                                    motionProps={
+                                                                        tooltipMotionProps
+                                                                    }
+                                                                    classNames={{
+                                                                        base: "!transition-none",
+                                                                        content:
+                                                                            "p-0 rounded-none border border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
+                                                                    }}
+                                                                    content={
+                                                                        <div className="flex divide-x-2 divide-black min-w-[320px] max-w-112.5 text-left">
+                                                                            <div className="p-4 bg-retro-secondary/10 flex flex-col justify-center min-w-30">
+                                                                                <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
+                                                                                    Teacher
+                                                                                </p>
+                                                                                <p className="text-xl font-black text-retro-secondary italic tracking-tight">
+                                                                                    {
+                                                                                        entity.name
+                                                                                    }
+                                                                                </p>
+                                                                            </div>
+                                                                            <div className="p-4 flex-1 bg-white">
+                                                                                <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                                                    <BookOpen
+                                                                                        size={
+                                                                                            12
+                                                                                        }
+                                                                                    />{" "}
+                                                                                    Assigned
+                                                                                    Classes
+                                                                                </p>
+                                                                                <div className="space-y-1.5">
+                                                                                    {entity.subjects
+                                                                                        .slice(
+                                                                                            0,
+                                                                                            5,
+                                                                                        )
+                                                                                        .map(
+                                                                                            (
+                                                                                                sub,
+                                                                                                idx,
+                                                                                            ) => (
+                                                                                                <div
+                                                                                                    key={
+                                                                                                        idx
+                                                                                                    }
+                                                                                                    className="text-[10px] font-bold text-black border-l-2 border-retro-secondary pl-1.5"
+                                                                                                >
+                                                                                                    {
+                                                                                                        sub
+                                                                                                    }
+                                                                                                </div>
+                                                                                            ),
+                                                                                        )}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    }
+                                                                >
+                                                                    <div
+                                                                        className="student-badge cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200"
+                                                                        style={{
+                                                                            borderColor:
+                                                                                "#7828c8",
+                                                                            backgroundColor:
+                                                                                "#7828c820",
+                                                                            color: "#7828c8",
+                                                                        }}
+                                                                        onMouseEnter={() =>
+                                                                            setHoveredEntityId(
+                                                                                entityKey,
+                                                                            )
+                                                                        }
+                                                                        onMouseLeave={() =>
+                                                                            setHoveredEntityId(
+                                                                                null,
+                                                                            )
+                                                                        }
+                                                                        onClick={() =>
+                                                                            handleSearchToggle(
+                                                                                entity.name,
+                                                                                true,
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            entity.name
+                                                                        }{" "}
+                                                                        T
+                                                                    </div>
+                                                                </Tooltip>
+                                                            );
+                                                        }
+
+                                                        // Student Badge (Existing Style)
+                                                        return (
+                                                            <Tooltip
+                                                                key={i}
+                                                                isOpen={
+                                                                    isModifierPressed &&
+                                                                    hoveredEntityId ===
+                                                                        entityKey
+                                                                }
+                                                                placement="top"
+                                                                offset={15}
+                                                                delay={0}
+                                                                closeDelay={0}
+                                                                motionProps={
+                                                                    tooltipMotionProps
+                                                                }
+                                                                classNames={{
+                                                                    base: "!transition-none",
+                                                                    content:
+                                                                        "p-0 rounded-none border border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
+                                                                }}
+                                                                content={
+                                                                    <div className="flex divide-x-2 divide-black min-w-[320px] max-w-112.5 text-left">
+                                                                        <div
+                                                                            className="p-4 flex flex-col justify-center min-w-30"
+                                                                            style={{
+                                                                                backgroundColor: `${color}26`,
+                                                                            }}
+                                                                        >
+                                                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
+                                                                                Student
+                                                                                ID
+                                                                            </p>
+                                                                            <p className="text-xs font-black text-black leading-none mb-3">
+                                                                                {
+                                                                                    entity.id
+                                                                                }
+                                                                            </p>
+                                                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
+                                                                                Name
+                                                                            </p>
+                                                                            <p
+                                                                                className="text-xl font-black italic tracking-tight"
+                                                                                style={{
+                                                                                    color: color,
+                                                                                }}
+                                                                            >
+                                                                                {
+                                                                                    entity.name
+                                                                                }
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="p-4 flex-1 bg-white">
+                                                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                                                <BookOpen
+                                                                                    size={
+                                                                                        12
+                                                                                    }
+                                                                                />{" "}
+                                                                                Enrolled
+                                                                                Classes
+                                                                            </p>
+                                                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                                                                                {entity.subjects
+                                                                                    .slice(
+                                                                                        0,
+                                                                                        8,
+                                                                                    )
+                                                                                    .map(
+                                                                                        (
+                                                                                            sub,
+                                                                                            idx,
+                                                                                        ) => (
+                                                                                            <div
+                                                                                                key={
+                                                                                                    idx
+                                                                                                }
+                                                                                                className="text-[10px] font-bold text-black border-l-2 pl-1.5 truncate"
+                                                                                                style={{
+                                                                                                    borderColor:
+                                                                                                        color,
+                                                                                                }}
+                                                                                            >
+                                                                                                {
+                                                                                                    sub.split(
+                                                                                                        "(",
+                                                                                                    )[0]
+                                                                                                }
+                                                                                            </div>
+                                                                                        ),
+                                                                                    )}
+                                                                                {entity
+                                                                                    .subjects
+                                                                                    .length >
+                                                                                    8 && (
+                                                                                    <p className="text-[9px] font-black text-black/30 pl-1.5">
+                                                                                        +{" "}
+                                                                                        {entity
+                                                                                            .subjects
+                                                                                            .length -
+                                                                                            8}{" "}
+                                                                                        more
+                                                                                    </p>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                }
+                                                            >
+                                                                <div
+                                                                    className="student-badge cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200"
+                                                                    style={{
+                                                                        borderColor:
+                                                                            color,
+                                                                        backgroundColor: `${color}20`,
+                                                                        color: color,
+                                                                    }}
+                                                                    onMouseEnter={() =>
+                                                                        setHoveredEntityId(
+                                                                            entityKey,
+                                                                        )
+                                                                    }
+                                                                    onMouseLeave={() =>
+                                                                        setHoveredEntityId(
+                                                                            null,
+                                                                        )
+                                                                    }
+                                                                    onClick={() =>
+                                                                        handleSearchToggle(
+                                                                            entity.id,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    {
+                                                                        entity.id.split(
+                                                                            "-",
+                                                                        )[0]
+                                                                    }{" "}
+                                                                    {
+                                                                        entity.name
+                                                                    }
+                                                                </div>
+                                                            </Tooltip>
+                                                        );
+                                                    },
+                                                )}
                                             </div>
-                                            {/* Classes Page */}
-                                            <div className="p-6 flex-1 bg-white overflow-hidden">
-                                                <p className="text-[10px] font-black text-black/30 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                    <BookOpen size={14} />{" "}
-                                                    {entity.type === "student"
-                                                        ? "Enrollment"
-                                                        : "Teaching"}{" "}
-                                                    ({entity.subject_count})
-                                                </p>
-                                                <div
-                                                    className={`grid ${searchResult.entities.length === 1 ? "grid-cols-2 gap-x-6 gap-y-2" : "grid-cols-1 gap-2"}`}
-                                                >
-                                                    {(searchResult.entities
-                                                        .length === 1
-                                                        ? entity.subjects
-                                                        : entity.subjects.slice(
-                                                              0,
-                                                              4,
-                                                          )
-                                                    ).map((sub, i) => (
-                                                        <div
-                                                            key={i}
-                                                            className="text-xs font-bold text-black border-l-2 pl-3 truncate"
-                                                            style={{
-                                                                borderColor:
-                                                                    entityColor,
-                                                            }}
-                                                        >
-                                                            {sub.split("(")[0]}
-                                                        </div>
-                                                    ))}
-                                                    {searchResult.entities
-                                                        .length > 1 &&
-                                                        entity.subjects.length >
-                                                            4 && (
-                                                            <p className="text-[10px] font-black text-black/30 pl-3 pt-1">
-                                                                +{" "}
-                                                                {entity.subjects
-                                                                    .length -
-                                                                    4}{" "}
-                                                                MORE CLASSES
-                                                            </p>
-                                                        )}
-                                                </div>
+                                        )}
+                                </div>
+
+                                {/* Right Side: Search Stats & Overview */}
+                                <div className="p-8 md:w-1/2 bg-white flex flex-col justify-center">
+                                    <div className="grid grid-cols-2 gap-8">
+                                        <div>
+                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-1.5">
+                                                Matched Subjects
+                                            </p>
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-4xl font-black text-black tracking-tighter">
+                                                    {
+                                                        searchResult.total_subjects
+                                                    }
+                                                </span>
+                                                <span className="text-[10px] font-black text-black/30 uppercase">
+                                                    Items
+                                                </span>
                                             </div>
                                         </div>
-                                    );
-                                })}
+                                        <div>
+                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-1.5">
+                                                Total Sections
+                                            </p>
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-4xl font-black text-black tracking-tighter">
+                                                    {
+                                                        searchResult.total_sections
+                                                    }
+                                                </span>
+                                                <span className="text-[10px] font-black text-black/30 uppercase">
+                                                    Classes
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Summary or mini-list of subjects if single person */}
+                                    {searchMode !== "general" &&
+                                    searchResult.entities[0] ? (
+                                        <div className="mt-8 pt-6 border-t border-black/5">
+                                            <p className="text-[10px] font-black text-black/30 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                <BookOpen size={14} /> Total{" "}
+                                                {searchMode === "student"
+                                                    ? "Enrollment"
+                                                    : "Teaching"}{" "}
+                                                (
+                                                {
+                                                    searchResult.entities[0]
+                                                        .subject_count
+                                                }
+                                                )
+                                            </p>
+                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                                                {searchResult.entities[0].subjects
+                                                    .slice(0, 6)
+                                                    .map((sub, i) => (
+                                                        <div
+                                                            key={i}
+                                                            className="text-[10px] font-bold text-black border-l-2 border-black/20 pl-2 truncate"
+                                                        >
+                                                            {searchMode ===
+                                                            "teacher"
+                                                                ? (() => {
+                                                                      const match =
+                                                                          sub.match(
+                                                                              /^(.*)\(([^)]+)\)$/,
+                                                                          );
+                                                                      if (
+                                                                          match
+                                                                      ) {
+                                                                          const name =
+                                                                              match[1]
+                                                                                  .split(
+                                                                                      "(",
+                                                                                  )[0]
+                                                                                  .trim();
+                                                                          const sections =
+                                                                              match[2];
+                                                                          return `${name}(${sections})`;
+                                                                      }
+                                                                      return sub;
+                                                                  })()
+                                                                : sub.split(
+                                                                      "(",
+                                                                  )[0]}
+                                                        </div>
+                                                    ))}
+                                                {searchResult.entities[0]
+                                                    .subjects.length > 6 && (
+                                                    <p className="text-[9px] font-black text-black/30 pl-2">
+                                                        +{" "}
+                                                        {searchResult
+                                                            .entities[0]
+                                                            .subjects.length -
+                                                            6}{" "}
+                                                        More...
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-8 bg-retro-bg/30 p-4 border border-black/10">
+                                            <p className="text-xs font-bold leading-tight text-black/50 italic">
+                                                {isLogicalSearch
+                                                    ? "논리 연산이 적용된 결과입니다. 매칭되는 상세 분반 리스트는 아래 아코디언에서 확인하세요."
+                                                    : "검색 결과에 대한 요약 통계입니다."}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
+                        ) : (
+                            /* Standard Search Result (General) */
+                            <>
+                                <div className="bg-white border border-black p-8 shadow-[8px_8px_0_0_rgba(0,0,0,0.1)] relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 px-6 py-1.5 bg-black text-white text-xs font-black italic tracking-widest uppercase">
+                                        Search Status
+                                    </div>
+                                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+                                        <div>
+                                            <p className="text-xs font-black text-black/40 uppercase tracking-widest mb-2">
+                                                Current Keyword
+                                            </p>
+                                            <div className="flex items-center gap-4">
+                                                <span className="text-4xl font-black italic text-black uppercase tracking-tighter">
+                                                    {searchResult.prefix
+                                                        ? `${searchResult.prefix}:`
+                                                        : ""}
+                                                    {searchResult.keyword}
+                                                </span>
+                                                <Chip className="bg-black text-white border border-black rounded-none font-black text-xs py-1 px-3">
+                                                    {
+                                                        searchResult.total_subjects
+                                                    }{" "}
+                                                    SUBJECTS MATCHED
+                                                </Chip>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-10 border-t-2 md:border-t-0 md:border-l-2 border-black/10 pt-6 md:pt-0 md:pl-10">
+                                            <div>
+                                                <p className="text-xs font-black text-black/40 uppercase tracking-widest mb-1">
+                                                    Identified
+                                                </p>
+                                                <p className="text-xl font-black text-black">
+                                                    {(() => {
+                                                        const sCount =
+                                                            searchResult.entities.filter(
+                                                                (e) =>
+                                                                    e.type ===
+                                                                    "student",
+                                                            ).length;
+                                                        const tCount =
+                                                            searchResult.entities.filter(
+                                                                (e) =>
+                                                                    e.type ===
+                                                                    "teacher",
+                                                            ).length;
+                                                        const parts = [];
+                                                        if (sCount > 0)
+                                                            parts.push(
+                                                                `${sCount} Student${sCount > 1 ? "s" : ""}`,
+                                                            );
+                                                        if (tCount > 0)
+                                                            parts.push(
+                                                                `${tCount} Teacher${tCount > 1 ? "s" : ""}`,
+                                                            );
+                                                        return parts.length > 0
+                                                            ? parts.join(
+                                                                  " & ",
+                                                              ) + " Matched"
+                                                            : "No People Matched";
+                                                    })()}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-black text-black/40 uppercase tracking-widest mb-1">
+                                                    Match Scope
+                                                </p>
+                                                <p className="text-xl font-black text-black">
+                                                    {
+                                                        searchResult.total_sections
+                                                    }{" "}
+                                                    Sections
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {searchResult.entities.length > 0 && (
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                        {searchResult.entities.map(
+                                            (entity, idx) => {
+                                                const entityColor =
+                                                    entity.type === "student"
+                                                        ? getStudentColor(
+                                                              entity.id,
+                                                          )
+                                                        : "#7828c8";
+
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        className="bg-white border border-black shadow-[8px_8px_0_0_rgba(0,0,0,0.1)] flex divide-x divide-black overflow-hidden cursor-pointer hover:-translate-y-1.5 transition-transform group"
+                                                        onClick={() =>
+                                                            handleSearchSelect(
+                                                                entity.type ===
+                                                                    "student"
+                                                                    ? entity.id
+                                                                    : entity.name,
+                                                                entity.type ===
+                                                                    "teacher",
+                                                            )
+                                                        }
+                                                    >
+                                                        {/* Profile Page (Left) */}
+                                                        <div
+                                                            className="p-6 min-w-44 flex flex-col justify-center relative"
+                                                            style={{
+                                                                backgroundColor: `${entityColor}15`,
+                                                            }}
+                                                        >
+                                                            <span
+                                                                className={`absolute top-3 left-3 px-3 py-1 text-[10px] font-black uppercase border border-black/20 ${entity.type === "student" ? "bg-white text-black" : "bg-retro-secondary text-white border-none"}`}
+                                                            >
+                                                                {entity.type}
+                                                            </span>
+                                                            <p className="text-[10px] font-black text-black/30 uppercase tracking-tighter mt-4 mb-1">
+                                                                {entity.type ===
+                                                                "student"
+                                                                    ? "Student ID"
+                                                                    : "Position"}
+                                                            </p>
+                                                            <p className="text-sm font-black text-black mb-3">
+                                                                {entity.id}
+                                                            </p>
+                                                            <p
+                                                                className="text-3xl font-black italic tracking-tighter group-hover:scale-105 transition-transform"
+                                                                style={{
+                                                                    color: entityColor,
+                                                                }}
+                                                            >
+                                                                {entity.name}
+                                                            </p>
+                                                        </div>
+
+                                                        {/* Classes Page (Right) */}
+                                                        <div className="p-6 flex-1 bg-white overflow-hidden">
+                                                            <p className="text-[10px] font-black text-black/30 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                                <BookOpen
+                                                                    size={14}
+                                                                />{" "}
+                                                                {entity.type ===
+                                                                "student"
+                                                                    ? "Enrollment"
+                                                                    : "Teaching"}{" "}
+                                                                (
+                                                                {
+                                                                    entity.subject_count
+                                                                }
+                                                                )
+                                                            </p>
+                                                            <div
+                                                                className={`grid ${
+                                                                    searchResult
+                                                                        .entities
+                                                                        .length ===
+                                                                    1
+                                                                        ? "grid-cols-2 gap-x-6 gap-y-2"
+                                                                        : "grid-cols-1 gap-2"
+                                                                }`}
+                                                            >
+                                                                {(searchResult
+                                                                    .entities
+                                                                    .length ===
+                                                                1
+                                                                    ? entity.subjects
+                                                                    : entity.subjects.slice(
+                                                                          0,
+                                                                          4,
+                                                                      )
+                                                                ).map(
+                                                                    (
+                                                                        sub,
+                                                                        i,
+                                                                    ) => (
+                                                                        <div
+                                                                            key={
+                                                                                i
+                                                                            }
+                                                                            className="text-xs font-bold text-black border-l-2 pl-3 truncate"
+                                                                            style={{
+                                                                                borderColor:
+                                                                                    entityColor,
+                                                                            }}
+                                                                        >
+                                                                            {entity.type ===
+                                                                            "teacher"
+                                                                                ? (() => {
+                                                                                      const match =
+                                                                                          sub.match(
+                                                                                              /^(.*)\(([^)]+)\)$/,
+                                                                                          );
+                                                                                      if (
+                                                                                          match
+                                                                                      ) {
+                                                                                          const name =
+                                                                                              match[1]
+                                                                                                  .split(
+                                                                                                      "(",
+                                                                                                  )[0]
+                                                                                                  .trim();
+                                                                                          const sections =
+                                                                                              match[2];
+                                                                                          return `${name}(${sections})`;
+                                                                                      }
+                                                                                      return sub;
+                                                                                  })()
+                                                                                : sub.split(
+                                                                                      "(",
+                                                                                  )[0]}
+                                                                        </div>
+                                                                    ),
+                                                                )}
+                                                                {searchResult
+                                                                    .entities
+                                                                    .length >
+                                                                    1 &&
+                                                                    entity
+                                                                        .subjects
+                                                                        .length >
+                                                                        4 && (
+                                                                        <p className="text-[10px] font-black text-black/30 pl-3 pt-1">
+                                                                            +{" "}
+                                                                            {entity
+                                                                                .subjects
+                                                                                .length -
+                                                                                4}{" "}
+                                                                            MORE
+                                                                            CLASSES
+                                                                        </p>
+                                                                    )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            },
+                                        )}
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 )}
 
-                {/* Stats Summary */}
                 {stats && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
                         {[
@@ -1284,6 +1339,7 @@ const App: React.FC = () => {
                                       isModifierPressed={isModifierPressed}
                                       hasStudentInSearch={hasStudentInSearch}
                                       selectedYears={selectedYears}
+                                      searchMode={searchMode}
                                       isOpen={expandedSubjects.includes(
                                           subject.subject,
                                       )}
@@ -1291,7 +1347,7 @@ const App: React.FC = () => {
                                           toggleSubject(subject.subject)
                                       }
                                       isSingleStudentSearch={
-                                          hasStudentInSearch &&
+                                          searchMode === "student" &&
                                           searchResult?.entities.length === 1
                                       }
                                   />

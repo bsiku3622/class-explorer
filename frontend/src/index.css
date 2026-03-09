@@ -30,7 +30,7 @@ body {
 
 /* Override HeroUI default rounded corners to be sharp/retro */
 [data-slot="base"], [data-slot="trigger"], [data-slot="content"], [data-slot="input-wrapper"] {
-  @apply rounded-none! border-2!;
+  @apply rounded-none! border!;
 }
 
 /* Re-enable transitions for a smoother feel - DELETED per safe practice */

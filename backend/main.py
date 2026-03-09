@@ -21,444 +21,245 @@ def get_section_num(section_str):
     match = re.search(r'(\d+)', section_str)
     return int(match.group(1)) if match else 0
 
-@app.get("/student/{student_id}")
-async def get_student_classes(student_id: str, db: Session = Depends(get_db)):
+def evaluate_bool_expression(expression, pool):
     """
-    특정 학생의 수강 정보를 과목별 계층 구조로 반환합니다.
+    Evaluates boolean logic (+, &&, &, ()) against a pool of lowercase strings.
+    Operator priority: && > & > +
+    Note: Both && and & are treated as 'and' here, but the calling logic 
+    differentiates their behavior by how it calls this function.
     """
-    student = db.query(models.Student).filter(models.Student.stuId == student_id).first()
-    if not student:
-        return {"stuId": student_id, "name": "Unknown", "total_subjects": 0, "data": []}
-
-    enrollments = student.enrollments
+    normalized_pool = [str(p).lower() for p in pool]
     
-    grouped = {}
-    for e in enrollments:
-        cls = e.class_info
-        if cls.subject not in grouped:
-            grouped[cls.subject] = []
-        grouped[cls.subject].append({
-            "id": cls.id,
-            "section": cls.section,
-            "teacher": cls.teacher,
-            "room": cls.room
-        })
-
-    final_data = []
-    for subject in sorted(grouped.keys()):
-        sections = grouped[subject]
-        sections.sort(key=lambda s: get_section_num(s["section"]))
-        final_data.append({
-            "subject": subject,
-            "section_count": len(sections),
-            "sections": sections
-        })
-
-    return {
-        "stuId": student_id,
-        "name": student.name,
-        "total_subjects": len(final_data),
-        "total_sections": len(enrollments),
-        "data": final_data
-    }
+    # 1. 전처리: 괄호와 연산자 주변 공백 확보 및 표준화
+    expr = expression.replace('(', ' ( ').replace(')', ' ) ')
+    expr = expr.replace('&&', ' and ').replace('&', ' and ').replace('+', ' or ')
+    
+    # 2. 토큰화 및 평가
+    tokens = re.findall(r'\(|\)|\band\b|\bor\b|[^\s\(\)+&]+', expr)
+    
+    processed_tokens = []
+    for token in tokens:
+        token = token.strip()
+        if not token: continue
+        if token in ('(', ')', 'and', 'or'):
+            processed_tokens.append(token)
+        else:
+            term = token.lower()
+            match_found = any(term in item for item in normalized_pool)
+            processed_tokens.append('True' if match_found else 'False')
+    
+    py_expr = ' '.join(processed_tokens)
+    try:
+        return eval(py_expr, {"__builtins__": None}, {})
+    except Exception:
+        return False
 
 @app.get("/student/{student_query}")
 async def get_student_classes(student_query: str, db: Session = Depends(get_db)):
-    """
-    학번 혹은 이름으로 특정 학생을 찾아 그 학생의 수강 정보를 반환합니다.
-    """
-    # 1. 먼저 학번으로 정확히 일치하는지 확인
     student = db.query(models.Student).filter(models.Student.stuId == student_query).first()
-    
-    # 2. 없다면 이름으로 검색 (가장 먼저 나오는 학생 1명 기준)
     if not student:
-        student = db.query(models.Student).filter(models.Student.name == student_query).first()
-    
-    if not student:
-        return {
-            "keyword": student_query,
-            "prefix": "student",
-            "total_subjects": 0,
-            "data": []
-        }
+        return {"keyword": student_query, "prefix": "student", "total_subjects": 0, "total_sections": 0, "data": []}
 
     enrollments = student.enrollments
-    
     grouped = {}
     for e in enrollments:
         cls = e.class_info
-        if cls.subject not in grouped:
-            grouped[cls.subject] = []
-        
-        # 전체 수강생 정보 포함 (아코디언용)
+        if cls.subject not in grouped: grouped[cls.subject] = []
         students = [{"stuId": en.student.stuId, "name": en.student.name} for en in cls.enrollments]
         students.sort(key=lambda x: x["stuId"])
-
         grouped[cls.subject].append({
-            "id": cls.id,
-            "section": cls.section,
-            "teacher": cls.teacher,
-            "room": cls.room,
-            "students": students,
-            "student_count": len(students)
+            "id": cls.id, "section": cls.section, "teacher": cls.teacher, "room": cls.room,
+            "students": students, "student_count": len(students)
         })
 
     final_data = []
     for subject in sorted(grouped.keys()):
         sections = grouped[subject]
         sections.sort(key=lambda s: get_section_num(s["section"]))
-        
-        # 해당 학생이 듣는 과목 내 전체 학생 수 (아코디언용)
-        subject_students_ids = set()
-        for s in sections:
-            for stu in s["students"]:
-                subject_students_ids.add(stu["stuId"])
-
+        sub_students = set(stu["stuId"] for s in sections for stu in s["students"])
         final_data.append({
-            "subject": subject,
-            "subject_student_count": len(subject_students_ids),
-            "section_count": len(sections),
-            "sections": sections
+            "subject": subject, "subject_student_count": len(sub_students),
+            "section_count": len(sections), "sections": sections
         })
 
     return {
-        "keyword": student_query,
-        "prefix": "student",
-        "stuId": student.stuId,
-        "name": student.name,
-        "total_subjects": len(final_data),
-        "total_sections": len(enrollments),
-        "data": final_data
+        "keyword": student_query, "prefix": "student", "stuId": student.stuId, "name": student.name,
+        "total_subjects": len(final_data), "total_sections": len(enrollments), "data": final_data
     }
 
 @app.get("/teacher/{name}")
 async def get_teacher_classes(name: str, db: Session = Depends(get_db)):
-    """
-    특정 선생님이 담당하는 모든 과목과 분반을 반환합니다.
-    """
     matching_classes = db.query(models.Class).filter(models.Class.teacher == name).all()
-    
     grouped = {}
     for cls in matching_classes:
-        if cls.subject not in grouped:
-            grouped[cls.subject] = []
-        
+        if cls.subject not in grouped: grouped[cls.subject] = []
         students = [{"stuId": e.student.stuId, "name": e.student.name} for e in cls.enrollments]
         students.sort(key=lambda x: x["stuId"])
-        
         grouped[cls.subject].append({
-            "id": cls.id,
-            "section": cls.section,
-            "teacher": cls.teacher,
-            "room": cls.room,
-            "students": students,
-            "student_count": len(students)
+            "id": cls.id, "section": cls.section, "teacher": cls.teacher, "room": cls.room,
+            "students": students, "student_count": len(students)
         })
-    
     final_data = []
     for subject in sorted(grouped.keys()):
         sections = grouped[subject]
         sections.sort(key=lambda s: get_section_num(s["section"]))
-        
-        subject_students_ids = set()
-        for s in sections:
-            for stu in s["students"]:
-                subject_students_ids.add(stu["stuId"])
-            
+        sub_students = set(stu["stuId"] for s in sections for stu in s["students"])
         final_data.append({
-            "subject": subject,
-            "subject_student_count": len(subject_students_ids),
-            "section_count": len(sections),
-            "sections": sections
+            "subject": subject, "subject_student_count": len(sub_students),
+            "section_count": len(sections), "sections": sections
         })
-    
     return {
-        "keyword": name,
-        "prefix": "teacher",
-        "total_subjects": len(final_data),
-        "total_sections": len(matching_classes),
-        "data": final_data
+        "keyword": name, "prefix": "teacher", "total_subjects": len(final_data),
+        "total_sections": len(matching_classes), "data": final_data
     }
 
-@app.get("/search/{keyword}")
+@app.get("/search/{keyword:path}")
 async def search_classes(keyword: str, db: Session = Depends(get_db)):
-    """
-    통합 검색 결과를 반환하며, '+', '&' 연산자를 지원합니다.
-    논리 구조: (A & B) + (C & D) -> A와 B를 모두 만족하거나, C와 D를 모두 만족하는 클래스 검색
-    """
-    # 1. 논리 구조 파싱: OR 그룹(+) 내부에 AND 그룹(&) 존재
-    or_groups = [g.strip() for g in keyword.split("+") if g.strip()]
-    parsed_query = []
-    for group in or_groups:
-        and_terms = [t.strip() for t in group.split("&") if t.strip()]
-        if and_terms:
-            parsed_query.append(and_terms)
+    # / 구분자 처리
+    if "/" in keyword:
+        parts = keyword.split("/", 1)
+        subject_expr = parts[0].strip()
+        person_expr = parts[1].strip()
+    else:
+        subject_expr = keyword.strip()
+        person_expr = None
 
-    if not parsed_query:
-        return {"keyword": keyword, "entities": [], "total_subjects": 0, "total_sections": 0, "data": []}
-
-    # 모든 클래스 정보를 가져와서 메모리에서 필터링 (데이터 규모가 작으므로 효율적)
     all_classes = db.query(models.Class).all()
-    matching_classes = []
-
+    subject_map = {}
     for cls in all_classes:
-        # 해당 클래스의 모든 텍스트 정보 수집 (과목, 분반, 교사, 강의실, 학생들)
-        class_students = [e.student for e in cls.enrollments]
-        student_texts = []
-        for s in class_students:
-            student_texts.append(s.stuId.lower())
-            student_texts.append(s.name.lower())
-        
-        class_pool = [
-            cls.subject.lower(),
-            cls.section.lower(),
-            cls.teacher.lower(),
-            cls.room.lower()
-        ] + student_texts
+        if cls.subject not in subject_map: subject_map[cls.subject] = []
+        subject_map[cls.subject].append(cls)
 
-        # 논리 체크: ANY(OR 그룹) of ALL(AND 그룹)
-        match_found = False
-        for and_group in parsed_query:
-            if all(any(term.lower() in item for item in class_pool) for term in and_group):
-                match_found = True
-                break
-        
-        if match_found:
-            matching_classes.append(cls)
+    matching_classes = []
+    is_strict_mode = '&&' in keyword or person_expr is not None
+    is_logical = any(op in keyword for op in ['+', '&', '/', '('])
 
-    # 매칭된 클래스들을 기반으로 entities(프로필 카드) 추출
+    # 검색어 추출 (매칭 확인용)
+    match_terms_src = person_expr if person_expr else keyword
+    match_terms = re.findall(r'[^\+&/\(\)]+', match_terms_src)
+    flat_match_terms = [t.strip().lower() for t in match_terms if t.strip()]
+
+    for subject_name, sections in subject_map.items():
+        # 1. 과목 레벨 풀 구성
+        subject_level_person_pool = set()
+        for s in sections:
+            subject_level_person_pool.add(s.teacher)
+            for e in s.enrollments:
+                subject_level_person_pool.add(e.student.stuId)
+                subject_level_person_pool.add(e.student.name)
+        
+        # 2. 과목 레벨 매칭 체크
+        if person_expr:
+            p_match = evaluate_bool_expression(person_expr, list(subject_level_person_pool))
+            s_match = evaluate_bool_expression(subject_expr, [subject_name])
+            is_subject_match = s_match and p_match
+        else:
+            is_subject_match = evaluate_bool_expression(subject_expr, [subject_name] + list(subject_level_person_pool))
+
+        if not is_subject_match: continue
+
+        # 3. 분반 레벨 필터링
+        for cls in sections:
+            section_person_pool = [cls.teacher.lower()] + [e.student.stuId.lower() for e in cls.enrollments] + [e.student.name.lower() for e in cls.enrollments]
+            section_info_pool = [cls.subject.lower(), cls.section.lower(), cls.teacher.lower(), cls.room.lower()]
+            
+            if is_strict_mode:
+                # STRICT (&& 또는 /): 해당 분반이 논리식을 직접 만족해야 함
+                if person_expr:
+                    s_m = evaluate_bool_expression(subject_expr, section_info_pool)
+                    p_m = evaluate_bool_expression(person_expr, section_person_pool)
+                    if s_m and p_m: matching_classes.append(cls)
+                else:
+                    if evaluate_bool_expression(subject_expr, section_info_pool + section_person_pool):
+                        matching_classes.append(cls)
+            else:
+                # SOFT (& 또는 일반 논리): 과목은 통과했으니, 분반에 관련 인물이 한명이라도 있는지 확인
+                if is_logical:
+                    if any(any(term in p for p in section_person_pool) for term in flat_match_terms):
+                        matching_classes.append(cls)
+                else:
+                    # 완전 일반 검색: 모든 분반 포함
+                    matching_classes.append(cls)
+
+    # entities 추출
     entities = []
-    seen_entity_ids = set()
-    
-    # 검색어에 직접적으로 언급된 인물들 우선 추출
-    flat_terms = [term.lower() for group in parsed_query for term in group]
-    
-    # 1. 매칭된 클래스의 선생님들 중 검색어에 포함된 경우
+    seen_ids = set()
     for cls in matching_classes:
-        t_name = cls.teacher
-        if f"teacher_{t_name}" not in seen_entity_ids:
-            if any(term in t_name.lower() for term in flat_terms):
-                t_classes = db.query(models.Class).filter(models.Class.teacher == t_name).all()
+        if f"t_{cls.teacher}" not in seen_ids:
+            if any(t in cls.teacher.lower() for t in flat_match_terms):
+                t_classes = db.query(models.Class).filter(models.Class.teacher == cls.teacher).all()
                 t_subjects = {}
                 for c in t_classes:
                     if c.subject not in t_subjects: t_subjects[c.subject] = []
-                    section_num = re.sub(r'[^0-9]', '', c.section)
-                    t_subjects[c.subject].append(section_num)
-                
+                    t_subjects[c.subject].append(re.sub(r'[^0-9]', '', c.section))
                 entities.append({
-                    "type": "teacher",
-                    "name": t_name,
-                    "id": "Teacher",
-                    "subject_count": len(t_subjects),
+                    "type": "teacher", "name": cls.teacher, "id": "Teacher", "subject_count": len(t_subjects),
                     "subjects": [f"{s}({','.join(sorted(secs))})" for s, secs in t_subjects.items()]
                 })
-                seen_entity_ids.add(f"teacher_{t_name}")
-
-        # 2. 매칭된 클래스의 학생들 중 검색어에 포함된 경우
+                seen_ids.add(f"t_{cls.teacher}")
         for e in cls.enrollments:
-            student = e.student
-            if student.stuId not in seen_entity_ids:
-                if any(term in student.stuId.lower() or term in student.name.lower() for term in flat_terms):
-                    student_subjects = sorted(list(set(en.class_info.subject for en in student.enrollments)))
+            if e.student.stuId not in seen_ids:
+                if any(t in e.student.stuId.lower() or t in e.student.name.lower() for t in flat_match_terms):
+                    subjs = sorted(list(set(en.class_info.subject for en in e.student.enrollments)))
                     entities.append({
-                        "type": "student",
-                        "name": student.name,
-                        "id": student.stuId,
-                        "subject_count": len(student_subjects),
-                        "subjects": student_subjects
+                        "type": "student", "name": e.student.name, "id": e.student.stuId,
+                        "subject_count": len(subjs), "subjects": subjs
                     })
-                    seen_entity_ids.add(student.stuId)
+                    seen_ids.add(e.student.stuId)
 
-    # 최종 트리 구조 데이터 구성
+    # 최종 결과 구성
     grouped = {}
     for cls in matching_classes:
-        if cls.subject not in grouped:
-            grouped[cls.subject] = []
-        
-        students = [{"stuId": en.student.stuId, "name": en.student.name} for en in cls.enrollments]
-        students.sort(key=lambda x: x["stuId"])
-        
+        if cls.subject not in grouped: grouped[cls.subject] = []
+        stus = [{"stuId": en.student.stuId, "name": en.student.name} for en in cls.enrollments]
+        stus.sort(key=lambda x: x["stuId"])
         grouped[cls.subject].append({
-            "id": cls.id,
-            "section": cls.section,
-            "teacher": cls.teacher,
-            "room": cls.room,
-            "students": students,
-            "student_count": len(students)
+            "id": cls.id, "section": cls.section, "teacher": cls.teacher, "room": cls.room,
+            "students": stus, "student_count": len(stus)
         })
     
     final_data = []
-    for subject in sorted(grouped.keys()):
-        sections = grouped[subject]
-        sections.sort(key=lambda s: get_section_num(s["section"]))
-        
-        subject_students_ids = set()
-        for s in sections:
-            for stu in s["students"]:
-                subject_students_ids.add(stu["stuId"])
-            
-        final_data.append({
-            "subject": subject,
-            "subject_student_count": len(subject_students_ids),
-            "section_count": len(sections),
-            "sections": sections
-        })
+    for sub in sorted(grouped.keys()):
+        secs = grouped[sub]
+        secs.sort(key=lambda s: get_section_num(s["section"]))
+        sub_stus = set(stu["stuId"] for s in secs for stu in s["students"])
+        final_data.append({"subject": sub, "subject_student_count": len(sub_stus), "section_count": len(secs), "sections": secs})
     
-    return {
-        "keyword": keyword,
-        "entities": entities,
-        "total_subjects": len(final_data),
-        "total_sections": len(matching_classes),
-        "data": final_data
-    }
-
-@app.get("/class/{class_id}")
-async def get_class_detail(class_id: int, db: Session = Depends(get_db)):
-    """
-    특정 분반 상세 정보를 반환합니다.
-    """
-    cls = db.query(models.Class).filter(models.Class.id == class_id).first()
-    if not cls:
-        raise HTTPException(status_code=404, detail="해당 수업을 찾을 수 없습니다.")
-    
-    students = [{"stuId": e.student.stuId, "name": e.student.name} for e in cls.enrollments]
-    students.sort(key=lambda x: x["stuId"])
-    
-    return {
-        "subject": cls.subject,
-        "sections": [
-            {
-                "id": cls.id,
-                "section": cls.section,
-                "teacher": cls.teacher,
-                "room": cls.room,
-                "students": students,
-                "student_count": len(students)
-            }
-        ]
-    }
+    return {"keyword": keyword, "entities": entities, "total_subjects": len(final_data), "total_sections": len(matching_classes), "data": final_data}
 
 @app.get("/classes_info")
 async def get_classes_info(years: str = None, db: Session = Depends(get_db)):
-    """
-    전체 수업 데이터를 과목별 계층 구조로 반환합니다. 
-    years 파라미터가 있으면 해당 학번의 학생들만 포함하고, 해당 학생들이 듣는 수업만 반환합니다.
-    """
     selected_years = years.split(",") if years else []
-    
     all_classes = db.query(models.Class).all()
-    
     grouped = {}
-    total_sections_count = 0
-    
+    total_secs = 0
     for cls in all_classes:
-        # 분반의 모든 학생들
-        students_info = [{"stuId": e.student.stuId, "name": e.student.name} for e in cls.enrollments]
-        
-        # 학번 필터링 적용
+        stus = [{"stuId": e.student.stuId, "name": e.student.name} for e in cls.enrollments]
         if selected_years:
-            filtered_students = [s for s in students_info if s["stuId"].split("-")[0] in selected_years]
-            if not filtered_students:
-                continue
-            students_info = filtered_students
-            
-        if cls.subject not in grouped:
-            grouped[cls.subject] = []
-        
-        students_info.sort(key=lambda x: x["stuId"])
-        
+            stus = [s for s in stus if s["stuId"].split("-")[0] in selected_years]
+            if not stus: continue
+        if cls.subject not in grouped: grouped[cls.subject] = []
+        stus.sort(key=lambda x: x["stuId"])
         grouped[cls.subject].append({
-            "id": cls.id,
-            "section": cls.section,
-            "teacher": cls.teacher,
-            "room": cls.room,
-            "students": students_info,
-            "student_count": len(students_info)
+            "id": cls.id, "section": cls.section, "teacher": cls.teacher, "room": cls.room,
+            "students": stus, "student_count": len(stus)
         })
-        total_sections_count += 1
-    
+        total_secs += 1
     final_data = []
-    total_students_in_filtered = set()
-    
-    for subject in sorted(grouped.keys()):
-        sections = grouped[subject]
-        sections.sort(key=lambda s: get_section_num(s["section"]))
-        
-        subject_students_ids = set()
-        for s in sections:
-            for stu in s["students"]:
-                subject_students_ids.add(stu["stuId"])
-                total_students_in_filtered.add(stu["stuId"])
-            
-        final_data.append({
-            "subject": subject,
-            "subject_student_count": len(subject_students_ids),
-            "section_count": len(sections),
-            "sections": sections
-        })
-    
-    return {
-        "total_stats": {
-            "total_subjects": len(final_data),
-            "total_sections": total_sections_count,
-            "total_active_students": len(total_students_in_filtered)
-        },
-        "data": final_data
-    }
+    total_stus = set()
+    for sub in sorted(grouped.keys()):
+        secs = grouped[sub]
+        secs.sort(key=lambda s: get_section_num(s["section"]))
+        sub_stus = set(stu["stuId"] for s in secs for stu in s["students"])
+        for s_id in sub_stus: total_stus.add(s_id)
+        final_data.append({"subject": sub, "subject_student_count": len(sub_stus), "section_count": len(secs), "sections": secs})
+    return {"total_stats": {"total_subjects": len(final_data), "total_sections": total_secs, "total_active_students": len(total_stus)}, "data": final_data}
 
 @app.get("/students_num_info")
 async def get_students_num_info(db: Session = Depends(get_db)):
-    """
-    학번별 학생 수 통계를 반환합니다.
-    """
     students = db.query(models.Student.stuId).all()
-    
-    summary_by_year = {}
-    for (stu_id,) in students:
-        year_prefix = stu_id.split("-")[0] if "-" in stu_id else "Unknown"
-        summary_by_year[year_prefix] = summary_by_year.get(year_prefix, 0) + 1
-    
-    return dict(sorted(summary_by_year.items()))
-
-@app.get("/students_info")
-async def get_students_info(db: Session = Depends(get_db)):
-    """
-    모든 학생의 수강 목록 정보를 포함한 전체 학생 통계를 반환합니다.
-    """
-    students = db.query(models.Student).all()
-    
-    summary_by_year = {}
-    student_list = []
-    
-    for s in students:
-        # 학년별 통계 계산
-        year_prefix = s.stuId.split("-")[0] if "-" in s.stuId else "Unknown"
-        summary_by_year[year_prefix] = summary_by_year.get(year_prefix, 0) + 1
-        
-        # 학생별 상세 수강 목록 구성
-        enrollments = []
-        for e in s.enrollments:
-            cls = e.class_info
-            enrollments.append({
-                "id": cls.id,
-                "subject": cls.subject,
-                "section": cls.section,
-                "teacher": cls.teacher,
-                "room": cls.room
-            })
-        
-        student_list.append({
-            "stuId": s.stuId,
-            "name": s.name, # 이름 추가
-            "total_subjects": len(enrollments),
-            "enrollments": enrollments
-        })
-    
-    # 학번 순 정렬
-    student_list.sort(key=lambda x: x["stuId"])
-    
-    return {
-        "total_active_students": len(students),
-        "by_year": dict(sorted(summary_by_year.items())),
-        "data": student_list
-    }
+    summary = {}
+    for (s_id,) in students:
+        yr = s_id.split("-")[0] if "-" in s_id else "Unknown"
+        summary[yr] = summary.get(yr, 0) + 1
+    return dict(sorted(summary.items()))
