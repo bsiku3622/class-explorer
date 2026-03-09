@@ -29,11 +29,13 @@ import type {
 } from "./types";
 import { tooltipMotionProps } from "./constants/motion";
 import SubjectAccordionItem from "./components/SubjectAccordionItem";
+import { searchInClient } from "./lib/searchEngine";
 
 const App: React.FC = () => {
     const [data, setData] = useState<SubjectData[]>([]);
     const [allClassesData, setAllClassesData] = useState<SubjectData[]>([]);
     const [stats, setStats] = useState<Stats | null>(null);
+    const [allStats, setAllStats] = useState<Stats | null>(null);
     const [studentCounts, setStudentCounts] = useState<Record<string, number>>(
         {},
     );
@@ -104,188 +106,112 @@ const App: React.FC = () => {
     }, [allClassesData]);
 
     useEffect(() => {
-        fetchStudentCounts();
+        fetchInitialData();
     }, []);
 
     useEffect(() => {
-        const timer = setTimeout(() => {
-            fetchData();
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [searchTerm, selectedYears]);
+        handleSearch();
+    }, [searchTerm, selectedYears, allClassesData]);
 
-    const fetchStudentCounts = async () => {
+    const fetchInitialData = async () => {
         try {
-            const countResponse = await axios.get("/api/students_num_info");
-            const years = Object.keys(countResponse.data);
-            setStudentCounts(countResponse.data);
-            setSelectedYears(years);
+            setLoading(true);
+            const response = await axios.get("/api/");
+            const { stats, student_counts, data } = response.data;
 
-            const allDataResponse = await axios.get("/api/classes_info");
-            setAllClassesData(allDataResponse.data.data);
+            setStudentCounts(student_counts);
+            setSelectedYears(Object.keys(student_counts));
+            setAllClassesData(data);
+            setAllStats(stats);
         } catch (error) {
             console.error("Error fetching initial data:", error);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const fetchData = async () => {
+    const handleSearch = () => {
+        if (allClassesData.length === 0) return;
+
         if (selectedYears.length === 0) {
             setData([]);
             setStats(null);
             setSearchResult(null);
             setSearchMode("general");
-            setLoading(false);
             return;
         }
 
-        try {
-            setLoading(true);
-            if (searchTerm) {
-                let cleanKeyword = searchTerm.trim();
-                let effectiveQuery = cleanKeyword;
-                let apiUrl = `/api/search/${cleanKeyword}`;
-                let mode: "general" | "student" | "teacher" = "general";
+        if (searchTerm.trim()) {
+            const result = searchInClient(
+                allClassesData,
+                searchTerm,
+                selectedYears,
+            );
 
-                // 접두사 파싱
-                if (cleanKeyword.includes(":")) {
-                    const parts = cleanKeyword.split(":", 2);
-                    const prefix = parts[0].toLowerCase();
-                    const query = parts[1].trim();
-
-                    if (["t", "te", "teacher"].includes(prefix)) {
-                        apiUrl = `/api/teacher/${query}`;
-                        effectiveQuery = query;
-                        mode = "teacher";
-                    } else if (["s", "st", "student"].includes(prefix)) {
-                        apiUrl = `/api/student/${query}`;
-                        effectiveQuery = query;
-                        mode = "student";
-                    } else {
-                        apiUrl = `/api/search/${query}`;
-                        effectiveQuery = query;
-                        mode = "general";
-                    }
-                }
-
-                setSearchMode(mode);
-                const response = await axios.get(apiUrl);
-                const rawData = response.data.data;
-
-                // 검색 결과 필터링 (학번 필터 적용)
-                const processedData = rawData
-                    .map((subject: SubjectData) => {
-                        const filteredSections = subject.sections.filter(
-                            (section) => {
-                                // 인물 검색 모드(student/teacher)인 경우, 필터와 관계없이 검색 대상이 포함된 분반은 보여줌
-                                if (mode === "student") {
-                                    const isTargetStudentIn =
-                                        section.students.some(
-                                            (s) =>
-                                                s.stuId
-                                                    .toLowerCase()
-                                                    .includes(
-                                                        effectiveQuery.toLowerCase(),
-                                                    ) ||
-                                                s.name
-                                                    .toLowerCase()
-                                                    .includes(
-                                                        effectiveQuery.toLowerCase(),
-                                                    ),
-                                        );
-                                    if (isTargetStudentIn) return true;
-                                }
-                                if (mode === "teacher") {
-                                    if (
-                                        section.teacher
-                                            .toLowerCase()
-                                            .includes(
-                                                effectiveQuery.toLowerCase(),
-                                            )
-                                    )
-                                        return true;
-                                }
-
-                                // 그 외에는 현재 선택된 학년 필터 적용
-                                const visibleStudents = section.students.filter(
-                                    (s) =>
-                                        selectedYears.includes(
-                                            s.stuId.split("-")[0],
-                                        ),
-                                );
-                                return visibleStudents.length > 0;
-                            },
-                        );
-
-                        return { ...subject, sections: filteredSections };
-                    })
-                    .filter(
-                        (subject: SubjectData) => subject.sections.length > 0,
-                    );
-
-                setData(processedData);
-
-                let entities: SearchEntity[] = response.data.entities || [];
-                // API에서 직접 인물 정보를 주는 경우 (student/teacher 전용 엔드포인트)
-                if (mode === "student" && response.data.stuId) {
-                    entities = [
-                        {
-                            type: "student",
-                            name: response.data.name,
-                            id: response.data.stuId,
-                            subject_count: response.data.total_subjects,
-                            subjects: response.data.data.map(
-                                (d: SubjectData) => d.subject,
+            // 학번 필터 적용 (최종 표시 데이터)
+            const filteredByYear = result.data
+                .map((subject) => ({
+                    ...subject,
+                    sections: subject.sections.filter(
+                        (sec: SubjectData["sections"][0]) =>
+                            result.mode !== "general" || // 인물 검색 모드일 때는 해당 인물 포함된 분반을 보여줌
+                            sec.students.some((s) =>
+                                selectedYears.includes(s.stuId.split("-")[0]),
                             ),
-                        },
-                    ];
-                } else if (
-                    mode === "teacher" &&
-                    !entities.length &&
-                    response.data.data.length > 0
-                ) {
-                    entities = [
-                        {
-                            type: "teacher",
-                            name: response.data.name || effectiveQuery,
-                            id: "Teacher",
-                            subject_count: response.data.total_subjects,
-                            subjects: response.data.data.map(
-                                (d: SubjectData) => d.subject,
-                            ),
-                        },
-                    ];
-                }
-
-                setSearchResult({
-                    keyword: response.data.keyword || effectiveQuery,
-                    prefix: response.data.prefix || "",
-                    entities: entities.filter(
-                        (e: SearchEntity) =>
-                            e.type === "teacher" ||
-                            selectedYears.includes(e.id.split("-")[0]),
                     ),
-                    total_subjects: response.data.total_subjects,
-                    total_sections: response.data.total_sections,
-                });
+                }))
+                .filter((subject) => subject.sections.length > 0);
 
-                window.scrollTo({ top: 0, behavior: "smooth" });
-            } else {
-                setSearchMode("general");
-                const params = { years: selectedYears.join(",") };
-                const response = await axios.get("/api/classes_info", {
-                    params,
-                });
-                setData(response.data.data);
-                setStats(response.data.total_stats);
-                setSearchResult(null);
+            setData(filteredByYear);
+            setSearchMode(result.mode);
+            setSearchResult({
+                keyword: result.stats.keyword || searchTerm,
+                prefix: result.mode !== "general" ? result.mode : "",
+                entities: result.entities,
+                total_subjects: result.stats.total_subjects,
+                total_sections: result.stats.total_sections,
+            });
+            setStats(null);
+        } else {
+            setSearchMode("general");
+            // 학번 필터만 적용된 전체 데이터
+            const filteredData = allClassesData
+                .map((subject) => ({
+                    ...subject,
+                    sections: subject.sections.filter(
+                        (sec: SubjectData["sections"][0]) =>
+                            sec.students.some((s) =>
+                                selectedYears.includes(s.stuId.split("-")[0]),
+                            ),
+                    ),
+                }))
+                .filter((subject) => subject.sections.length > 0);
 
-                window.scrollTo({ top: 0, behavior: "smooth" });
-            }
-        } catch (error) {
-            console.error("Error fetching data:", error);
-        } finally {
-            setLoading(false);
+            setData(filteredData);
+
+            // 통계 계산
+            const totalSecs = filteredData.reduce(
+                (acc, sub) => acc + sub.sections.length,
+                0,
+            );
+            const activeStus = new Set(
+                filteredData.flatMap((sub) =>
+                    sub.sections.flatMap((sec) =>
+                        sec.students.map((s) => s.stuId),
+                    ),
+                ),
+            );
+
+            setStats({
+                total_subjects: filteredData.length,
+                total_sections: totalSecs,
+                total_active_students: activeStus.size,
+            });
+            setSearchResult(null);
         }
+
+        // 검색 결과 변경 시 상단으로 부드럽게 이동
+        window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
     const handleSearchToggle = (value: string, isTeacher: boolean = false) => {
@@ -336,7 +262,7 @@ const App: React.FC = () => {
             >
                 <NavbarBrand>
                     <p className="text-2xl font-black italic tracking-tighter text-white uppercase transform -skew-x-6">
-                        Visualized Fail Finder
+                        Class Explorer
                     </p>
                 </NavbarBrand>
                 <NavbarContent
@@ -378,6 +304,7 @@ const App: React.FC = () => {
 
                     <Tooltip
                         placement="bottom-end"
+                        className="max-w-100"
                         content={
                             <div className="p-6 space-y-6 min-w-96">
                                 <p className="font-black text-lg border-b border-black pb-2 mb-4 uppercase italic">
@@ -423,7 +350,7 @@ const App: React.FC = () => {
                                                         </span>{" "}
                                                         (OR),{" "}
                                                         <span className="text-retro-primary font-black">
-                                                            ()
+                                                            ( )
                                                         </span>{" "}
                                                         (괄호) 지원
                                                     </p>
@@ -467,6 +394,21 @@ const App: React.FC = () => {
                                             </div>
                                         </div>
                                     </div>
+                                    <div className="pt-5 border-t border-black/10">
+                                        <div className="flex items-start gap-2">
+                                            <span className="bg-retro-primary text-white px-1.5 py-0.5 text-[11px] font-black shrink-0">
+                                                TIP
+                                            </span>
+                                            <p className="text-sm font-bold leading-snug">
+                                                <span className="text-retro-primary font-black">
+                                                    Ctrl (또는 Cmd)
+                                                </span>{" "}
+                                                키를 누른 상태로 이름 위에
+                                                마우스를 가져가면 상세 정보를 볼
+                                                수 있습니다.
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         }
@@ -484,7 +426,7 @@ const App: React.FC = () => {
             </Navbar>
 
             <main className="max-w-6xl mx-auto px-6 pt-32">
-                <div className="mb-10 bg-white border-2 border-black p-6 shadow-[6px_6px_0_0_rgba(0,0,0,0.1)]">
+                <div className="mb-10 bg-white border-2 border-black p-6 shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]">
                     <div className="flex items-center gap-3 mb-6">
                         <Filter size={20} className="text-retro-secondary" />
                         <span className="text-sm font-black uppercase tracking-widest italic text-black/40">
@@ -567,7 +509,7 @@ const App: React.FC = () => {
                     <div className="mb-12 space-y-8">
                         {isConsolidatedView ? (
                             /* Consolidated Search Result (Student, Teacher, Logical) */
-                            <div className="bg-white border border-black shadow-[10px_10px_0_0_rgba(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-black">
+                            <div className="bg-white border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-black">
                                 {/* Left Side: Primary Entity or Logical Query */}
                                 <div
                                     className={`p-8 md:w-1/2 flex flex-col justify-center relative ${
@@ -586,7 +528,7 @@ const App: React.FC = () => {
                                             : {}
                                     }
                                 >
-                                    <div className="absolute top-0 left-0 px-6 py-1.5 bg-black text-white text-[10px] font-black italic tracking-widest uppercase">
+                                    <div className="absolute top-0 left-0 px-6 py-1.5 bg-black text-white text-xs font-black italic tracking-widest uppercase">
                                         {searchMode === "student"
                                             ? "Student Profile"
                                             : searchMode === "teacher"
@@ -598,13 +540,15 @@ const App: React.FC = () => {
                                         {searchMode !== "general" &&
                                         searchResult.entities[0] ? (
                                             <>
-                                                <p className="text-[10px] font-black text-black/30 uppercase tracking-tighter mb-1">
+                                                <p className="text-xl font-black text-black/40 uppercase tracking-tighter mb-2">
+                                                    &nbsp;&nbsp;
                                                     {searchMode === "student"
-                                                        ? `Student ID: ${searchResult.entities[0].id}`
+                                                        ? searchResult
+                                                              .entities[0].id
                                                         : "Position: Faculty"}
                                                 </p>
                                                 <h2
-                                                    className="text-5xl font-black italic tracking-tighter"
+                                                    className="text-6xl font-black italic tracking-tighter"
                                                     style={{
                                                         color:
                                                             searchMode ===
@@ -625,10 +569,10 @@ const App: React.FC = () => {
                                             </>
                                         ) : (
                                             <>
-                                                <p className="text-[10px] font-black text-black/30 uppercase tracking-tighter mb-1">
+                                                <p className="text-sm font-black text-black/30 uppercase tracking-tighter mb-1">
                                                     Active Query
                                                 </p>
-                                                <h2 className="text-4xl font-black italic tracking-tighter text-black uppercase break-all">
+                                                <h2 className="text-5xl font-black italic tracking-tighter text-black uppercase break-all">
                                                     {searchResult.prefix
                                                         ? `${searchResult.prefix}:`
                                                         : ""}
@@ -915,34 +859,34 @@ const App: React.FC = () => {
                                 </div>
 
                                 {/* Right Side: Search Stats & Overview */}
-                                <div className="p-8 md:w-1/2 bg-white flex flex-col justify-center">
-                                    <div className="grid grid-cols-2 gap-8">
+                                <div className="p-10 md:w-1/2 bg-white flex flex-col justify-center">
+                                    <div className="grid grid-cols-2 gap-10">
                                         <div>
-                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-1.5">
+                                            <p className="text-sm font-black text-black/40 uppercase tracking-widest mb-2">
                                                 Matched Subjects
                                             </p>
-                                            <div className="flex items-baseline gap-1.5">
-                                                <span className="text-4xl font-black text-black tracking-tighter">
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-5xl font-black text-black tracking-tighter">
                                                     {
                                                         searchResult.total_subjects
                                                     }
                                                 </span>
-                                                <span className="text-[10px] font-black text-black/30 uppercase">
+                                                <span className="text-xs font-black text-black/30 uppercase">
                                                     Items
                                                 </span>
                                             </div>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-1.5">
+                                            <p className="text-sm font-black text-black/40 uppercase tracking-widest mb-2">
                                                 Total Sections
                                             </p>
-                                            <div className="flex items-baseline gap-1.5">
-                                                <span className="text-4xl font-black text-black tracking-tighter">
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-5xl font-black text-black tracking-tighter">
                                                     {
                                                         searchResult.total_sections
                                                     }
                                                 </span>
-                                                <span className="text-[10px] font-black text-black/30 uppercase">
+                                                <span className="text-xs font-black text-black/30 uppercase">
                                                     Classes
                                                 </span>
                                             </div>
@@ -952,9 +896,9 @@ const App: React.FC = () => {
                                     {/* Summary or mini-list of subjects if single person */}
                                     {searchMode !== "general" &&
                                     searchResult.entities[0] ? (
-                                        <div className="mt-8 pt-6 border-t border-black/5">
-                                            <p className="text-[10px] font-black text-black/30 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                <BookOpen size={14} /> Total{" "}
+                                        <div className="mt-10 pt-8 border-t-2 border-black/10">
+                                            <p className="text-sm font-black text-black/40 uppercase tracking-widest mb-5 flex items-center gap-2">
+                                                <BookOpen size={18} /> Total{" "}
                                                 {searchMode === "student"
                                                     ? "Enrollment"
                                                     : "Teaching"}{" "}
@@ -965,13 +909,12 @@ const App: React.FC = () => {
                                                 }
                                                 )
                                             </p>
-                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                                                {searchResult.entities[0].subjects
-                                                    .slice(0, 6)
-                                                    .map((sub, i) => (
+                                            <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
+                                                {searchResult.entities[0].subjects.map(
+                                                    (sub, i) => (
                                                         <div
                                                             key={i}
-                                                            className="text-[10px] font-bold text-black border-l-2 border-black/20 pl-2 truncate"
+                                                            className="text-sm font-bold text-black border-l-4 border-black/20 pl-3 truncate py-0.5"
                                                         >
                                                             {searchMode ===
                                                             "teacher"
@@ -999,17 +942,7 @@ const App: React.FC = () => {
                                                                       "(",
                                                                   )[0]}
                                                         </div>
-                                                    ))}
-                                                {searchResult.entities[0]
-                                                    .subjects.length > 6 && (
-                                                    <p className="text-[9px] font-black text-black/30 pl-2">
-                                                        +{" "}
-                                                        {searchResult
-                                                            .entities[0]
-                                                            .subjects.length -
-                                                            6}{" "}
-                                                        More...
-                                                    </p>
+                                                    ),
                                                 )}
                                             </div>
                                         </div>
@@ -1027,7 +960,7 @@ const App: React.FC = () => {
                         ) : (
                             /* Standard Search Result (General) */
                             <>
-                                <div className="bg-white border border-black p-8 shadow-[8px_8px_0_0_rgba(0,0,0,0.1)] relative overflow-hidden">
+                                <div className="bg-white border border-black p-8 shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] relative overflow-hidden">
                                     <div className="absolute top-0 right-0 px-6 py-1.5 bg-black text-white text-xs font-black italic tracking-widest uppercase">
                                         Search Status
                                     </div>
@@ -1116,7 +1049,7 @@ const App: React.FC = () => {
                                                 return (
                                                     <div
                                                         key={idx}
-                                                        className="bg-white border border-black shadow-[8px_8px_0_0_rgba(0,0,0,0.1)] flex divide-x divide-black overflow-hidden cursor-pointer hover:-translate-y-1.5 transition-transform group"
+                                                        className="bg-white border border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] flex divide-x divide-black overflow-hidden cursor-pointer hover:-translate-y-1.5 transition-transform group"
                                                         onClick={() =>
                                                             handleSearchSelect(
                                                                 entity.type ===
