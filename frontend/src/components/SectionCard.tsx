@@ -26,7 +26,6 @@ const SectionCard: React.FC<SectionCardProps> = ({
     isModifierPressed,
     hasStudentInSearch,
     selectedYears,
-    searchMode,
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 
@@ -157,7 +156,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
                 <div className="flex flex-wrap gap-2.5">
                     {filteredStudents.map((student) => {
                         const color = getStudentColor(student.stuId);
-                        
+
                         // 하이라이트는 일치하는 검색어가 있으면 항상 표시 (일반 검색 포함)
                         const isMatch = effectiveSearchTerms.some(
                             (term) =>
@@ -237,9 +236,9 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                     className={`student-badge cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200 ${
                                         shouldGrayOut
                                             ? "grayscale opacity-30 scale-100 border-black/10 shadow-none"
-                                            : isMatch 
-                                                ? "z-10 shadow-[3px_3px_0_0_rgba(0,0,0,0.1)]" 
-                                                : ""
+                                            : isMatch
+                                              ? "z-10 shadow-[3px_3px_0_0_rgba(0,0,0,0.1)]"
+                                              : ""
                                     }`}
                                     style={{
                                         borderColor: shouldGrayOut

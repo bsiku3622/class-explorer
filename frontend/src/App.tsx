@@ -21,12 +21,7 @@ import {
     Users,
 } from "lucide-react";
 import { getStudentColor } from "./lib/utils";
-import type {
-    SubjectData,
-    Stats,
-    SearchEntity,
-    SearchResultStats,
-} from "./types";
+import type { SubjectData, Stats, SearchResultStats } from "./types";
 import { tooltipMotionProps } from "./constants/motion";
 import SubjectAccordionItem from "./components/SubjectAccordionItem";
 import { searchInClient } from "./lib/searchEngine";
@@ -35,7 +30,7 @@ const App: React.FC = () => {
     const [data, setData] = useState<SubjectData[]>([]);
     const [allClassesData, setAllClassesData] = useState<SubjectData[]>([]);
     const [stats, setStats] = useState<Stats | null>(null);
-    const [allStats, setAllStats] = useState<Stats | null>(null);
+    const [_, setAllStats] = useState<Stats | null>(null);
     const [studentCounts, setStudentCounts] = useState<Record<string, number>>(
         {},
     );
