@@ -109,6 +109,7 @@ const App: React.FC = () => {
                 entities: result.entities,
                 total_subjects: result.stats.total_subjects,
                 total_sections: result.stats.total_sections,
+                warning: result.warning,
             });
             setStats(null);
         } else {

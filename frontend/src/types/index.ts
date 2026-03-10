@@ -39,4 +39,5 @@ export interface SearchResultStats {
     entities: SearchEntity[];
     total_subjects: number;
     total_sections: number;
+    warning?: string;
 }

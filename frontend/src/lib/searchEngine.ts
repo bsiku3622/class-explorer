@@ -4,11 +4,10 @@
 export const evaluateBoolExpression = (
     expression: string,
     pool: string[],
+    strictIDMatch: boolean = false,
 ): boolean => {
     const trimmedExpr = expression.trim();
     if (!trimmedExpr) return true;
-
-    const normalizedPool = pool.map((p) => String(p).toLowerCase());
 
     const tokens =
         trimmedExpr
@@ -16,12 +15,27 @@ export const evaluateBoolExpression = (
             ?.map((t) => t.trim())
             .filter((t) => t) || [];
 
+    const matchesItem = (item: string, term: string) => {
+        const lowerItem = item.toLowerCase();
+        const lowerTerm = term.toLowerCase();
+
+        // 학번 검색 (strictIDMatch인 경우)
+        if (strictIDMatch && item.includes("-") && term.includes("-")) {
+            // "24-" 처럼 3글자 이내인 경우만 prefix match 허용 (batch 검색용)
+            if (term.length <= 3) return lowerItem.startsWith(lowerTerm);
+            // 그 외에는 정확히 일치해야 함 (24-09가 24-094를 매칭하지 않도록)
+            return lowerItem === lowerTerm;
+        }
+
+        return lowerItem.includes(lowerTerm);
+    };
+
     if (
         tokens.length === 1 &&
         !["(", ")", "+", "&", "&&"].includes(tokens[0])
     ) {
-        const term = tokens[0].toLowerCase();
-        return normalizedPool.some((item) => item.includes(term));
+        const term = tokens[0];
+        return pool.some((item) => matchesItem(item, term));
     }
 
     let current = 0;
@@ -57,8 +71,8 @@ export const evaluateBoolExpression = (
             if (current < tokens.length && tokens[current] === ")") current++;
             return result;
         }
-        const term = token.toLowerCase();
-        return normalizedPool.some((item) => item.includes(term));
+        const term = token;
+        return pool.some((item) => matchesItem(item, term));
     };
 
     try {
@@ -72,6 +86,7 @@ export interface SearchResult {
     data: any[];
     entities: any[];
     mode: "general" | "student" | "teacher";
+    warning?: string;
     stats: {
         keyword: string;
         total_subjects: number;
@@ -83,6 +98,7 @@ const parseQuery = (searchTerm: string) => {
     let cleanKeyword = searchTerm.trim();
     let mode: "general" | "student" | "teacher" = "general";
     let effectiveQuery = cleanKeyword;
+    let warning: string | undefined = undefined;
 
     if (cleanKeyword.includes(":")) {
         const [prefix, ...rest] = cleanKeyword.split(":");
@@ -96,6 +112,19 @@ const parseQuery = (searchTerm: string) => {
             mode = "student";
             effectiveQuery = query;
         }
+
+        if (mode !== "general") {
+            const hasLogic =
+                effectiveQuery.includes("&") ||
+                effectiveQuery.includes("+") ||
+                effectiveQuery.includes("(") ||
+                effectiveQuery.includes(")");
+            if (hasLogic) {
+                warning =
+                    "인물 검색 모드(student:, teacher:)에서는 논리 연산(&, +, 괄호)을 지원하지 않습니다. 키워드가 리터럴로 처리됩니다.";
+                // 논리 연산이 포함된 경우, 이 모드에서는 전체를 하나의 검색어로 취급 (literal)
+            }
+        }
     }
 
     let subjectExpr = effectiveQuery;
@@ -107,10 +136,17 @@ const parseQuery = (searchTerm: string) => {
     }
 
     const matchBase = personExpr || effectiveQuery;
-    const flatTerms = matchBase
-        .split(/[+&()\/]+/)
-        .map((t) => t.trim().toLowerCase())
-        .filter((t) => t);
+    let flatTerms: string[] = [];
+    if (warning) {
+        // 논리 연산 경고가 있는 경우 (인물 모드에서 논리 연산자 사용)
+        // 전체를 하나의 검색어로 취급
+        flatTerms = [matchBase.toLowerCase()];
+    } else {
+        flatTerms = matchBase
+            .split(/[+&()\/]+/)
+            .map((t) => t.trim().toLowerCase())
+            .filter((t) => t);
+    }
 
     return {
         mode,
@@ -118,6 +154,7 @@ const parseQuery = (searchTerm: string) => {
         subjectExpr,
         personExpr,
         flatTerms,
+        warning,
         isStrictMode: searchTerm.includes("&&") || personExpr !== null,
     };
 };
@@ -138,6 +175,7 @@ const filterMatchingClasses = (
         personExpr,
         isStrictMode,
         flatTerms,
+        warning,
     } = queryParams;
     const matchingClasses: any[] = [];
 
@@ -157,10 +195,19 @@ const filterMatchingClasses = (
             });
         });
 
+        // 논리 검색 지원 여부에 따라 평가 방식 변경
+        const evaluate = (expr: string, pool: string[]) => {
+            if (warning && expr === effectiveQuery) {
+                // 인물 모드에서 논리 연산자가 사용된 경우 -> 리터럴 매칭
+                return pool.some((item) => item.toLowerCase().includes(expr.toLowerCase()));
+            }
+            return evaluateBoolExpression(expr, pool, mode === "student");
+        };
+
         const isSubjectMatch = personExpr
-            ? evaluateBoolExpression(subjectExpr, [subjectName]) &&
-              evaluateBoolExpression(personExpr, Array.from(subjectPersonPool))
-            : evaluateBoolExpression(effectiveQuery, [
+            ? evaluate(subjectExpr, [subjectName]) &&
+              evaluate(personExpr, Array.from(subjectPersonPool))
+            : evaluate(effectiveQuery, [
                   subjectName,
                   ...Array.from(subjectPersonPool),
               ]);
@@ -191,26 +238,18 @@ const filterMatchingClasses = (
 
             if (personExpr !== null) {
                 // / 가 있는 경우: 과목 조건 AND 인물 조건
-                const sM = evaluateBoolExpression(subjectExpr, sectionInfoPool);
-                const pM = evaluateBoolExpression(
-                    personExpr,
-                    sectionPersonPool,
-                );
+                const sM = evaluate(subjectExpr, sectionInfoPool);
+                const pM = evaluate(personExpr, sectionPersonPool);
                 isSectionMatch = sM && pM;
             } else if (mode === "student") {
                 // student: 인 경우: 해당 인물이 이 분반에 있는지 확인
-                isSectionMatch = evaluateBoolExpression(
-                    effectiveQuery,
-                    sectionPersonPool,
-                );
+                isSectionMatch = evaluate(effectiveQuery, sectionPersonPool);
             } else if (mode === "teacher") {
                 // teacher: 인 경우: 해당 교사의 분반인지 확인
-                isSectionMatch = evaluateBoolExpression(effectiveQuery, [
-                    sec.teacher,
-                ]);
+                isSectionMatch = evaluate(effectiveQuery, [sec.teacher]);
             } else if (isStrictMode) {
                 // && 연산자가 포함된 일반 검색
-                isSectionMatch = evaluateBoolExpression(effectiveQuery, [
+                isSectionMatch = evaluate(effectiveQuery, [
                     ...sectionInfoPool,
                     ...sectionPersonPool,
                 ]);
@@ -219,10 +258,7 @@ const filterMatchingClasses = (
                 if (flatTerms.length === 0) {
                     isSectionMatch = activeStudents.length > 0;
                 } else {
-                    const isInfoMatch = evaluateBoolExpression(
-                        effectiveQuery,
-                        sectionInfoPool,
-                    );
+                    const isInfoMatch = evaluate(effectiveQuery, sectionInfoPool);
                     const isPersonMatch = flatTerms.some((term) =>
                         sectionPersonPool.some((p) =>
                             p.toLowerCase().includes(term),
@@ -379,6 +415,7 @@ export const searchInClient = (
         data: finalData,
         entities,
         mode: queryParams.mode,
+        warning: queryParams.warning,
         stats: {
             keyword: queryParams.effectiveQuery,
             total_subjects: finalData.length,
