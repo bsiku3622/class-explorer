@@ -4,44 +4,48 @@ from sqlalchemy.orm import Session
 from backend.database import SessionLocal, engine
 from backend import models, parser
 import os
+import time
 
 # 테이블 생성 확인
 models.Base.metadata.create_all(bind=engine)
 
-async def sync_student_enrollments(student_id: str, student_name: str, db: Session):
+# 동시 요청 수를 제한하는 세마포어 (서버 부하 및 차단 방지)
+MAX_CONCURRENT_REQUESTS = 20
+semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+
+async def sync_student_enrollments(client: httpx.AsyncClient, student_id: str, student_name: str):
     """
-    학생의 수강 목록을 가져와서 유효한 경우에만 DB에 저장합니다.
-    데이터가 없으면 기존 정보를 삭제하고 False를 반환합니다.
+    한 명의 학생 데이터를 동기화합니다. 세마포어를 통해 실행 수를 제어합니다.
     """
-    url = f"https://api.ksain.net/ksain/timetable.php?stuId={student_id}"
-    async with httpx.AsyncClient() as client:
+    async with semaphore:
+        url = f"https://api.ksain.net/ksain/timetable.php?stuId={student_id}"
+        db: Session = SessionLocal()
         try:
-            response = await client.get(url)
+            # 타임아웃을 적절히 설정하여 무한 대기 방지
+            response = await client.get(url, timeout=10.0)
             if response.status_code != 200:
-                return False
+                return None
             
             parsed_classes = parser.parse_ksain_data(response.text)
             
-            # 1. 데이터가 없는 경우 (졸업/휴학 등)
             if not parsed_classes:
-                # 기존 데이터가 있다면 삭제
                 db.query(models.Enrollment).filter(models.Enrollment.stuId == student_id).delete()
                 db.query(models.Student).filter(models.Student.stuId == student_id).delete()
                 db.commit()
-                print(f"[{student_id}] {student_name} 데이터 없음 - 리스트에서 제외됩니다.")
-                return False
+                print(f"[-] {student_id} {student_name}: 데이터 없음 (제외)")
+                return None
 
-            # 2. 데이터가 있는 경우 - 학생 정보 보장 및 이름 업데이트
+            # 학생 정보 갱신
             student = db.query(models.Student).filter(models.Student.stuId == student_id).first()
             if not student:
                 student = models.Student(stuId=student_id, name=student_name)
                 db.add(student)
             else:
-                student.name = student_name # 이름 정보 갱신
+                student.name = student_name
             
             db.commit()
 
-            # 3. 기존 수강 정보 초기화 후 재등록
+            # 수강 정보 재등록
             db.query(models.Enrollment).filter(models.Enrollment.stuId == student_id).delete()
             
             for pc in parsed_classes:
@@ -61,17 +65,30 @@ async def sync_student_enrollments(student_id: str, student_name: str, db: Sessi
                     db.add(cls)
                     db.flush()
 
+                # 시간표 정보 갱신
+                db.query(models.ClassTime).filter(models.ClassTime.class_id == cls.id).delete()
+                for t in pc["times"]:
+                    class_time = models.ClassTime(
+                        day=t["day"],
+                        period=t["period"],
+                        room=t["room"],
+                        class_id=cls.id
+                    )
+                    db.add(class_time)
+
                 enrollment = models.Enrollment(stuId=student_id, classId=cls.id)
                 db.add(enrollment)
             
             db.commit()
-            print(f"[{student_id}] 동기화 완료 ({len(parsed_classes)}개 과목)")
-            return True
+            print(f"[+] {student_id} {student_name} - 동기화 완료")
+            return f"{student_id} {student_name}"
             
         except Exception as e:
-            print(f"[{student_id}] 오류 발생: {e}")
+            print(f"[!] {student_id} 오류: {e}")
             db.rollback()
-            return False
+            return None
+        finally:
+            db.close()
 
 async def main():
     txt_path = "backend/students.txt"
@@ -83,41 +100,36 @@ async def main():
     with open(txt_path, "r") as f:
         for line in f:
             line = line.strip()
-            if not line:
-                continue
-            # "학번 이름" 형식 파싱 (공백 기준 분리)
+            if not line: continue
             parts = line.split(maxsplit=1)
             if len(parts) == 2:
                 student_data.append((parts[0], parts[1]))
             else:
-                # 이름이 없는 경우 예외 처리
                 student_data.append((parts[0], "Unknown"))
 
-    print(f"총 {len(student_data)}명의 학번 검증 및 동기화를 시작합니다...")
+    start_time = time.time()
+    print(f"{len(student_data)}명 병렬 동기화 시작 (동시성: {MAX_CONCURRENT_REQUESTS})...")
     
-    active_students = []
-    db = SessionLocal()
+    async with httpx.AsyncClient() as client:
+        # 모든 학생에 대한 태스크 생성
+        tasks = [
+            sync_student_enrollments(client, stu_id, stu_name)
+            for stu_id, stu_name in student_data
+        ]
+        
+        # 병렬 실행 및 결과 수집
+        results = await asyncio.gather(*tasks)
     
-    try:
-        for stu_id, stu_name in student_data:
-            is_active = await sync_student_enrollments(stu_id, stu_name, db)
-            if is_active:
-                active_students.append(f"{stu_id} {stu_name}")
-            
-            # 서버 부하 조절이 필요하다면 주석 해제
-            # await asyncio.sleep(0.05)
-            
-    finally:
-        db.close()
+    # 결과 필터링 (None 제외)
+    active_students = [r for r in results if r is not None]
     
-    # 유효한 학번 리스트로 파일 갱신
     with open(txt_path, "w") as f:
         f.write("\n".join(active_students))
     
+    end_time = time.time()
     print("-" * 30)
-    print(f"작업 완료!")
-    print(f"초기 대상: {len(student_data)}명")
-    print(f"최종 활성: {len(active_students)}명 (students.txt 갱신 완료)")
+    print(f"작업 완료! (소요 시간: {end_time - start_time:.2f}초)")
+    print(f"최종 활성: {len(active_students)}명")
     print("-" * 30)
 
 if __name__ == "__main__":

@@ -107,6 +107,10 @@ const Navigation: React.FC<NavigationProps> = ({
                                                     </span>{" "}
                                                     (OR),{" "}
                                                     <span className="text-retro-primary font-black">
+                                                        !
+                                                    </span>{" "}
+                                                    (NOT),{" "}
+                                                    <span className="text-retro-primary font-black">
                                                         ( )
                                                     </span>{" "}
                                                     (괄호) 지원

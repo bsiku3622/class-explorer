@@ -1,5 +1,7 @@
+import { formatSubjectWithSection } from "./utils";
+
 /**
- * 논리식 평가 함수: +, &, &&, () 연산자를 지원합니다.
+ * 논리식 평가 함수: +, &, &&, (), ! 연산자를 지원합니다.
  */
 export const evaluateBoolExpression = (
     expression: string,
@@ -11,7 +13,7 @@ export const evaluateBoolExpression = (
 
     const tokens =
         trimmedExpr
-            .match(/\(|\)|&&|&|\+|[^\(\)+&]+/g)
+            .match(/\(|\)|&&|&|\+|!|[^\(\)+&!]+/g)
             ?.map((t) => t.trim())
             .filter((t) => t) || [];
 
@@ -32,7 +34,7 @@ export const evaluateBoolExpression = (
 
     if (
         tokens.length === 1 &&
-        !["(", ")", "+", "&", "&&"].includes(tokens[0])
+        !["(", ")", "+", "&", "&&", "!"].includes(tokens[0])
     ) {
         const term = tokens[0];
         return pool.some((item) => matchesItem(item, term));
@@ -51,16 +53,24 @@ export const evaluateBoolExpression = (
     };
 
     const parseAndTerm = (): boolean => {
-        let result = parseFactor();
+        let result = parseUnary();
         while (
             current < tokens.length &&
             (tokens[current] === "&" || tokens[current] === "&&")
         ) {
             current++;
-            const next = parseFactor();
+            const next = parseUnary();
             result = result && next;
         }
         return result;
+    };
+
+    const parseUnary = (): boolean => {
+        if (current < tokens.length && tokens[current] === "!") {
+            current++;
+            return !parseFactor();
+        }
+        return parseFactor();
     };
 
     const parseFactor = (): boolean => {
@@ -85,20 +95,29 @@ export const evaluateBoolExpression = (
 export interface SearchResult {
     data: any[];
     entities: any[];
-    mode: "general" | "student" | "teacher";
+    mode: "general" | "student" | "teacher" | "room";
     warning?: string;
     stats: {
         keyword: string;
         total_subjects: number;
         total_sections: number;
+        total_matched_students: number;
     };
 }
 
-const parseQuery = (searchTerm: string) => {
+const parseQuery = (searchTerm: string, allData: any[]) => {
     let cleanKeyword = searchTerm.trim();
-    let mode: "general" | "student" | "teacher" = "general";
+    let mode: "general" | "student" | "teacher" | "room" = "general";
     let effectiveQuery = cleanKeyword;
     let warning: string | undefined = undefined;
+
+    // 모든 강의실 목록 수집
+    const allRooms = new Set<string>();
+    allData.forEach((sub) =>
+        sub.sections.forEach((sec: any) => {
+            if (sec.room) allRooms.add(sec.room);
+        }),
+    );
 
     if (cleanKeyword.includes(":")) {
         const [prefix, ...rest] = cleanKeyword.split(":");
@@ -111,6 +130,9 @@ const parseQuery = (searchTerm: string) => {
         } else if (["s", "st", "student"].includes(p)) {
             mode = "student";
             effectiveQuery = query;
+        } else if (["r", "ro", "room"].includes(p)) {
+            mode = "room";
+            effectiveQuery = query;
         }
 
         if (mode !== "general") {
@@ -121,10 +143,12 @@ const parseQuery = (searchTerm: string) => {
                 effectiveQuery.includes(")");
             if (hasLogic) {
                 warning =
-                    "인물 검색 모드(student:, teacher:)에서는 논리 연산(&, +, 괄호)을 지원하지 않습니다. 키워드가 리터럴로 처리됩니다.";
-                // 논리 연산이 포함된 경우, 이 모드에서는 전체를 하나의 검색어로 취급 (literal)
+                    "인물/강의실 검색 모드에서는 논리 연산(&, +, 괄호)을 지원하지 않습니다. 키워드가 리터럴로 처리됩니다.";
             }
         }
+    } else {
+        // 프리픽스 없을 때 강의실 자동 감지 제거 (사용자 요청: 결과 카드를 먼저 보여주기 위해)
+        // mode = "general"로 유지
     }
 
     let subjectExpr = effectiveQuery;
@@ -138,12 +162,10 @@ const parseQuery = (searchTerm: string) => {
     const matchBase = personExpr || effectiveQuery;
     let flatTerms: string[] = [];
     if (warning) {
-        // 논리 연산 경고가 있는 경우 (인물 모드에서 논리 연산자 사용)
-        // 전체를 하나의 검색어로 취급
         flatTerms = [matchBase.toLowerCase()];
     } else {
         flatTerms = matchBase
-            .split(/[+&()\/]+/)
+            .split(/[+&()\/!]+/)
             .map((t) => t.trim().toLowerCase())
             .filter((t) => t);
     }
@@ -155,13 +177,13 @@ const parseQuery = (searchTerm: string) => {
         personExpr,
         flatTerms,
         warning,
-        isStrictMode: searchTerm.includes("&&") || personExpr !== null,
+        isStrictMode:
+            searchTerm.includes("&&") || personExpr !== null || mode === "room",
     };
 };
 
 /**
  * 전체 데이터에서 검색 조건에 맞는 분반들을 필터링합니다.
- * selectedYears를 반영하여 제외된 학번의 학생은 데이터 풀에서 제외합니다.
  */
 const filterMatchingClasses = (
     allData: any[],
@@ -181,47 +203,58 @@ const filterMatchingClasses = (
 
     allData.forEach((subject) => {
         const subjectName = subject.subject;
-        const subjectPersonPool = new Set<string>();
+        const subjectMatchPool = new Set<string>();
+        const dayMap: Record<string, string> = {
+            MON: "월",
+            TUE: "화",
+            WED: "수",
+            THU: "목",
+            FRI: "금",
+        };
 
-        // 1. 과목 레벨 인물 풀 구성 (선택된 학번의 학생만 포함)
+        // 1. 과목 레벨 검색 풀 구성
+        subjectMatchPool.add(subjectName);
         subject.sections.forEach((sec: any) => {
-            subjectPersonPool.add(sec.teacher);
+            subjectMatchPool.add(sec.teacher);
+            if (sec.room) subjectMatchPool.add(sec.room);
+            if (sec.times) {
+                sec.times.forEach((t: any) => {
+                    if (t.room) subjectMatchPool.add(t.room);
+                    subjectMatchPool.add(`${t.day}${t.period}`);
+                    subjectMatchPool.add(`${dayMap[t.day]}${t.period}`);
+                });
+            }
             sec.students.forEach((s: any) => {
                 const year = s.stuId.split("-")[0];
                 if (selectedYears.includes(year)) {
-                    subjectPersonPool.add(s.stuId);
-                    subjectPersonPool.add(s.name);
+                    subjectMatchPool.add(s.stuId);
+                    subjectMatchPool.add(s.name);
                 }
             });
         });
 
-        // 논리 검색 지원 여부에 따라 평가 방식 변경
         const evaluate = (expr: string, pool: string[]) => {
             if (warning && expr === effectiveQuery) {
-                // 인물 모드에서 논리 연산자가 사용된 경우 -> 리터럴 매칭
-                return pool.some((item) => item.toLowerCase().includes(expr.toLowerCase()));
+                return pool.some((item) =>
+                    item.toLowerCase().includes(expr.toLowerCase()),
+                );
             }
             return evaluateBoolExpression(expr, pool, mode === "student");
         };
 
         const isSubjectMatch = personExpr
             ? evaluate(subjectExpr, [subjectName]) &&
-              evaluate(personExpr, Array.from(subjectPersonPool))
-            : evaluate(effectiveQuery, [
-                  subjectName,
-                  ...Array.from(subjectPersonPool),
-              ]);
+              evaluate(personExpr, Array.from(subjectMatchPool))
+            : evaluate(effectiveQuery, Array.from(subjectMatchPool));
 
         if (!isSubjectMatch) return;
 
         // 2. 분반 레벨 필터링
         subject.sections.forEach((sec: any) => {
-            // 필터링된 학생 목록 생성
             const activeStudents = sec.students.filter((s: any) =>
                 selectedYears.includes(s.stuId.split("-")[0]),
             );
 
-            // 인물 풀 구성 (선택된 학번의 학생만 포함)
             const sectionPersonPool = [
                 sec.teacher,
                 ...activeStudents.map((s: any) => s.stuId),
@@ -232,33 +265,45 @@ const filterMatchingClasses = (
                 sec.section,
                 sec.teacher,
                 sec.room,
+                ...(sec.times || []).flatMap((t: any) => [
+                    t.room,
+                    `${t.day}${t.period}`,
+                    `${dayMap[t.day]}${t.period}`,
+                ]),
             ];
 
             let isSectionMatch = false;
 
             if (personExpr !== null) {
-                // / 가 있는 경우: 과목 조건 AND 인물 조건
                 const sM = evaluate(subjectExpr, sectionInfoPool);
                 const pM = evaluate(personExpr, sectionPersonPool);
                 isSectionMatch = sM && pM;
             } else if (mode === "student") {
-                // student: 인 경우: 해당 인물이 이 분반에 있는지 확인
                 isSectionMatch = evaluate(effectiveQuery, sectionPersonPool);
             } else if (mode === "teacher") {
-                // teacher: 인 경우: 해당 교사의 분반인지 확인
                 isSectionMatch = evaluate(effectiveQuery, [sec.teacher]);
+            } else if (mode === "room") {
+                const searchRoom = effectiveQuery.toLowerCase();
+                const primaryRoomMatch = sec.room
+                    .toLowerCase()
+                    .includes(searchRoom);
+                const timesRoomMatch = (sec.times || []).some((t: any) =>
+                    t.room.toLowerCase().includes(searchRoom),
+                );
+                isSectionMatch = primaryRoomMatch || timesRoomMatch;
             } else if (isStrictMode) {
-                // && 연산자가 포함된 일반 검색
                 isSectionMatch = evaluate(effectiveQuery, [
                     ...sectionInfoPool,
                     ...sectionPersonPool,
                 ]);
             } else {
-                // 일반 Soft mode 검색 (mode === "general")
                 if (flatTerms.length === 0) {
                     isSectionMatch = activeStudents.length > 0;
                 } else {
-                    const isInfoMatch = evaluate(effectiveQuery, sectionInfoPool);
+                    const isInfoMatch = evaluate(
+                        effectiveQuery,
+                        sectionInfoPool,
+                    );
                     const isPersonMatch = flatTerms.some((term) =>
                         sectionPersonPool.some((p) =>
                             p.toLowerCase().includes(term),
@@ -268,11 +313,9 @@ const filterMatchingClasses = (
                 }
             }
 
-            // 최종 표시 여부 결정
             if (isSectionMatch) {
-                // 교사 검색이 아니고 표시할 학생이 한 명도 없으면 제외
                 if (activeStudents.length === 0 && mode !== "teacher") return;
-
+                
                 matchingClasses.push({
                     ...sec,
                     subject: subjectName,
@@ -286,53 +329,189 @@ const filterMatchingClasses = (
     return matchingClasses;
 };
 
+/**
+ * 매칭된 분반들로부터 관련 엔티티(사람, 강의실 등)를 추출합니다.
+ */
 const extractEntities = (
     matchingClasses: any[],
     flatTerms: string[],
-    _: string[],
+    mode: "general" | "student" | "teacher" | "room",
+    effectiveQuery: string,
 ) => {
     const entityMap = new Map<string, any>();
+    const dayMap: Record<string, string> = {
+        MON: "월",
+        TUE: "화",
+        WED: "수",
+        THU: "목",
+        FRI: "금",
+    };
 
     matchingClasses.forEach((cls) => {
-        if (flatTerms.some((t) => cls.teacher.toLowerCase().includes(t))) {
+        // 강의실 정보 수집
+        const searchRoom = effectiveQuery.toLowerCase();
+        const matchingRooms = new Set<string>();
+        
+        if (cls.room.toLowerCase().includes(searchRoom)) {
+            matchingRooms.add(cls.room);
+        }
+        (cls.times || []).forEach((t: any) => {
+            if (t.room.toLowerCase().includes(searchRoom)) {
+                matchingRooms.add(t.room);
+            }
+        });
+
+        if (mode === "room" || (mode === "general" && matchingRooms.size > 0)) {
+            matchingRooms.forEach(roomName => {
+                const key = `room_${roomName}`;
+                if (!entityMap.has(key)) {
+                    entityMap.set(key, {
+                        type: "room",
+                        name: roomName,
+                        id: "Classroom",
+                        subjectsRaw: new Map<string, Set<string>>(), // "teacher - subject" -> Set(sections)
+                        times: [],
+                    });
+                }
+                const roomEntity = entityMap.get(key);
+                const subKey = `${cls.teacher}|${cls.subject}`;
+                if (!roomEntity.subjectsRaw.has(subKey)) {
+                    roomEntity.subjectsRaw.set(subKey, new Set());
+                }
+                roomEntity.subjectsRaw.get(subKey).add(cls.section);
+
+                if (cls.times) {
+                    cls.times.forEach((t: any) => {
+                        // 해당 강의실에서 진행되는 수업만 추가
+                        if (t.room.toLowerCase().includes(searchRoom)) {
+                            if (!roomEntity.times.some((et: any) => et.day === t.day && et.period === t.period)) {
+                                roomEntity.times.push({ 
+                                    ...t, 
+                                    subject: cls.subject,
+                                    section: cls.section,
+                                    teacher: cls.teacher
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        const classTimeStrings = (cls.times || []).flatMap((t: any) => [
+            `${t.day}${t.period}`.toLowerCase(),
+            `${dayMap[t.day]}${t.period}`.toLowerCase(),
+        ]);
+
+        const isTeacherMatch = flatTerms.some(
+            (t) =>
+                cls.teacher.toLowerCase().includes(t) ||
+                classTimeStrings.includes(t.toLowerCase()),
+        );
+
+        if (isTeacherMatch) {
             const key = `t_${cls.teacher}`;
             if (!entityMap.has(key)) {
                 entityMap.set(key, {
                     type: "teacher",
                     name: cls.teacher,
                     id: "Teacher",
-                    subjects: new Set(),
+                    subjectsRaw: new Map<string, Set<string>>(), // "room - subject" -> Set(sections)
+                    times: [],
                 });
             }
-            entityMap.get(key).subjects.add(cls.subject);
+            const entity = entityMap.get(key);
+            const subKey = `${cls.room}|${cls.subject}`;
+            if (!entity.subjectsRaw.has(subKey)) {
+                entity.subjectsRaw.set(subKey, new Set());
+            }
+            entity.subjectsRaw.get(subKey).add(cls.section);
+
+            if (cls.times) {
+                cls.times.forEach((t: any) => {
+                    if (
+                        !entity.times.some(
+                            (et: any) =>
+                                et.day === t.day && et.period === t.period,
+                        )
+                    ) {
+                        entity.times.push({ 
+                            ...t, 
+                            subject: cls.subject,
+                            section: cls.section,
+                            teacher: cls.teacher
+                        });
+                    }
+                });
+            }
         }
 
         cls.students.forEach((s: any) => {
-            if (
-                flatTerms.some(
-                    (t) =>
-                        s.stuId.toLowerCase().includes(t) ||
-                        s.name.toLowerCase().includes(t),
-                )
-            ) {
+            const isStudentMatch = flatTerms.some(
+                (t) =>
+                    s.stuId.toLowerCase().includes(t) ||
+                    s.name.toLowerCase().includes(t) ||
+                    classTimeStrings.includes(t.toLowerCase()),
+            );
+
+            if (isStudentMatch) {
                 if (!entityMap.has(s.stuId)) {
                     entityMap.set(s.stuId, {
                         type: "student",
                         name: s.name,
                         id: s.stuId,
-                        subjects: new Set(),
+                        subjectsRaw: new Map<string, Set<string>>(), // "teacher - subject" -> Set(sections)
+                        times: [],
                     });
                 }
-                entityMap.get(s.stuId).subjects.add(cls.subject);
+                const entity = entityMap.get(s.stuId);
+                const subKey = `${cls.teacher}|${cls.subject}`;
+                if (!entity.subjectsRaw.has(subKey)) {
+                    entity.subjectsRaw.set(subKey, new Set());
+                }
+                entity.subjectsRaw.get(subKey).add(cls.section);
+
+                if (cls.times) {
+                    cls.times.forEach((t: any) => {
+                        if (
+                            !entity.times.some(
+                                (et: any) =>
+                                    et.day === t.day && et.period === t.period,
+                            )
+                        ) {
+                            entity.times.push({ 
+                                ...t, 
+                                subject: cls.subject,
+                                section: cls.section,
+                                teacher: cls.teacher
+                            });
+                        }
+                    });
+                }
             }
         });
     });
 
-    return Array.from(entityMap.values()).map((e) => ({
-        ...e,
-        subject_count: e.subjects.size,
-        subjects: Array.from(e.subjects).sort() as string[],
-    }));
+    return Array.from(entityMap.values()).map((e) => {
+        const formattedSubjects: string[] = [];
+        e.subjectsRaw.forEach((sections: Set<string>, key: string) => {
+            const [extra, subject] = key.split("|");
+            
+            // 학생/선생님 프로필: 과목(분반) - 추가정보
+            // 교실 프로필: 선생님 - 과목(분반)
+            const position = e.type === "room" ? "prefix" : "suffix";
+            
+            formattedSubjects.push(
+                formatSubjectWithSection(subject, Array.from(sections), extra, position)
+            );
+        });
+
+        return {
+            ...e,
+            subject_count: formattedSubjects.length,
+            subjects: formattedSubjects.sort(),
+        };
+    });
 };
 
 export const searchInClient = (
@@ -359,6 +538,12 @@ export const searchInClient = (
             }))
             .filter((subject) => subject.sections.length > 0);
 
+        const totalMatchedStudents = new Set(
+            filteredData.flatMap((sub) =>
+                sub.sections.flatMap((sec: any) => sec.students.map((s: any) => s.stuId)),
+            ),
+        ).size;
+
         return {
             data: filteredData,
             entities: [],
@@ -370,11 +555,12 @@ export const searchInClient = (
                     (acc, s) => acc + s.sections.length,
                     0,
                 ),
+                total_matched_students: totalMatchedStudents,
             },
         };
     }
 
-    const queryParams = parseQuery(searchTerm);
+    const queryParams = parseQuery(searchTerm, allData);
     const matchingClasses = filterMatchingClasses(
         allData,
         queryParams,
@@ -383,7 +569,8 @@ export const searchInClient = (
     const entities = extractEntities(
         matchingClasses,
         queryParams.flatTerms,
-        selectedYears,
+        queryParams.mode,
+        queryParams.effectiveQuery,
     );
 
     const grouped: Record<string, any[]> = {};
@@ -411,6 +598,10 @@ export const searchInClient = (
             };
         });
 
+    const totalMatchedStudents = new Set(
+        matchingClasses.flatMap((cls) => cls.students.map((s: any) => s.stuId))
+    ).size;
+
     return {
         data: finalData,
         entities,
@@ -420,6 +611,7 @@ export const searchInClient = (
             keyword: queryParams.effectiveQuery,
             total_subjects: finalData.length,
             total_sections: matchingClasses.length,
+            total_matched_students: totalMatchedStudents,
         },
     };
 };

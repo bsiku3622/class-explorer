@@ -16,11 +16,14 @@ const App: React.FC = () => {
     const [stats, setStats] = useState<Stats | null>(null);
     const [studentCounts, setStudentCounts] = useState<Record<string, number>>({});
     const [selectedYears, setSelectedYears] = useState<string[]>([]);
-    const [searchTerm, setSearchTerm] = useState("");
+    const [searchTerm, setSearchTerm] = useState(() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("q") || "";
+    });
     const [loading, setLoading] = useState(true);
     const [expandedSubjects, setExpandedSubjects] = useState<string[]>([]);
     const [searchResult, setSearchResult] = useState<SearchResultStats | null>(null);
-    const [searchMode, setSearchMode] = useState<"general" | "student" | "teacher">("general");
+    const [searchMode, setSearchMode] = useState<"general" | "student" | "teacher" | "room">("general");
     const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
 
     const isModifierPressed = useModifierKey();
@@ -93,7 +96,6 @@ const App: React.FC = () => {
                     ...subject,
                     sections: subject.sections.filter(
                         (sec: SubjectData["sections"][0]) =>
-                            result.mode !== "general" ||
                             sec.students.some((s) =>
                                 selectedYears.includes(s.stuId.split("-")[0]),
                             ),
@@ -109,6 +111,7 @@ const App: React.FC = () => {
                 entities: result.entities,
                 total_subjects: result.stats.total_subjects,
                 total_sections: result.stats.total_sections,
+                total_matched_students: result.stats.total_matched_students,
                 warning: result.warning,
             });
             setStats(null);
@@ -144,28 +147,51 @@ const App: React.FC = () => {
     }, [searchTerm, selectedYears, allClassesData]);
 
     useEffect(() => {
-        fetchInitialData();
+        handleSearch();
+        
+        // Update URL
+        const url = new URL(window.location.href);
+        if (searchTerm) {
+            url.searchParams.set("q", searchTerm);
+        } else {
+            url.searchParams.delete("q");
+        }
+        window.history.replaceState({}, "", url.toString());
+    }, [handleSearch, searchTerm]);
+
+    // Handle back/forward navigation
+    useEffect(() => {
+        const handlePopState = () => {
+            const params = new URLSearchParams(window.location.search);
+            setSearchTerm(params.get("q") || "");
+        };
+        window.addEventListener("popstate", handlePopState);
+        return () => window.removeEventListener("popstate", handlePopState);
     }, []);
 
     useEffect(() => {
-        handleSearch();
-    }, [handleSearch]);
+        fetchInitialData();
+    }, []);
 
-    const handleSearchToggle = (value: string, isTeacher: boolean = false) => {
-        const finalValue = isTeacher
-            ? `teacher:${value}`
-            : value.includes("-")
-              ? `student:${value}`
-              : value;
+    const handleSearchToggle = (value: string, isTeacher: boolean = false, isRoom: boolean = false) => {
+        const finalValue = isRoom
+            ? `room:${value}`
+            : isTeacher
+              ? `teacher:${value}`
+              : value.includes("-")
+                ? `student:${value}`
+                : value;
         setSearchTerm((prev) => (prev === finalValue ? "" : finalValue));
     };
 
-    const handleSearchSelect = (value: string, isTeacher: boolean = false) => {
-        const finalValue = isTeacher
-            ? `teacher:${value}`
-            : isTeacher === false && value.includes("-")
-              ? `student:${value}`
-              : value;
+    const handleSearchSelect = (value: string, isTeacher: boolean = false, isRoom: boolean = false) => {
+        const finalValue = isRoom
+            ? `room:${value}`
+            : isTeacher
+              ? `teacher:${value}`
+              : isTeacher === false && value.includes("-")
+                ? `student:${value}`
+                : value;
         setSearchTerm(finalValue);
     };
 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Tooltip } from "@heroui/react";
-import { User, MapPin, Users, BookOpen } from "lucide-react";
+import { User, MapPin, Users, BookOpen, Clock } from "lucide-react";
 import { getStudentColor } from "../lib/utils";
 import type { Section } from "../types";
 import { tooltipMotionProps } from "../constants/motion";
@@ -14,7 +14,7 @@ interface SectionCardProps {
     isModifierPressed: boolean;
     hasStudentInSearch: boolean;
     selectedYears: string[];
-    searchMode: "general" | "student" | "teacher";
+    searchMode: "general" | "student" | "teacher" | "room";
 }
 
 const SectionCard: React.FC<SectionCardProps> = ({
@@ -26,6 +26,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
     isModifierPressed,
     hasStudentInSearch,
     selectedYears,
+    searchMode,
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 
@@ -49,6 +50,18 @@ const SectionCard: React.FC<SectionCardProps> = ({
             section.teacher.toLowerCase().includes(term),
         );
     }, [effectiveSearchTerms, section.teacher]);
+
+    const isRoomSearching = useMemo(() => {
+        if (searchMode !== "room") return false;
+        const searchRoom = effectiveSearchTerms[0]; // room 모드에서는 보통 단일 검색어
+        if (!searchRoom) return false;
+
+        const primaryMatch = section.room.toLowerCase().includes(searchRoom);
+        const timesMatch = (section.times || []).some((t) =>
+            t.room.toLowerCase().includes(searchRoom),
+        );
+        return primaryMatch || timesMatch;
+    }, [effectiveSearchTerms, section.room, section.times, searchMode]);
 
     const teacherInfo = teacherSubjectMap[section.teacher] || {};
     const teacherClasses = Object.entries(teacherInfo).map(
@@ -117,7 +130,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
                         }
                     >
                         <div
-                            className={`flex items-center gap-3 text-sm font-black italic cursor-pointer transition-all px-2 py-1 -ml-2 border-2 ${
+                            className={`flex items-center gap-3 text-sm font-black italic cursor-pointer transition-all h-6.5 px-2 py-0 -ml-2 border-2 ${
                                 isTeacherSearching
                                     ? "bg-retro-secondary text-white border-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] scale-105"
                                     : "hover:text-retro-secondary border-transparent"
@@ -142,14 +155,87 @@ const SectionCard: React.FC<SectionCardProps> = ({
                         </div>
                     </Tooltip>
 
-                    <div className="flex items-center gap-3 text-sm font-black italic text-black/70">
-                        <MapPin size={20} className="text-retro-primary" />
+                    <div
+                        className={`flex items-center gap-3 text-sm font-black italic h-6.5 px-2 py-0 -ml-2 border-2 transition-all ${
+                            isRoomSearching
+                                ? "bg-retro-primary text-white border-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] scale-105"
+                                : "text-black/70 border-transparent"
+                        }`}
+                    >
+                        <MapPin
+                            size={20}
+                            className={
+                                isRoomSearching
+                                    ? "text-white"
+                                    : "text-retro-primary"
+                            }
+                        />
                         <span>{section.room}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-sm font-black italic text-black/70">
+                    <div className="flex items-center gap-3 text-sm font-black italic text-black/70 h-6.5 px-2 py-0 -ml-2 border-2 border-transparent">
                         <Users size={20} className="text-retro-accent4" />
                         <span>{section.student_count} Students</span>
                     </div>
+
+                    {section.times && section.times.length > 0 && (
+                        <div className="flex items-center gap-3 text-sm font-black italic text-black/70 h-6.5 px-2 py-0 -ml-2 border-2 border-transparent">
+                            <Clock size={20} className="text-retro-accent5" />
+                            <div className="flex flex-wrap gap-x-2">
+                                {(() => {
+                                    const dayMap: Record<string, string> = {
+                                        MON: "월",
+                                        TUE: "화",
+                                        WED: "수",
+                                        THU: "목",
+                                        FRI: "금",
+                                    };
+                                    const grouped: Record<string, number[]> =
+                                        {};
+                                    section.times.forEach((t) => {
+                                        if (!grouped[t.day])
+                                            grouped[t.day] = [];
+                                        grouped[t.day].push(t.period);
+                                    });
+                                    const daysOrder = [
+                                        "MON",
+                                        "TUE",
+                                        "WED",
+                                        "THU",
+                                        "FRI",
+                                    ];
+                                    return daysOrder
+                                        .filter((day) => grouped[day])
+                                        .map((day) => {
+                                            const periods = grouped[day].sort(
+                                                (a, b) => a - b,
+                                            );
+                                            return (
+                                                <span
+                                                    key={day}
+                                                    className="flex gap-1"
+                                                >
+                                                    {periods.map((p) => (
+                                                        <span
+                                                            key={p}
+                                                            className="hover:text-retro-accent5 cursor-pointer transition-colors"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleSearchToggle(
+                                                                    `${dayMap[day]}${p}`,
+                                                                );
+                                                            }}
+                                                        >
+                                                            {dayMap[day]}
+                                                            {p}
+                                                        </span>
+                                                    ))}
+                                                </span>
+                                            );
+                                        });
+                                })()}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
             <div className="md:col-span-8">

@@ -39,7 +39,11 @@ async def get_all_data(db: Session = Depends(get_db)):
         grouped[cls.subject].append({
             "id": cls.id, "section": cls.section, "teacher": cls.teacher, "room": cls.room,
             "students": sorted(students, key=lambda x: x["stuId"]),
-            "student_count": len(students)
+            "student_count": len(students),
+            "times": sorted(
+                [{"day": t.day, "period": t.period, "room": t.room} for t in cls.times],
+                key=lambda x: (["MON", "TUE", "WED", "THU", "FRI"].index(x["day"]), x["period"])
+            )
         })
 
     final_data = []

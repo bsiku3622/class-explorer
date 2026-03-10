@@ -3,6 +3,15 @@ export interface StudentInfo {
     name: string;
 }
 
+export interface SectionTime {
+    day: string;
+    period: number;
+    room: string;
+    subject?: string;
+    section?: string;
+    teacher?: string;
+}
+
 export interface Section {
     id: number;
     section: string;
@@ -10,6 +19,7 @@ export interface Section {
     room: string;
     students: StudentInfo[];
     student_count: number;
+    times: SectionTime[];
 }
 
 export interface SubjectData {
@@ -26,11 +36,12 @@ export interface Stats {
 }
 
 export interface SearchEntity {
-    type: "student" | "teacher";
+    type: "student" | "teacher" | "room";
     name: string;
     id: string;
     subject_count: number;
-    subjects: string[];
+    subjects: string[]; // Formatted strings like "Teacher - Subject(Section)"
+    times: SectionTime[];
 }
 
 export interface SearchResultStats {
@@ -39,5 +50,6 @@ export interface SearchResultStats {
     entities: SearchEntity[];
     total_subjects: number;
     total_sections: number;
+    total_matched_students: number;
     warning?: string;
 }

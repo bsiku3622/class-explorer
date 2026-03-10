@@ -1,21 +1,30 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Tooltip, Chip } from "@heroui/react";
-import { BookOpen, AlertCircle } from "lucide-react";
+import { BookOpen, AlertCircle, ChevronDown } from "lucide-react";
 import type { SearchResultStats } from "../types";
 import { getStudentColor } from "../lib/utils";
 import { tooltipMotionProps } from "../constants/motion";
+import TimetableGrid from "./TimetableGrid";
+import EntityCard from "./EntityCard";
 
 interface SearchResultDisplayProps {
     searchResult: SearchResultStats;
-    searchMode: "general" | "student" | "teacher";
+    searchMode: "general" | "student" | "teacher" | "room";
     isLogicalSearch: boolean;
     isConsolidatedView: boolean;
     isModifierPressed: boolean;
     hoveredEntityId: string | null;
     setHoveredEntityId: (id: string | null) => void;
-    handleSearchToggle: (value: string, isTeacher?: boolean) => void;
-    handleSearchSelect: (value: string, isTeacher?: boolean) => void;
+    handleSearchToggle: (value: string, isTeacher?: boolean, isRoom?: boolean) => void;
+    handleSearchSelect: (value: string, isTeacher?: boolean, isRoom?: boolean) => void;
 }
+
+const getEntityColor = (entity: any) => {
+    if (entity.type === "student") return getStudentColor(entity.id);
+    if (entity.type === "teacher") return "#7828c8";
+    if (entity.type === "room") return "#00B5E7"; // Cyan for rooms
+    return "#000000";
+};
 
 const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
     searchResult,
@@ -28,6 +37,13 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
     handleSearchToggle,
     handleSearchSelect,
 }) => {
+    const [visibleCount, setVisibleCount] = useState(6);
+
+    // 검색 결과가 바뀌면 다시 6개로 리셋
+    useEffect(() => {
+        setVisibleCount(6);
+    }, [searchResult.keyword, searchResult.entities.length]);
+
     const renderWarning = () => {
         if (!searchResult.warning) return null;
         return (
@@ -50,21 +66,25 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
             <div className="flex flex-col">
                 {renderWarning()}
                 <div className="bg-white border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-black">
-                    {/* Left Side: Primary Entity or Logical Query */}
+                    {/* Left Side: Profile & Subject List (1/3 Width) */}
                     <div
-                        className={`p-8 md:w-1/2 flex flex-col justify-center relative ${
+                        className={`p-8 md:w-1/3 flex flex-col relative ${
                             searchMode === "student"
                                 ? ""
                                 : searchMode === "teacher"
                                   ? "bg-retro-secondary/5"
-                                  : "bg-retro-accent1/5"
+                                  : searchMode === "room"
+                                    ? "bg-retro-accent4/5"
+                                    : "bg-retro-accent1/5"
                         }`}
                         style={
                             searchMode === "student" && searchResult.entities[0]
                                 ? {
                                       backgroundColor: `${getStudentColor(searchResult.entities[0].id)}15`,
                                   }
-                                : {}
+                                : searchMode === "room"
+                                  ? { backgroundColor: "rgba(0, 181, 231, 0.1)" }
+                                  : {}
                         }
                     >
                         <div className="absolute top-0 left-0 px-6 py-1.5 bg-black text-white text-xs font-black italic tracking-widest uppercase">
@@ -72,25 +92,23 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                 ? "Student Profile"
                                 : searchMode === "teacher"
                                   ? "Teacher Profile"
-                                  : "Logical Search"}
+                                  : searchMode === "room"
+                                    ? "Classroom Profile"
+                                    : "Logical Search"}
                         </div>
 
-                        <div className="mt-4">
+                        <div className="mt-8 mb-10">
                             {searchMode !== "general" && searchResult.entities[0] ? (
                                 <>
-                                    <p className="text-xl font-black text-black/40 uppercase tracking-tighter mb-2">
-                                        &nbsp;&nbsp;
-                                        {searchMode === "student"
-                                            ? searchResult.entities[0].id
-                                            : "Position: Faculty"}
-                                    </p>
+                                    {searchMode === "student" && (
+                                        <p className="text-sm font-black text-black/40 uppercase tracking-tighter mb-1">
+                                            {searchResult.entities[0].id}
+                                        </p>
+                                    )}
                                     <h2
-                                        className="text-6xl font-black italic tracking-tighter"
+                                        className="text-5xl font-black italic tracking-tighter leading-none"
                                         style={{
-                                            color:
-                                                searchMode === "student"
-                                                    ? getStudentColor(searchResult.entities[0].id)
-                                                    : "#7828c8",
+                                            color: getEntityColor(searchResult.entities[0]),
                                         }}
                                     >
                                         {searchResult.entities[0].name}
@@ -101,7 +119,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                     <p className="text-sm font-black text-black/30 uppercase tracking-tighter mb-1">
                                         Active Query
                                     </p>
-                                    <h2 className="text-5xl font-black italic tracking-tighter text-black uppercase break-all">
+                                    <h2 className="text-4xl font-black italic tracking-tighter text-black uppercase break-all">
                                         {searchResult.prefix ? `${searchResult.prefix}:` : ""}
                                         {searchResult.keyword}
                                     </h2>
@@ -109,13 +127,78 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                             )}
                         </div>
 
+                        {/* Stats and Subject List on the Left Side */}
+                        {searchMode !== "general" && searchResult.entities[0] && (
+                            <div className="pt-8 border-t-2 border-black/10 flex-1 flex flex-col gap-10">
+                                {/* Compact stats at the top of left side content */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-[10px] font-black text-black/30 uppercase tracking-widest mb-1">
+                                            Matched Subjects
+                                        </p>
+                                        <div className="flex items-baseline gap-1.5">
+                                            <span className="text-3xl font-black text-black tracking-tighter">
+                                                {searchResult.total_subjects}
+                                            </span>
+                                            <span className="text-[10px] font-black text-black/20 uppercase">
+                                                Items
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-black/30 uppercase tracking-widest mb-1">
+                                            Total Sections
+                                        </p>
+                                        <div className="flex items-baseline gap-1.5">
+                                            <span className="text-3xl font-black text-black tracking-tighter">
+                                                {searchResult.total_sections}
+                                            </span>
+                                            <span className="text-[10px] font-black text-black/20 uppercase">
+                                                Classes
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                        <BookOpen size={14} />{" "}
+                                        {searchMode === "student"
+                                            ? "Enrollment"
+                                            : searchMode === "teacher"
+                                              ? "Teaching"
+                                              : "Scheduled"}{" "}
+                                        ({searchResult.entities[0].subject_count})
+                                    </p>
+                                    <div className="flex flex-col gap-1.5">
+                                        {searchResult.entities[0].subjects.map((sub, i) => {
+                                            // 이제 subjects는 이미 "Prefix - Subject(Section)" 형식으로 포맷팅되어 있음
+                                            return (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => {
+                                                        // 검색을 위해 한글 과목명만 추출
+                                                        const parts = sub.split(" - ");
+                                                        const mainPart = parts.length > 1 ? parts[1] : parts[0];
+                                                        const baseName = mainPart.split("(")[0].trim();
+                                                        handleSearchToggle(baseName);
+                                                    }}
+                                                    className="text-left text-xs font-bold text-black border-l-4 border-black/10 pl-3 py-1 hover:border-black hover:bg-black/5 transition-all truncate"
+                                                    style={{ borderLeftColor: `${getEntityColor(searchResult.entities[0])}40` }}
+                                                >
+                                                    {sub}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {isLogicalSearch && searchResult.entities.length > 0 && (
                             <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2.5">
                                 {searchResult.entities.map((entity, i) => {
-                                    const color =
-                                        entity.type === "student"
-                                            ? getStudentColor(entity.id)
-                                            : "#7828c8";
+                                    const color = getEntityColor(entity);
                                     const entityKey = `logical-${entity.id}-${entity.name}-${i}`;
 
                                     return (
@@ -136,16 +219,14 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                                 <div className="flex divide-x-2 divide-black min-w-[320px] max-w-112.5 text-left">
                                                     <div
                                                         className="p-4 flex flex-col justify-center min-w-30"
-                                                        style={
-                                                            entity.type === "student"
-                                                                ? { backgroundColor: `${color}26` }
-                                                                : { backgroundColor: "rgba(120, 40, 200, 0.1)" }
-                                                        }
+                                                        style={{ backgroundColor: `${color}26` }}
                                                     >
                                                         <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
                                                             {entity.type === "student"
                                                                 ? "Student ID"
-                                                                : "Teacher"}
+                                                                : entity.type === "teacher"
+                                                                  ? "Teacher"
+                                                                  : "Facility"}
                                                         </p>
                                                         {entity.type === "student" && (
                                                             <p className="text-xs font-black text-black leading-none mb-3">
@@ -170,7 +251,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                                                     className="text-[10px] font-bold text-black border-l-2 pl-1.5 truncate"
                                                                     style={{ borderColor: color }}
                                                                 >
-                                                                    {sub.split("(")[0]}
+                                                                    {sub}
                                                                 </div>
                                                             ))}
                                                             {entity.subjects.length > 8 && (
@@ -198,12 +279,15 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                                             ? entity.id
                                                             : entity.name,
                                                         entity.type === "teacher",
+                                                        entity.type === "room",
                                                     )
                                                 }
                                             >
                                                 {entity.type === "student"
                                                     ? `${entity.id.split("-")[0]} ${entity.name}`
-                                                    : `${entity.name} T`}
+                                                    : entity.type === "teacher"
+                                                      ? `${entity.name} T`
+                                                      : `${entity.name}`}
                                             </div>
                                         </Tooltip>
                                     );
@@ -212,74 +296,57 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                         )}
                     </div>
 
-                    {/* Right Side: Search Stats & Overview */}
-                    <div className="p-10 md:w-1/2 bg-white flex flex-col justify-center">
-                        <div className="grid grid-cols-2 gap-10">
-                            <div>
-                                <p className="text-sm font-black text-black/40 uppercase tracking-widest mb-2">
-                                    Matched Subjects
-                                </p>
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-5xl font-black text-black tracking-tighter">
-                                        {searchResult.total_subjects}
-                                    </span>
-                                    <span className="text-xs font-black text-black/30 uppercase">
-                                        Items
-                                    </span>
-                                </div>
-                            </div>
-                            <div>
-                                <p className="text-sm font-black text-black/40 uppercase tracking-widest mb-2">
-                                    Total Sections
-                                </p>
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-5xl font-black text-black tracking-tighter">
-                                        {searchResult.total_sections}
-                                    </span>
-                                    <span className="text-xs font-black text-black/30 uppercase">
-                                        Classes
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
+                    {/* Right Side: Timetable (2/3 Width) */}
+                    <div className="p-10 md:w-2/3 bg-white flex flex-col justify-center">
                         {searchMode !== "general" && searchResult.entities[0] ? (
-                            <div className="mt-10 pt-8 border-t-2 border-black/10">
-                                <p className="text-sm font-black text-black/40 uppercase tracking-widest mb-5 flex items-center gap-2">
-                                    <BookOpen size={18} /> Total{" "}
-                                    {searchMode === "student" ? "Enrollment" : "Teaching"} (
-                                    {searchResult.entities[0].subject_count})
-                                </p>
-                                <div className="grid grid-cols-2 gap-x-6 gap-y-2.5">
-                                    {searchResult.entities[0].subjects.map((sub, i) => (
-                                        <div
-                                            key={i}
-                                            className="text-sm font-bold text-black border-l-4 border-black/20 pl-3 truncate py-0.5"
-                                        >
-                                            {searchMode === "teacher"
-                                                ? (() => {
-                                                      const match = sub.match(/^(.*)\(([^)]+)\)$/);
-                                                      if (match) {
-                                                          const name = match[1]
-                                                              .split("(")[0]
-                                                              .trim();
-                                                          const sections = match[2];
-                                                          return `${name}(${sections})`;
-                                                      }
-                                                      return sub;
-                                                  })()
-                                                : sub.split("(")[0]}
-                                        </div>
-                                    ))}
-                                </div>
+                            <div className="flex flex-col">
+                                <TimetableGrid
+                                    times={searchResult.entities[0].times}
+                                    color={getEntityColor(searchResult.entities[0])}
+                                    mode={searchMode}
+                                    className="w-full"
+                                    onCellClick={(subject) => {
+                                        handleSearchToggle(subject);
+                                    }}
+                                />
                             </div>
                         ) : (
-                            <div className="mt-8 bg-retro-bg/30 p-4 border border-black/10">
-                                <p className="text-xs font-bold leading-tight text-black/50 italic">
-                                    {isLogicalSearch
-                                        ? "논리 연산이 적용된 결과입니다. 매칭되는 상세 분반 리스트는 아래 아코디언에서 확인하세요."
-                                        : "검색 결과에 대한 요약 통계입니다."}
-                                </p>
+                            <div className="h-full flex flex-col justify-center">
+                                <div className="grid grid-cols-2 gap-10 mb-10">
+                                    <div>
+                                        <p className="text-sm font-black text-black/40 uppercase tracking-widest mb-2">
+                                            Matched Subjects
+                                        </p>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-5xl font-black text-black tracking-tighter">
+                                                {searchResult.total_subjects}
+                                            </span>
+                                            <span className="text-xs font-black text-black/30 uppercase">
+                                                Items
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-black text-black/40 uppercase tracking-widest mb-2">
+                                            Total Sections
+                                        </p>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-5xl font-black text-black tracking-tighter">
+                                                {searchResult.total_sections}
+                                            </span>
+                                            <span className="text-xs font-black text-black/30 uppercase">
+                                                Classes
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bg-retro-bg/30 p-6 border border-black/10">
+                                    <p className="text-xs font-bold leading-tight text-black/50 italic text-center">
+                                        {isLogicalSearch
+                                            ? "논리 연산이 적용된 결과입니다. 매칭되는 상세 분반 리스트는 아래 아코디언에서 확인하세요."
+                                            : "검색 결과에 대한 요약 통계입니다."}
+                                    </p>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -317,20 +384,33 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                             </p>
                             <p className="text-xl font-black text-black">
                                 {(() => {
+                                    const timeRegex = /^([월화수목금])(\d+)$/;
+                                    const match = searchResult.keyword.match(timeRegex);
+                                    if (match) {
+                                        return `${searchResult.total_matched_students} Student${searchResult.total_matched_students !== 1 ? "s" : ""} Matched`;
+                                    }
+
                                     const sCount = searchResult.entities.filter(
                                         (e) => e.type === "student",
                                     ).length;
                                     const tCount = searchResult.entities.filter(
                                         (e) => e.type === "teacher",
                                     ).length;
+                                    const rCount = searchResult.entities.filter(
+                                        (e) => e.type === "room",
+                                    ).length;
+                                    
                                     const parts = [];
                                     if (sCount > 0)
                                         parts.push(`${sCount} Student${sCount > 1 ? "s" : ""}`);
                                     if (tCount > 0)
                                         parts.push(`${tCount} Teacher${tCount > 1 ? "s" : ""}`);
+                                    if (rCount > 0)
+                                        parts.push(`${rCount} Room${rCount > 1 ? "s" : ""}`);
+                                        
                                     return parts.length > 0
                                         ? parts.join(" & ") + " Matched"
-                                        : "No People Matched";
+                                        : "No Matches";
                                 })()}
                             </p>
                         </div>
@@ -347,97 +427,38 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
             </div>
 
             {searchResult.entities.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {searchResult.entities.map((entity, idx) => {
-                        const entityColor =
-                            entity.type === "student" ? getStudentColor(entity.id) : "#7828c8";
-
-                        return (
-                            <div
+                <div className="space-y-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {searchResult.entities.slice(0, visibleCount).map((entity, idx) => (
+                            <EntityCard
                                 key={idx}
-                                className="bg-white border border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] flex divide-x divide-black overflow-hidden cursor-pointer hover:-translate-y-1.5 transition-transform group"
+                                entity={entity}
+                                entityColor={getEntityColor(entity)}
+                                isSingleEntity={searchResult.entities.length === 1}
                                 onClick={() =>
                                     handleSearchSelect(
                                         entity.type === "student" ? entity.id : entity.name,
                                         entity.type === "teacher",
+                                        entity.type === "room"
                                     )
                                 }
-                            >
-                                {/* Profile Page (Left) */}
-                                <div
-                                    className="p-6 min-w-44 flex flex-col justify-center relative"
-                                    style={{ backgroundColor: `${entityColor}15` }}
-                                >
-                                    <span
-                                        className={`absolute top-3 left-3 px-3 py-1 text-[10px] font-black uppercase border border-black/20 ${entity.type === "student" ? "bg-white text-black" : "bg-retro-secondary text-white border-none"}`}
-                                    >
-                                        {entity.type}
-                                    </span>
-                                    <p className="text-[10px] font-black text-black/30 uppercase tracking-tighter mt-4 mb-1">
-                                        {entity.type === "student" ? "Student ID" : "Position"}
-                                    </p>
-                                    <p className="text-sm font-black text-black mb-3">
-                                        {entity.id}
-                                    </p>
-                                    <p
-                                        className="text-3xl font-black italic tracking-tighter group-hover:scale-105 transition-transform"
-                                        style={{ color: entityColor }}
-                                    >
-                                        {entity.name}
-                                    </p>
-                                </div>
+                            />
+                        ))}
+                    </div>
 
-                                {/* Classes Page (Right) */}
-                                <div className="p-6 flex-1 bg-white overflow-hidden">
-                                    <p className="text-[10px] font-black text-black/30 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                        <BookOpen size={14} />{" "}
-                                        {entity.type === "student" ? "Enrollment" : "Teaching"} (
-                                        {entity.subject_count})
-                                    </p>
-                                    <div
-                                        className={`grid ${
-                                            searchResult.entities.length === 1
-                                                ? "grid-cols-2 gap-x-6 gap-y-2"
-                                                : "grid-cols-1 gap-2"
-                                        }`}
-                                    >
-                                        {(searchResult.entities.length === 1
-                                            ? entity.subjects
-                                            : entity.subjects.slice(0, 4)
-                                        ).map((sub, i) => (
-                                            <div
-                                                key={i}
-                                                className="text-xs font-bold text-black border-l-2 pl-3 truncate"
-                                                style={{ borderColor: entityColor }}
-                                            >
-                                                {entity.type === "teacher"
-                                                    ? (() => {
-                                                          const match = sub.match(
-                                                              /^(.*)\(([^)]+)\)$/,
-                                                          );
-                                                          if (match) {
-                                                              const name = match[1]
-                                                                  .split("(")[0]
-                                                                  .trim();
-                                                              const sections = match[2];
-                                                              return `${name}(${sections})`;
-                                                          }
-                                                          return sub;
-                                                      })()
-                                                    : sub.split("(")[0]}
-                                            </div>
-                                        ))}
-                                        {searchResult.entities.length > 1 &&
-                                            entity.subjects.length > 4 && (
-                                                <p className="text-[10px] font-black text-black/30 pl-3 pt-1">
-                                                    + {entity.subjects.length - 4} MORE CLASSES
-                                                </p>
-                                            )}
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
+                    {searchResult.entities.length > visibleCount && (
+                        <div className="flex justify-center pt-4">
+                            <button
+                                onClick={() => setVisibleCount((prev) => prev + 6)}
+                                className="group relative px-8 py-3 bg-white border-2 border-black font-black uppercase italic tracking-tighter hover:-translate-x-1 hover:-translate-y-1 transition-transform active:translate-x-0 active:translate-y-0"
+                            >
+                                <span className="relative z-10 flex items-center gap-2">
+                                    Show More Items <ChevronDown size={20} strokeWidth={3} />
+                                </span>
+                                <div className="absolute inset-0 bg-black translate-x-1.5 translate-y-1.5 -z-10 group-hover:translate-x-2 group-hover:translate-y-2 transition-transform" />
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

@@ -14,7 +14,7 @@ interface SubjectAccordionItemProps {
     isModifierPressed: boolean;
     hasStudentInSearch: boolean;
     selectedYears: string[];
-    searchMode: "general" | "student" | "teacher";
+    searchMode: "general" | "student" | "teacher" | "room";
     isOpen: boolean;
     onToggle: () => void;
     isSingleStudentSearch?: boolean;

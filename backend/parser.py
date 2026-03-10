@@ -2,33 +2,48 @@ import json
 
 def parse_ksain_data(raw_data: str):
     """
-    KSAIN API 응답 데이터에서 '중복 없는 수강 목록'만 추출
+    KSAIN API 응답 데이터에서 '중복 없는 수강 목록'과 각 수업의 시간대(요일, 교시)를 추출
     """
     try:
         inner_json_str = json.loads(raw_data).get("data", "[]")
         timetable_list = json.loads(inner_json_str)
         
-        # 중복 제거를 위한 set (과목, 분반, 교사, 장소)
-        unique_classes = set()
+        # 수업별 데이터 매핑 (키: subject, section, teacher)
+        class_map = {}
+        day_names = ["MON", "TUE", "WED", "THU", "FRI"]
         
-        for row in timetable_list:
-            for i in range(1, 6):
+        for idx, row in enumerate(timetable_list):
+            period = idx + 1 # 1-indexed period
+            
+            for i in range(1, 6): # value1 to value5 (MON to FRI)
+                day = day_names[i-1]
                 val = row.get(f"value{i}")
+                
                 if val:
                     parts = val.split("<br>")
-                    subject = parts[0].strip() if len(parts) > 0 else ""
-                    section = parts[1].strip() if len(parts) > 1 else ""
-                    teacher = parts[2].strip() if len(parts) > 2 else ""
-                    room = parts[3].strip() if len(parts) > 3 else ""
-                    
-                    if subject:
-                        unique_classes.add((subject, section, teacher, room))
+                    if len(parts) >= 3:
+                        subject = parts[0].strip()
+                        section = parts[1].strip()
+                        teacher = parts[2].strip()
+                        room = parts[3].strip() if len(parts) > 3 else "Unknown"
+                        
+                        key = (subject, section, teacher)
+                        if key not in class_map:
+                            class_map[key] = {
+                                "subject": subject,
+                                "section": section,
+                                "teacher": teacher,
+                                "room": room,
+                                "times": []
+                            }
+                        
+                        class_map[key]["times"].append({
+                            "day": day,
+                            "period": period,
+                            "room": room
+                        })
         
-        # 리스트 형태로 변환하여 반환
-        return [
-            {"subject": c[0], "section": c[1], "teacher": c[2], "room": c[3]}
-            for c in unique_classes
-        ]
+        return list(class_map.values())
     except Exception as e:
         print(f"Parsing Error: {e}")
         return []
