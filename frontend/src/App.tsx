@@ -16,11 +16,13 @@ const App: React.FC = () => {
     const [stats, setStats] = useState<Stats | null>(null);
     const [studentCounts, setStudentCounts] = useState<Record<string, number>>({});
     const [selectedYears, setSelectedYears] = useState<string[]>([]);
-    const [searchTerm, setSearchTerm] = useState(() => {
+    const [searchInput, setSearchInput] = useState(() => {
         const params = new URLSearchParams(window.location.search);
         return params.get("q") || "";
     });
+    const [searchTerm, setSearchTerm] = useState(searchInput);
     const [loading, setLoading] = useState(true);
+    const [lastUpdated, setLastUpdated] = useState<number | null>(null);
     const [expandedSubjects, setExpandedSubjects] = useState<string[]>([]);
     const [searchResult, setSearchResult] = useState<SearchResultStats | null>(null);
     const [searchMode, setSearchMode] = useState<"general" | "student" | "teacher" | "room">("general");
@@ -62,14 +64,47 @@ const App: React.FC = () => {
         return map;
     }, [allClassesData]);
 
-    const fetchInitialData = async () => {
+    const fetchInitialData = async (force: boolean = false) => {
         try {
             setLoading(true);
+
+            // Check cache first if not forcing
+            if (!force) {
+                const cached = localStorage.getItem("ksa_class_finder_cache");
+                if (cached) {
+                    const { timestamp, student_counts, data } = JSON.parse(cached);
+                    const CACHE_EXPIRY = 60 * 60 * 1000; // 1 hour
+
+                    if (Date.now() - timestamp < CACHE_EXPIRY) {
+                        console.log("Using cached data from", new Date(timestamp).toLocaleString());
+                        setStudentCounts(student_counts);
+                        setSelectedYears(Object.keys(student_counts));
+                        setAllClassesData(data);
+                        setLastUpdated(timestamp);
+                        setLoading(false);
+                        return;
+                    }
+                }
+            }
+
             const response = await axios.get("/api/");
             const { student_counts, data } = response.data;
+            const now = Date.now();
+
+            // Update cache
+            localStorage.setItem(
+                "ksa_class_finder_cache",
+                JSON.stringify({
+                    timestamp: now,
+                    student_counts,
+                    data,
+                }),
+            );
+
             setStudentCounts(student_counts);
             setSelectedYears(Object.keys(student_counts));
             setAllClassesData(data);
+            setLastUpdated(now);
         } catch (error) {
             console.error("Error fetching initial data:", error);
         } finally {
@@ -148,22 +183,34 @@ const App: React.FC = () => {
 
     useEffect(() => {
         handleSearch();
-        
-        // Update URL
-        const url = new URL(window.location.href);
-        if (searchTerm) {
-            url.searchParams.set("q", searchTerm);
-        } else {
-            url.searchParams.delete("q");
-        }
-        window.history.replaceState({}, "", url.toString());
-    }, [handleSearch, searchTerm]);
+    }, [handleSearch]);
+
+    // Debounced URL update to support browser history without polluting it
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            const url = new URL(window.location.href);
+            const currentQ = url.searchParams.get("q") || "";
+            
+            if (searchTerm !== currentQ) {
+                if (searchTerm) {
+                    url.searchParams.set("q", searchTerm);
+                } else {
+                    url.searchParams.delete("q");
+                }
+                window.history.pushState({}, "", url.toString());
+            }
+        }, 500);
+
+        return () => clearTimeout(handler);
+    }, [searchTerm]);
 
     // Handle back/forward navigation
     useEffect(() => {
         const handlePopState = () => {
             const params = new URLSearchParams(window.location.search);
-            setSearchTerm(params.get("q") || "");
+            const q = params.get("q") || "";
+            setSearchInput(q);
+            setSearchTerm(q);
         };
         window.addEventListener("popstate", handlePopState);
         return () => window.removeEventListener("popstate", handlePopState);
@@ -173,6 +220,15 @@ const App: React.FC = () => {
         fetchInitialData();
     }, []);
 
+    // Debounce searchInput to searchTerm
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setSearchTerm(searchInput);
+        }, 300); // 300ms debounce for search action
+
+        return () => clearTimeout(handler);
+    }, [searchInput]);
+
     const handleSearchToggle = (value: string, isTeacher: boolean = false, isRoom: boolean = false) => {
         const finalValue = isRoom
             ? `room:${value}`
@@ -181,7 +237,10 @@ const App: React.FC = () => {
               : value.includes("-")
                 ? `student:${value}`
                 : value;
-        setSearchTerm((prev) => (prev === finalValue ? "" : finalValue));
+        
+        const newValue = searchTerm === finalValue ? "" : finalValue;
+        setSearchInput(newValue);
+        setSearchTerm(newValue); // Immediate update for click actions
     };
 
     const handleSearchSelect = (value: string, isTeacher: boolean = false, isRoom: boolean = false) => {
@@ -192,7 +251,9 @@ const App: React.FC = () => {
               : isTeacher === false && value.includes("-")
                 ? `student:${value}`
                 : value;
-        setSearchTerm(finalValue);
+        
+        setSearchInput(finalValue);
+        setSearchTerm(finalValue); // Immediate update for click actions
     };
 
     const toggleSubject = (subjectName: string) => {
@@ -218,13 +279,15 @@ const App: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-retro-bg text-retro-fg pb-20 font-sans">
-            <Navigation searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+            <Navigation searchTerm={searchInput} setSearchTerm={setSearchInput} />
 
             <main className="max-w-6xl mx-auto px-6 pt-32">
                 <FilterSection
                     studentCounts={studentCounts}
                     selectedYears={selectedYears}
                     setSelectedYears={setSelectedYears}
+                    lastUpdated={lastUpdated}
+                    onRefresh={() => fetchInitialData(true)}
                 />
 
                 {searchResult && (

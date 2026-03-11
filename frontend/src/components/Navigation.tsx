@@ -25,9 +25,12 @@ const Navigation: React.FC<NavigationProps> = ({
             maxWidth="full"
         >
             <NavbarBrand>
-                <p className="text-2xl font-black italic tracking-tighter text-white uppercase transform -skew-x-6">
+                <button 
+                    onClick={() => setSearchTerm("")}
+                    className="text-2xl font-black italic tracking-tighter text-white uppercase transform -skew-x-6 hover:scale-105 transition-transform active:scale-95"
+                >
                     Class Explorer
-                </p>
+                </button>
             </NavbarBrand>
             <NavbarContent className="hidden sm:flex gap-4 h-12" justify="end">
                 <div className="relative h-full">
@@ -37,7 +40,7 @@ const Navigation: React.FC<NavigationProps> = ({
                             base: "w-96 h-full",
                             input: "h-full text-base font-semibold px-2 pr-10 flex-1 h-full focus:outline-none",
                             inputWrapper:
-                                "h-full bg-white border-2 border-black rounded-none data-[hover=true]:border-black group-data-[focus=true]:border-black px-4 flex items-center outline-none ring-0 relative",
+                                "h-full bg-white border-2 border-black rounded-none data-[hover=true]:border-black group-data-[focus=true]:border-black px-4 flex items-center outline-none ring-0 relative hover:bg-retro-accent-light transition-colors",
                             innerWrapper:
                                 "h-full flex flex-row items-center gap-2 w-full h-full",
                         }}
@@ -79,7 +82,7 @@ const Navigation: React.FC<NavigationProps> = ({
                                                 키워드 검색
                                             </span>
                                             <p className="text-sm font-bold">
-                                                이름, 학번, 과목, 선생님 성함
+                                                이름, 학번, 과목, 선생님, 강의실, 시간(월1)
                                             </p>
                                         </div>
                                         <div className="flex items-start gap-2">
@@ -88,24 +91,19 @@ const Navigation: React.FC<NavigationProps> = ({
                                             </span>
                                             <div>
                                                 <p className="text-sm font-bold">
-                                                    대상간의 공통/합집합 분반을
-                                                    리스트업
+                                                    여러 키워드를 조합하여 정밀하게 필터링
                                                 </p>
                                                 <p className="text-sm font-bold mt-1.5">
                                                     <span className="text-retro-primary font-black">
                                                         &
                                                     </span>{" "}
-                                                    (같은 과목),{" "}
-                                                    <span className="text-retro-primary font-black">
-                                                        &&
-                                                    </span>{" "}
-                                                    (같은 분반)
-                                                </p>
-                                                <p className="text-sm font-bold">
+                                                    (AND),{" "}
                                                     <span className="text-retro-primary font-black">
                                                         +
                                                     </span>{" "}
-                                                    (OR),{" "}
+                                                    (OR)
+                                                </p>
+                                                <p className="text-sm font-bold">
                                                     <span className="text-retro-primary font-black">
                                                         !
                                                     </span>{" "}
@@ -119,14 +117,13 @@ const Navigation: React.FC<NavigationProps> = ({
                                         </div>
                                         <div className="flex items-start gap-2">
                                             <span className="bg-black text-white px-1.5 py-0.5 text-[11px] font-black shrink-0">
-                                                과목 / 인물
+                                                통합 검색
                                             </span>
                                             <p className="text-sm font-bold leading-snug">
-                                                특정 과목 내에서 특정 인물을
-                                                검색
+                                                서로 다른 필드를 조합하여 검색 가능
                                                 <br />
                                                 <span className="text-xs text-black/40 italic">
-                                                    예: 미적분학 / 유지원
+                                                    예: 미적분학&유지원, 24-001&공학
                                                 </span>
                                             </p>
                                         </div>
@@ -142,7 +139,7 @@ const Navigation: React.FC<NavigationProps> = ({
                                                 student:학번
                                             </span>
                                             <p className="text-sm font-bold">
-                                                학생 집중 검색 (학번만 가능)
+                                                학생 전용 검색 (학번만 가능)
                                             </p>
                                         </div>
                                         <div className="flex items-start gap-2">
@@ -150,7 +147,15 @@ const Navigation: React.FC<NavigationProps> = ({
                                                 teacher:성함
                                             </span>
                                             <p className="text-sm font-bold">
-                                                선생님 집중 검색
+                                                선생님 전용 검색
+                                            </p>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <span className="bg-black text-white px-1.5 py-0.5 text-[11px] font-black shrink-0">
+                                                room:강의실
+                                            </span>
+                                            <p className="text-sm font-bold">
+                                                강의실 전용 검색
                                             </p>
                                         </div>
                                     </div>
@@ -174,11 +179,12 @@ const Navigation: React.FC<NavigationProps> = ({
                     }
                     motionProps={tooltipMotionProps}
                     classNames={{
+                        base: "!transition-none",
                         content:
-                            "rounded-none border border-black bg-white shadow-[4px_4px_0_0_rgba(120,40,200,0.3)]",
+                            "p-0 rounded-none border-2 border-black bg-white shadow-[8px_8px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
                     }}
                 >
-                    <div className="w-12 h-12 flex items-center justify-center border-2 border-black bg-white text-black hover:bg-retro-accent1 cursor-help transition-colors active:translate-x-0.5 active:translate-y-0.5 active:shadow-none flex-none">
+                    <div className="w-12 h-12 flex items-center justify-center border-2 border-black bg-white text-black hover:bg-retro-accent-light cursor-help transition-colors active:translate-x-0.5 active:translate-y-0.5 active:shadow-none flex-none">
                         <HelpCircle size={24} strokeWidth={2.5} />
                     </div>
                 </Tooltip>

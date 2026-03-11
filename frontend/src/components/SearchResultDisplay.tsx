@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Tooltip, Chip } from "@heroui/react";
-import { BookOpen, AlertCircle, ChevronDown } from "lucide-react";
+import { BookOpen, AlertCircle, ChevronDown, LayoutGrid, Calendar } from "lucide-react";
 import type { SearchResultStats } from "../types";
 import { getStudentColor } from "../lib/utils";
 import { tooltipMotionProps } from "../constants/motion";
@@ -15,8 +15,16 @@ interface SearchResultDisplayProps {
     isModifierPressed: boolean;
     hoveredEntityId: string | null;
     setHoveredEntityId: (id: string | null) => void;
-    handleSearchToggle: (value: string, isTeacher?: boolean, isRoom?: boolean) => void;
-    handleSearchSelect: (value: string, isTeacher?: boolean, isRoom?: boolean) => void;
+    handleSearchToggle: (
+        value: string,
+        isTeacher?: boolean,
+        isRoom?: boolean,
+    ) => void;
+    handleSearchSelect: (
+        value: string,
+        isTeacher?: boolean,
+        isRoom?: boolean,
+    ) => void;
 }
 
 const getEntityColor = (entity: any) => {
@@ -38,6 +46,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
     handleSearchSelect,
 }) => {
     const [visibleCount, setVisibleCount] = useState(6);
+    const [viewType, setViewType] = useState<"timetable" | "list">("timetable");
 
     // 검색 결과가 바뀌면 다시 6개로 리셋
     useEffect(() => {
@@ -48,7 +57,10 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
         if (!searchResult.warning) return null;
         return (
             <div className="bg-white border-2 border-black p-4 shadow-[4px_4px_0_0_rgba(255,165,0,0.4)] flex items-start gap-3 mb-8">
-                <AlertCircle className="text-orange-500 shrink-0 mt-0.5" size={20} />
+                <AlertCircle
+                    className="text-orange-500 shrink-0 mt-0.5"
+                    size={20}
+                />
                 <div>
                     <p className="text-xs font-black uppercase text-orange-600 tracking-widest mb-1">
                         Search Warning
@@ -66,7 +78,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
             <div className="flex flex-col">
                 {renderWarning()}
                 <div className="bg-white border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-black">
-                    {/* Left Side: Profile & Subject List (1/3 Width) */}
+                    {/* Left Side: Profile & Stats (1/3 Width) */}
                     <div
                         className={`p-8 md:w-1/3 flex flex-col relative ${
                             searchMode === "student"
@@ -83,10 +95,12 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                       backgroundColor: `${getStudentColor(searchResult.entities[0].id)}15`,
                                   }
                                 : searchMode === "room"
-                                  ? { backgroundColor: "rgba(0, 181, 231, 0.1)" }
+                                  ? {
+                                        backgroundColor:
+                                            "rgba(0, 181, 231, 0.1)",
+                                    }
                                   : {}
-                        }
-                    >
+                        }>
                         <div className="absolute top-0 left-0 px-6 py-1.5 bg-black text-white text-xs font-black italic tracking-widest uppercase">
                             {searchMode === "student"
                                 ? "Student Profile"
@@ -97,8 +111,29 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                     : "Logical Search"}
                         </div>
 
+                        {/* View Switcher Toggle */}
+                        {searchMode !== "general" && searchResult.entities[0] && (
+                            <div className="absolute top-0 right-0 flex border-l border-b border-black">
+                                <button
+                                    onClick={() => setViewType("timetable")}
+                                    className={`p-2.5 transition-all ${viewType === "timetable" ? "bg-black text-white" : "bg-white text-black hover:bg-retro-accent-light"}`}
+                                    title="Timetable View"
+                                >
+                                    <Calendar size={20} strokeWidth={2.5} />
+                                </button>
+                                <button
+                                    onClick={() => setViewType("list")}
+                                    className={`p-2.5 transition-all ${viewType === "list" ? "bg-black text-white" : "bg-white text-black hover:bg-retro-accent-light"}`}
+                                    title="List View"
+                                >
+                                    <LayoutGrid size={20} strokeWidth={2.5} />
+                                </button>
+                            </div>
+                        )}
+
                         <div className="mt-8 mb-10">
-                            {searchMode !== "general" && searchResult.entities[0] ? (
+                            {searchMode !== "general" &&
+                            searchResult.entities[0] ? (
                                 <>
                                     {searchMode === "student" && (
                                         <p className="text-sm font-black text-black/40 uppercase tracking-tighter mb-1">
@@ -108,9 +143,10 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                     <h2
                                         className="text-5xl font-black italic tracking-tighter leading-none"
                                         style={{
-                                            color: getEntityColor(searchResult.entities[0]),
-                                        }}
-                                    >
+                                            color: getEntityColor(
+                                                searchResult.entities[0],
+                                            ),
+                                        }}>
                                         {searchResult.entities[0].name}
                                     </h2>
                                 </>
@@ -120,196 +156,299 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                         Active Query
                                     </p>
                                     <h2 className="text-4xl font-black italic tracking-tighter text-black uppercase break-all">
-                                        {searchResult.prefix ? `${searchResult.prefix}:` : ""}
+                                        {searchResult.prefix
+                                            ? `${searchResult.prefix}:`
+                                            : ""}
                                         {searchResult.keyword}
                                     </h2>
                                 </>
                             )}
                         </div>
 
-                        {/* Stats and Subject List on the Left Side */}
-                        {searchMode !== "general" && searchResult.entities[0] && (
-                            <div className="pt-8 border-t-2 border-black/10 flex-1 flex flex-col gap-10">
-                                {/* Compact stats at the top of left side content */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <p className="text-[10px] font-black text-black/30 uppercase tracking-widest mb-1">
-                                            Matched Subjects
-                                        </p>
-                                        <div className="flex items-baseline gap-1.5">
-                                            <span className="text-3xl font-black text-black tracking-tighter">
-                                                {searchResult.total_subjects}
-                                            </span>
-                                            <span className="text-[10px] font-black text-black/20 uppercase">
-                                                Items
-                                            </span>
+                        {/* Stats Summary */}
+                        {searchMode !== "general" &&
+                            searchResult.entities[0] && (
+                                <div className="pt-8 border-t-2 border-black/10 flex-1 flex flex-col gap-10">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-[10px] font-black text-black/30 uppercase tracking-widest mb-1">
+                                                Matched Subjects
+                                            </p>
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-3xl font-black text-black tracking-tighter">
+                                                    {
+                                                        searchResult.total_subjects
+                                                    }
+                                                </span>
+                                                <span className="text-[10px] font-black text-black/20 uppercase">
+                                                    Items
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-black text-black/30 uppercase tracking-widest mb-1">
+                                                Total Sections
+                                            </p>
+                                            <div className="flex items-baseline gap-1.5">
+                                                <span className="text-3xl font-black text-black tracking-tighter">
+                                                    {
+                                                        searchResult.total_sections
+                                                    }
+                                                </span>
+                                                <span className="text-[10px] font-black text-black/20 uppercase">
+                                                    Classes
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div>
-                                        <p className="text-[10px] font-black text-black/30 uppercase tracking-widest mb-1">
-                                            Total Sections
-                                        </p>
-                                        <div className="flex items-baseline gap-1.5">
-                                            <span className="text-3xl font-black text-black tracking-tighter">
-                                                {searchResult.total_sections}
-                                            </span>
-                                            <span className="text-[10px] font-black text-black/20 uppercase">
-                                                Classes
-                                            </span>
+
+                                    {/* Sidebar List (Only in Timetable Mode) */}
+                                    {viewType === "timetable" && (
+                                        <div className="flex flex-col gap-2">
+                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                                <BookOpen size={14} />{" "}
+                                                {searchMode === "student"
+                                                    ? "Enrollment"
+                                                    : searchMode === "teacher"
+                                                      ? "Teaching"
+                                                      : "Scheduled"}{" "}
+                                                (
+                                                {
+                                                    searchResult.entities[0]
+                                                        .subject_count
+                                                }
+                                                )
+                                            </p>
+                                            <div className="flex flex-col gap-1.5">
+                                                {searchResult.entities[0].subjects.map(
+                                                    (sub, i) => (
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => {
+                                                                const parts = sub.split(" - ");
+                                                                if (parts.length < 2) {
+                                                                    handleSearchToggle(sub.split("(")[0].trim());
+                                                                    return;
+                                                                }
+                                                                let subjectPart = "", extraPart = "";
+                                                                if (searchMode === "room") {
+                                                                    extraPart = parts[0].trim();
+                                                                    subjectPart = parts[1].split("(")[0].trim();
+                                                                } else {
+                                                                    subjectPart = parts[0].split("(")[0].trim();
+                                                                    extraPart = parts[1].trim();
+                                                                }
+                                                                handleSearchToggle(`${subjectPart}&${extraPart}`);
+                                                            }}
+                                                            className="text-left text-xs font-bold text-black border-l-4 border-black/10 pl-3 py-1 hover:border-black hover:bg-black/5 transition-all truncate"
+                                                            style={{
+                                                                borderLeftColor: `${getEntityColor(searchResult.entities[0])}40`,
+                                                            }}>
+                                                            {sub}
+                                                        </button>
+                                                    ),
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
+                            )}
 
-                                <div className="flex flex-col gap-2">
-                                    <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                        <BookOpen size={14} />{" "}
-                                        {searchMode === "student"
-                                            ? "Enrollment"
-                                            : searchMode === "teacher"
-                                              ? "Teaching"
-                                              : "Scheduled"}{" "}
-                                        ({searchResult.entities[0].subject_count})
-                                    </p>
-                                    <div className="flex flex-col gap-1.5">
-                                        {searchResult.entities[0].subjects.map((sub, i) => {
-                                            // 이제 subjects는 이미 "Prefix - Subject(Section)" 형식으로 포맷팅되어 있음
-                                            return (
-                                                <button
-                                                    key={i}
-                                                    onClick={() => {
-                                                        // 검색을 위해 한글 과목명만 추출
-                                                        const parts = sub.split(" - ");
-                                                        const mainPart = parts.length > 1 ? parts[1] : parts[0];
-                                                        const baseName = mainPart.split("(")[0].trim();
-                                                        handleSearchToggle(baseName);
-                                                    }}
-                                                    className="text-left text-xs font-bold text-black border-l-4 border-black/10 pl-3 py-1 hover:border-black hover:bg-black/5 transition-all truncate"
-                                                    style={{ borderLeftColor: `${getEntityColor(searchResult.entities[0])}40` }}
-                                                >
-                                                    {sub}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                        {isLogicalSearch &&
+                            searchResult.entities.length > 0 && (
+                                <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2.5">
+                                    {searchResult.entities.map((entity, i) => {
+                                        const color = getEntityColor(entity);
+                                        const entityKey = `logical-${entity.id}-${entity.name}-${i}`;
 
-                        {isLogicalSearch && searchResult.entities.length > 0 && (
-                            <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2.5">
-                                {searchResult.entities.map((entity, i) => {
-                                    const color = getEntityColor(entity);
-                                    const entityKey = `logical-${entity.id}-${entity.name}-${i}`;
-
-                                    return (
-                                        <Tooltip
-                                            key={i}
-                                            isOpen={isModifierPressed && hoveredEntityId === entityKey}
-                                            placement="top"
-                                            offset={15}
-                                            delay={0}
-                                            closeDelay={0}
-                                            motionProps={tooltipMotionProps}
-                                            classNames={{
-                                                base: "!transition-none",
-                                                content:
-                                                    "p-0 rounded-none border border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
-                                            }}
-                                            content={
-                                                <div className="flex divide-x-2 divide-black min-w-[320px] max-w-112.5 text-left">
-                                                    <div
-                                                        className="p-4 flex flex-col justify-center min-w-30"
-                                                        style={{ backgroundColor: `${color}26` }}
-                                                    >
-                                                        <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
-                                                            {entity.type === "student"
-                                                                ? "Student ID"
-                                                                : entity.type === "teacher"
-                                                                  ? "Teacher"
-                                                                  : "Facility"}
-                                                        </p>
-                                                        {entity.type === "student" && (
-                                                            <p className="text-xs font-black text-black leading-none mb-3">
-                                                                {entity.id}
-                                                            </p>
-                                                        )}
-                                                        <p
-                                                            className="text-xl font-black italic tracking-tight"
-                                                            style={{ color: color }}
-                                                        >
-                                                            {entity.name}
-                                                        </p>
-                                                    </div>
-                                                    <div className="p-4 flex-1 bg-white">
-                                                        <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                            <BookOpen size={12} /> Assigned Classes
-                                                        </p>
-                                                        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                                                            {entity.subjects.slice(0, 8).map((sub, idx) => (
-                                                                <div
-                                                                    key={idx}
-                                                                    className="text-[10px] font-bold text-black border-l-2 pl-1.5 truncate"
-                                                                    style={{ borderColor: color }}
-                                                                >
-                                                                    {sub}
-                                                                </div>
-                                                            ))}
-                                                            {entity.subjects.length > 8 && (
-                                                                <p className="text-[9px] font-black text-black/30 pl-1.5">
-                                                                    + {entity.subjects.length - 8} more
+                                        return (
+                                            <Tooltip
+                                                key={i}
+                                                isOpen={
+                                                    isModifierPressed &&
+                                                    hoveredEntityId ===
+                                                        entityKey
+                                                }
+                                                placement="top"
+                                                offset={15}
+                                                delay={0}
+                                                closeDelay={0}
+                                                motionProps={tooltipMotionProps}
+                                                classNames={{
+                                                    base: "!transition-none",
+                                                    content:
+                                                        "p-0 rounded-none border border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
+                                                }}
+                                                content={
+                                                    <div className="flex divide-x-2 divide-black min-w-[320px] max-w-112.5 text-left">
+                                                        <div
+                                                            className="p-4 flex flex-col justify-center min-w-30"
+                                                            style={{
+                                                                backgroundColor: `${color}26`,
+                                                            }}>
+                                                            {entity.type ===
+                                                                "student" && (
+                                                                <p className="text-xs font-black text-black leading-none mb-3">
+                                                                    {entity.id}
                                                                 </p>
                                                             )}
+                                                            <p
+                                                                className="text-xl font-black italic tracking-tight"
+                                                                style={{
+                                                                    color: color,
+                                                                }}>
+                                                                {entity.name}
+                                                            </p>
+                                                        </div>
+                                                        <div className="p-4 flex-1 bg-white">
+                                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                                <BookOpen
+                                                                    size={12}
+                                                                />{" "}
+                                                                Assigned Classes
+                                                            </p>
+                                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                                                                {entity.subjects
+                                                                    .slice(0, 8)
+                                                                    .map(
+                                                                        (
+                                                                            sub,
+                                                                            idx,
+                                                                        ) => (
+                                                                            <div
+                                                                                key={
+                                                                                    idx
+                                                                                }
+                                                                                className="text-[10px] font-bold text-black border-l-2 pl-1.5 truncate"
+                                                                                style={{
+                                                                                    borderColor:
+                                                                                        color,
+                                                                                }}>
+                                                                                {
+                                                                                    sub
+                                                                                }
+                                                                            </div>
+                                                                        ),
+                                                                    )}
+                                                                {entity.subjects
+                                                                    .length >
+                                                                    8 && (
+                                                                    <p className="text-[9px] font-black text-black/30 pl-1.5">
+                                                                        +{" "}
+                                                                        {entity
+                                                                            .subjects
+                                                                            .length -
+                                                                            8}{" "}
+                                                                        more
+                                                                    </p>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
+                                                }>
+                                                <div
+                                                    className="student-badge cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200"
+                                                    style={{
+                                                        borderColor: color,
+                                                        backgroundColor: `${color}20`,
+                                                        color: color,
+                                                    }}
+                                                    onMouseEnter={() =>
+                                                        setHoveredEntityId(
+                                                            entityKey,
+                                                        )
+                                                    }
+                                                    onMouseLeave={() =>
+                                                        setHoveredEntityId(null)
+                                                    }
+                                                    onClick={() =>
+                                                        handleSearchToggle(
+                                                            entity.type ===
+                                                                "student"
+                                                                ? entity.id
+                                                                : entity.name,
+                                                            entity.type ===
+                                                                "teacher",
+                                                            entity.type ===
+                                                                "room",
+                                                        )
+                                                    }>
+                                                    {entity.type === "student"
+                                                        ? `${entity.id.split("-")[0]} ${entity.name}`
+                                                        : entity.type ===
+                                                            "teacher"
+                                                          ? `${entity.name} T`
+                                                          : `${entity.name}`}
                                                 </div>
-                                            }
-                                        >
-                                            <div
-                                                className="student-badge cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200"
-                                                style={{
-                                                    borderColor: color,
-                                                    backgroundColor: `${color}20`,
-                                                    color: color,
-                                                }}
-                                                onMouseEnter={() => setHoveredEntityId(entityKey)}
-                                                onMouseLeave={() => setHoveredEntityId(null)}
-                                                onClick={() =>
-                                                    handleSearchToggle(
-                                                        entity.type === "student"
-                                                            ? entity.id
-                                                            : entity.name,
-                                                        entity.type === "teacher",
-                                                        entity.type === "room",
-                                                    )
-                                                }
-                                            >
-                                                {entity.type === "student"
-                                                    ? `${entity.id.split("-")[0]} ${entity.name}`
-                                                    : entity.type === "teacher"
-                                                      ? `${entity.name} T`
-                                                      : `${entity.name}`}
-                                            </div>
-                                        </Tooltip>
-                                    );
-                                })}
-                            </div>
-                        )}
+                                            </Tooltip>
+                                        );
+                                    })}
+                                </div>
+                            )}
                     </div>
 
-                    {/* Right Side: Timetable (2/3 Width) */}
-                    <div className="p-10 md:w-2/3 bg-white flex flex-col justify-center">
-                        {searchMode !== "general" && searchResult.entities[0] ? (
-                            <div className="flex flex-col">
-                                <TimetableGrid
-                                    times={searchResult.entities[0].times}
-                                    color={getEntityColor(searchResult.entities[0])}
-                                    mode={searchMode}
-                                    className="w-full"
-                                    onCellClick={(subject) => {
-                                        handleSearchToggle(subject);
-                                    }}
-                                />
-                            </div>
+                    {/* Right Side: Timetable OR Two-column List (2/3 Width) */}
+                    <div className="p-10 md:w-2/3 bg-white flex flex-col">
+                        {searchMode !== "general" &&
+                        searchResult.entities[0] ? (
+                            viewType === "timetable" ? (
+                                <div className="flex-1 flex flex-col justify-center">
+                                    <TimetableGrid
+                                        times={searchResult.entities[0].times}
+                                        color={getEntityColor(
+                                            searchResult.entities[0],
+                                        )}
+                                        mode={searchMode}
+                                        className="w-full"
+                                        onCellClick={(subject) => {
+                                            handleSearchToggle(subject);
+                                        }}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="h-full flex flex-col">
+                                    <div className="mb-10 flex items-center justify-between border-b-2 border-black pb-4">
+                                        <h3 className="text-2xl font-black uppercase italic tracking-widest text-black">
+                                            Comprehensive Course List
+                                        </h3>
+                                        <Chip className="bg-black text-white rounded-none font-black text-xs px-4">
+                                            {searchResult.entities[0].subjects.length} CLASSES
+                                        </Chip>
+                                    </div>
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-6 overflow-y-auto pr-4 custom-scrollbar">
+                                        {searchResult.entities[0].subjects.map((sub, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => {
+                                                    const parts = sub.split(" - ");
+                                                    if (parts.length < 2) {
+                                                        handleSearchToggle(sub.split("(")[0].trim());
+                                                        return;
+                                                    }
+                                                    let subjectPart = "", extraPart = "";
+                                                    if (searchMode === "room") {
+                                                        extraPart = parts[0].trim();
+                                                        subjectPart = parts[1].split("(")[0].trim();
+                                                    } else {
+                                                        subjectPart = parts[0].split("(")[0].trim();
+                                                        extraPart = parts[1].trim();
+                                                    }
+                                                    handleSearchToggle(`${subjectPart}&${extraPart}`);
+                                                }}
+                                                className="group text-left border-l-4 border-black/10 pl-5 py-2 hover:border-black hover:bg-retro-accent-light transition-all flex flex-col gap-1"
+                                                style={{ borderLeftColor: `${getEntityColor(searchResult.entities[0])}40` }}
+                                            >
+                                                <span className="text-[10px] font-black text-black/30 uppercase tracking-widest group-hover:text-retro-accent5 transition-colors">
+                                                    Slot {String(i + 1).padStart(2, '0')}
+                                                </span>
+                                                <span className="text-lg font-black text-black leading-tight italic">
+                                                    {sub}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )
                         ) : (
                             <div className="h-full flex flex-col justify-center">
                                 <div className="grid grid-cols-2 gap-10 mb-10">
@@ -369,7 +508,9 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                         </p>
                         <div className="flex items-center gap-4">
                             <span className="text-4xl font-black italic text-black uppercase tracking-tighter">
-                                {searchResult.prefix ? `${searchResult.prefix}:` : ""}
+                                {searchResult.prefix
+                                    ? `${searchResult.prefix}:`
+                                    : ""}
                                 {searchResult.keyword}
                             </span>
                             <Chip className="bg-black text-white border border-black rounded-none font-black text-xs py-1 px-3">
@@ -384,12 +525,6 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                             </p>
                             <p className="text-xl font-black text-black">
                                 {(() => {
-                                    const timeRegex = /^([월화수목금])(\d+)$/;
-                                    const match = searchResult.keyword.match(timeRegex);
-                                    if (match) {
-                                        return `${searchResult.total_matched_students} Student${searchResult.total_matched_students !== 1 ? "s" : ""} Matched`;
-                                    }
-
                                     const sCount = searchResult.entities.filter(
                                         (e) => e.type === "student",
                                     ).length;
@@ -399,15 +534,27 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                     const rCount = searchResult.entities.filter(
                                         (e) => e.type === "room",
                                     ).length;
-                                    
+                                    const subCount =
+                                        searchResult.total_subjects;
+
                                     const parts = [];
+                                    if (subCount > 0)
+                                        parts.push(
+                                            `${subCount} Subject${subCount > 1 ? "s" : ""}`,
+                                        );
                                     if (sCount > 0)
-                                        parts.push(`${sCount} Student${sCount > 1 ? "s" : ""}`);
+                                        parts.push(
+                                            `${sCount} Student${sCount > 1 ? "s" : ""}`,
+                                        );
                                     if (tCount > 0)
-                                        parts.push(`${tCount} Teacher${tCount > 1 ? "s" : ""}`);
+                                        parts.push(
+                                            `${tCount} Teacher${tCount > 1 ? "s" : ""}`,
+                                        );
                                     if (rCount > 0)
-                                        parts.push(`${rCount} Room${rCount > 1 ? "s" : ""}`);
-                                        
+                                        parts.push(
+                                            `${rCount} Room${rCount > 1 ? "s" : ""}`,
+                                        );
+
                                     return parts.length > 0
                                         ? parts.join(" & ") + " Matched"
                                         : "No Matches";
@@ -429,33 +576,36 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
             {searchResult.entities.length > 0 && (
                 <div className="space-y-8">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        {searchResult.entities.slice(0, visibleCount).map((entity, idx) => (
-                            <EntityCard
-                                key={idx}
-                                entity={entity}
-                                entityColor={getEntityColor(entity)}
-                                isSingleEntity={searchResult.entities.length === 1}
-                                onClick={() =>
-                                    handleSearchSelect(
-                                        entity.type === "student" ? entity.id : entity.name,
-                                        entity.type === "teacher",
-                                        entity.type === "room"
-                                    )
-                                }
-                            />
-                        ))}
+                        {searchResult.entities
+                            .slice(0, visibleCount)
+                            .map((entity, idx) => (
+                                <EntityCard
+                                    key={idx}
+                                    entity={entity}
+                                    entityColor={getEntityColor(entity)}
+                                    isSingleEntity={
+                                        searchResult.entities.length === 1
+                                    }
+                                    onClick={() =>
+                                        handleSearchSelect(
+                                            entity.type === "student"
+                                                ? entity.id
+                                                : entity.name,
+                                            entity.type === "teacher",
+                                            entity.type === "room",
+                                        )
+                                    }
+                                />
+                            ))}
                     </div>
 
                     {searchResult.entities.length > visibleCount && (
-                        <div className="flex justify-center pt-4">
+                        <div className="flex justify-center pt-10">
                             <button
                                 onClick={() => setVisibleCount((prev) => prev + 6)}
-                                className="group relative px-8 py-3 bg-white border-2 border-black font-black uppercase italic tracking-tighter hover:-translate-x-1 hover:-translate-y-1 transition-transform active:translate-x-0 active:translate-y-0"
+                                className="px-10 py-4 bg-white border-2 border-black font-black uppercase italic tracking-tighter text-lg shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] hover:bg-retro-accent-light transition-colors active:translate-x-0.5 active:translate-y-0.5 active:shadow-none flex items-center gap-3"
                             >
-                                <span className="relative z-10 flex items-center gap-2">
-                                    Show More Items <ChevronDown size={20} strokeWidth={3} />
-                                </span>
-                                <div className="absolute inset-0 bg-black translate-x-1.5 translate-y-1.5 -z-10 group-hover:translate-x-2 group-hover:translate-y-2 transition-transform" />
+                                Show More Items <ChevronDown size={24} strokeWidth={3} />
                             </button>
                         </div>
                     )}

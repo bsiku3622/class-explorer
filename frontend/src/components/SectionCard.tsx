@@ -6,6 +6,7 @@ import type { Section } from "../types";
 import { tooltipMotionProps } from "../constants/motion";
 
 interface SectionCardProps {
+    subject: string;
     section: Section;
     searchTerm: string;
     handleSearchToggle: (v: string, isT?: boolean) => void;
@@ -18,6 +19,7 @@ interface SectionCardProps {
 }
 
 const SectionCard: React.FC<SectionCardProps> = ({
+    subject,
     section,
     searchTerm,
     handleSearchToggle,
@@ -104,9 +106,6 @@ const SectionCard: React.FC<SectionCardProps> = ({
                         content={
                             <div className="flex divide-x-2 divide-black min-w-75">
                                 <div className="p-4 bg-retro-secondary/10 flex flex-col justify-center min-w-25">
-                                    <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
-                                        Teacher
-                                    </p>
                                     <p className="text-xl font-black text-retro-secondary italic tracking-tight">
                                         {section.teacher}
                                     </p>
@@ -130,7 +129,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
                         }
                     >
                         <div
-                            className={`flex items-center gap-3 text-sm font-black italic cursor-pointer transition-all h-6.5 px-2 py-0 -ml-2 border-2 ${
+                            className={`flex items-center gap-3 text-sm font-black italic cursor-pointer transition-all h-8 px-3 py-0 -ml-2 border ${
                                 isTeacherSearching
                                     ? "bg-retro-secondary text-white border-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] scale-105"
                                     : "hover:text-retro-secondary border-transparent"
@@ -156,11 +155,12 @@ const SectionCard: React.FC<SectionCardProps> = ({
                     </Tooltip>
 
                     <div
-                        className={`flex items-center gap-3 text-sm font-black italic h-6.5 px-2 py-0 -ml-2 border-2 transition-all ${
+                        className={`flex items-center gap-3 text-sm font-black italic h-8 px-3 py-0 -ml-2 border transition-all cursor-pointer ${
                             isRoomSearching
                                 ? "bg-retro-primary text-white border-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] scale-105"
-                                : "text-black/70 border-transparent"
+                                : "text-black/70 border-transparent hover:text-retro-primary"
                         }`}
+                        onClick={() => handleSearchToggle(section.room, false, true)}
                     >
                         <MapPin
                             size={20}
@@ -172,13 +172,13 @@ const SectionCard: React.FC<SectionCardProps> = ({
                         />
                         <span>{section.room}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-sm font-black italic text-black/70 h-6.5 px-2 py-0 -ml-2 border-2 border-transparent">
+                    <div className="flex items-center gap-3 text-sm font-black italic text-black/70 h-8 px-3 py-0 -ml-2 border-2 border-transparent">
                         <Users size={20} className="text-retro-accent4" />
                         <span>{section.student_count} Students</span>
                     </div>
 
                     {section.times && section.times.length > 0 && (
-                        <div className="flex items-center gap-3 text-sm font-black italic text-black/70 h-6.5 px-2 py-0 -ml-2 border-2 border-transparent">
+                        <div className="flex items-center gap-3 text-sm font-black italic text-black/70 h-8 px-3 py-0 -ml-2 border-2 border-transparent">
                             <Clock size={20} className="text-retro-accent5" />
                             <div className="flex flex-wrap gap-x-2">
                                 {(() => {
@@ -209,26 +209,49 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                             const periods = grouped[day].sort(
                                                 (a, b) => a - b,
                                             );
+                                            const isAnyPeriodMatch = periods.some(p => 
+                                                effectiveSearchTerms.some(term => 
+                                                    term === `${dayMap[day]}${p}` || 
+                                                    term === `${day.toLowerCase()}${p}`
+                                                )
+                                            );
                                             return (
                                                 <span
                                                     key={day}
-                                                    className="flex gap-1"
+                                                    className="flex gap-0.5 items-center mr-2"
                                                 >
-                                                    {periods.map((p) => (
-                                                        <span
-                                                            key={p}
-                                                            className="hover:text-retro-accent5 cursor-pointer transition-colors"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleSearchToggle(
-                                                                    `${dayMap[day]}${p}`,
-                                                                );
-                                                            }}
-                                                        >
-                                                            {dayMap[day]}
-                                                            {p}
-                                                        </span>
-                                                    ))}
+                                                    <span className={`transition-colors ${isAnyPeriodMatch ? "font-black text-retro-accent5" : "text-black/60"}`}>
+                                                        {dayMap[day]}
+                                                    </span>
+                                                    {periods.map((p, idx) => {
+                                                        const isThisMatch = effectiveSearchTerms.some(term => 
+                                                            term === `${dayMap[day]}${p}` || 
+                                                            term === `${day.toLowerCase()}${p}`
+                                                        );
+                                                        return (
+                                                            <React.Fragment key={p}>
+                                                                <span
+                                                                    className={`hover:text-retro-accent5 cursor-pointer transition-colors ${
+                                                                        isThisMatch
+                                                                        ? "font-black"
+                                                                        : ""
+                                                                    }`}
+                                                                    style={{
+                                                                        color: isThisMatch ? '#00c8ff' : 'inherit'
+                                                                    }}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleSearchToggle(
+                                                                            `${dayMap[day]}${p}`,
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    {p}
+                                                                </span>
+                                                                {idx < periods.length - 1 && <span className="text-black/30">,</span>}
+                                                            </React.Fragment>
+                                                        );
+                                                    })}
                                                 </span>
                                             );
                                         });
@@ -280,14 +303,8 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                                 backgroundColor: `${color}26`,
                                             }}
                                         >
-                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
-                                                Student ID
-                                            </p>
                                             <p className="text-xs font-black text-black leading-none mb-3">
                                                 {student.stuId}
-                                            </p>
-                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
-                                                Name
                                             </p>
                                             <p
                                                 className="text-xl font-black italic tracking-tight"

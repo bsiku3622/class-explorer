@@ -111,14 +111,6 @@ const parseQuery = (searchTerm: string, allData: any[]) => {
     let effectiveQuery = cleanKeyword;
     let warning: string | undefined = undefined;
 
-    // 모든 강의실 목록 수집
-    const allRooms = new Set<string>();
-    allData.forEach((sub) =>
-        sub.sections.forEach((sec: any) => {
-            if (sec.room) allRooms.add(sec.room);
-        }),
-    );
-
     if (cleanKeyword.includes(":")) {
         const [prefix, ...rest] = cleanKeyword.split(":");
         const query = rest.join(":").trim();
@@ -143,29 +135,18 @@ const parseQuery = (searchTerm: string, allData: any[]) => {
                 effectiveQuery.includes(")");
             if (hasLogic) {
                 warning =
-                    "인물/강의실 검색 모드에서는 논리 연산(&, +, 괄호)을 지원하지 않습니다. 키워드가 리터럴로 처리됩니다.";
+                    "인물/강의실 전용 검색 모드(:)에서는 복합 논리 연산이 제한될 수 있습니다. 전체 검색을 권장합니다.";
             }
         }
-    } else {
-        // 프리픽스 없을 때 강의실 자동 감지 제거 (사용자 요청: 결과 카드를 먼저 보여주기 위해)
-        // mode = "general"로 유지
     }
 
-    let subjectExpr = effectiveQuery;
-    let personExpr: string | null = null;
-    if (effectiveQuery.includes("/")) {
-        const [s, p] = effectiveQuery.split("/");
-        subjectExpr = s.trim();
-        personExpr = p.trim();
-    }
-
-    const matchBase = personExpr || effectiveQuery;
+    const matchBase = effectiveQuery;
     let flatTerms: string[] = [];
     if (warning) {
         flatTerms = [matchBase.toLowerCase()];
     } else {
         flatTerms = matchBase
-            .split(/[+&()\/!]+/)
+            .split(/[+&()!]+/)
             .map((t) => t.trim().toLowerCase())
             .filter((t) => t);
     }
@@ -173,12 +154,9 @@ const parseQuery = (searchTerm: string, allData: any[]) => {
     return {
         mode,
         effectiveQuery,
-        subjectExpr,
-        personExpr,
         flatTerms,
         warning,
-        isStrictMode:
-            searchTerm.includes("&&") || personExpr !== null || mode === "room",
+        isStrictMode: searchTerm.includes("&&") || mode === "room",
     };
 };
 
@@ -193,8 +171,6 @@ const filterMatchingClasses = (
     const {
         mode,
         effectiveQuery,
-        subjectExpr,
-        personExpr,
         isStrictMode,
         flatTerms,
         warning,
@@ -203,7 +179,6 @@ const filterMatchingClasses = (
 
     allData.forEach((subject) => {
         const subjectName = subject.subject;
-        const subjectMatchPool = new Set<string>();
         const dayMap: Record<string, string> = {
             MON: "월",
             TUE: "화",
@@ -212,55 +187,14 @@ const filterMatchingClasses = (
             FRI: "금",
         };
 
-        // 1. 과목 레벨 검색 풀 구성
-        subjectMatchPool.add(subjectName);
-        subject.sections.forEach((sec: any) => {
-            subjectMatchPool.add(sec.teacher);
-            if (sec.room) subjectMatchPool.add(sec.room);
-            if (sec.times) {
-                sec.times.forEach((t: any) => {
-                    if (t.room) subjectMatchPool.add(t.room);
-                    subjectMatchPool.add(`${t.day}${t.period}`);
-                    subjectMatchPool.add(`${dayMap[t.day]}${t.period}`);
-                });
-            }
-            sec.students.forEach((s: any) => {
-                const year = s.stuId.split("-")[0];
-                if (selectedYears.includes(year)) {
-                    subjectMatchPool.add(s.stuId);
-                    subjectMatchPool.add(s.name);
-                }
-            });
-        });
-
-        const evaluate = (expr: string, pool: string[]) => {
-            if (warning && expr === effectiveQuery) {
-                return pool.some((item) =>
-                    item.toLowerCase().includes(expr.toLowerCase()),
-                );
-            }
-            return evaluateBoolExpression(expr, pool, mode === "student");
-        };
-
-        const isSubjectMatch = personExpr
-            ? evaluate(subjectExpr, [subjectName]) &&
-              evaluate(personExpr, Array.from(subjectMatchPool))
-            : evaluate(effectiveQuery, Array.from(subjectMatchPool));
-
-        if (!isSubjectMatch) return;
-
-        // 2. 분반 레벨 필터링
+        // 분반 레벨 필터링
         subject.sections.forEach((sec: any) => {
             const activeStudents = sec.students.filter((s: any) =>
                 selectedYears.includes(s.stuId.split("-")[0]),
             );
 
-            const sectionPersonPool = [
-                sec.teacher,
-                ...activeStudents.map((s: any) => s.stuId),
-                ...activeStudents.map((s: any) => s.name),
-            ];
-            const sectionInfoPool = [
+            // 해당 분반의 모든 정보를 하나의 풀로 통합
+            const sectionPool = [
                 subjectName,
                 sec.section,
                 sec.teacher,
@@ -270,47 +204,36 @@ const filterMatchingClasses = (
                     `${t.day}${t.period}`,
                     `${dayMap[t.day]}${t.period}`,
                 ]),
-            ];
+                ...activeStudents.map((s: any) => s.stuId),
+                ...activeStudents.map((s: any) => s.name),
+            ].filter(Boolean);
+
+            const evaluate = (expr: string, pool: string[]) => {
+                if (warning && expr === effectiveQuery) {
+                    return pool.some((item) =>
+                        item.toLowerCase().includes(expr.toLowerCase()),
+                    );
+                }
+                return evaluateBoolExpression(expr, pool, mode === "student");
+            };
 
             let isSectionMatch = false;
 
-            if (personExpr !== null) {
-                const sM = evaluate(subjectExpr, sectionInfoPool);
-                const pM = evaluate(personExpr, sectionPersonPool);
-                isSectionMatch = sM && pM;
-            } else if (mode === "student") {
-                isSectionMatch = evaluate(effectiveQuery, sectionPersonPool);
+            if (mode === "student") {
+                isSectionMatch = evaluate(effectiveQuery, [
+                    ...activeStudents.map((s: any) => s.stuId),
+                    ...activeStudents.map((s: any) => s.name),
+                ]);
             } else if (mode === "teacher") {
                 isSectionMatch = evaluate(effectiveQuery, [sec.teacher]);
             } else if (mode === "room") {
                 const searchRoom = effectiveQuery.toLowerCase();
-                const primaryRoomMatch = sec.room
-                    .toLowerCase()
-                    .includes(searchRoom);
-                const timesRoomMatch = (sec.times || []).some((t: any) =>
-                    t.room.toLowerCase().includes(searchRoom),
-                );
-                isSectionMatch = primaryRoomMatch || timesRoomMatch;
-            } else if (isStrictMode) {
-                isSectionMatch = evaluate(effectiveQuery, [
-                    ...sectionInfoPool,
-                    ...sectionPersonPool,
-                ]);
+                isSectionMatch = [sec.room, ...(sec.times || []).map((t: any) => t.room)]
+                    .filter(Boolean)
+                    .some(r => r.toLowerCase().includes(searchRoom));
             } else {
-                if (flatTerms.length === 0) {
-                    isSectionMatch = activeStudents.length > 0;
-                } else {
-                    const isInfoMatch = evaluate(
-                        effectiveQuery,
-                        sectionInfoPool,
-                    );
-                    const isPersonMatch = flatTerms.some((term) =>
-                        sectionPersonPool.some((p) =>
-                            p.toLowerCase().includes(term),
-                        ),
-                    );
-                    isSectionMatch = isInfoMatch || isPersonMatch;
-                }
+                // 통합 논리 검색
+                isSectionMatch = evaluate(effectiveQuery, sectionPool);
             }
 
             if (isSectionMatch) {
@@ -511,6 +434,20 @@ const extractEntities = (
             subject_count: formattedSubjects.length,
             subjects: formattedSubjects.sort(),
         };
+    }).sort((a, b) => {
+        // 우선순위: 선생님(1) > 학생(2) > 강의실(3)
+        const priority: Record<string, number> = { teacher: 1, student: 2, room: 3 };
+        if (priority[a.type] !== priority[b.type]) {
+            return priority[a.type] - priority[b.type];
+        }
+
+        if (a.type === "teacher" || a.type === "room") {
+            // 선생님, 강의실은 이름 가나다순
+            return a.name.localeCompare(b.name, "ko");
+        } else {
+            // 학생은 학번순
+            return a.id.localeCompare(b.id);
+        }
     });
 };
 

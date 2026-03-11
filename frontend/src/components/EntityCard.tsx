@@ -29,21 +29,13 @@ const EntityCard: React.FC<EntityCardProps> = ({
                     className={`absolute top-3 left-3 px-3 py-1 text-[10px] font-black uppercase border border-black/20 ${
                         entity.type === "student"
                             ? "bg-white text-black"
-                            : entity.type === "teacher"
-                            ? "bg-retro-secondary text-white border-none"
-                            : "bg-retro-accent4 text-white border-none"
+                            : "text-white border-none"
                     }`}
+                    style={entity.type !== "student" ? { backgroundColor: entityColor } : {}}
                 >
                     {entity.type}
                 </span>
-                <p className="text-[10px] font-black text-black/30 uppercase tracking-tighter mt-4 mb-1">
-                    {entity.type === "student"
-                        ? "Student ID"
-                        : entity.type === "teacher"
-                        ? "Position"
-                        : "Location"}
-                </p>
-                <p className="text-sm font-black text-black mb-3">
+                <p className="text-sm font-black text-black mt-4 mb-3">
                     {entity.id}
                 </p>
                 <p

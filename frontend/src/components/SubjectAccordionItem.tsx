@@ -229,6 +229,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                                         <Divider className="mb-10 h-1 bg-black opacity-100" />
                                     )}
                                     <SectionCard
+                                        subject={subject.subject}
                                         section={section}
                                         searchTerm={searchTerm}
                                         handleSearchToggle={handleSearchToggle}

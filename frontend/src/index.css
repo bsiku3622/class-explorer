@@ -8,6 +8,7 @@
     --color-retro-primary: #ff4eba;
     --color-retro-secondary: #7828c8;
     --color-retro-accent1: #3decfd;
+    --color-retro-accent-light: #f0fdff;
     --color-retro-accent2: #ffd500;
     --color-retro-accent3: #ff4eba;
     --color-retro-accent4: #ff9100;
@@ -42,5 +43,5 @@ body {
 
 /* Custom styles for students list */
 .student-badge {
-    @apply inline-block bg-white border-2 px-2 py-1 text-xs font-bold rounded-none shadow-[2px_2px_0_0_rgba(0,0,0,0.1)] hover:bg-retro-accent1/10 cursor-default transition-all;
+    @apply inline-block bg-white border-2 px-2 py-1 text-xs font-bold rounded-none shadow-[2px_2px_0_0_rgba(0,0,0,0.1)] hover:bg-retro-accent-light cursor-default transition-all;
 }
