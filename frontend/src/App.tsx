@@ -1,39 +1,81 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import axios from "axios";
-import { Spinner } from "@heroui/react";
+import {
+    useLocation,
+    useNavigate,
+    Routes,
+    Route,
+    Navigate,
+} from "react-router-dom";
 import type { SubjectData, Stats, SearchResultStats } from "./types";
-import SubjectAccordionItem from "./components/SubjectAccordionItem";
 import { searchInClient } from "./lib/searchEngine";
 import { useModifierKey } from "./hooks/useModifierKey";
 import Navigation from "./components/Navigation";
-import FilterSection from "./components/FilterSection";
-import StatsCards from "./components/StatsCards";
-import SearchResultDisplay from "./components/SearchResultDisplay";
+import Sidebar from "./components/Sidebar";
+
+// Pages
+import SearchPage from "./pages/SearchPage";
+import RoomsPage from "./pages/RoomsPage";
+import AnalysisPage from "./pages/AnalysisPage";
 
 const App: React.FC = () => {
-    const [data, setData] = useState<SubjectData[]>([]);
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const queryParams = new URLSearchParams(location.search);
+    const initialSearch =
+        location.pathname === "/" ? queryParams.get("q") || "" : "";
+
     const [allClassesData, setAllClassesData] = useState<SubjectData[]>([]);
+    const [displayData, setDisplayData] = useState<SubjectData[]>([]);
     const [stats, setStats] = useState<Stats | null>(null);
-    const [studentCounts, setStudentCounts] = useState<Record<string, number>>({});
+    const [studentCounts, setStudentCounts] = useState<Record<string, number>>(
+        {},
+    );
     const [selectedYears, setSelectedYears] = useState<string[]>([]);
-    const [searchInput, setSearchInput] = useState(() => {
-        const params = new URLSearchParams(window.location.search);
-        return params.get("q") || "";
-    });
-    const [searchTerm, setSearchTerm] = useState(searchInput);
+    const [searchInput, setSearchInput] = useState(initialSearch);
+    const [searchTerm, setSearchTerm] = useState(initialSearch);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState<number | null>(null);
     const [expandedSubjects, setExpandedSubjects] = useState<string[]>([]);
-    const [searchResult, setSearchResult] = useState<SearchResultStats | null>(null);
-    const [searchMode, setSearchMode] = useState<"general" | "student" | "teacher" | "room">("general");
+    const [searchResult, setSearchResult] = useState<SearchResultStats | null>(
+        null,
+    );
+    const [searchMode, setSearchMode] = useState<
+        "general" | "student" | "teacher" | "room"
+    >("general");
     const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
 
     const isModifierPressed = useModifierKey();
+
+    useEffect(() => {
+        if (location.pathname === "/") {
+            const q = new URLSearchParams(location.search).get("q") || "";
+            if (q !== searchInput) {
+                setSearchInput(q);
+                setSearchTerm(q);
+            }
+        }
+    }, [location.pathname]);
 
     const hasStudentInSearch = useMemo(() => {
         if (!searchResult) return false;
         return searchResult.entities.some((e) => e.type === "student");
     }, [searchResult]);
+
+    const isLogicalSearch = useMemo(
+        () =>
+            searchTerm.includes("+") ||
+            searchTerm.includes("&") ||
+            searchTerm.includes("/") ||
+            searchTerm.includes("("),
+        [searchTerm],
+    );
+
+    const isConsolidatedView = useMemo(
+        () => searchMode !== "general" || isLogicalSearch,
+        [searchMode, isLogicalSearch],
+    );
 
     const studentSubjectMap = useMemo(() => {
         const map: Record<string, string[]> = {};
@@ -56,7 +98,11 @@ const App: React.FC = () => {
                 if (!map[section.teacher]) map[section.teacher] = {};
                 if (!map[section.teacher][item.subject])
                     map[section.teacher][item.subject] = [];
-                if (!map[section.teacher][item.subject].includes(section.section)) {
+                if (
+                    !map[section.teacher][item.subject].includes(
+                        section.section,
+                    )
+                ) {
                     map[section.teacher][item.subject].push(section.section);
                 }
             });
@@ -67,40 +113,27 @@ const App: React.FC = () => {
     const fetchInitialData = async (force: boolean = false) => {
         try {
             setLoading(true);
-
-            // Check cache first if not forcing
-            if (!force) {
-                const cached = localStorage.getItem("ksa_class_finder_cache");
-                if (cached) {
-                    const { timestamp, student_counts, data } = JSON.parse(cached);
-                    const CACHE_EXPIRY = 60 * 60 * 1000; // 1 hour
-
-                    if (Date.now() - timestamp < CACHE_EXPIRY) {
-                        console.log("Using cached data from", new Date(timestamp).toLocaleString());
-                        setStudentCounts(student_counts);
-                        setSelectedYears(Object.keys(student_counts));
-                        setAllClassesData(data);
-                        setLastUpdated(timestamp);
-                        setLoading(false);
-                        return;
-                    }
+            const cached =
+                !force && localStorage.getItem("ksa_class_finder_cache");
+            if (cached) {
+                const { timestamp, student_counts, data } = JSON.parse(cached);
+                const CACHE_EXPIRY = 60 * 60 * 1000;
+                if (Date.now() - timestamp < CACHE_EXPIRY) {
+                    setStudentCounts(student_counts);
+                    setSelectedYears(Object.keys(student_counts));
+                    setAllClassesData(data);
+                    setLastUpdated(timestamp);
+                    setLoading(false);
+                    return;
                 }
             }
-
             const response = await axios.get("/api/");
             const { student_counts, data } = response.data;
             const now = Date.now();
-
-            // Update cache
             localStorage.setItem(
                 "ksa_class_finder_cache",
-                JSON.stringify({
-                    timestamp: now,
-                    student_counts,
-                    data,
-                }),
+                JSON.stringify({ timestamp: now, student_counts, data }),
             );
-
             setStudentCounts(student_counts);
             setSelectedYears(Object.keys(student_counts));
             setAllClassesData(data);
@@ -113,32 +146,31 @@ const App: React.FC = () => {
     };
 
     const handleSearch = useCallback(() => {
-        if (allClassesData.length === 0) return;
-
+        if (allClassesData.length === 0 || location.pathname !== "/") return;
         if (selectedYears.length === 0) {
-            setData([]);
+            setDisplayData([]);
             setStats(null);
             setSearchResult(null);
             setSearchMode("general");
             return;
         }
-
         if (searchTerm.trim()) {
-            const result = searchInClient(allClassesData, searchTerm, selectedYears);
-
+            const result = searchInClient(
+                allClassesData,
+                searchTerm,
+                selectedYears,
+            );
             const filteredByYear = result.data
                 .map((subject) => ({
                     ...subject,
-                    sections: subject.sections.filter(
-                        (sec: SubjectData["sections"][0]) =>
-                            sec.students.some((s) =>
-                                selectedYears.includes(s.stuId.split("-")[0]),
-                            ),
+                    sections: subject.sections.filter((sec: any) =>
+                        sec.students.some((s: any) =>
+                            selectedYears.includes(s.stuId.split("-")[0]),
+                        ),
                     ),
                 }))
                 .filter((subject) => subject.sections.length > 0);
-
-            setData(filteredByYear);
+            setDisplayData(filteredByYear);
             setSearchMode(result.mode);
             setSearchResult({
                 keyword: result.stats.keyword || searchTerm,
@@ -155,21 +187,25 @@ const App: React.FC = () => {
             const filteredData = allClassesData
                 .map((subject) => ({
                     ...subject,
-                    sections: subject.sections.filter((sec: SubjectData["sections"][0]) =>
-                        sec.students.some((s) => selectedYears.includes(s.stuId.split("-")[0])),
+                    sections: subject.sections.filter((sec: any) =>
+                        sec.students.some((s: any) =>
+                            selectedYears.includes(s.stuId.split("-")[0]),
+                        ),
                     ),
                 }))
                 .filter((subject) => subject.sections.length > 0);
-
-            setData(filteredData);
-
-            const totalSecs = filteredData.reduce((acc, sub) => acc + sub.sections.length, 0);
+            setDisplayData(filteredData);
+            const totalSecs = filteredData.reduce(
+                (acc, sub) => acc + sub.sections.length,
+                0,
+            );
             const activeStus = new Set(
                 filteredData.flatMap((sub) =>
-                    sub.sections.flatMap((sec) => sec.students.map((s) => s.stuId)),
+                    sub.sections.flatMap((sec) =>
+                        sec.students.map((s: any) => s.stuId),
+                    ),
                 ),
             );
-
             setStats({
                 total_subjects: filteredData.length,
                 total_sections: totalSecs,
@@ -177,59 +213,42 @@ const App: React.FC = () => {
             });
             setSearchResult(null);
         }
-
-        window.scrollTo({ top: 0, behavior: "smooth" });
-    }, [searchTerm, selectedYears, allClassesData]);
+    }, [searchTerm, selectedYears, allClassesData, location.pathname]);
 
     useEffect(() => {
         handleSearch();
     }, [handleSearch]);
 
-    // Debounced URL update to support browser history without polluting it
     useEffect(() => {
+        if (location.pathname !== "/") return;
         const handler = setTimeout(() => {
-            const url = new URL(window.location.href);
-            const currentQ = url.searchParams.get("q") || "";
-            
-            if (searchTerm !== currentQ) {
-                if (searchTerm) {
-                    url.searchParams.set("q", searchTerm);
-                } else {
-                    url.searchParams.delete("q");
-                }
-                window.history.pushState({}, "", url.toString());
+            const currentParams = new URLSearchParams(location.search);
+            if (searchTerm !== currentParams.get("q")) {
+                if (searchTerm) currentParams.set("q", searchTerm);
+                else currentParams.delete("q");
+                const qs = currentParams.toString();
+                navigate(qs ? `/?${qs}` : "/", { replace: true });
             }
-        }, 500);
-
+        }, 300);
         return () => clearTimeout(handler);
-    }, [searchTerm]);
-
-    // Handle back/forward navigation
-    useEffect(() => {
-        const handlePopState = () => {
-            const params = new URLSearchParams(window.location.search);
-            const q = params.get("q") || "";
-            setSearchInput(q);
-            setSearchTerm(q);
-        };
-        window.addEventListener("popstate", handlePopState);
-        return () => window.removeEventListener("popstate", handlePopState);
-    }, []);
+    }, [searchTerm, location.pathname, navigate]);
 
     useEffect(() => {
         fetchInitialData();
     }, []);
 
-    // Debounce searchInput to searchTerm
     useEffect(() => {
         const handler = setTimeout(() => {
             setSearchTerm(searchInput);
-        }, 300); // 300ms debounce for search action
-
+        }, 300);
         return () => clearTimeout(handler);
     }, [searchInput]);
 
-    const handleSearchToggle = (value: string, isTeacher: boolean = false, isRoom: boolean = false) => {
+    const handleSearchToggle = (
+        value: string,
+        isTeacher: boolean = false,
+        isRoom: boolean = false,
+    ) => {
         const finalValue = isRoom
             ? `room:${value}`
             : isTeacher
@@ -237,13 +256,17 @@ const App: React.FC = () => {
               : value.includes("-")
                 ? `student:${value}`
                 : value;
-        
         const newValue = searchTerm === finalValue ? "" : finalValue;
         setSearchInput(newValue);
-        setSearchTerm(newValue); // Immediate update for click actions
+        setSearchTerm(newValue);
+        if (location.pathname !== "/") navigate("/");
     };
 
-    const handleSearchSelect = (value: string, isTeacher: boolean = false, isRoom: boolean = false) => {
+    const handleSearchSelect = (
+        value: string,
+        isTeacher: boolean = false,
+        isRoom: boolean = false,
+    ) => {
         const finalValue = isRoom
             ? `room:${value}`
             : isTeacher
@@ -251,109 +274,102 @@ const App: React.FC = () => {
               : isTeacher === false && value.includes("-")
                 ? `student:${value}`
                 : value;
-        
         setSearchInput(finalValue);
-        setSearchTerm(finalValue); // Immediate update for click actions
+        setSearchTerm(finalValue);
+        if (location.pathname !== "/") navigate("/");
     };
 
-    const toggleSubject = (subjectName: string) => {
+    const toggleSubject = (name: string) => {
         setExpandedSubjects((prev) =>
-            prev.includes(subjectName)
-                ? prev.filter((s) => s !== subjectName)
-                : [...prev, subjectName],
+            prev.includes(name)
+                ? prev.filter((s) => s !== name)
+                : [...prev, name],
         );
     };
-
-    const isLogicalSearch = useMemo(() => {
-        return (
-            searchTerm.includes("+") ||
-            searchTerm.includes("&") ||
-            searchTerm.includes("/") ||
-            searchTerm.includes("(")
-        );
-    }, [searchTerm]);
-
-    const isConsolidatedView = useMemo(() => {
-        return searchMode !== "general" || isLogicalSearch;
-    }, [searchMode, isLogicalSearch]);
 
     return (
-        <div className="min-h-screen bg-retro-bg text-retro-fg pb-20 font-sans">
-            <Navigation searchTerm={searchInput} setSearchTerm={setSearchInput} />
-
-            <main className="max-w-6xl mx-auto px-6 pt-32">
-                <FilterSection
-                    studentCounts={studentCounts}
-                    selectedYears={selectedYears}
-                    setSelectedYears={setSelectedYears}
-                    lastUpdated={lastUpdated}
-                    onRefresh={() => fetchInitialData(true)}
+        <div className="min-h-screen bg-retro-bg text-retro-fg font-sans">
+            <Navigation
+                onLogoClick={() => {
+                    setSearchInput("");
+                    navigate("/");
+                }}
+            />
+            <div className="flex pt-20">
+                <Sidebar
+                    activePage={
+                        location.pathname === "/"
+                            ? "home"
+                            : location.pathname.slice(1)
+                    }
+                    setActivePage={(id) =>
+                        navigate(
+                            id === "home"
+                                ? "/"
+                                : `/${id.replace("empty-room", "emptyroomfinder")}`,
+                        )
+                    }
                 />
-
-                {searchResult && (
-                    <div className="mb-12 space-y-8">
-                        <SearchResultDisplay
-                            searchResult={searchResult}
-                            searchMode={searchMode}
-                            isLogicalSearch={isLogicalSearch}
-                            isConsolidatedView={isConsolidatedView}
-                            isModifierPressed={isModifierPressed}
-                            hoveredEntityId={hoveredEntityId}
-                            setHoveredEntityId={setHoveredEntityId}
-                            handleSearchToggle={handleSearchToggle}
-                            handleSearchSelect={handleSearchSelect}
-                        />
+                <main className="flex-1 p-6 md:p-10 transition-all duration-300 md:ml-64 min-w-0">
+                    <div className="max-w-6xl mx-auto">
+                        <Routes>
+                            <Route
+                                path="/"
+                                element={
+                                    <SearchPage
+                                        searchInput={searchInput}
+                                        setSearchInput={setSearchInput}
+                                        searchTerm={searchTerm}
+                                        studentCounts={studentCounts}
+                                        selectedYears={selectedYears}
+                                        setSelectedYears={setSelectedYears}
+                                        lastUpdated={lastUpdated}
+                                        fetchInitialData={fetchInitialData}
+                                        searchResult={searchResult}
+                                        searchMode={searchMode}
+                                        isLogicalSearch={isLogicalSearch}
+                                        isConsolidatedView={isConsolidatedView}
+                                        isModifierPressed={isModifierPressed}
+                                        hoveredEntityId={hoveredEntityId}
+                                        setHoveredEntityId={setHoveredEntityId}
+                                        handleSearchToggle={handleSearchToggle}
+                                        handleSearchSelect={handleSearchSelect}
+                                        stats={stats}
+                                        loading={loading}
+                                        displayData={displayData}
+                                        studentSubjectMap={studentSubjectMap}
+                                        teacherSubjectMap={teacherSubjectMap}
+                                        hasStudentInSearch={hasStudentInSearch}
+                                        expandedSubjects={expandedSubjects}
+                                        toggleSubject={toggleSubject}
+                                    />
+                                }
+                            />
+                            <Route
+                                path="/emptyroomfinder"
+                                element={
+                                    <RoomsPage
+                                        allClassesData={allClassesData}
+                                    />
+                                }
+                            />
+                            <Route
+                                path="/analysis"
+                                element={
+                                    <AnalysisPage
+                                        allClassesData={allClassesData}
+                                        handleSearch={handleSearchToggle}
+                                    />
+                                }
+                            />
+                            <Route
+                                path="*"
+                                element={<Navigate to="/" replace />}
+                            />
+                        </Routes>
                     </div>
-                )}
-
-                {stats && <StatsCards stats={stats} />}
-
-                <div className="relative">
-                    {loading && (
-                        <div className="absolute inset-0 z-50 flex flex-col items-center justify-start pt-40 gap-4 bg-retro-bg/40 backdrop-blur-[2px]">
-                            <Spinner color="primary" size="lg" />
-                            <p className="text-lg font-black italic uppercase animate-pulse">
-                                Scanning Grid...
-                            </p>
-                        </div>
-                    )}
-
-                    <div
-                        className={`space-y-0 transition-opacity duration-300 ${loading ? "opacity-30 pointer-events-none" : "opacity-100"}`}
-                    >
-                        {data.length > 0 ? (
-                            data.map((subject: SubjectData) => (
-                                <SubjectAccordionItem
-                                    key={subject.subject}
-                                    subject={subject}
-                                    searchTerm={searchTerm}
-                                    handleSearchToggle={handleSearchToggle}
-                                    studentSubjectMap={studentSubjectMap}
-                                    teacherSubjectMap={teacherSubjectMap}
-                                    isModifierPressed={isModifierPressed}
-                                    hasStudentInSearch={hasStudentInSearch}
-                                    selectedYears={selectedYears}
-                                    searchMode={searchMode}
-                                    isOpen={expandedSubjects.includes(subject.subject)}
-                                    onToggle={() => toggleSubject(subject.subject)}
-                                    isSingleStudentSearch={
-                                        searchMode === "student" &&
-                                        searchResult?.entities.length === 1
-                                    }
-                                />
-                            ))
-                        ) : (
-                            !loading && (
-                                <div className="py-28 flex flex-col items-center justify-center text-black/20">
-                                    <p className="text-2xl font-black uppercase italic tracking-widest">
-                                        No Data Found
-                                    </p>
-                                </div>
-                            )
-                        )}
-                    </div>
-                </div>
-            </main>
+                </main>
+            </div>
         </div>
     );
 };

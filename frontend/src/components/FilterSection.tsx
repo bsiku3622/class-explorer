@@ -20,9 +20,9 @@ const FilterSection: React.FC<FilterSectionProps> = ({
     return (
         <div className="mb-10 bg-white border-2 border-black p-6 shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
-                <div className="flex items-center gap-3">
-                    <Filter size={20} className="text-retro-secondary" />
-                    <span className="text-sm font-black uppercase tracking-widest italic text-black/40">
+                <div className="flex items-center gap-2">
+                    <Filter size={18} className="text-black/40" />
+                    <span className="text-sm font-bold text-black/40 uppercase tracking-widest">
                         Filter by Student Cohort
                     </span>
                 </div>
@@ -60,13 +60,14 @@ const FilterSection: React.FC<FilterSectionProps> = ({
                     return (
                         <label
                             key={year}
-                            className={`group relative flex items-center gap-3 px-4 py-2 border-2 border-black cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,0.15)] active:translate-y-0 active:shadow-none ${
+                            className={`group relative flex items-center gap-3 px-4 py-2 border-2 border-black cursor-pointer transition-all duration-100 ${
                                 isSelected
-                                    ? "shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]"
-                                    : "grayscale opacity-40 hover:grayscale-0 hover:opacity-100 bg-white"
+                                    ? "bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] hover:shadow-none hover:translate-x-1 hover:translate-y-1"
+                                    : "grayscale opacity-40 hover:grayscale-0 hover:opacity-100 bg-white shadow-none"
                             }`}
                             style={{
                                 backgroundColor: isSelected ? `${color}20` : "",
+                                borderColor: isSelected ? "black" : "#e5e7eb",
                             }}
                         >
                             <input

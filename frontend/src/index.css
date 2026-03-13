@@ -1,3 +1,4 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
@@ -14,7 +15,7 @@
     --color-retro-accent4: #ff9100;
     --color-retro-accent5: #00c8ff;
     --color-retro-green: #00c22a;
-    --font-sans: "Space Grotesk", system-ui, sans-serif;
+    --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
 }
 
 body {
@@ -37,9 +38,6 @@ body {
 [data-slot="input-wrapper"] {
     @apply rounded-none! border!;
 }
-
-/* Re-enable transitions for a smoother feel - DELETED per safe practice */
-/* Individual components already have their own transitions */
 
 /* Custom styles for students list */
 .student-badge {

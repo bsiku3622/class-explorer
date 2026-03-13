@@ -8,7 +8,7 @@ import SectionCard from "./SectionCard";
 interface SubjectAccordionItemProps {
     subject: SubjectData;
     searchTerm: string;
-    handleSearchToggle: (v: string, isT?: boolean) => void;
+    handleSearchToggle: (v: string, isT?: boolean, isR?: boolean) => void;
     studentSubjectMap: Record<string, string[]>;
     teacherSubjectMap: Record<string, Record<string, string[]>>;
     isModifierPressed: boolean;
@@ -85,7 +85,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                 className="w-full px-6 py-6 flex items-center justify-between hover:bg-retro-accent1/10 focus:outline-none group transition-colors"
             >
                 <div className="flex flex-row items-center justify-between gap-4 flex-1 mr-6 text-left overflow-hidden">
-                    <span className="text-xl font-black text-black tracking-tight uppercase italic truncate flex-1">
+                    <span className="text-xl font-black text-black tracking-tight uppercase truncate flex-1">
                         {subject.subject}
                     </span>
                     <div className="flex gap-3 shrink-0">
@@ -116,7 +116,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                 <div className="overflow-hidden border-t-2 border-black bg-retro-bg/10">
                     <div className="px-6 pb-12 pt-10 space-y-12">
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-white/50 border-2 border-black p-4 mb-12 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
-                            <span className="text-sm font-black uppercase italic text-black/50 flex items-center gap-2">
+                            <span className="text-sm font-black uppercase text-black/50 flex items-center gap-2">
                                 <Users size={16} /> Teachers :
                             </span>
                             <div className="flex flex-wrap gap-x-4 gap-y-1">
@@ -163,7 +163,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                                                             <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
                                                                 Teacher
                                                             </p>
-                                                            <p className="text-xl font-black text-retro-secondary italic tracking-tight">
+                                                            <p className="text-xl font-black text-retro-secondary tracking-tight">
                                                                 {name}
                                                             </p>
                                                         </div>
@@ -229,7 +229,6 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                                         <Divider className="mb-10 h-1 bg-black opacity-100" />
                                     )}
                                     <SectionCard
-                                        subject={subject.subject}
                                         section={section}
                                         searchTerm={searchTerm}
                                         handleSearchToggle={handleSearchToggle}

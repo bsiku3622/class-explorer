@@ -6,10 +6,9 @@ import type { Section } from "../types";
 import { tooltipMotionProps } from "../constants/motion";
 
 interface SectionCardProps {
-    subject: string;
     section: Section;
     searchTerm: string;
-    handleSearchToggle: (v: string, isT?: boolean) => void;
+    handleSearchToggle: (v: string, isT?: boolean, isR?: boolean) => void;
     studentSubjectMap: Record<string, string[]>;
     teacherSubjectMap: Record<string, Record<string, string[]>>;
     isModifierPressed: boolean;
@@ -19,7 +18,6 @@ interface SectionCardProps {
 }
 
 const SectionCard: React.FC<SectionCardProps> = ({
-    subject,
     section,
     searchTerm,
     handleSearchToggle,
@@ -84,7 +82,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
     return (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
             <div className="md:col-span-4 space-y-4">
-                <h3 className="text-lg font-black bg-retro-accent1 border-2 border-black px-4 py-1.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] inline-block uppercase italic">
+                <h3 className="text-lg font-black bg-retro-accent1 border-2 border-black px-4 py-1.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] inline-block uppercase">
                     {section.section}
                 </h3>
                 <div className="space-y-3 pt-1">
@@ -106,7 +104,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
                         content={
                             <div className="flex divide-x-2 divide-black min-w-75">
                                 <div className="p-4 bg-retro-secondary/10 flex flex-col justify-center min-w-25">
-                                    <p className="text-xl font-black text-retro-secondary italic tracking-tight">
+                                    <p className="text-xl font-black text-retro-secondary tracking-tight">
                                         {section.teacher}
                                     </p>
                                 </div>
@@ -129,7 +127,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
                         }
                     >
                         <div
-                            className={`flex items-center gap-3 text-sm font-black italic cursor-pointer transition-all h-8 px-3 py-0 -ml-2 border ${
+                            className={`flex items-center gap-3 text-sm font-black cursor-pointer transition-all h-8 px-3 py-0 -ml-2 border ${
                                 isTeacherSearching
                                     ? "bg-retro-secondary text-white border-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] scale-105"
                                     : "hover:text-retro-secondary border-transparent"
@@ -155,7 +153,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
                     </Tooltip>
 
                     <div
-                        className={`flex items-center gap-3 text-sm font-black italic h-8 px-3 py-0 -ml-2 border transition-all cursor-pointer ${
+                        className={`flex items-center gap-3 text-sm font-black h-8 px-3 py-0 -ml-2 border transition-all cursor-pointer ${
                             isRoomSearching
                                 ? "bg-retro-primary text-white border-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] scale-105"
                                 : "text-black/70 border-transparent hover:text-retro-primary"
@@ -172,13 +170,13 @@ const SectionCard: React.FC<SectionCardProps> = ({
                         />
                         <span>{section.room}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-sm font-black italic text-black/70 h-8 px-3 py-0 -ml-2 border-2 border-transparent">
+                    <div className="flex items-center gap-3 text-sm font-black text-black/70 h-8 px-3 py-0 -ml-2 border-2 border-transparent">
                         <Users size={20} className="text-retro-accent4" />
                         <span>{section.student_count} Students</span>
                     </div>
 
                     {section.times && section.times.length > 0 && (
-                        <div className="flex items-center gap-3 text-sm font-black italic text-black/70 h-8 px-3 py-0 -ml-2 border-2 border-transparent">
+                        <div className="flex items-center gap-3 text-sm font-black text-black/70 h-8 px-3 py-0 -ml-2 border-2 border-transparent">
                             <Clock size={20} className="text-retro-accent5" />
                             <div className="flex flex-wrap gap-x-2">
                                 {(() => {
@@ -307,7 +305,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                                 {student.stuId}
                                             </p>
                                             <p
-                                                className="text-xl font-black italic tracking-tight"
+                                                className="text-xl font-black tracking-tight"
                                                 style={{ color: color }}
                                             >
                                                 {student.name}

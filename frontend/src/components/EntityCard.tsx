@@ -39,7 +39,7 @@ const EntityCard: React.FC<EntityCardProps> = ({
                     {entity.id}
                 </p>
                 <p
-                    className="text-3xl font-black italic tracking-tighter group-hover:scale-105 transition-transform"
+                    className="text-3xl font-black tracking-tighter group-hover:scale-105 transition-transform"
                     style={{ color: entityColor }}
                 >
                     {entity.name}
@@ -48,15 +48,17 @@ const EntityCard: React.FC<EntityCardProps> = ({
 
             {/* Classes Page (Right) */}
             <div className="p-6 flex-1 bg-white overflow-hidden">
-                <p className="text-[10px] font-black text-black/30 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <BookOpen size={14} />{" "}
-                    {entity.type === "student"
-                        ? "Enrollment"
-                        : entity.type === "teacher"
-                        ? "Teaching"
-                        : "Scheduled"}{" "}
-                    ({entity.subject_count})
-                </p>
+                <div className="text-sm font-bold text-black/40 uppercase tracking-widest flex items-center gap-2 mb-4">
+                    <BookOpen size={18} className="text-black/40" />
+                    <span>
+                        {entity.type === "student"
+                            ? "Enrollment"
+                            : entity.type === "teacher"
+                            ? "Teaching"
+                            : "Scheduled"}{" "}
+                        ({entity.subject_count})
+                    </span>
+                </div>
                 <div
                     className={`grid ${
                         isSingleEntity

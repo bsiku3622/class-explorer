@@ -1,6 +1,51 @@
 import { formatSubjectWithSection } from "./utils";
 
 /**
+ * 한글 문자열에서 초성을 추출합니다.
+ */
+export const getChosung = (str: string): string => {
+    const cho = [
+        "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"
+    ];
+    let result = "";
+    for (let i = 0; i < str.length; i++) {
+        const code = str.charCodeAt(i) - 44032;
+        if (code > -1 && code < 11172) {
+            result += cho[Math.floor(code / 588)];
+        } else {
+            result += str.charAt(i);
+        }
+    }
+    return result;
+};
+
+/**
+ * 초성 검색을 포함한 문자열 매칭 함수
+ */
+const matchesItem = (item: string, term: string, strictIDMatch: boolean = false) => {
+    const lowerItem = item.toLowerCase();
+    const lowerTerm = term.toLowerCase();
+
+    // 1. 학번 검색 (strictIDMatch인 경우)
+    if (strictIDMatch && item.includes("-") && term.includes("-")) {
+        if (term.length <= 3) return lowerItem.startsWith(lowerTerm);
+        return lowerItem === lowerTerm;
+    }
+
+    // 2. 일반 포함 검색
+    if (lowerItem.includes(lowerTerm)) return true;
+
+    // 3. 초성 검색 지원
+    const isChosungOnly = /^[ㄱ-ㅎ]+$/.test(lowerTerm);
+    if (isChosungOnly) {
+        const itemChosung = getChosung(lowerItem);
+        return itemChosung.includes(lowerTerm);
+    }
+
+    return false;
+};
+
+/**
  * 논리식 평가 함수: +, &, &&, (), ! 연산자를 지원합니다.
  */
 export const evaluateBoolExpression = (
@@ -17,27 +62,12 @@ export const evaluateBoolExpression = (
             ?.map((t) => t.trim())
             .filter((t) => t) || [];
 
-    const matchesItem = (item: string, term: string) => {
-        const lowerItem = item.toLowerCase();
-        const lowerTerm = term.toLowerCase();
-
-        // 학번 검색 (strictIDMatch인 경우)
-        if (strictIDMatch && item.includes("-") && term.includes("-")) {
-            // "24-" 처럼 3글자 이내인 경우만 prefix match 허용 (batch 검색용)
-            if (term.length <= 3) return lowerItem.startsWith(lowerTerm);
-            // 그 외에는 정확히 일치해야 함 (24-09가 24-094를 매칭하지 않도록)
-            return lowerItem === lowerTerm;
-        }
-
-        return lowerItem.includes(lowerTerm);
-    };
-
     if (
         tokens.length === 1 &&
         !["(", ")", "+", "&", "&&", "!"].includes(tokens[0])
     ) {
         const term = tokens[0];
-        return pool.some((item) => matchesItem(item, term));
+        return pool.some((item) => matchesItem(item, term, strictIDMatch));
     }
 
     let current = 0;
@@ -82,7 +112,7 @@ export const evaluateBoolExpression = (
             return result;
         }
         const term = token;
-        return pool.some((item) => matchesItem(item, term));
+        return pool.some((item) => matchesItem(item, term, strictIDMatch));
     };
 
     try {
@@ -110,6 +140,9 @@ const parseQuery = (searchTerm: string, allData: any[]) => {
     let mode: "general" | "student" | "teacher" | "room" = "general";
     let effectiveQuery = cleanKeyword;
     let warning: string | undefined = undefined;
+
+    // '국어1/1' 같은 과목/분반 패턴 확인 (문자열/숫자 형식)
+    const isDividerSearch = /.+\/\d+$/.test(cleanKeyword);
 
     if (cleanKeyword.includes(":")) {
         const [prefix, ...rest] = cleanKeyword.split(":");
@@ -156,13 +189,11 @@ const parseQuery = (searchTerm: string, allData: any[]) => {
         effectiveQuery,
         flatTerms,
         warning,
-        isStrictMode: searchTerm.includes("&&") || mode === "room",
+        isStrictMode: searchTerm.includes("&&") || mode === "room" || isDividerSearch,
+        isDividerSearch,
     };
 };
 
-/**
- * 전체 데이터에서 검색 조건에 맞는 분반들을 필터링합니다.
- */
 const filterMatchingClasses = (
     allData: any[],
     queryParams: ReturnType<typeof parseQuery>,
@@ -171,11 +202,19 @@ const filterMatchingClasses = (
     const {
         mode,
         effectiveQuery,
-        isStrictMode,
         flatTerms,
         warning,
+        isDividerSearch,
     } = queryParams;
     const matchingClasses: any[] = [];
+
+    // '국어1/1' 패턴에서 과목과 분반 분리
+    let targetSubject = "", targetSection = "";
+    if (isDividerSearch) {
+        const lastSlashIndex = effectiveQuery.lastIndexOf("/");
+        targetSubject = effectiveQuery.substring(0, lastSlashIndex).toLowerCase();
+        targetSection = effectiveQuery.substring(lastSlashIndex + 1);
+    }
 
     allData.forEach((subject) => {
         const subjectName = subject.subject;
@@ -187,13 +226,11 @@ const filterMatchingClasses = (
             FRI: "금",
         };
 
-        // 분반 레벨 필터링
         subject.sections.forEach((sec: any) => {
             const activeStudents = sec.students.filter((s: any) =>
                 selectedYears.includes(s.stuId.split("-")[0]),
             );
 
-            // 해당 분반의 모든 정보를 하나의 풀로 통합
             const sectionPool = [
                 subjectName,
                 sec.section,
@@ -219,7 +256,12 @@ const filterMatchingClasses = (
 
             let isSectionMatch = false;
 
-            if (mode === "student") {
+            if (isDividerSearch) {
+                // 과목명과 분반 번호가 모두 일치해야 함 (분반은 숫자만 추출해서 비교)
+                const lowerSubject = subjectName.toLowerCase();
+                const sectionNum = sec.section.replace(/[^0-9]/g, "");
+                isSectionMatch = lowerSubject.includes(targetSubject) && sectionNum === targetSection;
+            } else if (mode === "student") {
                 isSectionMatch = evaluate(effectiveQuery, [
                     ...activeStudents.map((s: any) => s.stuId),
                     ...activeStudents.map((s: any) => s.name),
@@ -230,9 +272,8 @@ const filterMatchingClasses = (
                 const searchRoom = effectiveQuery.toLowerCase();
                 isSectionMatch = [sec.room, ...(sec.times || []).map((t: any) => t.room)]
                     .filter(Boolean)
-                    .some(r => r.toLowerCase().includes(searchRoom));
+                    .some(r => matchesItem(r, searchRoom));
             } else {
-                // 통합 논리 검색
                 isSectionMatch = evaluate(effectiveQuery, sectionPool);
             }
 
@@ -252,9 +293,6 @@ const filterMatchingClasses = (
     return matchingClasses;
 };
 
-/**
- * 매칭된 분반들로부터 관련 엔티티(사람, 강의실 등)를 추출합니다.
- */
 const extractEntities = (
     matchingClasses: any[],
     flatTerms: string[],
@@ -271,15 +309,14 @@ const extractEntities = (
     };
 
     matchingClasses.forEach((cls) => {
-        // 강의실 정보 수집
         const searchRoom = effectiveQuery.toLowerCase();
         const matchingRooms = new Set<string>();
         
-        if (cls.room.toLowerCase().includes(searchRoom)) {
+        if (matchesItem(cls.room, searchRoom)) {
             matchingRooms.add(cls.room);
         }
         (cls.times || []).forEach((t: any) => {
-            if (t.room.toLowerCase().includes(searchRoom)) {
+            if (matchesItem(t.room, searchRoom)) {
                 matchingRooms.add(t.room);
             }
         });
@@ -292,7 +329,7 @@ const extractEntities = (
                         type: "room",
                         name: roomName,
                         id: "Classroom",
-                        subjectsRaw: new Map<string, Set<string>>(), // "teacher - subject" -> Set(sections)
+                        subjectsRaw: new Map<string, Set<string>>(),
                         times: [],
                     });
                 }
@@ -305,8 +342,7 @@ const extractEntities = (
 
                 if (cls.times) {
                     cls.times.forEach((t: any) => {
-                        // 해당 강의실에서 진행되는 수업만 추가
-                        if (t.room.toLowerCase().includes(searchRoom)) {
+                        if (matchesItem(t.room, searchRoom)) {
                             if (!roomEntity.times.some((et: any) => et.day === t.day && et.period === t.period)) {
                                 roomEntity.times.push({ 
                                     ...t, 
@@ -328,7 +364,7 @@ const extractEntities = (
 
         const isTeacherMatch = flatTerms.some(
             (t) =>
-                cls.teacher.toLowerCase().includes(t) ||
+                matchesItem(cls.teacher, t) ||
                 classTimeStrings.includes(t.toLowerCase()),
         );
 
@@ -339,7 +375,7 @@ const extractEntities = (
                     type: "teacher",
                     name: cls.teacher,
                     id: "Teacher",
-                    subjectsRaw: new Map<string, Set<string>>(), // "room - subject" -> Set(sections)
+                    subjectsRaw: new Map<string, Set<string>>(),
                     times: [],
                 });
             }
@@ -372,8 +408,8 @@ const extractEntities = (
         cls.students.forEach((s: any) => {
             const isStudentMatch = flatTerms.some(
                 (t) =>
-                    s.stuId.toLowerCase().includes(t) ||
-                    s.name.toLowerCase().includes(t) ||
+                    matchesItem(s.stuId, t) ||
+                    matchesItem(s.name, t) ||
                     classTimeStrings.includes(t.toLowerCase()),
             );
 
@@ -383,7 +419,7 @@ const extractEntities = (
                         type: "student",
                         name: s.name,
                         id: s.stuId,
-                        subjectsRaw: new Map<string, Set<string>>(), // "teacher - subject" -> Set(sections)
+                        subjectsRaw: new Map<string, Set<string>>(),
                         times: [],
                     });
                 }
@@ -419,11 +455,7 @@ const extractEntities = (
         const formattedSubjects: string[] = [];
         e.subjectsRaw.forEach((sections: Set<string>, key: string) => {
             const [extra, subject] = key.split("|");
-            
-            // 학생/선생님 프로필: 과목(분반) - 추가정보
-            // 교실 프로필: 선생님 - 과목(분반)
             const position = e.type === "room" ? "prefix" : "suffix";
-            
             formattedSubjects.push(
                 formatSubjectWithSection(subject, Array.from(sections), extra, position)
             );
@@ -435,17 +467,13 @@ const extractEntities = (
             subjects: formattedSubjects.sort(),
         };
     }).sort((a, b) => {
-        // 우선순위: 선생님(1) > 학생(2) > 강의실(3)
         const priority: Record<string, number> = { teacher: 1, student: 2, room: 3 };
         if (priority[a.type] !== priority[b.type]) {
             return priority[a.type] - priority[b.type];
         }
-
         if (a.type === "teacher" || a.type === "room") {
-            // 선생님, 강의실은 이름 가나다순
             return a.name.localeCompare(b.name, "ko");
         } else {
-            // 학생은 학번순
             return a.id.localeCompare(b.id);
         }
     });

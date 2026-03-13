@@ -1,6 +1,5 @@
-import React from "react";
+import React, { useMemo } from "react";
 import type { SectionTime } from "../types";
-
 import { getKoreanName, getSectionNumber } from "../lib/utils";
 
 interface TimetableGridProps {
@@ -23,11 +22,45 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
     onCellClick,
     mode = "general",
 }) => {
-    // 맵 생성: "DAY-PERIOD" -> { room, subject, section, teacher }
-    const timeMap = new Map<string, SectionTime>();
-    times.forEach((t) => {
-        timeMap.set(`${t.day}-${t.period}`, t);
-    });
+    // 맵 생성을 useMemo로 최적화
+    const timeMap = useMemo(() => {
+        const map = new Map<string, SectionTime>();
+        times.forEach((t) => {
+            map.set(`${t.day}-${t.period}`, t);
+        });
+        return map;
+    }, [times]);
+
+    const getCellContent = (info: SectionTime) => {
+        const koreanSubject = getKoreanName(info.subject || "");
+        const sectionNum = getSectionNumber(info.section || "");
+        const teacher = info.teacher || "";
+        const room = info.room || "";
+
+        if (!koreanSubject) {
+            return { display: room, keyword: room };
+        }
+
+        const sectionPart = sectionNum ? `(${sectionNum})` : "";
+        const subjectWithSection = `${koreanSubject}${sectionPart}`;
+
+        let display = "";
+        switch (mode) {
+            case "teacher":
+                display = `${subjectWithSection} - ${room}`;
+                break;
+            case "student":
+                display = `${subjectWithSection} - ${teacher}`;
+                break;
+            case "room":
+                display = `${teacher} - ${subjectWithSection}`;
+                break;
+            default:
+                display = `${teacher} - ${subjectWithSection}`;
+        }
+
+        return { display, keyword: koreanSubject };
+    };
 
     return (
         <div className={`flex flex-col ${className}`}>
@@ -44,7 +77,7 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
                     {DAYS.map((day) => (
                         <div
                             key={day}
-                            className="p-1 text-[10px] font-black text-center uppercase italic flex items-center justify-center">
+                            className="p-1 text-[10px] font-black text-center uppercase flex items-center justify-center">
                             {day}
                         </div>
                     ))}
@@ -58,82 +91,37 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
                         </div>
                         {DAYS.map((day) => {
                             const info = timeMap.get(`${day}-${period}`);
-
-                            let displayText = "";
-                            let searchKeyword = "";
-
-                            if (info) {
-                                const koreanSubject = getKoreanName(
-                                    info.subject || "",
-                                );
-                                const sectionNum = getSectionNumber(
-                                    info.section || "",
-                                );
-                                const teacher = info.teacher || "";
-                                const room = info.room || "";
-
-                                if (koreanSubject) {
-                                    const sectionPart = sectionNum
-                                        ? `(${sectionNum})`
-                                        : "";
-                                    const subjectWithSection = `${koreanSubject}${sectionPart}`;
-
-                                    if (mode === "teacher") {
-                                        // 선생님 시간표: 과목(분반) - 교실
-                                        displayText = `${subjectWithSection} - ${room}`;
-                                    } else if (mode === "student") {
-                                        // 학생 시간표: 과목(분반) - 선생님
-                                        displayText = `${subjectWithSection} - ${teacher}`;
-                                    } else if (mode === "room") {
-                                        // 교실 시간표: 선생님 - 과목(분반)
-                                        displayText = `${teacher} - ${subjectWithSection}`;
-                                    } else {
-                                        // 일반 모드: 선생님 - 과목(분반)
-                                        displayText = `${teacher} - ${subjectWithSection}`;
-                                    }
-                                    searchKeyword = koreanSubject;
-                                } else {
-                                    displayText = room;
-                                    searchKeyword = room;
-                                }
-                            }
+                            const { display, keyword } = info ? getCellContent(info) : { display: "", keyword: "" };
 
                             return (
                                 <div
                                     key={`${day}-${period}`}
-                                    className={`relative group transition-all duration-200 border-b border-l border-black/10 ${displayText ? "cursor-pointer hover:border-transparent hover:z-30 hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] active:scale-[0.98]" : ""}`}
-                                    style={{
-                                        backgroundColor: "transparent",
-                                    }}
-                                    onClick={() =>
-                                        displayText &&
-                                        onCellClick?.(searchKeyword)
-                                    }>
-                                    {/* Hover Overlay: Background + Border (Only visible on hover) */}
-                                    {displayText && (
-                                        <div
-                                            className="absolute border-2 transition-all duration-200 pointer-events-none z-30 opacity-0 group-hover:opacity-100"
-                                            style={{
-                                                borderColor: color,
-                                                backgroundColor: `${color}15`,
-                                                top: "-1px",
-                                                left: "-2px",
-                                                right: "-1px",
-                                                bottom: "-2px",
-                                            }}
-                                        />
-                                    )}
-                                    {displayText && (
-                                        <div
-                                            className={`absolute inset-0 flex items-center p-1.5 pl-2.5 z-10`}
-                                            style={{
-                                                backgroundColor: `${color}10`,
-                                            }}
-                                            title={displayText}>
-                                            <span className="text-[11px] font-black text-black leading-[1.1] text-left break-all line-clamp-3 pointer-events-none">
-                                                {displayText}
-                                            </span>
-                                        </div>
+                                    className={`relative group transition-all duration-200 border-b border-l border-black/10 ${display ? "cursor-pointer hover:border-transparent hover:z-30 hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] active:scale-[0.98]" : ""}`}
+                                    onClick={() => display && onCellClick?.(keyword)}>
+                                    {display && (
+                                        <>
+                                            {/* Hover Overlay */}
+                                            <div
+                                                className="absolute border-2 transition-all duration-200 pointer-events-none z-30 opacity-0 group-hover:opacity-100"
+                                                style={{
+                                                    borderColor: color,
+                                                    backgroundColor: `${color}15`,
+                                                    top: "-1px",
+                                                    left: "-2px",
+                                                    right: "-1px",
+                                                    bottom: "-2px",
+                                                }}
+                                            />
+                                            {/* Cell Background & Content */}
+                                            <div
+                                                className="absolute inset-0 flex items-center p-1.5 pl-2.5 z-10"
+                                                style={{ backgroundColor: `${color}10` }}
+                                                title={display}>
+                                                <span className="text-[11px] font-black text-black leading-[1.1] text-left break-all line-clamp-3 pointer-events-none">
+                                                    {display}
+                                                </span>
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             );
