@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import type { SectionTime } from "../types";
-import { getKoreanName, getSectionNumber } from "../lib/utils";
+import { getKoreanName, getSectionNumber, DAYS_ORDER, PERIODS } from "../lib/utils";
 
 interface TimetableGridProps {
     times: SectionTime[];
@@ -11,8 +11,7 @@ interface TimetableGridProps {
     mode?: "student" | "teacher" | "room" | "general";
 }
 
-const DAYS = ["MON", "TUE", "WED", "THU", "FRI"];
-const PERIODS = Array.from({ length: 11 }, (_, i) => i + 1);
+const DAYS = DAYS_ORDER;
 
 const TimetableGrid: React.FC<TimetableGridProps> = ({
     times,

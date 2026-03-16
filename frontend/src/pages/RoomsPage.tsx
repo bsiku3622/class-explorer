@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from "react";
-import { Calendar, MapPin, RefreshCcw, Clock } from "lucide-react";
-import type { SubjectData, SectionTime } from "../types";
+import { Calendar, MapPin, RefreshCcw } from "lucide-react";
+import type { SubjectData } from "../types";
+import { DAYS_ORDER, PERIODS } from "../lib/utils";
 import RetroButton from "../components/atoms/RetroButton";
 import RetroSubTitle from "../components/atoms/RetroSubTitle";
+import PageHeader from "../components/molecules/PageHeader";
 
 interface RoomsPageProps {
     allClassesData: SubjectData[];
@@ -23,8 +25,7 @@ const ROOM_LABELS: Record<string, string> = {
     "형3401": "교원연구실", "형3402": "교실", "형3403": "교실", "형3404": "교실", "형3405": "교실", "형3406": "교실", "형3407": "교실",
 };
 
-const DAYS = ["MON", "TUE", "WED", "THU", "FRI"];
-const PERIODS = Array.from({ length: 11 }, (_, i) => i + 1);
+const DAYS = DAYS_ORDER;
 
 const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData }) => {
     const [selectedTimes, setSelectedTimes] = useState<string[]>([]); // Format: "DAY-PERIOD"
@@ -93,23 +94,17 @@ const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData }) => {
 
     return (
         <div className="flex flex-col gap-8 pb-20">
-            {/* Header Section */}
-            <div className="bg-white border-2 border-black p-8 shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] relative overflow-hidden">
-                <div className="absolute top-0 right-0 px-6 py-1.5 bg-black text-white text-xs font-black tracking-widest uppercase">
-                    Feature: Room Finder
-                </div>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                        <h2 className="text-4xl font-black tracking-tighter text-black uppercase mb-2">Rooms</h2>
-                        <p className="text-sm font-bold text-black/40 uppercase tracking-widest flex items-center gap-2">
-                            <MapPin size={16} /> Hyung-seol Hall (형설관)
-                        </p>
-                    </div>
+            <PageHeader
+                tag="Feature: Room Finder"
+                title="Rooms"
+                subtitle="Hyung-seol Hall (형설관)"
+                icon={MapPin}
+                action={
                     <RetroButton onClick={resetSelection} icon={<RefreshCcw size={18} strokeWidth={2.5} />}>
                         Reset Selection
                     </RetroButton>
-                </div>
-            </div>
+                }
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left: Timetable */}

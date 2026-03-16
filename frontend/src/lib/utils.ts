@@ -1,3 +1,33 @@
+export const DAY_MAP: Record<string, string> = {
+    MON: "월",
+    TUE: "화",
+    WED: "수",
+    THU: "목",
+    FRI: "금",
+};
+
+export const DAYS_ORDER = ["MON", "TUE", "WED", "THU", "FRI"] as const;
+
+export const PERIODS = Array.from({ length: 11 }, (_, i) => i + 1);
+
+/**
+ * 검색어에서 prefix(:) 및 논리 연산자를 제거하고 순수 검색 키워드 배열을 반환합니다.
+ * SectionCard, SubjectAccordionItem 등 하이라이팅에 사용됩니다.
+ */
+export const extractSearchTerms = (searchTerm: string): string[] => {
+    if (!searchTerm) return [];
+    const clean = searchTerm.trim();
+    let query = clean;
+    if (clean.includes(":")) {
+        const parts = clean.split(":", 2);
+        query = parts[1].trim();
+    }
+    return query
+        .split(/[+&/()!]/)
+        .map((k) => k.trim().toLowerCase())
+        .filter((k) => k !== "");
+};
+
 /**
  * 학번(studentId)의 앞 두 자리를 분석하여 해당하는 고유 색상 코드를 반환합니다.
  * @param studentId "23-123" 형식의 문자열
@@ -78,26 +108,16 @@ export const formatSectionTimes = (
 ): string => {
     if (!times || times.length === 0) return "";
 
-    const dayMap: Record<string, string> = {
-        MON: "월",
-        TUE: "화",
-        WED: "수",
-        THU: "목",
-        FRI: "금",
-    };
-
     const grouped: Record<string, number[]> = {};
     times.forEach((t) => {
         if (!grouped[t.day]) grouped[t.day] = [];
         grouped[t.day].push(t.period);
     });
 
-    const daysOrder = ["MON", "TUE", "WED", "THU", "FRI"];
-    return daysOrder
-        .filter((day) => grouped[day])
+    return DAYS_ORDER.filter((day) => grouped[day])
         .map((day) => {
             const periods = grouped[day].sort((a, b) => a - b).join(",");
-            return `${dayMap[day]}${periods}`;
+            return `${DAY_MAP[day]}${periods}`;
         })
         .join(", ");
 };

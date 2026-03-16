@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from "react";
 import { Chip, Divider, Tooltip } from "@heroui/react";
-import { ChevronDown, Users, BookOpen } from "lucide-react";
+import { ChevronDown, Users } from "lucide-react";
 import type { SubjectData, Section } from "../types";
 import { tooltipMotionProps } from "../constants/motion";
+import { extractSearchTerms } from "../lib/utils";
 import SectionCard from "./SectionCard";
+import TeacherCard from "./atoms/TeacherCard";
 
 interface SubjectAccordionItemProps {
     subject: SubjectData;
@@ -36,20 +38,10 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
 }) => {
     const [hoveredTeacher, setHoveredTeacher] = useState<string | null>(null);
 
-    const effectiveSearchTerms = useMemo(() => {
-        if (!searchTerm) return [];
-        const clean = searchTerm.trim();
-        let query = clean;
-        if (clean.includes(":")) {
-            const parts = clean.split(":", 2);
-            query = parts[1].trim();
-        }
-        // +, &, /, (, ) 등의 연산자를 제외하고 순수 검색어들만 추출
-        return query
-            .split(/[\+&\/\(\)]/)
-            .map((k) => k.trim().toLowerCase())
-            .filter((k) => k !== "");
-    }, [searchTerm]);
+    const effectiveSearchTerms = useMemo(
+        () => extractSearchTerms(searchTerm),
+        [searchTerm],
+    );
 
     const teacherSummary = useMemo(() => {
         const summary: Record<string, string[]> = {};
@@ -158,43 +150,10 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                                                         "p-0 rounded-none border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
                                                 }}
                                                 content={
-                                                    <div className="flex divide-x-2 divide-black min-w-75">
-                                                        <div className="p-4 bg-retro-secondary/10 flex flex-col justify-center min-w-25">
-                                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
-                                                                Teacher
-                                                            </p>
-                                                            <p className="text-xl font-black text-retro-secondary tracking-tight">
-                                                                {name}
-                                                            </p>
-                                                        </div>
-                                                        <div className="p-4 flex-1 bg-white">
-                                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                                <BookOpen
-                                                                    size={12}
-                                                                />{" "}
-                                                                Assigned Classes
-                                                            </p>
-                                                            <div className="space-y-1.5">
-                                                                {teacherClasses.map(
-                                                                    (
-                                                                        cls,
-                                                                        i,
-                                                                    ) => (
-                                                                        <div
-                                                                            key={
-                                                                                i
-                                                                            }
-                                                                            className="text-[10px] font-bold text-black border-l-2 border-retro-secondary pl-1.5"
-                                                                        >
-                                                                            {
-                                                                                cls
-                                                                            }
-                                                                        </div>
-                                                                    ),
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                    <TeacherCard
+                                                        name={name}
+                                                        subjects={teacherClasses}
+                                                    />
                                                 }
                                             >
                                                 <button
@@ -226,7 +185,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                             (section: Section, idx: number) => (
                                 <React.Fragment key={section.id}>
                                     {idx > 0 && (
-                                        <Divider className="mb-10 h-1 bg-black opacity-100" />
+                                        <Divider className="mb-10 h-px bg-black opacity-20" />
                                     )}
                                     <SectionCard
                                         section={section}

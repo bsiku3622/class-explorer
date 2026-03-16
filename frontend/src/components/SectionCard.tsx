@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from "react";
 import { Tooltip } from "@heroui/react";
-import { User, MapPin, Users, BookOpen, Clock } from "lucide-react";
-import { getStudentColor } from "../lib/utils";
+import { User, MapPin, Users, Clock } from "lucide-react";
+import { getStudentColor, DAY_MAP, DAYS_ORDER, extractSearchTerms } from "../lib/utils";
 import type { Section } from "../types";
 import { tooltipMotionProps } from "../constants/motion";
+import StudentCard from "./atoms/StudentCard";
+import TeacherCard from "./atoms/TeacherCard";
 
 interface SectionCardProps {
     section: Section;
@@ -30,20 +32,10 @@ const SectionCard: React.FC<SectionCardProps> = ({
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 
-    const effectiveSearchTerms = useMemo(() => {
-        if (!searchTerm) return [];
-        const clean = searchTerm.trim();
-        let query = clean;
-        if (clean.includes(":")) {
-            const parts = clean.split(":", 2);
-            query = parts[1].trim();
-        }
-        // +, &, /, (, ) 등의 연산자를 제외하고 순수 검색어들만 추출
-        return query
-            .split(/[\+&\/\(\)]/)
-            .map((k) => k.trim().toLowerCase())
-            .filter((k) => k !== "");
-    }, [searchTerm]);
+    const effectiveSearchTerms = useMemo(
+        () => extractSearchTerms(searchTerm),
+        [searchTerm],
+    );
 
     const isTeacherSearching = useMemo(() => {
         return effectiveSearchTerms.some((term) =>
@@ -102,28 +94,10 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                 "p-0 rounded-none border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
                         }}
                         content={
-                            <div className="flex divide-x-2 divide-black min-w-75">
-                                <div className="p-4 bg-retro-secondary/10 flex flex-col justify-center min-w-25">
-                                    <p className="text-xl font-black text-retro-secondary tracking-tight">
-                                        {section.teacher}
-                                    </p>
-                                </div>
-                                <div className="p-4 flex-1 bg-white">
-                                    <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                        <BookOpen size={12} /> Assigned Classes
-                                    </p>
-                                    <div className="space-y-1.5">
-                                        {teacherClasses.map((cls, i) => (
-                                            <div
-                                                key={i}
-                                                className="text-[10px] font-bold text-black border-l-2 border-retro-secondary pl-1.5"
-                                            >
-                                                {cls}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
+                            <TeacherCard
+                                name={section.teacher}
+                                subjects={teacherClasses}
+                            />
                         }
                     >
                         <div
@@ -180,79 +154,50 @@ const SectionCard: React.FC<SectionCardProps> = ({
                             <Clock size={20} className="text-retro-accent5" />
                             <div className="flex flex-wrap gap-x-2">
                                 {(() => {
-                                    const dayMap: Record<string, string> = {
-                                        MON: "월",
-                                        TUE: "화",
-                                        WED: "수",
-                                        THU: "목",
-                                        FRI: "금",
-                                    };
-                                    const grouped: Record<string, number[]> =
-                                        {};
+                                    const grouped: Record<string, number[]> = {};
                                     section.times.forEach((t) => {
-                                        if (!grouped[t.day])
-                                            grouped[t.day] = [];
+                                        if (!grouped[t.day]) grouped[t.day] = [];
                                         grouped[t.day].push(t.period);
                                     });
-                                    const daysOrder = [
-                                        "MON",
-                                        "TUE",
-                                        "WED",
-                                        "THU",
-                                        "FRI",
-                                    ];
-                                    return daysOrder
-                                        .filter((day) => grouped[day])
-                                        .map((day) => {
-                                            const periods = grouped[day].sort(
-                                                (a, b) => a - b,
-                                            );
-                                            const isAnyPeriodMatch = periods.some(p => 
-                                                effectiveSearchTerms.some(term => 
-                                                    term === `${dayMap[day]}${p}` || 
-                                                    term === `${day.toLowerCase()}${p}`
-                                                )
-                                            );
-                                            return (
-                                                <span
-                                                    key={day}
-                                                    className="flex gap-0.5 items-center mr-2"
-                                                >
-                                                    <span className={`transition-colors ${isAnyPeriodMatch ? "font-black text-retro-accent5" : "text-black/60"}`}>
-                                                        {dayMap[day]}
-                                                    </span>
-                                                    {periods.map((p, idx) => {
-                                                        const isThisMatch = effectiveSearchTerms.some(term => 
-                                                            term === `${dayMap[day]}${p}` || 
-                                                            term === `${day.toLowerCase()}${p}`
-                                                        );
-                                                        return (
-                                                            <React.Fragment key={p}>
-                                                                <span
-                                                                    className={`hover:text-retro-accent5 cursor-pointer transition-colors ${
-                                                                        isThisMatch
-                                                                        ? "font-black"
-                                                                        : ""
-                                                                    }`}
-                                                                    style={{
-                                                                        color: isThisMatch ? '#00c8ff' : 'inherit'
-                                                                    }}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleSearchToggle(
-                                                                            `${dayMap[day]}${p}`,
-                                                                        );
-                                                                    }}
-                                                                >
-                                                                    {p}
-                                                                </span>
-                                                                {idx < periods.length - 1 && <span className="text-black/30">,</span>}
-                                                            </React.Fragment>
-                                                        );
-                                                    })}
+                                    return DAYS_ORDER.filter((day) => grouped[day]).map((day) => {
+                                        const periods = grouped[day].sort((a, b) => a - b);
+                                        const isAnyPeriodMatch = periods.some((p) =>
+                                            effectiveSearchTerms.some(
+                                                (term) =>
+                                                    term === `${DAY_MAP[day]}${p}` ||
+                                                    term === `${day.toLowerCase()}${p}`,
+                                            ),
+                                        );
+                                        return (
+                                            <span key={day} className="flex gap-0.5 items-center mr-2">
+                                                <span className={`transition-colors ${isAnyPeriodMatch ? "font-black text-retro-accent5" : "text-black/60"}`}>
+                                                    {DAY_MAP[day]}
                                                 </span>
-                                            );
-                                        });
+                                                {periods.map((p, idx) => {
+                                                    const isThisMatch = effectiveSearchTerms.some(
+                                                        (term) =>
+                                                            term === `${DAY_MAP[day]}${p}` ||
+                                                            term === `${day.toLowerCase()}${p}`,
+                                                    );
+                                                    return (
+                                                        <React.Fragment key={p}>
+                                                            <span
+                                                                className={`hover:text-retro-accent5 cursor-pointer transition-colors ${isThisMatch ? "font-black" : ""}`}
+                                                                style={{ color: isThisMatch ? "#00c8ff" : "inherit" }}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleSearchToggle(`${DAY_MAP[day]}${p}`);
+                                                                }}
+                                                            >
+                                                                {p}
+                                                            </span>
+                                                            {idx < periods.length - 1 && <span className="text-black/30">,</span>}
+                                                        </React.Fragment>
+                                                    );
+                                                })}
+                                            </span>
+                                        );
+                                    });
                                 })()}
                             </div>
                         </div>
@@ -294,43 +239,11 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                         "p-0 rounded-none border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
                                 }}
                                 content={
-                                    <div className="flex divide-x-2 divide-black min-w-[320px] max-w-112.5">
-                                        <div
-                                            className="p-4 flex flex-col justify-center min-w-30"
-                                            style={{
-                                                backgroundColor: `${color}26`,
-                                            }}
-                                        >
-                                            <p className="text-xs font-black text-black leading-none mb-3">
-                                                {student.stuId}
-                                            </p>
-                                            <p
-                                                className="text-xl font-black tracking-tight"
-                                                style={{ color: color }}
-                                            >
-                                                {student.name}
-                                            </p>
-                                        </div>
-                                        <div className="p-4 flex-1 bg-white">
-                                            <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                <BookOpen size={12} /> Enrolled
-                                                Classes
-                                            </p>
-                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                                                {mySubjects.map((sub, i) => (
-                                                    <div
-                                                        key={i}
-                                                        className="text-[10px] font-bold text-black border-l-2 pl-1.5 truncate"
-                                                        style={{
-                                                            borderColor: color,
-                                                        }}
-                                                    >
-                                                        {sub.split("(")[0]}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <StudentCard
+                                        stuId={student.stuId}
+                                        name={student.name}
+                                        subjects={mySubjects}
+                                    />
                                 }
                             >
                                 <div

@@ -17,14 +17,21 @@ import Sidebar from "./components/Sidebar";
 import SearchPage from "./pages/SearchPage";
 import RoomsPage from "./pages/RoomsPage";
 import AnalysisPage from "./pages/AnalysisPage";
+import StudentsPage from "./pages/StudentsPage";
+import TeachersPage from "./pages/TeachersPage";
 
 const App: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    const queryParams = new URLSearchParams(location.search);
-    const initialSearch =
-        location.pathname === "/" ? queryParams.get("q") || "" : "";
+    const initialSearch = useMemo(
+        () =>
+            location.pathname === "/"
+                ? new URLSearchParams(location.search).get("q") || ""
+                : "",
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [],
+    );
 
     const [allClassesData, setAllClassesData] = useState<SubjectData[]>([]);
     const [displayData, setDisplayData] = useState<SubjectData[]>([]);
@@ -244,22 +251,28 @@ const App: React.FC = () => {
         return () => clearTimeout(handler);
     }, [searchInput]);
 
+    const buildSearchValue = (
+        value: string,
+        isTeacher: boolean,
+        isRoom: boolean,
+    ): string => {
+        if (isRoom) return `room:${value}`;
+        if (isTeacher) return `teacher:${value}`;
+        if (value.includes("-")) return `student:${value}`;
+        return value;
+    };
+
     const handleSearchToggle = (
         value: string,
         isTeacher: boolean = false,
         isRoom: boolean = false,
     ) => {
-        const finalValue = isRoom
-            ? `room:${value}`
-            : isTeacher
-              ? `teacher:${value}`
-              : value.includes("-")
-                ? `student:${value}`
-                : value;
+        const finalValue = buildSearchValue(value, isTeacher, isRoom);
         const newValue = searchTerm === finalValue ? "" : finalValue;
         setSearchInput(newValue);
         setSearchTerm(newValue);
-        if (location.pathname !== "/") navigate("/");
+        if (location.pathname !== "/")
+            navigate(newValue ? `/?q=${encodeURIComponent(newValue)}` : "/");
     };
 
     const handleSearchSelect = (
@@ -267,16 +280,11 @@ const App: React.FC = () => {
         isTeacher: boolean = false,
         isRoom: boolean = false,
     ) => {
-        const finalValue = isRoom
-            ? `room:${value}`
-            : isTeacher
-              ? `teacher:${value}`
-              : isTeacher === false && value.includes("-")
-                ? `student:${value}`
-                : value;
+        const finalValue = buildSearchValue(value, isTeacher, isRoom);
         setSearchInput(finalValue);
         setSearchTerm(finalValue);
-        if (location.pathname !== "/") navigate("/");
+        if (location.pathname !== "/")
+            navigate(`/?q=${encodeURIComponent(finalValue)}`);
     };
 
     const toggleSubject = (name: string) => {
@@ -303,11 +311,7 @@ const App: React.FC = () => {
                             : location.pathname.slice(1)
                     }
                     setActivePage={(id) =>
-                        navigate(
-                            id === "home"
-                                ? "/"
-                                : `/${id.replace("empty-room", "emptyroomfinder")}`,
-                        )
+                        navigate(id === "home" ? "/" : `/${id}`)
                     }
                 />
                 <main className="flex-1 p-6 md:p-10 transition-all duration-300 md:ml-64 min-w-0">
@@ -358,7 +362,31 @@ const App: React.FC = () => {
                                 element={
                                     <AnalysisPage
                                         allClassesData={allClassesData}
+                                        studentCounts={studentCounts}
+                                        lastUpdated={lastUpdated}
+                                        fetchInitialData={fetchInitialData}
                                         handleSearch={handleSearchToggle}
+                                    />
+                                }
+                            />
+                            <Route
+                                path="/students"
+                                element={
+                                    <StudentsPage
+                                        allClassesData={allClassesData}
+                                        studentCounts={studentCounts}
+                                        lastUpdated={lastUpdated}
+                                        fetchInitialData={fetchInitialData}
+                                        handleSearch={handleSearchSelect}
+                                    />
+                                }
+                            />
+                            <Route
+                                path="/teachers"
+                                element={
+                                    <TeachersPage
+                                        allClassesData={allClassesData}
+                                        handleSearch={handleSearchSelect}
                                     />
                                 }
                             />

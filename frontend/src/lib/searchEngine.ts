@@ -1,4 +1,4 @@
-import { formatSubjectWithSection } from "./utils";
+import { formatSubjectWithSection, DAY_MAP as dayMap } from "./utils";
 
 /**
  * 한글 문자열에서 초성을 추출합니다.
@@ -135,7 +135,7 @@ export interface SearchResult {
     };
 }
 
-const parseQuery = (searchTerm: string, allData: any[]) => {
+const parseQuery = (searchTerm: string, _allData: any[]) => {
     let cleanKeyword = searchTerm.trim();
     let mode: "general" | "student" | "teacher" | "room" = "general";
     let effectiveQuery = cleanKeyword;
@@ -202,7 +202,7 @@ const filterMatchingClasses = (
     const {
         mode,
         effectiveQuery,
-        flatTerms,
+        flatTerms: _flatTerms,
         warning,
         isDividerSearch,
     } = queryParams;
@@ -218,14 +218,6 @@ const filterMatchingClasses = (
 
     allData.forEach((subject) => {
         const subjectName = subject.subject;
-        const dayMap: Record<string, string> = {
-            MON: "월",
-            TUE: "화",
-            WED: "수",
-            THU: "목",
-            FRI: "금",
-        };
-
         subject.sections.forEach((sec: any) => {
             const activeStudents = sec.students.filter((s: any) =>
                 selectedYears.includes(s.stuId.split("-")[0]),
@@ -300,13 +292,6 @@ const extractEntities = (
     effectiveQuery: string,
 ) => {
     const entityMap = new Map<string, any>();
-    const dayMap: Record<string, string> = {
-        MON: "월",
-        TUE: "화",
-        WED: "수",
-        THU: "목",
-        FRI: "금",
-    };
 
     matchingClasses.forEach((cls) => {
         const searchRoom = effectiveQuery.toLowerCase();
