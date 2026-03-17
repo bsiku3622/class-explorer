@@ -33,7 +33,7 @@ async def sync_student_enrollments(client: httpx.AsyncClient, student_id: str, s
                 db.query(models.Student).filter(models.Student.stuId == student_id).delete()
                 db.commit()
                 print(f"[-] {student_id} {student_name}: 데이터 없음 (제외)")
-                return None
+                return ("skipped", f"{student_id} {student_name}")
 
             # 학생 정보 갱신
             student = db.query(models.Student).filter(models.Student.stuId == student_id).first()
@@ -81,12 +81,12 @@ async def sync_student_enrollments(client: httpx.AsyncClient, student_id: str, s
             
             db.commit()
             print(f"[+] {student_id} {student_name} - 동기화 완료")
-            return f"{student_id} {student_name}"
-            
+            return ("synced", f"{student_id} {student_name}")
+
         except Exception as e:
             print(f"[!] {student_id} 오류: {e}")
             db.rollback()
-            return None
+            return ("error", student_id)
         finally:
             db.close()
 
@@ -120,16 +120,17 @@ async def main():
         # 병렬 실행 및 결과 수집
         results = await asyncio.gather(*tasks)
     
-    # 결과 필터링 (None 제외)
-    active_students = [r for r in results if r is not None]
-    
+    synced = [r[1] for r in results if r and r[0] == "synced"]
+    skipped = [r[1] for r in results if r and r[0] == "skipped"]
+    errors  = [r[1] for r in results if r and r[0] == "error"]
+
     with open(txt_path, "w") as f:
-        f.write("\n".join(active_students))
-    
+        f.write("\n".join(synced))
+
     end_time = time.time()
+    elapsed = end_time - start_time
     print("-" * 30)
-    print(f"작업 완료! (소요 시간: {end_time - start_time:.2f}초)")
-    print(f"최종 활성: {len(active_students)}명")
+    print(f"SYNC_RESULT synced={len(synced)} skipped={len(skipped)} errors={len(errors)} elapsed={elapsed:.1f}s")
     print("-" * 30)
 
 if __name__ == "__main__":

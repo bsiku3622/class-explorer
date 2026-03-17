@@ -1,5 +1,5 @@
-import React from "react";
-import { Search } from "lucide-react";
+import React, { useState } from "react";
+import { Search, Link } from "lucide-react";
 import { Spinner } from "@heroui/react";
 import SearchInput from "../components/atoms/SearchInput";
 import type { SubjectData, Stats, SearchResultStats } from "../types";
@@ -64,18 +64,38 @@ const SearchPage: React.FC<SearchPageProps> = ({
     expandedSubjects,
     toggleSubject,
 }) => {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
+
     return (
         <div className="flex flex-col gap-4 md:gap-6 pb-20">
             <PageHeader
                 title="Search"
                 subtitle="Class Finder"
                 icon={Search}
+                action={searchTerm ? (
+                    <button
+                        onClick={handleCopyLink}
+                        className="flex items-center gap-2 text-xs font-black uppercase px-3 py-2 border-2 border-black/30 hover:border-black transition-all duration-100 text-black/50 hover:text-black"
+                    >
+                        <Link size={13} strokeWidth={2.5} />
+                        {copied ? "Copied!" : "Share"}
+                    </button>
+                ) : undefined}
             />
 
             <SearchInput
                 value={searchInput}
                 onChange={setSearchInput}
                 placeholder="Enter student name, subject, or logic query..."
+                enableHistory
+                committedTerm={searchTerm}
             />
 
             <FilterSection

@@ -120,7 +120,7 @@ const AdminPage: React.FC = () => {
 
     // Sync
     const [syncLoading, setSyncLoading] = useState(false);
-    const [syncResult, setSyncResult] = useState<{ ok: boolean; message: string } | null>(null);
+    const [syncResult, setSyncResult] = useState<{ ok: boolean; synced?: number; skipped?: number; errors?: number; elapsed?: string } | null>(null);
 
     // Data Management
     const [dataTab, setDataTab] = useState<DataTab>("students");
@@ -280,9 +280,9 @@ const AdminPage: React.FC = () => {
         setSyncLoading(true); setSyncResult(null);
         try {
             const res = await api.post("/admin/sync", {}, { headers: authHeader() });
-            setSyncResult({ ok: true, message: res.data.detail });
+            setSyncResult({ ok: true, ...res.data.stats });
         } catch (e) {
-            if (axios.isAxiosError(e)) setSyncResult({ ok: false, message: e.response?.data?.detail || "Sync failed" });
+            if (axios.isAxiosError(e)) setSyncResult({ ok: false });
         } finally { setSyncLoading(false); }
     };
 
@@ -307,6 +307,23 @@ const AdminPage: React.FC = () => {
 
     const inputClass =
         "border-2 border-black px-3 py-2 text-sm font-bold bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] focus:shadow-none outline-none transition-all duration-100";
+
+    const SIMPLE_PASSWORDS = ["12345", "123456", "1234567", "12345678", "password", "qwerty", "111111", "000000", "1234", "abc123", "pass"];
+
+    const usernameWarning = (() => {
+        if (!newUsername) return "";
+        if (/[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(newUsername)) return "한글은 username으로 사용할 수 없습니다";
+        if (users.some((u) => u.username === newUsername)) return "이미 사용 중인 username입니다";
+        return "";
+    })();
+
+    const passwordWarning = (() => {
+        if (!newPassword) return "";
+        if (newPassword.length < 5) return "비밀번호는 5자 이상이어야 합니다";
+        if (new Set(newPassword).size === 1) return "너무 단순한 비밀번호입니다 (같은 문자 반복)";
+        if (SIMPLE_PASSWORDS.includes(newPassword.toLowerCase())) return "너무 단순한 비밀번호입니다";
+        return "";
+    })();
 
     const formatDate = (iso: string) => {
         const d = new Date(iso);
@@ -406,8 +423,32 @@ const AdminPage: React.FC = () => {
                         <RetroSubTitle title="Create User" icon={Plus} />
                         <form onSubmit={handleCreateUser} className="space-y-3">
                             <div className="flex flex-col sm:flex-row gap-2">
-                                <input type="text" placeholder="Username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className={`${inputClass} flex-1`} required />
-                                <input type="password" placeholder="Password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={`${inputClass} flex-1`} required />
+                                <div className="flex-1 space-y-1">
+                                    <input
+                                        type="text"
+                                        placeholder="Username"
+                                        value={newUsername}
+                                        onChange={(e) => setNewUsername(e.target.value)}
+                                        className={`${inputClass} w-full ${usernameWarning ? "border-orange-400" : ""}`}
+                                        required
+                                    />
+                                    {usernameWarning && (
+                                        <p className="text-[11px] font-bold text-orange-600">⚠ {usernameWarning}</p>
+                                    )}
+                                </div>
+                                <div className="flex-1 space-y-1">
+                                    <input
+                                        type="password"
+                                        placeholder="Password"
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        className={`${inputClass} w-full ${passwordWarning ? "border-orange-400" : ""}`}
+                                        required
+                                    />
+                                    {passwordWarning && (
+                                        <p className="text-[11px] font-bold text-orange-600">⚠ {passwordWarning}</p>
+                                    )}
+                                </div>
                             </div>
                             <div className="flex items-center justify-between">
                                 <label className="flex items-center gap-2 cursor-pointer">
@@ -492,7 +533,15 @@ const AdminPage: React.FC = () => {
 
                     {syncResult && (
                         <div className={`border-2 px-3 py-2 text-xs font-bold ${syncResult.ok ? "border-green-600 bg-green-50 text-green-700" : "border-red-500 bg-red-50 text-red-600"}`}>
-                            {syncResult.message}
+                            {syncResult.ok ? (
+                                <span className="flex flex-wrap gap-3">
+                                    <span>✓ Sync complete</span>
+                                    <span>Synced <strong>{syncResult.synced}</strong></span>
+                                    <span>Skipped <strong>{syncResult.skipped}</strong></span>
+                                    {(syncResult.errors ?? 0) > 0 && <span>Errors <strong>{syncResult.errors}</strong></span>}
+                                    <span className="text-green-500">{syncResult.elapsed}s</span>
+                                </span>
+                            ) : "Sync failed"}
                         </div>
                     )}
 

@@ -24,6 +24,9 @@ frontend/dist/
 frontend/dist-ssr/
 frontend/*.local
 
+# Local HTTPS certificates
+frontend/*.pem
+
 # Logs
 *.log
 npm-debug.log*

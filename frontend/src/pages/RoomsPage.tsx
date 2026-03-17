@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Calendar, MapPin, RefreshCcw } from "lucide-react";
+import { Calendar, MapPin, RefreshCcw, Search } from "lucide-react";
 import type { SubjectData } from "../types";
 import { DAYS_ORDER, PERIODS } from "../lib/utils";
 import RetroButton from "../components/atoms/RetroButton";
@@ -8,6 +8,7 @@ import PageHeader from "../components/molecules/PageHeader";
 
 interface RoomsPageProps {
     allClassesData: SubjectData[];
+    onRoomSearch?: (room: string) => void;
 }
 
 // 형설관 교실 데이터 정의 (오른쪽에서 왼쪽 순서 반영)
@@ -27,7 +28,7 @@ const ROOM_LABELS: Record<string, string> = {
 
 const DAYS = DAYS_ORDER;
 
-const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData }) => {
+const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData, onRoomSearch }) => {
     const [selectedTimes, setSelectedTimes] = useState<string[]>([]); // Format: "DAY-PERIOD"
     const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
 
@@ -108,10 +109,21 @@ const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData }) => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left: Timetable */}
                 <div className="lg:col-span-5 space-y-4">
-                    <RetroSubTitle 
-                        title={selectedRoom ? `Schedule: ${selectedRoom}` : "Select Time Slots"} 
-                        icon={Calendar} 
-                    />
+                    <div className="flex items-center justify-between">
+                        <RetroSubTitle
+                            title={selectedRoom ? `Schedule: ${selectedRoom}` : "Select Time Slots"}
+                            icon={Calendar}
+                        />
+                        {selectedRoom && onRoomSearch && (
+                            <RetroButton
+                                onClick={() => onRoomSearch(selectedRoom)}
+                                icon={<Search size={14} strokeWidth={2.5} />}
+                                size="sm"
+                            >
+                                Search
+                            </RetroButton>
+                        )}
+                    </div>
                     <div className="overflow-x-auto">
                     <div className="bg-white border-2 border-black overflow-hidden shadow-[4px_4px_0_0_rgba(0,0,0,0.1)] min-w-[280px]">
                         <div className="grid grid-cols-[40px_repeat(5,1fr)] divide-x divide-black/10 border-b border-black bg-black text-white">

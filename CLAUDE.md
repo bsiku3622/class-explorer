@@ -29,7 +29,7 @@ python -m backend.parser_run        # KSAIN API → SQLite 동기화
 ```
 KSAIN API → parser_run.py → ksa_timetable.db
                                   ↓
-                         FastAPI GET /  (단일 엔드포인트)
+                    FastAPI (GET /, /auth/*, /admin/*)
                                   ↓
                  App.tsx — localStorage 캐시 (1h TTL)
                                   ↓
@@ -40,7 +40,8 @@ KSAIN API → parser_run.py → ksa_timetable.db
 | ------------------------- | ------------------------------------------------------------------------------- |
 | `App.tsx`                 | 전역 상태 + 라우터 + fetch + 검색 오케스트레이터 (context/store 없음)           |
 | `src/lib/searchEngine.ts` | 검색 전체 로직 (prefix 파싱, 불린 연산, 초성 매칭)                              |
-| `src/utils.ts`            | `DAY_MAP`, `DAYS_ORDER`, `PERIODS`, `extractSearchTerms()`, `getStudentColor()` |
+| `src/lib/utils.ts`        | `DAY_MAP`, `DAYS_ORDER`, `PERIODS`, `extractSearchTerms()`, `getStudentColor()` |
+| `src/lib/api.ts`          | axios 인스턴스 (`VITE_API_BASE_URL` 기반 baseURL)                               |
 
 **View Mode**: `isConsolidatedView = (searchMode !== 'general') || isLogicalSearch`
 
@@ -52,7 +53,7 @@ KSAIN API → parser_run.py → ksa_timetable.db
 ## Conventions
 
 - 비즈니스 로직은 `lib/` 또는 커스텀 훅으로 분리. 컴포넌트 내 직접 작성 금지
-- `DAY_MAP`, `DAYS_ORDER`, `PERIODS` — `utils.ts`에서 import, 로컬 재정의 금지
+- `DAY_MAP`, `DAYS_ORDER`, `PERIODS` — `src/lib/utils.ts`에서 import, 로컬 재정의 금지
 - 하이라이트 키워드 추출: `extractSearchTerms()` 단일 사용
 - `searchTerm` ↔ URL `?q=` 동기화는 `App.tsx`에서만 관리
 - 한글 IME Enter 중복 방지: `e.nativeEvent.isComposing` 체크 필수
@@ -94,6 +95,19 @@ KSAIN API → parser_run.py → ksa_timetable.db
 ```
 
 `/logs.md` 날짜 역순 | `/tasks.md` 최신 항목 아래에 추가
+
+---
+
+## Pages
+
+| 경로                | 페이지          | 설명                              |
+| ------------------- | --------------- | --------------------------------- |
+| `/`                 | SearchPage      | 통합 검색                         |
+| `/emptyroomfinder`  | RoomsPage       | 빈 강의실 탐색                    |
+| `/analysis`         | AnalysisPage    | 학사 통계 대시보드                |
+| `/browse`           | BrowsePage      | 학생/교사 목록 탐색 (모드 토글)   |
+| `/about`            | SettingsPage    | 기능 가이드북 + About             |
+| `/admin`            | AdminPage       | 관리자 전용 (is_admin=true만)     |
 
 ---
 

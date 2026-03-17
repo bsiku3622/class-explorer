@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import axios from "axios";
 import api from "./lib/api";
 import {
@@ -15,14 +15,14 @@ import Navigation from "./components/Navigation";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
 
-// Pages
-import SearchPage from "./pages/SearchPage";
-import RoomsPage from "./pages/RoomsPage";
-import AnalysisPage from "./pages/AnalysisPage";
-import BrowsePage from "./pages/BrowsePage";
-import SettingsPage from "./pages/SettingsPage";
-import LoginPage from "./pages/LoginPage";
-import AdminPage from "./pages/AdminPage";
+// Pages (lazy loaded for code splitting)
+const SearchPage = React.lazy(() => import("./pages/SearchPage"));
+const RoomsPage = React.lazy(() => import("./pages/RoomsPage"));
+const AnalysisPage = React.lazy(() => import("./pages/AnalysisPage"));
+const BrowsePage = React.lazy(() => import("./pages/BrowsePage"));
+const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
+const LoginPage = React.lazy(() => import("./pages/LoginPage"));
+const AdminPage = React.lazy(() => import("./pages/AdminPage"));
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
 const CACHE_KEY = "ksa_class_finder_cache";
@@ -346,8 +346,18 @@ const App: React.FC = () => {
         );
     };
 
+    const pageFallback = (
+        <div className="min-h-screen bg-retro-bg flex items-center justify-center">
+            <p className="font-black uppercase tracking-widest text-black/30 animate-pulse">Loading...</p>
+        </div>
+    );
+
     if (!sessionToken) {
-        return <LoginPage onLogin={handleLogin} />;
+        return (
+            <Suspense fallback={pageFallback}>
+                <LoginPage onLogin={handleLogin} />
+            </Suspense>
+        );
     }
 
     return (
@@ -375,6 +385,7 @@ const App: React.FC = () => {
                 />
                 <main className="flex-1 p-4 md:p-10 transition-all duration-300 md:ml-64 min-w-0 pb-20 md:pb-10">
                     <div className="max-w-6xl mx-auto">
+                        <Suspense fallback={<div className="py-40 flex items-center justify-center"><p className="font-black uppercase tracking-widest text-black/30 animate-pulse">Loading...</p></div>}>
                         <Routes>
                             <Route
                                 path="/"
@@ -413,6 +424,7 @@ const App: React.FC = () => {
                                 element={
                                     <RoomsPage
                                         allClassesData={allClassesData}
+                                        onRoomSearch={(room) => handleSearchSelect(room, false, true)}
                                     />
                                 }
                             />
@@ -452,6 +464,7 @@ const App: React.FC = () => {
                                 element={<Navigate to="/" replace />}
                             />
                         </Routes>
+                        </Suspense>
                     </div>
                 </main>
             </div>

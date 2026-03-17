@@ -1,7 +1,9 @@
 import os
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Response
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+from sqlalchemy.orm import Session, selectinload, joinedload
 import re
 from backend import models
 from backend.database import engine, SessionLocal
@@ -28,6 +30,21 @@ with engine.connect() as _conn:
 
 app = FastAPI()
 
+# ─── 보안 헤더 미들웨어 ───────────────────────────────────────────────────────
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+        if os.environ.get("FORCE_HTTPS"):
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
 # CORS: 환경변수 CORS_ORIGINS에 콤마 구분으로 허용 도메인 설정
 # 예) CORS_ORIGINS=https://your-app.netlify.app,https://custom-domain.com
 _origins = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
@@ -35,8 +52,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in _origins.split(",")],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 app.include_router(auth_router)
@@ -49,12 +66,18 @@ def get_section_num(section_str):
 
 @app.get("/")
 async def get_all_data(
+    response: Response,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
     """수업 정보, 전체 통계, 학년별 학생 수를 하나의 JSON으로 반환 (인증 필요)"""
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
     # 1. 수업 및 수강 정보 조회
-    all_classes = db.query(models.Class).all()
+    all_classes = db.query(models.Class).options(
+        selectinload(models.Class.enrollments).joinedload(models.Enrollment.student),
+        selectinload(models.Class.times),
+    ).all()
     grouped = {}
     total_active_students = set()
 

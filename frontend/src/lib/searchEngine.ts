@@ -1,21 +1,20 @@
 import { formatSubjectWithSection, DAY_MAP as dayMap, replaceRomanNumerals } from "./utils";
 
+const _CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+const _chosungCache = new Map<string, string>();
+
 /**
- * 한글 문자열에서 초성을 추출합니다.
+ * 한글 문자열에서 초성을 추출합니다. (결과 캐싱으로 중복 연산 방지)
  */
 export const getChosung = (str: string): string => {
-    const cho = [
-        "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"
-    ];
+    const cached = _chosungCache.get(str);
+    if (cached !== undefined) return cached;
     let result = "";
     for (let i = 0; i < str.length; i++) {
         const code = str.charCodeAt(i) - 44032;
-        if (code > -1 && code < 11172) {
-            result += cho[Math.floor(code / 588)];
-        } else {
-            result += str.charAt(i);
-        }
+        result += (code > -1 && code < 11172) ? _CHO[Math.floor(code / 588)] : str.charAt(i);
     }
+    _chosungCache.set(str, result);
     return result;
 };
 

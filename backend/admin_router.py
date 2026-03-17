@@ -2,21 +2,26 @@
 import sys
 import subprocess
 import datetime
+import logging
+import re
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend import models
 from backend.auth import get_current_admin, get_db, hash_password
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+_USERNAME_PATTERN = re.compile(r'^[a-zA-Z0-9_.\-]+$')
 
 # ─── 스키마 ──────────────────────────────────────────────────────────────────
 class CreateUserRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=5, max_length=128)
     is_admin: bool = False
 
 
@@ -48,6 +53,8 @@ def create_user(
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_admin),
 ):
+    if not _USERNAME_PATTERN.match(body.username):
+        raise HTTPException(status_code=422, detail="Username must contain only letters, numbers, _, ., or -")
     if db.query(models.User).filter(models.User.username == body.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
     user = models.User(
@@ -135,12 +142,12 @@ def revoke_session(
 
 # ─── 학생 관리 ───────────────────────────────────────────────────────────────
 class UpdateStudentRequest(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=64)
 
 
 @router.get("/students")
 def list_students(
-    q: str = "",
+    q: str = Query(default="", max_length=100),
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_admin),
 ):
@@ -171,7 +178,7 @@ def update_student(
 
 # ─── 교사 관리 ───────────────────────────────────────────────────────────────
 class RenameTeacherRequest(BaseModel):
-    new_name: str
+    new_name: str = Field(min_length=1, max_length=64)
 
 
 @router.get("/teachers")
@@ -215,7 +222,7 @@ def rename_teacher(
 
 # ─── 과목 별칭 관리 ──────────────────────────────────────────────────────────
 class SetAliasesRequest(BaseModel):
-    aliases: list[str]
+    aliases: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(max_length=30)
 
 
 @router.get("/subjects")
@@ -268,7 +275,18 @@ def sync_data(_: models.User = Depends(get_current_admin)):
             timeout=300,
         )
         if result.returncode != 0:
-            raise HTTPException(status_code=500, detail=result.stderr or "Sync failed")
-        return {"detail": "Sync complete", "output": result.stdout}
+            # 내부 에러 상세정보는 서버 로그에만 기록, 클라이언트에 노출 금지
+            logger.error("Sync failed (exit %d): %s", result.returncode, result.stderr)
+            raise HTTPException(status_code=500, detail="Sync failed. Check server logs.")
+        # SYNC_RESULT 줄 파싱
+        stats = {"synced": 0, "skipped": 0, "errors": 0, "elapsed": ""}
+        for line in result.stdout.splitlines():
+            if line.startswith("SYNC_RESULT"):
+                for token in line.split():
+                    if "=" in token:
+                        k, v = token.split("=", 1)
+                        if k in stats:
+                            stats[k] = v if k == "elapsed" else int(v)
+        return {"detail": "Sync complete", "stats": stats}
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504, detail="Sync timed out (300s)")

@@ -44,7 +44,7 @@
 | `RoomsPage` | `/emptyroomfinder` | 형설관 빈 교실 탐색 |
 | `AnalysisPage` | `/analysis` | 학사 데이터 통계 대시보드 |
 | `BrowsePage` | `/browse` | 학생/교사 목록 탐색 (모드 토글, 학년 필터) |
-| `SettingsPage` | `/settings` | 앱 설정 + 기능 가이드북 |
+| `SettingsPage` | `/about` | 기능 가이드북 + About |
 
 ## 상세 가이드
 - [component-guide-atoms.md](component-guide-atoms.md) — Atoms props 상세 + 사용 예시

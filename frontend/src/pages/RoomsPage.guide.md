@@ -9,6 +9,7 @@
 | prop | 타입 | 설명 |
 |------|------|------|
 | `allClassesData` | `SubjectData[]` | 전체 수업 데이터 (App.tsx에서 전달) |
+| `onRoomSearch?` | `(room: string) => void` | 강의실 선택 시 Search 페이지로 이동 |
 
 ## 내부 상태
 | 상태 | 설명 |
@@ -23,6 +24,8 @@
   - 셀 클릭: selectedSlots 토글          - 강의실 버튼 클릭: selectedRoom 설정
   - 점유된 셀: bg-black/[0.07]            - 사용중: bg-black text-white
   - 선택된 셀: bg-black                   - 빈 교실: bg-retro-green/20
+
+강의실 선택 시 subtitle 옆 Search 버튼 노출 → onRoomSearch(selectedRoom)
 ```
 
 ## 빈 교실 계산 로직
@@ -32,6 +35,10 @@
 const occupiedRooms = selectedSlots로 필터된 수업들의 강의실 집합
 const availableRooms = 형설관 강의실 목록.filter(r => !occupiedRooms.has(r))
 ```
+
+## Search 연동
+강의실 선택 후 "Search" 버튼 클릭 → `onRoomSearch(selectedRoom)` 호출
+→ App.tsx의 `handleSearchSelect(room, false, true)` → `room:강의실명` 검색
 
 ## 강의실 데이터
 - 형설관 강의실 목록은 컴포넌트 내 하드코딩 (층별 구조)

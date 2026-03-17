@@ -113,6 +113,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
         subjects: false,
         periodsDistribution: false,
         subjectCountDistribution: false,
+        teacherLoadDistribution: false,
         teachers: false,
         rooms: false,
     });
@@ -268,123 +269,103 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
             .sort((a, b) => b.periods - a.periods);
     }, [allClassesData]);
 
-    const weeklyPeriodsStats = useMemo(() => {
-        const studentPeriods: Record<string, Set<string>> = {};
-        allClassesData.forEach((sub) =>
-            sub.sections.forEach((sec) =>
-                sec.students.forEach((stu) => {
-                    if (!selectedYears.includes(stu.stuId.split("-")[0])) return;
-                    if (!studentPeriods[stu.stuId])
-                        studentPeriods[stu.stuId] = new Set();
-                    (sec.times || []).forEach((t) => {
-                        studentPeriods[stu.stuId].add(`${t.day}-${t.period}`);
-                    });
-                }),
-            ),
-        );
-        const countMap: Record<number, number> = {};
-        Object.values(studentPeriods).forEach((periods) => {
-            const count = periods.size;
-            countMap[count] = (countMap[count] || 0) + 1;
-        });
-        return Object.entries(countMap)
-            .map(([periods, students]) => ({ periods: Number(periods), students }))
-            .sort((a, b) => a.periods - b.periods);
-    }, [allClassesData, selectedYears]);
-
-    const subjectCountStats = useMemo(() => {
-        const studentSubjects: Record<string, Set<string>> = {};
-        allClassesData.forEach((sub) =>
-            sub.sections.forEach((sec) =>
-                sec.students.forEach((stu) => {
-                    if (!selectedYears.includes(stu.stuId.split("-")[0])) return;
-                    if (!studentSubjects[stu.stuId])
-                        studentSubjects[stu.stuId] = new Set();
-                    studentSubjects[stu.stuId].add(sub.subject);
-                }),
-            ),
-        );
-        const countMap: Record<number, number> = {};
-        Object.values(studentSubjects).forEach((subjects) => {
-            const count = subjects.size;
-            countMap[count] = (countMap[count] || 0) + 1;
-        });
-        return Object.entries(countMap)
-            .map(([subjectCount, students]) => ({
-                subjectCount: Number(subjectCount),
-                students,
-            }))
-            .sort((a, b) => a.subjectCount - b.subjectCount);
-    }, [allClassesData, selectedYears]);
-
-    const subjectYearStats = useMemo(() => {
-        const map: Record<string, Record<string, Set<string>>> = {};
-        allClassesData.forEach((sub) => {
-            if (!map[sub.subject]) map[sub.subject] = {};
-            sub.sections.forEach((sec) =>
-                sec.students.forEach((stu) => {
-                    const year = stu.stuId.split("-")[0];
-                    if (!selectedYears.includes(year)) return;
-                    if (!map[sub.subject][year]) map[sub.subject][year] = new Set();
-                    map[sub.subject][year].add(stu.stuId);
-                }),
-            );
-        });
-        const result: Record<string, Record<string, number>> = {};
-        Object.entries(map).forEach(([sub, years]) => {
-            result[sub] = {};
-            Object.entries(years).forEach(([year, ids]) => {
-                result[sub][year] = ids.size;
-            });
-        });
-        return result;
-    }, [allClassesData, selectedYears]);
-
-    const periodsYearStats = useMemo(() => {
-        const studentData: Record<string, { year: string; periods: Set<string> }> = {};
+    // weeklyPeriodsStats + periodsYearStats 통합 (단일 순회)
+    const periodStats = useMemo(() => {
+        const byStudent: Record<string, { year: string; periods: Set<string> }> = {};
         allClassesData.forEach((sub) =>
             sub.sections.forEach((sec) =>
                 sec.students.forEach((stu) => {
                     const year = stu.stuId.split("-")[0];
                     if (!selectedYears.includes(year)) return;
-                    if (!studentData[stu.stuId])
-                        studentData[stu.stuId] = { year, periods: new Set() };
+                    if (!byStudent[stu.stuId]) byStudent[stu.stuId] = { year, periods: new Set() };
                     (sec.times || []).forEach((t) =>
-                        studentData[stu.stuId].periods.add(`${t.day}-${t.period}`),
+                        byStudent[stu.stuId].periods.add(`${t.day}-${t.period}`),
                     );
                 }),
             ),
         );
-        const map: Record<number, Record<string, number>> = {};
-        Object.values(studentData).forEach(({ year, periods }) => {
+        const countMap: Record<number, number> = {};
+        const yearMap: Record<number, Record<string, number>> = {};
+        Object.values(byStudent).forEach(({ year, periods }) => {
             const count = periods.size;
-            if (!map[count]) map[count] = {};
-            map[count][year] = (map[count][year] || 0) + 1;
+            countMap[count] = (countMap[count] || 0) + 1;
+            if (!yearMap[count]) yearMap[count] = {};
+            yearMap[count][year] = (yearMap[count][year] || 0) + 1;
         });
-        return map;
+        return {
+            weeklyPeriodsStats: Object.entries(countMap)
+                .map(([periods, students]) => ({ periods: Number(periods), students }))
+                .sort((a, b) => a.periods - b.periods),
+            periodsYearStats: yearMap,
+        };
     }, [allClassesData, selectedYears]);
 
-    const subjectCountYearStats = useMemo(() => {
-        const studentData: Record<string, { year: string; subjects: Set<string> }> = {};
-        allClassesData.forEach((sub) =>
+    // subjectCountStats + subjectCountYearStats + subjectYearStats 통합 (단일 순회)
+    const subjectStats = useMemo(() => {
+        const byStudent: Record<string, { year: string; subjects: Set<string> }> = {};
+        const subjectYearSets: Record<string, Record<string, Set<string>>> = {};
+        allClassesData.forEach((sub) => {
             sub.sections.forEach((sec) =>
                 sec.students.forEach((stu) => {
                     const year = stu.stuId.split("-")[0];
                     if (!selectedYears.includes(year)) return;
-                    if (!studentData[stu.stuId])
-                        studentData[stu.stuId] = { year, subjects: new Set() };
-                    studentData[stu.stuId].subjects.add(sub.subject);
+                    if (!byStudent[stu.stuId]) byStudent[stu.stuId] = { year, subjects: new Set() };
+                    byStudent[stu.stuId].subjects.add(sub.subject);
+                    if (!subjectYearSets[sub.subject]) subjectYearSets[sub.subject] = {};
+                    if (!subjectYearSets[sub.subject][year]) subjectYearSets[sub.subject][year] = new Set();
+                    subjectYearSets[sub.subject][year].add(stu.stuId);
                 }),
-            ),
-        );
-        const map: Record<number, Record<string, number>> = {};
-        Object.values(studentData).forEach(({ year, subjects }) => {
-            const count = subjects.size;
-            if (!map[count]) map[count] = {};
-            map[count][year] = (map[count][year] || 0) + 1;
+            );
         });
-        return map;
+        const countMap: Record<number, number> = {};
+        const yearMap: Record<number, Record<string, number>> = {};
+        Object.values(byStudent).forEach(({ year, subjects }) => {
+            const count = subjects.size;
+            countMap[count] = (countMap[count] || 0) + 1;
+            if (!yearMap[count]) yearMap[count] = {};
+            yearMap[count][year] = (yearMap[count][year] || 0) + 1;
+        });
+        const subjectYearStats: Record<string, Record<string, number>> = {};
+        Object.entries(subjectYearSets).forEach(([sub, years]) => {
+            subjectYearStats[sub] = {};
+            Object.entries(years).forEach(([year, ids]) => {
+                subjectYearStats[sub][year] = ids.size;
+            });
+        });
+        return {
+            subjectCountStats: Object.entries(countMap)
+                .map(([subjectCount, students]) => ({ subjectCount: Number(subjectCount), students }))
+                .sort((a, b) => a.subjectCount - b.subjectCount),
+            subjectCountYearStats: yearMap,
+            subjectYearStats,
+        };
     }, [allClassesData, selectedYears]);
+
+    const conflictCount = useMemo(() => {
+        if (selectedStudentIds.length < 2) return 0;
+        const DAYS_LIST = ["MON", "TUE", "WED", "THU", "FRI"];
+        const PERIODS_LIST = Array.from({ length: 11 }, (_, i) => i + 1);
+        let count = 0;
+        DAYS_LIST.forEach((day) =>
+            PERIODS_LIST.forEach((period) => {
+                const key = `${day}-${period}`;
+                if (!selectedStudentIds.every((id) => !!studentInfoMap[id]?.schedule[key])) return;
+                const first = studentInfoMap[selectedStudentIds[0]]?.schedule[key];
+                if (!selectedStudentIds.every((id) => studentInfoMap[id]?.schedule[key] === first)) count++;
+            }),
+        );
+        return count;
+    }, [selectedStudentIds, studentInfoMap]);
+
+    const teacherLoadDistribution = useMemo(() => {
+        const countMap: Record<number, number> = {};
+        allTeacherStats.forEach(({ periods }) => {
+            countMap[periods] = (countMap[periods] || 0) + 1;
+        });
+        return Object.entries(countMap)
+            .map(([periods, teachers]) => ({ periods: Number(periods), teachers }))
+            .sort((a, b) => a.periods - b.periods);
+    }, [allTeacherStats]);
 
     const maxStudents = Math.max(
         1,
@@ -528,10 +509,17 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                         </div>
                     </div>
                     <div className="w-full">
-                        <RetroSubTitle
-                            title="Common Empty Slots"
-                            icon={Clock}
-                        />
+                        <div className="flex items-center gap-3">
+                            <RetroSubTitle
+                                title="Common Empty Slots"
+                                icon={Clock}
+                            />
+                            {conflictCount > 0 && (
+                                <span className="text-[10px] font-black uppercase bg-orange-100 border-2 border-orange-300 text-orange-600 px-2 py-0.5">
+                                    {conflictCount} Conflict{conflictCount > 1 ? "s" : ""}
+                                </span>
+                            )}
+                        </div>
                         <div className="mt-3" />
                         <div className="overflow-x-auto">
                         <div className="bg-white border-2 border-black overflow-hidden shadow-[6px_6px_0_0_rgba(0,0,0,0.1)] min-w-[280px]">
@@ -590,6 +578,16 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                                                 ?.schedule[
                                                                 key
                                                             ] === first,
+                                                    ),
+                                                isConflict =
+                                                    selectedStudentIds.length >=
+                                                        2 &&
+                                                    !isCommonClass &&
+                                                    !isFree &&
+                                                    selectedStudentIds.every(
+                                                        (id) =>
+                                                            !!studentInfoMap[id]
+                                                                ?.schedule[key],
                                                     );
                                             return (
                                                 <Tooltip
@@ -657,7 +655,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                                                     : key,
                                                             )
                                                         }
-                                                        className={`h-10 transition-all duration-300 relative cursor-pointer ${activeCellKey === key ? "ring-2 ring-inset ring-black z-10" : "hover:bg-black/[0.03]"} ${isCommonClass ? "bg-retro-primary/20" : isFree ? "bg-retro-green/20" : "bg-white"}`}
+                                                        className={`h-10 transition-all duration-300 relative cursor-pointer ${activeCellKey === key ? "ring-2 ring-inset ring-black z-10" : "hover:bg-black/[0.03]"} ${isConflict ? "bg-orange-100" : isCommonClass ? "bg-retro-primary/20" : isFree ? "bg-retro-green/20" : "bg-white"}`}
                                                     />
                                                 </Tooltip>
                                             );
@@ -689,8 +687,8 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                 captionClassName="text-retro-primary"
                                 onLabelClick={() => handleSearch(getKoreanName(s.name))}
                                 tooltipContent={
-                                    subjectYearStats[s.name]
-                                        ? <YearBreakdown yearData={subjectYearStats[s.name]} />
+                                    subjectStats.subjectYearStats[s.name]
+                                        ? <YearBreakdown yearData={subjectStats.subjectYearStats[s.name]} />
                                         : undefined
                                 }
                             />
@@ -710,18 +708,18 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                 onToggle={() => toggleSection("periodsDistribution")}
             >
                 <div className="space-y-3">
-                    {weeklyPeriodsStats.map((s, i) => (
+                    {periodStats.weeklyPeriodsStats.map((s, i) => (
                         <BarChartRow
                             key={i}
                             label={`${s.periods} Periods`}
                             value={s.students}
-                            maxValue={Math.max(1, ...weeklyPeriodsStats.map((r) => r.students))}
+                            maxValue={Math.max(1, ...periodStats.weeklyPeriodsStats.map((r) => r.students))}
                             caption={`${s.students} Students`}
                             captionClassName="text-retro-primary"
                             onLabelClick={() => navigate(`/students?q=periods:${s.periods}`)}
                             tooltipContent={
-                                periodsYearStats[s.periods]
-                                    ? <YearBreakdown yearData={periodsYearStats[s.periods]} />
+                                periodStats.periodsYearStats[s.periods]
+                                    ? <YearBreakdown yearData={periodStats.periodsYearStats[s.periods]} />
                                     : undefined
                             }
                         />
@@ -735,20 +733,39 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                 onToggle={() => toggleSection("subjectCountDistribution")}
             >
                 <div className="space-y-3">
-                    {subjectCountStats.map((s, i) => (
+                    {subjectStats.subjectCountStats.map((s, i) => (
                         <BarChartRow
                             key={i}
                             label={`${s.subjectCount} Subjects`}
                             value={s.students}
-                            maxValue={Math.max(1, ...subjectCountStats.map((r) => r.students))}
+                            maxValue={Math.max(1, ...subjectStats.subjectCountStats.map((r) => r.students))}
                             caption={`${s.students} Students`}
                             captionClassName="text-retro-primary"
                             onLabelClick={() => navigate(`/students?q=subcount:${s.subjectCount}`)}
                             tooltipContent={
-                                subjectCountYearStats[s.subjectCount]
-                                    ? <YearBreakdown yearData={subjectCountYearStats[s.subjectCount]} />
+                                subjectStats.subjectCountYearStats[s.subjectCount]
+                                    ? <YearBreakdown yearData={subjectStats.subjectCountYearStats[s.subjectCount]} />
                                     : undefined
                             }
+                        />
+                    ))}
+                </div>
+            </AccordionSection>
+            <AccordionSection
+                title="Teacher Load Distribution"
+                icon={Users}
+                isOpen={openSections.teacherLoadDistribution}
+                onToggle={() => toggleSection("teacherLoadDistribution")}
+            >
+                <div className="space-y-3">
+                    {teacherLoadDistribution.map((s, i) => (
+                        <BarChartRow
+                            key={i}
+                            label={`${s.periods} Periods`}
+                            value={s.teachers}
+                            maxValue={Math.max(1, ...teacherLoadDistribution.map((r) => r.teachers))}
+                            caption={`${s.teachers} Teacher${s.teachers > 1 ? "s" : ""}`}
+                            captionClassName="text-retro-primary"
                         />
                     ))}
                 </div>

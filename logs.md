@@ -1,5 +1,51 @@
 # Logs
 
+## 2026-03-17 — 효율성 수정 3건
+
+- 변경 파일: `backend/auth_router.py`, `frontend/src/lib/searchEngine.ts`, `frontend/src/pages/AnalysisPage.tsx`
+- 요약: (1) Rate Limiter `_maybe_cleanup()` 추가 — 5분 주기로 만료된 IP 항목 정리해 메모리 누수 방지 (threading.Lock 이중 체크). (2) `getChosung()` 모듈 레벨 `_chosungCache` Map 추가 — 동일 문자열 재계산 제거. (3) AnalysisPage `allClassesData` 순회 5개 useMemo → `periodStats`·`subjectStats` 2개로 통합 (주당 교시 분포 + 연도별, 수강 과목 수 분포 + 연도별 + 과목별 연도 분포 각 1회 순회).
+
+## 2026-03-17 — 배포 설정 및 가이드 작성
+
+- 변경 파일: `frontend/src/lib/api.ts`, `deploy-guide.md` (신규)
+- 요약: api.ts 주석에 실제 배포 URL 반영 (classes_api.bsiku.dev). nginx + certbot + systemd 기반 배포 가이드 작성.
+
+## 2026-03-17 — 보안 취약점 추가 수정 (SEC-T01~T04, T06, T13, T14)
+
+- 변경 파일: `backend/auth_router.py`, `backend/main.py`
+- 요약: 타이밍 공격 방지(dummy bcrypt), Rate Limit IP 실제 추출(X-Forwarded-For), CSP 헤더 추가, Cache-Control(no-store), Retry-After 헤더, CORS allow_methods/headers 최소화.
+
+## 2026-03-17 — 가이드 문서 전체 정비
+
+- 변경 파일: `CLAUDE.md`, `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/CLAUDE.md`, `frontend/component-guide.md`, `frontend/src/App.guide.md`, `frontend/src/pages/AnalysisPage.guide.md`, `frontend/src/pages/RoomsPage.guide.md`, `frontend/src/components/SearchResultDisplay.guide.md`
+- 요약: 현재 코드 상태 기준으로 모든 가이드 문서 최신화. 주요 변경: src/utils.ts→lib/utils.ts 경로 수정, 페이지 목록(BrowsePage/SettingsPage→/about), 라우팅 테이블, React.lazy 코드스플리팅, 보안 항목(headers/rate-limit/validation), API 응답에 aliases·is_admin 필드 추가, AnalysisPage 충돌감지·teacherLoadDistribution, RoomsPage onRoomSearch prop 반영.
+
+## 2026-03-17 — 로컬 HTTPS 설정 (mkcert + Vite)
+
+- 변경 파일: `frontend/vite.config.ts`, `frontend/.gitignore`, `.gitignore`
+- 요약: mkcert로 localhost 인증서 생성, vite.config.ts에 https 옵션 + proxy target https 전환, .gitignore에 *.pem 추가.
+
+## 2026-03-17 — 보안 감사 및 수정 (SEC-01 ~ SEC-15)
+
+- 변경 파일: `backend/main.py`, `backend/auth_router.py`, `backend/admin_router.py`, `requirements.txt`
+- 요약: 15개 보안 항목 전수 검사. 실제 수정된 취약점 5건:
+  - [SEC-07] 입력값 검증: 모든 Pydantic 스키마에 max_length, pattern, Literal 검증 추가
+  - [SEC-09] stderr 노출: sync 실패 시 내부 에러를 클라이언트에 노출하던 것 → server log only
+  - [SEC-10] 보안 헤더: SecurityHeadersMiddleware 추가 (X-Content-Type-Options, X-Frame-Options 등)
+  - [SEC-11] Rate Limiting: /auth/login IP당 60초 10회 제한 구현 (429 반환, 성공 시 초기화)
+  - [SEC-14] Dependency: requirements.txt 최소 버전 고정 (bcrypt>=4.0.0 등)
+  - 안전 판정 10건: SQL Injection(ORM), Command Injection(하드코딩), XSS(React), CSRF(Bearer), 인증우회, IDOR, 파일업로드(없음), 비즈니스로직, Race Condition(SQLite), 에러처리
+
+## 2026-03-17 — 교사 부하 시각화, 충돌 감지, 번들 스플리팅
+
+- 변경 파일: `frontend/src/pages/AnalysisPage.tsx`, `frontend/src/components/SearchResultDisplay.tsx`, `frontend/src/App.tsx`, `frontend/vite.config.ts`
+- 요약: Analysis에 Teacher Load Distribution 아코디언 추가 (교사별 담당 교시 수 분포 차트). 비교 그리드 충돌 시간대(주황) 강조 + 충돌 카운트 배지 표시. 논리 학생 검색 시 SearchResultDisplay에 충돌 경고 블록 추가. App.tsx 전체 페이지 React.lazy 전환 + Suspense 래퍼, vite.config에 manualChunks로 HeroUI/vendor 청크 분리.
+
+## 2026-03-17 — 빈 교실 → 검색 연동
+
+- 변경 파일: `frontend/src/pages/RoomsPage.tsx`, `frontend/src/App.tsx`
+- 요약: Rooms 페이지에서 교실 선택 시 나타나는 "Search" 버튼 클릭으로 해당 강의실 room: 검색으로 이동. `onRoomSearch` prop 추가 및 App.tsx에서 `handleSearchSelect` 연결.
+
 ## 2026-03-17 — Data Management 아코디언 + 가이드북 초성 검색 안내
 
 - 변경 파일: `backend/admin_router.py`, `frontend/src/pages/AdminPage.tsx`, `frontend/src/pages/SettingsPage.tsx`, `backend/CLAUDE.md`

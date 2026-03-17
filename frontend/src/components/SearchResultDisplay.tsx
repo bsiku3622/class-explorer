@@ -102,6 +102,30 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
         );
     };
 
+    const conflictData = useMemo(() => {
+        if (!isLogicalSearch) return null;
+        const studentEntities = searchResult.entities.filter((e) => e.type === "student");
+        if (studentEntities.length < 2) return null;
+        const schedules = studentEntities.map((entity) => {
+            const map: Record<string, string> = {};
+            (entity.times || []).forEach((t: any) => {
+                map[`${t.day}-${t.period}`] = t.subject || "";
+            });
+            return map;
+        });
+        let count = 0;
+        ["MON", "TUE", "WED", "THU", "FRI"].forEach((day) =>
+            Array.from({ length: 11 }, (_, i) => i + 1).forEach((period) => {
+                const key = `${day}-${period}`;
+                const occupied = schedules.filter((s) => !!s[key]);
+                if (occupied.length < 2) return;
+                const first = occupied[0][key];
+                if (!occupied.every((s) => s[key] === first)) count++;
+            }),
+        );
+        return count > 0 ? { count } : null;
+    }, [searchResult.entities, isLogicalSearch]);
+
     const matchSummary = useMemo(() => {
         const entities = searchResult.entities;
         const counts = {
@@ -564,6 +588,19 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                         unit="Classes"
                                     />
                                 </div>
+                                {conflictData && (
+                                    <div className="mb-6 bg-orange-50 border-2 border-orange-300 p-4 flex items-center gap-3">
+                                        <AlertCircle className="text-orange-500 shrink-0" size={16} />
+                                        <div>
+                                            <p className="text-xs font-black uppercase text-orange-600 tracking-widest">
+                                                {conflictData.count} Schedule Conflict{conflictData.count > 1 ? "s" : ""}
+                                            </p>
+                                            <p className="text-[11px] font-bold text-black/40 mt-0.5">
+                                                동일 시간대에 서로 다른 수업 수강
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="bg-retro-bg/30 p-6 border border-black/10">
                                     <p className="text-xs font-bold leading-tight text-black/50 text-center">
                                         {isLogicalSearch

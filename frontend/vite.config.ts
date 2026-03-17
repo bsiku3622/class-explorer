@@ -1,10 +1,15 @@
 import path from "path"
+import fs from "fs"
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import pkg from './package.json'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -14,8 +19,22 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          heroui: ['@heroui/react'],
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
+  },
   server: {
     host: '0.0.0.0',
+    https: {
+      key: fs.readFileSync(path.resolve(__dirname, 'localhost+1-key.pem')),
+      cert: fs.readFileSync(path.resolve(__dirname, 'localhost+1.pem')),
+    },
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',

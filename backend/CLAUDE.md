@@ -108,18 +108,24 @@ python -m backend.create_user <username> <password>
 | 변수 | 기본값 | 설명 |
 |------|--------|------|
 | `CORS_ORIGINS` | `http://localhost:5173` | 허용 도메인 (콤마 구분) |
+| `FORCE_HTTPS` | (없음) | 설정 시 HSTS 헤더 활성화 |
 
-배포 시 예시: `CORS_ORIGINS=https://your-app.netlify.app`
+배포 시 예시: `CORS_ORIGINS=https://your-app.com FORCE_HTTPS=1`
+
+## 보안
+- **Security Headers**: `SecurityHeadersMiddleware` — X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy
+- **Rate Limiting**: `/auth/login` IP당 60초 10회 제한 (초과 시 429, 성공 시 초기화)
+- **입력값 검증**: 모든 Pydantic 스키마에 `max_length`, `pattern`, `Literal` 검증 적용
+- **에러 노출 차단**: subprocess stderr는 server log에만 기록, 클라이언트엔 generic 메시지
 
 ## 의존성
 ```
-fastapi
-uvicorn
-sqlalchemy
-httpx
-python-jose[cryptography]
-passlib[bcrypt]
-python-multipart
+fastapi>=0.115.0
+uvicorn>=0.32.0
+sqlalchemy>=2.0.0
+httpx>=0.27.0
+bcrypt>=4.0.0
+python-multipart>=0.0.12
 ```
 → `requirements.txt` (repo root) 참조
 

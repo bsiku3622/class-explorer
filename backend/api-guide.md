@@ -49,7 +49,7 @@
 
 **Response**:
 ```json
-{ "id": 1, "username": "admin" }
+{ "id": 1, "username": "admin", "is_admin": true }
 ```
 
 ---
@@ -107,6 +107,7 @@
       "subject": "수학(Math I)",
       "subject_student_count": 45,
       "section_count": 3,
+      "aliases": ["수학", "Math"],
       "sections": [
         {
           "id": 1,
@@ -137,16 +138,24 @@
 Vite 개발 서버에서 `/api/*` → `http://localhost:8000`으로 프록시합니다.
 (rewrite: `/api/auth/login` → `POST /auth/login`)
 
+**항상 `src/lib/api.ts`의 axios 인스턴스 사용** (`axios` 직접 import 금지):
+
 ```ts
+import api from './lib/api'
+
 // 로그인
-const res = await axios.post('/api/auth/login', { username, password })
+const res = await api.post('/auth/login', { username, password })
 const { session_token } = res.data
 
 // 데이터 fetch
-const data = await axios.get('/api/', {
+const data = await api.get('/', {
   headers: { Authorization: `Bearer ${session_token}` }
 })
 ```
+
+## 보안 제약
+- `/auth/login`: IP당 60초 10회 초과 시 `429 Too Many Requests`
+- 모든 요청: username `max_length=64`, password `max_length=128`
 
 ## 캐싱
 - 프론트엔드 localStorage에 1시간 캐싱

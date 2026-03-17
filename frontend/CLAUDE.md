@@ -21,11 +21,11 @@ src/
 ├── pages/
 │   ├── LoginPage.tsx         → 로그인 폼 (미인증 시 전체 화면 대체)
 │   ├── AdminPage.tsx         → 관리자 대시보드 (사용자/세션/데이터 관리, admin 전용)
-│   ├── SearchPage.tsx        → 통합 검색 (Feature: Search Engine)
-│   ├── RoomsPage.tsx         → 빈 강의실 탐색 (Feature: Room Finder)
-│   ├── AnalysisPage.tsx      → 학사 통계 (Feature: Data Analysis)
-│   ├── StudentsPage.tsx      → 학생 목록 + StudentCard 검색
-│   └── TeachersPage.tsx      → 교사 목록 + TeacherCard 검색
+│   ├── SearchPage.tsx        → 통합 검색
+│   ├── RoomsPage.tsx         → 빈 강의실 탐색
+│   ├── AnalysisPage.tsx      → 학사 통계 대시보드
+│   ├── BrowsePage.tsx        → 학생/교사 목록 탐색 (모드 토글 + 학년 필터)
+│   └── SettingsPage.tsx      → 기능 가이드북 + About
 └── components/
     ├── atoms/                → 재사용 원자 컴포넌트 9종
     ├── molecules/            → 복합 컴포넌트 3종
@@ -69,6 +69,11 @@ src/
 | `VITE_API_BASE_URL` | 백엔드 서버 주소. 비워두면 Vite 프록시 사용 (로컬 개발) |
 
 배포 시 Netlify 대시보드 → Environment variables에서 설정.
+
+## 코드 스플리팅
+모든 페이지는 `React.lazy()` + `Suspense`로 동적 로드됩니다.
+- 로딩 중: "Loading..." 풀스크린 폴백
+- 빌드 청크: `heroui` (HeroUI), `vendor` (React/router), 페이지별 개별 청크
 
 ## 인증 흐름
 - `sessionToken === null` → `<LoginPage onLogin={handleLogin} />` 렌더 (전체 앱 대체)

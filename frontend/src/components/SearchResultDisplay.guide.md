@@ -12,6 +12,7 @@
 | `displayData` | 표시할 과목 데이터 |
 | `searchMode` | 현재 검색 모드 |
 | `isConsolidatedView` | 통합 뷰 여부 |
+| `isLogicalSearch` | 논리 연산자 포함 여부 |
 | `isModifierPressed` | Cmd/Ctrl 상태 |
 | `hoveredEntityId` / `setHoveredEntityId` | 엔티티 호버 상태 |
 | `handleSearchToggle` / `handleSearchSelect` | 검색 핸들러 |
@@ -36,5 +37,7 @@
 ```
 
 ## 경고 메시지
-`searchResult.warning`이 있으면 상단 경고 박스 표시.
-(prefix 모드에서 논리 연산자 혼용 시)
+- `searchResult.warning`이 있으면 상단 경고 박스 표시 (prefix 모드에서 논리 연산자 혼용 시)
+- 논리 검색에서 학생 2명 이상 비교 시 `conflictData` useMemo로 시간 충돌 감지
+  - 충돌 발견 시 주황색 경고 블록 표시: "X time conflict(s) detected"
+  - 충돌 = 모든 학생이 동시에 수업 중이지만 서로 다른 과목

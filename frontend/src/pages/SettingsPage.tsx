@@ -169,6 +169,11 @@ const SettingsPage: React.FC = () => {
                         <p>KSA Class Explorer — 한국과학영재학교 수업 탐색 서비스</p>
                         <p>데이터 출처: KSAIN API</p>
                     </div>
+                    <div className="inline-flex items-center gap-1.5 border-2 border-black px-2 py-0.5">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-black/40">Version</span>
+                        <span className="text-xs font-black">v{__APP_VERSION__}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest bg-black text-white px-1">beta</span>
+                    </div>
                 </div>
             </RetroCard>
         </div>
