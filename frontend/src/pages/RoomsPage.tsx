@@ -93,11 +93,10 @@ const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData }) => {
     };
 
     return (
-        <div className="flex flex-col gap-8 pb-20">
+        <div className="flex flex-col gap-4 md:gap-6 pb-20">
             <PageHeader
-                tag="Feature: Room Finder"
                 title="Rooms"
-                subtitle="Hyung-seol Hall (형설관)"
+                subtitle="형설관"
                 icon={MapPin}
                 action={
                     <RetroButton onClick={resetSelection} icon={<RefreshCcw size={18} strokeWidth={2.5} />}>
@@ -113,7 +112,8 @@ const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData }) => {
                         title={selectedRoom ? `Schedule: ${selectedRoom}` : "Select Time Slots"} 
                         icon={Calendar} 
                     />
-                    <div className="bg-white border-2 border-black overflow-hidden shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
+                    <div className="overflow-x-auto">
+                    <div className="bg-white border-2 border-black overflow-hidden shadow-[4px_4px_0_0_rgba(0,0,0,0.1)] min-w-[280px]">
                         <div className="grid grid-cols-[40px_repeat(5,1fr)] divide-x divide-black/10 border-b border-black bg-black text-white">
                             <div className="p-2 text-[10px] font-black text-center">Pd</div>
                             {DAYS.map(day => (
@@ -145,6 +145,7 @@ const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData }) => {
                             </div>
                         ))}
                     </div>
+                    </div>
                     <p className="text-[10px] font-bold text-black/30">
                         {selectedRoom 
                             ? `* ${selectedRoom} 강의실의 주간 시간표입니다. (다른 강의실을 보려면 지도를 확인하세요)`
@@ -162,7 +163,7 @@ const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData }) => {
                             return (
                                 <div key={floor} className="space-y-2">
                                     <div className="relative border-b-2 border-black/5 pb-2">
-                                        <div className="flex flex-row-reverse gap-2 overflow-x-auto pb-2 custom-scrollbar min-w-max">
+                                        <div className="flex flex-row-reverse flex-wrap gap-2 pb-2">
                                             {rooms.map((room) => {
                                                 const isClassroom = ROOM_LABELS[room] === "교실";
                                                 const isEmpty = isClassroom && isRoomEmpty(room, selectedTimes);
@@ -175,7 +176,7 @@ const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData }) => {
                                                         key={room}
                                                         disabled={isTimeSelecting || !isClassroom}
                                                         onClick={() => isClassroom && handleRoomClick(room)}
-                                                        className={`min-w-[85px] h-16 border-2 p-2 flex flex-col items-center justify-center transition-all duration-100 group relative ${
+                                                        className={`min-w-[72px] sm:min-w-[85px] h-14 sm:h-16 border-2 p-1.5 sm:p-2 flex flex-col items-center justify-center transition-all duration-100 group relative ${
                                                             isSelected
                                                                 ? "bg-black text-white border-black scale-105 z-10 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] hover:shadow-[0_0_0_0_rgba(0,0,0,0.2)] active:scale-100"
                                                                 : shouldShowAsAvailable
@@ -201,7 +202,7 @@ const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData }) => {
                     </div>
                     
                     <div className="bg-retro-bg/50 border-2 border-black p-4 space-y-2">
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-wrap items-center gap-4">
                             <div className="flex items-center gap-1.5">
                                 <div className="w-3 h-3 bg-white border border-black" />
                                 <span className="text-[10px] font-black uppercase tracking-widest">Available</span>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import axios from "axios";
+import api from "./lib/api";
 import {
     useLocation,
     useNavigate,
@@ -12,17 +13,28 @@ import { searchInClient } from "./lib/searchEngine";
 import { useModifierKey } from "./hooks/useModifierKey";
 import Navigation from "./components/Navigation";
 import Sidebar from "./components/Sidebar";
+import BottomNav from "./components/BottomNav";
 
 // Pages
 import SearchPage from "./pages/SearchPage";
 import RoomsPage from "./pages/RoomsPage";
 import AnalysisPage from "./pages/AnalysisPage";
-import StudentsPage from "./pages/StudentsPage";
-import TeachersPage from "./pages/TeachersPage";
+import BrowsePage from "./pages/BrowsePage";
+import SettingsPage from "./pages/SettingsPage";
+import LoginPage from "./pages/LoginPage";
+import AdminPage from "./pages/AdminPage";
+
+const SESSION_TOKEN_KEY = "ksa_session_token";
+const CACHE_KEY = "ksa_class_finder_cache";
 
 const App: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
+
+    const [sessionToken, setSessionToken] = useState<string | null>(
+        () => localStorage.getItem(SESSION_TOKEN_KEY),
+    );
+    const [currentUser, setCurrentUser] = useState<{ id: number; username: string; is_admin: boolean } | null>(null);
 
     const initialSearch = useMemo(
         () =>
@@ -54,6 +66,33 @@ const App: React.FC = () => {
     const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
 
     const isModifierPressed = useModifierKey();
+
+    const handleLogout = useCallback(async () => {
+        const token = localStorage.getItem(SESSION_TOKEN_KEY);
+        if (token) {
+            try {
+                await api.post(
+                    "/auth/logout",
+                    {},
+                    { headers: { Authorization: `Bearer ${token}` } },
+                );
+            } catch (_) {
+                // 서버 오류여도 로컬 세션은 정리
+            }
+        }
+        localStorage.removeItem(SESSION_TOKEN_KEY);
+        localStorage.removeItem(CACHE_KEY);
+        setSessionToken(null);
+        setCurrentUser(null);
+        setAllClassesData([]);
+        setDisplayData([]);
+        setStats(null);
+    }, []);
+
+    const handleLogin = useCallback((token: string) => {
+        localStorage.setItem(SESSION_TOKEN_KEY, token);
+        setSessionToken(token);
+    }, []);
 
     useEffect(() => {
         if (location.pathname === "/") {
@@ -118,10 +157,11 @@ const App: React.FC = () => {
     }, [allClassesData]);
 
     const fetchInitialData = async (force: boolean = false) => {
+        const token = localStorage.getItem(SESSION_TOKEN_KEY);
+        if (!token) return;
         try {
             setLoading(true);
-            const cached =
-                !force && localStorage.getItem("ksa_class_finder_cache");
+            const cached = !force && localStorage.getItem(CACHE_KEY);
             if (cached) {
                 const { timestamp, student_counts, data } = JSON.parse(cached);
                 const CACHE_EXPIRY = 60 * 60 * 1000;
@@ -134,18 +174,24 @@ const App: React.FC = () => {
                     return;
                 }
             }
-            const response = await axios.get("/api/");
+            const response = await api.get("/", {
+                headers: { Authorization: `Bearer ${token}` },
+            });
             const { student_counts, data } = response.data;
             const now = Date.now();
             localStorage.setItem(
-                "ksa_class_finder_cache",
+                CACHE_KEY,
                 JSON.stringify({ timestamp: now, student_counts, data }),
             );
             setStudentCounts(student_counts);
             setSelectedYears(Object.keys(student_counts));
             setAllClassesData(data);
             setLastUpdated(now);
-        } catch (error) {
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error) && error.response?.status === 401) {
+                handleLogout();
+                return;
+            }
             console.error("Error fetching initial data:", error);
         } finally {
             setLoading(false);
@@ -241,8 +287,13 @@ const App: React.FC = () => {
     }, [searchTerm, location.pathname, navigate]);
 
     useEffect(() => {
+        if (!sessionToken) { setLoading(false); return; }
+        const token = localStorage.getItem(SESSION_TOKEN_KEY);
+        api.get("/auth/me", { headers: { Authorization: `Bearer ${token}` } })
+            .then((res) => setCurrentUser(res.data))
+            .catch(() => handleLogout());
         fetchInitialData();
-    }, []);
+    }, [sessionToken]);
 
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -295,6 +346,10 @@ const App: React.FC = () => {
         );
     };
 
+    if (!sessionToken) {
+        return <LoginPage onLogin={handleLogin} />;
+    }
+
     return (
         <div className="min-h-screen bg-retro-bg text-retro-fg font-sans">
             <Navigation
@@ -302,6 +357,9 @@ const App: React.FC = () => {
                     setSearchInput("");
                     navigate("/");
                 }}
+                onLogout={handleLogout}
+                isAdmin={currentUser?.is_admin ?? false}
+                username={currentUser?.username ?? ""}
             />
             <div className="flex pt-20">
                 <Sidebar
@@ -313,8 +371,9 @@ const App: React.FC = () => {
                     setActivePage={(id) =>
                         navigate(id === "home" ? "/" : `/${id}`)
                     }
+                    isAdmin={currentUser?.is_admin ?? false}
                 />
-                <main className="flex-1 p-6 md:p-10 transition-all duration-300 md:ml-64 min-w-0">
+                <main className="flex-1 p-4 md:p-10 transition-all duration-300 md:ml-64 min-w-0 pb-20 md:pb-10">
                     <div className="max-w-6xl mx-auto">
                         <Routes>
                             <Route
@@ -370,9 +429,9 @@ const App: React.FC = () => {
                                 }
                             />
                             <Route
-                                path="/students"
+                                path="/browse"
                                 element={
-                                    <StudentsPage
+                                    <BrowsePage
                                         allClassesData={allClassesData}
                                         studentCounts={studentCounts}
                                         lastUpdated={lastUpdated}
@@ -382,14 +441,12 @@ const App: React.FC = () => {
                                 }
                             />
                             <Route
-                                path="/teachers"
-                                element={
-                                    <TeachersPage
-                                        allClassesData={allClassesData}
-                                        handleSearch={handleSearchSelect}
-                                    />
-                                }
+                                path="/about"
+                                element={<SettingsPage />}
                             />
+                            {currentUser?.is_admin && (
+                                <Route path="/admin" element={<AdminPage />} />
+                            )}
                             <Route
                                 path="*"
                                 element={<Navigate to="/" replace />}
@@ -398,6 +455,16 @@ const App: React.FC = () => {
                     </div>
                 </main>
             </div>
+            <BottomNav
+                activePage={
+                    location.pathname === "/"
+                        ? "home"
+                        : location.pathname.slice(1)
+                }
+                setActivePage={(id) =>
+                    navigate(id === "home" ? "/" : `/${id}`)
+                }
+            />
         </div>
     );
 };

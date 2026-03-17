@@ -58,9 +58,10 @@
 - `bg-retro-secondary` (다크)
 
 ### Sidebar
-- 좌측 고정 (`fixed left-0`), 모바일 숨김 (`hidden md:flex`)
-- 메뉴: Home(`/`), Rooms(`/emptyroomfinder`), Analysis(`/analysis`)
-- 활성 페이지: scale + shadow 강조
+- 좌측 고정 (`fixed left-0`), 모바일 숨김 (`hidden md:block`)
+- 메뉴: Search(`/`), Rooms(`/emptyroomfinder`), Analysis(`/analysis`), Browse(`/browse`), Settings(`/settings`)
+- admin 유저일 때 Admin(`/admin`) 메뉴 추가 노출
+- 활성 페이지: 검정 배경 + shadow, 물리 피드백 hover
 - 하단: 시스템 상태 패널
 
 ### FilterSection

@@ -1,13 +1,92 @@
 # API Guide
 
-> [← Backend Guide](guide.md)
+> [← Backend Guide](CLAUDE.md)
 
-## 엔드포인트
+## 인증
 
-### `GET /`
+모든 보호된 엔드포인트는 `Authorization: Bearer <session_token>` 헤더가 필요합니다.
+
+---
+
+## 인증 엔드포인트
+
+### `POST /auth/login`
+로그인 → session_token 발급 (기존 세션 즉시 만료)
+
+**Request Body**:
+```json
+{
+  "username": "admin",
+  "password": "password123",
+  "device_type": "web"
+}
+```
+`device_type`: `"web"` | `"mobile"` (기본값 `"web"`)
+
+**Response**:
+```json
+{
+  "session_token": "<token>",
+  "token_type": "bearer"
+}
+```
+
+1계정 1세션. 새로 로그인하면 기존 기기 세션 즉시 만료.
+
+---
+
+### `POST /auth/logout`
+현재 세션 삭제
+
+**Headers**: `Authorization: Bearer <session_token>`
+
+---
+
+### `GET /auth/me`
+현재 로그인된 사용자 정보
+
+**Headers**: `Authorization: Bearer <session_token>`
+
+**Response**:
+```json
+{ "id": 1, "username": "admin" }
+```
+
+---
+
+### `GET /auth/sessions`
+현재 사용자의 활성 세션 목록 (항상 최대 1개)
+
+**Headers**: `Authorization: Bearer <session_token>`
+
+**Response**:
+```json
+[
+  {
+    "id": 1,
+    "device_type": "web",
+    "created_at": "2026-03-17T00:00:00",
+    "last_used_at": "2026-03-17T01:00:00",
+    "expires_at": "2026-04-16T00:00:00"
+  }
+]
+```
+
+---
+
+### `DELETE /auth/sessions/{session_id}`
+특정 세션 강제 종료
+
+**Headers**: `Authorization: Bearer <session_token>`
+
+---
+
+## 데이터 엔드포인트
+
+### `GET /` *(인증 필요)*
 전체 수업 데이터, 학년별 학생 수, 통계를 한 번에 반환합니다.
 
-**Request**: 없음 (파라미터 없음)
+**Headers**: `Authorization: Bearer <session_token>`
 
 **Response**:
 ```json
@@ -56,15 +135,17 @@
 
 ## 프론트엔드 연동
 Vite 개발 서버에서 `/api/*` → `http://localhost:8000`으로 프록시합니다.
+(rewrite: `/api/auth/login` → `POST /auth/login`)
 
 ```ts
-// vite.config.ts
-proxy: { '/api': 'http://localhost:8000' }
-```
+// 로그인
+const res = await axios.post('/api/auth/login', { username, password })
+const { session_token } = res.data
 
-프론트엔드 호출 코드 (`App.tsx`):
-```ts
-const response = await axios.get('/api/')
+// 데이터 fetch
+const data = await axios.get('/api/', {
+  headers: { Authorization: `Bearer ${session_token}` }
+})
 ```
 
 ## 캐싱

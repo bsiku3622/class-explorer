@@ -49,11 +49,39 @@ export const getStudentColor = (studentId: string): string => {
 };
 
 /**
- * 과목명에서 한글명만 추출합니다.
+ * 문자열 내 로마 숫자(Ⅰ~Ⅻ)를 아라비아 숫자로 변환합니다.
+ * 예) "영어Ⅲ" → "영어3", "미적분학Ⅱ" → "미적분학2"
+ */
+const ROMAN_MAP: [string, string][] = [
+    ["Ⅻ", "12"], ["Ⅺ", "11"], ["Ⅹ", "10"],
+    ["Ⅸ", "9"], ["Ⅷ", "8"], ["Ⅶ", "7"], ["Ⅵ", "6"],
+    ["Ⅴ", "5"], ["Ⅳ", "4"], ["Ⅲ", "3"], ["Ⅱ", "2"], ["Ⅰ", "1"],
+];
+
+export const replaceRomanNumerals = (str: string): string => {
+    let result = str;
+    for (const [roman, arabic] of ROMAN_MAP) {
+        result = result.replaceAll(roman, arabic);
+    }
+    return result;
+};
+
+/**
+ * 과목명에서 영문 이름 괄호를 제거하고 한글명만 반환합니다.
+ * - 소문자 라틴 문자를 포함한 괄호 → 제거 (영문 과목명)
+ * - 소문자 없는 괄호 → 유지 (예: (EC) 특수과목 태그)
+ * 예) "영어Ⅲ(English III)" → "영어Ⅲ"
+ *     "한국과목(EC)(English Name)" → "한국과목(EC)"
  */
 export const getKoreanName = (subject: string): string => {
     if (!subject) return "";
-    return subject.split("(")[0].trim();
+    // Step 1: 중첩 괄호 정규화 — (TAG(English Name)) → (TAG)
+    //   예) (EC(Basic Analytical Chemistry)) → (EC)
+    let result = subject.replace(/\(([A-Z]+)\([^)]*\)\)/g, "($1)");
+    // Step 2: 소문자 라틴 포함 단순 괄호 제거 — (English Name) → ""
+    //   (EC) 처럼 소문자 없는 괄호는 유지
+    result = result.replace(/\([^()]*[a-z][^()]*\)/g, "");
+    return result.trim();
 };
 
 /**

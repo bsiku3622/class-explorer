@@ -48,7 +48,6 @@ const TeachersPage: React.FC<TeachersPageProps> = ({ allClassesData, handleSearc
     return (
         <div className="flex flex-col gap-8 pb-20">
             <PageHeader
-                tag="Feature: Teacher Directory"
                 title="Teachers"
                 subtitle={`${allTeachers.length} Teachers`}
                 icon={BookOpen}
@@ -60,7 +59,7 @@ const TeachersPage: React.FC<TeachersPageProps> = ({ allClassesData, handleSearc
                 onChange={setSearchInput}
                 placeholder="Search by teacher name..."
             />
-            <p className="text-xs font-bold text-black/30 -mt-4">
+            <p className="text-xs font-bold text-black/30 -mb-4">
                 {filtered.length}명 표시 중
             </p>
 

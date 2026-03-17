@@ -407,11 +407,10 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
         );
 
     return (
-        <div className="flex flex-col gap-8 pb-20">
+        <div className="flex flex-col gap-4 md:gap-6 pb-20">
             <PageHeader
-                tag="Feature: Data Analysis"
                 title="Visual Analysis"
-                subtitle="Academic Statistics Dashboard"
+                subtitle="Statistics"
                 icon={BarChart3}
             />
             <FilterSection
@@ -534,7 +533,8 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                             icon={Clock}
                         />
                         <div className="mt-3" />
-                        <div className="bg-white border-2 border-black overflow-hidden shadow-[6px_6px_0_0_rgba(0,0,0,0.1)]">
+                        <div className="overflow-x-auto">
+                        <div className="bg-white border-2 border-black overflow-hidden shadow-[6px_6px_0_0_rgba(0,0,0,0.1)] min-w-[280px]">
                             <div className="grid grid-cols-[40px_repeat(5,1fr)] divide-x divide-black/10 border-b border-black bg-black text-white">
                                 <div className="p-2 text-[10px] font-black text-center">
                                     PD
@@ -666,6 +666,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                 ),
                             )}
                         </div>
+                        </div>
                     </div>
                 </div>
             </AccordionSection>
@@ -686,7 +687,6 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                 maxValue={maxStudents}
                                 caption={`${s.studentCount} Students`}
                                 captionClassName="text-retro-primary"
-                                layout="horizontal"
                                 onLabelClick={() => handleSearch(getKoreanName(s.name))}
                                 tooltipContent={
                                     subjectYearStats[s.name]
@@ -718,7 +718,6 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                             maxValue={Math.max(1, ...weeklyPeriodsStats.map((r) => r.students))}
                             caption={`${s.students} Students`}
                             captionClassName="text-retro-primary"
-                            layout="horizontal"
                             onLabelClick={() => navigate(`/students?q=periods:${s.periods}`)}
                             tooltipContent={
                                 periodsYearStats[s.periods]
@@ -744,7 +743,6 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                             maxValue={Math.max(1, ...subjectCountStats.map((r) => r.students))}
                             caption={`${s.students} Students`}
                             captionClassName="text-retro-primary"
-                            layout="horizontal"
                             onLabelClick={() => navigate(`/students?q=subcount:${s.subjectCount}`)}
                             tooltipContent={
                                 subjectCountYearStats[s.subjectCount]
@@ -755,7 +753,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                     ))}
                 </div>
             </AccordionSection>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6 items-start">
                 <AccordionSection
                     title="Teaching Load"
                     icon={Clock}

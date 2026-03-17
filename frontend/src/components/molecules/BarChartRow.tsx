@@ -56,19 +56,19 @@ const BarChartRow: React.FC<BarChartRowProps> = ({
         return (
             <>
                 {tooltip}
-                <div className="group flex items-center gap-4">
-                    <div className="w-56 shrink-0">
+                <div className="group flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4">
+                    <div className="sm:w-56 sm:shrink-0">
                         <button
                             onClick={onLabelClick}
-                            className="text-sm font-black uppercase truncate block hover:text-retro-primary hover:underline decoration-2 underline-offset-4 transition-all text-left"
+                            className="text-xs sm:text-sm font-black uppercase truncate block hover:text-retro-primary hover:underline decoration-2 underline-offset-4 transition-all text-left"
                         >
                             {label}
                         </button>
                     </div>
-                    <div className="flex-1 flex items-center gap-4">
+                    <div className="flex-1 flex items-center gap-3 sm:gap-4">
                         {bar}
                         {caption && (
-                            <span className={`w-24 text-right text-xs font-black shrink-0 ${captionClassName}`}>
+                            <span className={`w-20 sm:w-24 text-right text-[10px] sm:text-xs font-black shrink-0 ${captionClassName}`}>
                                 {caption}
                             </span>
                         )}

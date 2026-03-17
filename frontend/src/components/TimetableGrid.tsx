@@ -68,7 +68,8 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
                     Visual Schedule
                 </p>
             )}
-            <div className="border border-black bg-white overflow-hidden shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
+            <div className="overflow-x-auto">
+            <div className="border border-black bg-white overflow-hidden shadow-[4px_4px_0_0_rgba(0,0,0,0.1)] min-w-[300px]">
                 <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] divide-x divide-black border-b border-black bg-black text-white">
                     <div className="p-1 text-[9px] font-black text-center uppercase tracking-tighter flex items-center justify-center bg-black/50">
                         Pd
@@ -127,6 +128,7 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
                         })}
                     </div>
                 ))}
+            </div>
             </div>
         </div>
     );

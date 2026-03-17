@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, UniqueConstraint, DateTime
 from sqlalchemy.orm import relationship
 from backend.database import Base
+import datetime
 
 class Student(Base):
     __tablename__ = "students"
@@ -43,3 +44,33 @@ class Enrollment(Base):
 
     # 학생이 동일 수업에 중복 등록 방지
     __table_args__ = (UniqueConstraint('stuId', 'classId', name='_student_enrollment_uc'),)
+
+
+class SubjectAlias(Base):
+    __tablename__ = "subject_aliases"
+    id = Column(Integer, primary_key=True, index=True)
+    subject = Column(String, index=True, nullable=False)  # 원본 과목명 (Class.subject 와 일치)
+    alias = Column(String, nullable=False)                # 검색 키워드
+    __table_args__ = (UniqueConstraint('subject', 'alias', name='_subject_alias_uc'),)
+
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)
+    sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+
+
+class Session(Base):
+    __tablename__ = "sessions"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    session_token = Column(String, unique=True, nullable=False)
+    device_type = Column(String, default="web")  # "web" | "mobile"
+    ip_address = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    last_used_at = Column(DateTime, default=datetime.datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    user = relationship("User", back_populates="sessions")

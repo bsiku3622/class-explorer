@@ -1,4 +1,4 @@
-import { formatSubjectWithSection, DAY_MAP as dayMap } from "./utils";
+import { formatSubjectWithSection, DAY_MAP as dayMap, replaceRomanNumerals } from "./utils";
 
 /**
  * 한글 문자열에서 초성을 추출합니다.
@@ -225,6 +225,8 @@ const filterMatchingClasses = (
 
             const sectionPool = [
                 subjectName,
+                replaceRomanNumerals(subjectName),
+                ...(subject.aliases || []),
                 sec.section,
                 sec.teacher,
                 sec.room,

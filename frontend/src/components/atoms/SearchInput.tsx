@@ -21,9 +21,9 @@ const SearchInput: React.FC<SearchInputProps> = ({
                 classNames={{
                     base: "w-full",
                     innerWrapper: "flex flex-row items-center gap-2",
-                    input: "text-xl font-semibold outline-none px-2",
+                    input: "text-sm md:text-xl font-semibold outline-none px-2",
                     inputWrapper:
-                        "h-16 bg-white border-2 border-black rounded-none shadow-[6px_6px_0_0_rgba(0,0,0,0.1)] data-[hover=true]:border-black group-data-[focus=true]:border-black",
+                        "h-14 md:h-16 bg-white border-2 border-black rounded-none shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] data-[hover=true]:border-black group-data-[focus=true]:border-black",
                 }}
                 placeholder={placeholder}
                 startContent={<Search className="text-black/40 ml-2" size={24} />}

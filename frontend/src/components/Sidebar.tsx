@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Map, BarChart3, GraduationCap, BookOpen } from "lucide-react";
+import { Search, Map, BarChart3, Library, Info, ShieldCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface SidebarItemProps {
@@ -28,25 +28,26 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, isActive, 
 interface SidebarProps {
     activePage: string;
     setActivePage: (page: string) => void;
+    isAdmin?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, isAdmin = false }) => {
     const menuItems = [
         { id: "home", label: "Search", icon: Search },
         { id: "emptyroomfinder", label: "Rooms", icon: Map },
         { id: "analysis", label: "Analysis", icon: BarChart3 },
-        { id: "students", label: "Students", icon: GraduationCap },
-        { id: "teachers", label: "Teachers", icon: BookOpen },
+        { id: "browse", label: "Browse", icon: Library },
+        { id: "about", label: "About", icon: Info },
     ];
 
     return (
         <aside className="fixed left-0 top-20 bottom-0 w-64 bg-retro-bg border-r-2 border-black z-40 overflow-y-auto hidden md:block">
             <div className="p-6 flex flex-col h-full">
-                <div className="pb-8 border-b-2 border-black/10">
-                    <p className="text-[10px] font-black text-black/40 uppercase tracking-[0.2em] mb-4 px-1">
+                <div className="pb-4">
+                    <p className="text-[10px] font-black text-black/40 uppercase tracking-[0.2em] mb-3 px-1">
                         Main Navigation
                     </p>
-                    <nav className="space-y-3">
+                    <nav className="space-y-1">
                         {menuItems.map((item) => (
                             <SidebarItem
                                 key={item.id}
@@ -59,6 +60,19 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage }) => {
                     </nav>
                 </div>
                 
+                {isAdmin && (
+                    <div className="pt-4 mt-4 border-t-2 border-black/10">
+                        <p className="text-[10px] font-black text-black/40 uppercase tracking-[0.2em] mb-2 px-1">
+                            Admin
+                        </p>
+                        <SidebarItem
+                            icon={ShieldCheck}
+                            label="Admin"
+                            isActive={activePage === "admin"}
+                            onClick={() => setActivePage("admin")}
+                        />
+                    </div>
+                )}
                 <div className="mt-auto pt-8 border-t-2 border-black/10">
                     <div className="bg-white border-2 border-black p-4 space-y-3 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
                         <p className="text-[10px] font-black text-black/40 uppercase tracking-widest">System Status</p>

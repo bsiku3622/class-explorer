@@ -3,7 +3,7 @@ import { Chip, Divider, Tooltip } from "@heroui/react";
 import { ChevronDown, Users } from "lucide-react";
 import type { SubjectData, Section } from "../types";
 import { tooltipMotionProps } from "../constants/motion";
-import { extractSearchTerms } from "../lib/utils";
+import { extractSearchTerms, getKoreanName } from "../lib/utils";
 import SectionCard from "./SectionCard";
 import TeacherCard from "./atoms/TeacherCard";
 
@@ -74,22 +74,22 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
         <div className="border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] bg-white overflow-hidden rounded-none w-full mb-6 last:mb-0">
             <button
                 onClick={onToggle}
-                className="w-full px-6 py-6 flex items-center justify-between hover:bg-retro-accent1/10 focus:outline-none group transition-colors"
+                className="w-full px-4 py-4 sm:px-6 sm:py-6 flex items-center justify-between hover:bg-retro-accent1/10 focus:outline-none group transition-colors"
             >
-                <div className="flex flex-row items-center justify-between gap-4 flex-1 mr-6 text-left overflow-hidden">
-                    <span className="text-xl font-black text-black tracking-tight uppercase truncate flex-1">
-                        {subject.subject}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 flex-1 mr-4 sm:mr-6 text-left overflow-hidden">
+                    <span className="text-base sm:text-xl font-black text-black tracking-tight uppercase truncate flex-1">
+                        {getKoreanName(subject.subject)}
                     </span>
-                    <div className="flex gap-3 shrink-0">
+                    <div className="flex gap-2 sm:gap-3 shrink-0">
                         <Chip
-                            size="lg"
-                            className={`${isSingleStudentSearch ? "bg-retro-accent1" : "bg-retro-accent2"} border-2 border-black text-sm font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-3 h-auto py-1.5 uppercase`}
+                            size="sm"
+                            className={`${isSingleStudentSearch ? "bg-retro-accent1" : "bg-retro-accent2"} border-2 border-black text-xs sm:text-sm font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-2 sm:px-3 h-auto py-1 sm:py-1.5 uppercase`}
                         >
                             {sectionDisplayText}
                         </Chip>
                         <Chip
-                            size="lg"
-                            className="bg-retro-accent3 border-2 border-black text-sm font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-3 h-auto py-1.5"
+                            size="sm"
+                            className="bg-retro-accent3 border-2 border-black text-xs sm:text-sm font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-2 sm:px-3 h-auto py-1 sm:py-1.5"
                         >
                             {visibleStudentCount} STUDENTS
                         </Chip>
@@ -106,8 +106,8 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
 
             {isOpen && (
                 <div className="overflow-hidden border-t-2 border-black bg-retro-bg/10">
-                    <div className="px-6 pb-12 pt-10 space-y-12">
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 bg-white/50 border-2 border-black p-4 mb-12 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
+                    <div className="px-4 pb-4 pt-4 space-y-6">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-white/50 border-2 border-black p-2.5 mb-4 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
                             <span className="text-sm font-black uppercase text-black/50 flex items-center gap-2">
                                 <Users size={16} /> Teachers :
                             </span>
@@ -125,7 +125,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                                         const teacherClasses = Object.entries(
                                             teacherInfo,
                                         ).map(([sub, sections]) => {
-                                            const cleanSub = sub.split("(")[0];
+                                            const cleanSub = getKoreanName(sub);
                                             const secStr = sections
                                                 .map((s) =>
                                                     s.replace(/[^0-9]/g, ""),
@@ -185,7 +185,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                             (section: Section, idx: number) => (
                                 <React.Fragment key={section.id}>
                                     {idx > 0 && (
-                                        <Divider className="mb-10 h-px bg-black opacity-20" />
+                                        <Divider className="mb-4 h-px bg-black opacity-20" />
                                     )}
                                     <SectionCard
                                         section={section}

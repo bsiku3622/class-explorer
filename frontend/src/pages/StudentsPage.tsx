@@ -96,9 +96,8 @@ const StudentsPage: React.FC<StudentsPageProps> = ({
     return (
         <div className="flex flex-col gap-8 pb-20">
             <PageHeader
-                tag="Feature: Student Directory"
                 title="Students"
-                subtitle={`${allStudents.length} Registered Students`}
+                subtitle={`${allStudents.length} Students`}
                 icon={GraduationCap}
             />
 
@@ -114,9 +113,10 @@ const StudentsPage: React.FC<StudentsPageProps> = ({
                 setSelectedYears={setSelectedYears}
                 lastUpdated={lastUpdated}
                 onRefresh={() => fetchInitialData(true)}
+                className="mb-2"
             />
 
-            <p className="text-xs font-bold text-black/30 -mt-4">
+            <p className="text-xs font-bold text-black/30 -mb-4">
                 {filtered.length}명 표시 중
             </p>
 

@@ -11,6 +11,9 @@
 | `RetroStatItem` | `label`, `value`, `unit`, `size` (sm/lg) | 숫자 통계 아이템 |
 | `RetroSubTitle` | `title`, `icon` | 섹션 소제목 (표준 스타일 고정) |
 | `StudentBadge` | `studentId`, `studentName`, `size`, `onClick` | 학번색 뱃지 |
+| `SearchInput` | `value`, `onChange`, `placeholder`, `className` | 검색 입력 필드 |
+| `StudentCard` | `stuId`, `name`, `subjects`, `onClick` | 학생 프로필 카드 (툴팁용) |
+| `TeacherCard` | `name`, `subjects`, `onClick` | 교사 프로필 카드 (툴팁용) |
 
 ## Molecules (`src/components/molecules/`)
 | 컴포넌트 | Props 요약 | 역할 |
@@ -22,7 +25,7 @@
 ## Organisms (`src/components/`)
 | 컴포넌트 | 역할 |
 |----------|------|
-| `Navigation` | 상단 고정 네비게이션 바 |
+| `Navigation` | 상단 고정 네비게이션 바 (`onLogoClick`, `onLogout`, `isAdmin`, `username` props) |
 | `Sidebar` | 좌측 고정 사이드바 메뉴 |
 | `FilterSection` | 학년 선택 필터 + 새로고침 |
 | `SearchResultDisplay` | 검색 결과 표시 (통합/그리드 뷰) |
@@ -35,9 +38,13 @@
 ## Pages (`src/pages/`)
 | 페이지 | 경로 | 역할 |
 |--------|------|------|
+| `LoginPage` | (전체 앱 대체) | 로그인 폼, `onLogin(token)` 콜백 |
+| `AdminPage` | `/admin` | 사용자/세션/데이터 관리 (admin 전용) |
 | `SearchPage` | `/` | 통합 검색 + 결과 표시 |
 | `RoomsPage` | `/emptyroomfinder` | 형설관 빈 교실 탐색 |
 | `AnalysisPage` | `/analysis` | 학사 데이터 통계 대시보드 |
+| `BrowsePage` | `/browse` | 학생/교사 목록 탐색 (모드 토글, 학년 필터) |
+| `SettingsPage` | `/settings` | 앱 설정 + 기능 가이드북 |
 
 ## 상세 가이드
 - [component-guide-atoms.md](component-guide-atoms.md) — Atoms props 상세 + 사용 예시

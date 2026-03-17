@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Tooltip } from "@heroui/react";
 import { User, MapPin, Users, Clock } from "lucide-react";
-import { getStudentColor, DAY_MAP, DAYS_ORDER, extractSearchTerms } from "../lib/utils";
+import { getStudentColor, getKoreanName, DAY_MAP, DAYS_ORDER, extractSearchTerms } from "../lib/utils";
 import type { Section } from "../types";
 import { tooltipMotionProps } from "../constants/motion";
 import StudentCard from "./atoms/StudentCard";
@@ -58,7 +58,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
     const teacherInfo = teacherSubjectMap[section.teacher] || {};
     const teacherClasses = Object.entries(teacherInfo).map(
         ([subject, sections]) => {
-            const cleanSubject = subject.split("(")[0];
+            const cleanSubject = getKoreanName(subject);
             const sectionNums = sections
                 .map((s) => s.replace(/[^0-9]/g, ""))
                 .sort()
@@ -72,12 +72,12 @@ const SectionCard: React.FC<SectionCardProps> = ({
     );
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-            <div className="md:col-span-4 space-y-4">
-                <h3 className="text-lg font-black bg-retro-accent1 border-2 border-black px-4 py-1.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] inline-block uppercase">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
+            <div className="md:col-span-4 space-y-2.5">
+                <h3 className="text-base font-black bg-retro-accent1 border-2 border-black px-3 py-1 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] inline-block uppercase">
                     {section.section}
                 </h3>
-                <div className="space-y-3 pt-1">
+                <div className="space-y-1.5">
                     <Tooltip
                         isOpen={
                             isModifierPressed &&

@@ -1,41 +1,71 @@
+import os
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import re
 from backend import models
 from backend.database import engine, SessionLocal
+from backend.auth import get_current_user, get_db
+from backend.auth_router import router as auth_router
+from backend.admin_router import router as admin_router
 
 # DB 테이블 생성
 models.Base.metadata.create_all(bind=engine)
 
+# 컬럼 추가 마이그레이션 (기존 DB 호환)
+from sqlalchemy import text
+with engine.connect() as _conn:
+    for _stmt in [
+        "ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0 NOT NULL",
+        "ALTER TABLE sessions ADD COLUMN ip_address VARCHAR",
+        "CREATE TABLE IF NOT EXISTS subject_aliases (id INTEGER PRIMARY KEY, subject VARCHAR NOT NULL, alias VARCHAR NOT NULL, UNIQUE (subject, alias))",
+    ]:
+        try:
+            _conn.execute(text(_stmt))
+            _conn.commit()
+        except Exception:
+            pass  # 이미 존재하는 컬럼이면 무시
+
 app = FastAPI()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# CORS: 환경변수 CORS_ORIGINS에 콤마 구분으로 허용 도메인 설정
+# 예) CORS_ORIGINS=https://your-app.netlify.app,https://custom-domain.com
+_origins = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in _origins.split(",")],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth_router)
+app.include_router(admin_router)
+
 
 def get_section_num(section_str):
     match = re.search(r'(\d+)', section_str)
     return int(match.group(1)) if match else 0
 
 @app.get("/")
-async def get_all_data(db: Session = Depends(get_db)):
-    """수업 정보, 전체 통계, 학년별 학생 수를 하나의 JSON으로 반환"""
+async def get_all_data(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """수업 정보, 전체 통계, 학년별 학생 수를 하나의 JSON으로 반환 (인증 필요)"""
     # 1. 수업 및 수강 정보 조회
     all_classes = db.query(models.Class).all()
     grouped = {}
     total_active_students = set()
-    
+
     for cls in all_classes:
         students = [{"stuId": e.student.stuId, "name": e.student.name} for e in cls.enrollments]
         if cls.subject not in grouped:
             grouped[cls.subject] = []
-        
+
         for s in students:
             total_active_students.add(s["stuId"])
-            
+
         grouped[cls.subject].append({
             "id": cls.id, "section": cls.section, "teacher": cls.teacher, "room": cls.room,
             "students": sorted(students, key=lambda x: x["stuId"]),
@@ -62,6 +92,16 @@ async def get_all_data(db: Session = Depends(get_db)):
     for (s_id,) in all_students:
         yr = s_id.split("-")[0] if "-" in s_id else "Unknown"
         student_counts[yr] = student_counts.get(yr, 0) + 1
+
+    # 3. 과목 별칭 맵 { subject: [alias, ...] }
+    all_aliases = db.query(models.SubjectAlias).all()
+    alias_map: dict[str, list[str]] = {}
+    for a in all_aliases:
+        alias_map.setdefault(a.subject, []).append(a.alias)
+
+    # 4. final_data에 aliases 필드 추가
+    for item in final_data:
+        item["aliases"] = alias_map.get(item["subject"], [])
 
     return {
         "stats": {

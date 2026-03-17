@@ -23,11 +23,11 @@ const AccordionSection: React.FC<AccordionSectionProps> = ({
     <RetroCard shadow="sm" className={`bg-white overflow-hidden h-fit ${className}`}>
         <button
             onClick={onToggle}
-            className="w-full flex items-center justify-between p-5 bg-white hover:bg-retro-accent-light transition-all duration-100"
+            className="w-full flex items-center justify-between p-4 md:p-5 bg-white hover:bg-retro-accent-light transition-all duration-100"
         >
-            <div className="flex items-center gap-4">
-                <Icon size={22} strokeWidth={3} className="text-black" />
-                <h3 className="text-xl font-black uppercase tracking-tighter text-black">
+            <div className="flex items-center gap-2 md:gap-4 min-w-0">
+                <Icon size={20} strokeWidth={3} className="text-black shrink-0" />
+                <h3 className="text-sm md:text-xl font-black uppercase tracking-tighter text-black truncate">
                     {title}
                 </h3>
             </div>
@@ -38,7 +38,7 @@ const AccordionSection: React.FC<AccordionSectionProps> = ({
             )}
         </button>
         {isOpen && (
-            <div className="p-6 border-t-2 border-black/10 animate-in fade-in duration-300">
+            <div className="p-4 md:p-5 border-t-2 border-black/10 animate-in fade-in duration-300">
                 {children}
             </div>
         )}

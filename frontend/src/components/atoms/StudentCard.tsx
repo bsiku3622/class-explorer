@@ -1,6 +1,6 @@
 import React from "react";
 import { BookOpen } from "lucide-react";
-import { getStudentColor } from "../../lib/utils";
+import { getStudentColor, getKoreanName } from "../../lib/utils";
 
 interface StudentCardProps {
     stuId: string;
@@ -34,7 +34,7 @@ const StudentCard: React.FC<StudentCardProps> = ({ stuId, name, subjects, onClic
                             className="text-[10px] font-bold text-black border-l-2 pl-1.5 truncate"
                             style={{ borderColor: color }}
                         >
-                            {sub.split("(")[0]}
+                            {getKoreanName(sub)}
                         </div>
                     ))}
                 </div>

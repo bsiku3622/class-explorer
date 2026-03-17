@@ -166,7 +166,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
         if (koreanName && sectionNum) {
             handleSearchToggle(`${koreanName}/${sectionNum}`);
         } else {
-            handleSearchToggle(koreanName || subjectFull.split("(")[0].trim());
+            handleSearchToggle(koreanName || subjectFull);
         }
     };
 
@@ -186,7 +186,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                 {renderWarning()}
                 <div className="bg-white border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-black">
                     <div
-                        className={`p-8 flex flex-col relative ${searchMode === "general" ? "md:w-2/3" : "md:w-1/3"}`}
+                        className={`p-6 md:p-8 flex flex-col relative ${searchMode === "general" ? "md:w-2/3" : "md:w-1/3"}`}
                         style={{ backgroundColor: bgColor }}
                     >
                         <div className="absolute top-0 left-0 px-6 py-1.5 bg-black text-white text-xs font-black tracking-widest uppercase">
@@ -208,7 +208,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                         </p>
                                     )}
                                     <h2
-                                        className="text-6xl font-black tracking-tighter"
+                                        className="text-4xl md:text-6xl font-black tracking-tighter"
                                         style={{
                                             color: getEntityColor(
                                                 primaryEntity,
@@ -223,7 +223,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                     <p className="text-sm font-black text-black/30 uppercase tracking-tighter mb-1">
                                         Active Query
                                     </p>
-                                    <div className="text-5xl font-black tracking-tighter text-black uppercase break-all">
+                                    <div className="text-3xl md:text-5xl font-black tracking-tighter text-black uppercase break-all">
                                         <QueryHighlighter
                                             query={searchResult.keyword}
                                             prefix={searchResult.prefix}
@@ -441,7 +441,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                     </div>
 
                     <div
-                        className={`p-10 bg-white flex flex-col relative ${searchMode === "general" ? "md:w-1/3" : "md:w-2/3"}`}
+                        className={`p-6 md:p-10 bg-white flex flex-col relative ${searchMode === "general" ? "md:w-1/3" : "md:w-2/3"}`}
                     >
                         {searchMode !== "general" && primaryEntity && (
                             <div className="absolute top-3 right-4 flex bg-white border-2 border-black p-1 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] z-10">
@@ -593,7 +593,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                             <span>Current Keyword</span>
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className="text-4xl font-black text-black uppercase tracking-tighter">
+                            <div className="text-2xl md:text-4xl font-black text-black uppercase tracking-tighter">
                                 <QueryHighlighter
                                     query={searchResult.keyword}
                                     prefix={searchResult.prefix}
