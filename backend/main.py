@@ -34,8 +34,8 @@ app = FastAPI()
 
 origins = [    "http://localhost",
     "https://localhost",
-    "http://localhost:5173",
-    "https://localhost:5173",
+    "http://localhost:*",
+    "https://localhost:*",
     "https://classes.bsiku.dev",
     "https://ksa-class-finder.netlify.app",
 ]
