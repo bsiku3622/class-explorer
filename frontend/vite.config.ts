@@ -9,6 +9,7 @@ export default defineConfig(({ command }) => {
     const isDev = command === "serve";
 
     return {
+        base: './',
         define: {
             __APP_VERSION__: JSON.stringify(pkg.version),
         },
