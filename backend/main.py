@@ -79,15 +79,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(SecurityHeadersMiddleware)
 
-# ───────────── CORS 설정 ─────────────
-_origins = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[o.strip() for o in _origins.split(",")],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
-)
+# # ───────────── CORS 설정 ─────────────
+# _origins = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[o.strip() for o in _origins.split(",")],
+#     allow_credentials=True,
+#     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+#     allow_headers=["Authorization", "Content-Type"],
+# )
 
 # ───────────── 라우터 등록 ─────────────
 app.include_router(auth_router)
