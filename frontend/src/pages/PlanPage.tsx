@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
     GraduationCap,
     Search,
@@ -7,25 +7,30 @@ import {
     Lock,
     BookOpen,
     CircleAlert,
+    Award,
 } from "lucide-react";
 import api from "../lib/api";
 import type { SubjectData } from "../types";
 import {
     buildPrereqIndex,
     buildUnlockIndex,
+    computeGpa,
     computeProgress,
     courseState,
     inferPrereqs,
     layoutGraph,
     CATEGORY_LABEL,
     DEPARTMENT_ORDER,
+    GRADE_OPTIONS,
     NODE_WIDTH,
     NODE_HEIGHT,
     type Course,
     type CourseState,
     type Curriculum,
+    type GradeMap,
     type ProgressTerm,
 } from "../lib/curriculum";
+import { loadState, saveState } from "../lib/userState";
 import { fuzzyMatch } from "../lib/searchEngine";
 import { getStudentColor } from "../lib/utils";
 import RetroCard from "../components/atoms/RetroCard";
@@ -34,7 +39,8 @@ import RetroSubTitle from "../components/atoms/RetroSubTitle";
 import PageHeader from "../components/molecules/PageHeader";
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
-const STATE_KEY = "ksa_plan_state";
+/** 계정 저장으로 옮기기 전에 쓰던 키 — 남아 있으면 한 번 옮겨 옵니다 */
+const LEGACY_STATE_KEY = "ksa_plan_state";
 
 const authHeader = () => {
     const token = localStorage.getItem(SESSION_TOKEN_KEY);
@@ -45,24 +51,23 @@ interface PlanPageProps {
     allClassesData: SubjectData[];
 }
 
-/** 학번별로 직접 체크한 과목을 기억합니다 (수집 이전 학기용) */
-interface SavedState {
-    stuId: string | null;
-    manual: Record<string, string[]>;
+/** 계정에 저장하는 화면 상태 — 성적은 `/curriculum/grades`에 따로 둡니다 */
+interface PlanState {
+    stuId?: string | null;
+    /** 옛 형식: 학번 → 직접 체크한 과목 목록. 처음 열 때 성적 기록으로 옮깁니다 */
+    manual?: Record<string, string[]>;
 }
 
-const loadState = (): SavedState => {
-    try {
-        const raw = localStorage.getItem(STATE_KEY);
-        if (!raw) return { stuId: null, manual: {} };
-        const parsed = JSON.parse(raw);
-        return {
-            stuId: typeof parsed?.stuId === "string" ? parsed.stuId : null,
-            manual: typeof parsed?.manual === "object" && parsed.manual ? parsed.manual : {},
-        };
-    } catch {
-        return { stuId: null, manual: {} };
-    }
+/** 이수 기록을 서버에 통째로 올립니다. 실패해도 화면은 계속 쓸 수 있게 조용히 넘깁니다 */
+const persistGrades = (stuId: string, grades: GradeMap) => {
+    const entries = Object.entries(grades).map(([course, grade]) => ({ course, grade }));
+    api
+        .put(
+            `/curriculum/grades/${encodeURIComponent(stuId)}`,
+            { entries },
+            { headers: authHeader() },
+        )
+        .catch(() => {});
 };
 
 const STATE_STYLE: Record<CourseState, { box: string; text: string }> = {
@@ -85,25 +90,46 @@ const STATE_LABEL: Record<CourseState, string> = {
 };
 
 const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
-    const saved = useMemo(() => loadState(), []);
-
     const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [stuId, setStuId] = useState<string | null>(saved.stuId);
+    const [stuId, setStuId] = useState<string | null>(null);
     const [studentQuery, setStudentQuery] = useState("");
     /** 어느 학생의 응답인지 함께 들고 있어야 학생을 빠르게 바꿀 때 섞이지 않습니다 */
     const [progressData, setProgressData] = useState<{
         stuId: string;
         terms: ProgressTerm[];
     } | null>(null);
-    const [manual, setManual] = useState<Record<string, string[]>>(saved.manual);
+    /** 이 계정이 기록한 이수 내역 — 값이 평어, null이면 이수만 체크한 상태 */
+    const [gradeData, setGradeData] = useState<{ stuId: string; grades: GradeMap } | null>(null);
     const [department, setDepartment] = useState<string>("수학");
     const [focused, setFocused] = useState<string | null>(null);
+    /** 불러오기 전에는 저장하지 않습니다 — 빈 값으로 덮어쓰는 걸 막습니다 */
+    const [restored, setRestored] = useState(false);
+
+    /** 옛 localStorage 형식에 남아 있던 직접 체크 내역 — 학생을 고르면 그때 옮깁니다 */
+    const pendingLegacy = useRef<Record<string, string[]>>({});
 
     useEffect(() => {
         api.get("/curriculum", { headers: authHeader() })
             .then((res) => setCurriculum(res.data))
             .catch(() => setLoadError("교육과정 데이터를 불러오지 못했습니다."));
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        loadState<PlanState>("plan", LEGACY_STATE_KEY)
+            .then((state) => {
+                if (cancelled) return;
+                pendingLegacy.current = state?.manual ?? {};
+                if (state?.stuId) setStuId(state.stuId);
+                setRestored(true);
+            })
+            .catch(() => {
+                if (!cancelled) setRestored(true);
+            });
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     useEffect(() => {
@@ -122,8 +148,45 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
     }, [stuId]);
 
     useEffect(() => {
-        localStorage.setItem(STATE_KEY, JSON.stringify({ stuId, manual }));
-    }, [stuId, manual]);
+        if (!stuId) return;
+        let cancelled = false;
+        api.get(`/curriculum/grades/${encodeURIComponent(stuId)}`, { headers: authHeader() })
+            .then((res) => {
+                if (cancelled) return;
+                const loaded: GradeMap = {};
+                (res.data.entries ?? []).forEach(
+                    (entry: { course: string; grade: string | null }) => {
+                        loaded[entry.course] = entry.grade;
+                    },
+                );
+                // 계정에 기록이 없고 옛 기기 데이터가 있으면 그걸 옮겨 심습니다
+                const legacy = pendingLegacy.current[stuId];
+                if (!Object.keys(loaded).length && legacy?.length) {
+                    legacy.forEach((name) => {
+                        loaded[name] = null;
+                    });
+                    delete pendingLegacy.current[stuId];
+                    persistGrades(stuId, loaded);
+                    // 옮긴 뒤에는 화면 상태에서도 지웁니다
+                    saveState("plan", { stuId, manual: pendingLegacy.current });
+                }
+                setGradeData({ stuId, grades: loaded });
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setGradeData({ stuId, grades: {} });
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [stuId]);
+
+    useEffect(() => {
+        if (!restored) return;
+        // 아직 성적 기록으로 옮기지 못한 옛 체크 내역은 그대로 들고 갑니다 —
+        // 여기서 빠뜨리면 학생을 고르기 전에 저장이 돌 때 사라집니다
+        saveState("plan", { stuId, manual: pendingLegacy.current });
+    }, [restored, stuId]);
 
     const allStudents = useMemo(() => {
         const map = new Map<string, string>();
@@ -174,14 +237,17 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
         return { autoTaken: auto, currentCourses: now };
     }, [terms]);
 
-    const manualTaken = useMemo(
-        () => new Set(stuId ? (manual[stuId] ?? []) : []),
-        [manual, stuId],
+    const grades = useMemo(
+        () => (gradeData?.stuId === stuId ? gradeData.grades : {}),
+        [gradeData, stuId],
     );
 
+    /** 기록에 행이 있으면 이수한 것으로 봅니다 — 평어는 선택 사항입니다 */
+    const recorded = useMemo(() => new Set(Object.keys(grades)), [grades]);
+
     const taken = useMemo(
-        () => new Set([...autoTaken, ...manualTaken]),
-        [autoTaken, manualTaken],
+        () => new Set([...autoTaken, ...recorded]),
+        [autoTaken, recorded],
     );
 
     /**
@@ -217,17 +283,66 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
         return layoutGraph(courses, curriculum?.prerequisites ?? [], byName);
     }, [curriculum, department, byName]);
 
-    const toggleManual = useCallback(
-        (name: string) => {
-            if (!stuId || autoTaken.has(name) || currentCourses.has(name)) return;
-            setManual((prev) => {
-                const list = new Set(prev[stuId] ?? []);
-                if (list.has(name)) list.delete(name);
-                else list.add(name);
-                return { ...prev, [stuId]: [...list] };
+    /** 기록을 바꾸고 서버에 올립니다 */
+    const updateGrades = useCallback(
+        (mutate: (draft: GradeMap) => void) => {
+            // 아직 서버 기록을 못 받았으면 손대지 않습니다 — 빈 값으로 덮어쓰게 됩니다
+            if (!stuId || gradeData?.stuId !== stuId) return;
+            setGradeData((prev) => {
+                const base = prev?.stuId === stuId ? prev.grades : {};
+                const next = { ...base };
+                mutate(next);
+                persistGrades(stuId, next);
+                return { stuId, grades: next };
             });
         },
-        [stuId, autoTaken, currentCourses],
+        [stuId, gradeData],
+    );
+
+    /** 수집된 학기는 이미 확정이라 손대지 않습니다 */
+    const toggleTaken = useCallback(
+        (name: string) => {
+            if (autoTaken.has(name) || currentCourses.has(name)) return;
+            updateGrades((draft) => {
+                if (name in draft) delete draft[name];
+                else draft[name] = null;
+            });
+        },
+        [autoTaken, currentCourses, updateGrades],
+    );
+
+    const setGrade = useCallback(
+        (name: string, grade: string | null) => {
+            updateGrades((draft) => {
+                if (grade === null && !autoTaken.has(name) && !currentCourses.has(name)) {
+                    // 직접 체크한 과목은 평어를 지우면 이수 표시만 남습니다
+                    draft[name] = null;
+                } else {
+                    draft[name] = grade;
+                }
+            });
+        },
+        [updateGrades, autoTaken, currentCourses],
+    );
+
+    /** 평어를 넣을 수 있는 과목 — 이수·수강 중인 것 전부 */
+    const gradableCourses = useMemo(() => {
+        const names = [...new Set([...taken, ...currentCourses])];
+        return names
+            .map((name) => byName.get(name))
+            .filter((course): course is Course => Boolean(course))
+            .sort((a, b) => a.department.localeCompare(b.department) || a.name.localeCompare(b.name));
+    }, [taken, currentCourses, byName]);
+
+    const gpa = useMemo(
+        () =>
+            computeGpa(
+                grades,
+                byName,
+                curriculum?.grade_points ?? {},
+                new Set(gradableCourses.map((course) => course.name)),
+            ),
+        [grades, byName, curriculum, gradableCourses],
     );
 
     const focusedCourse: Course | undefined = focused ? byName.get(focused) : undefined;
@@ -317,6 +432,17 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
                             {progress.apCredits > 0 && (
                                 <span className="border-2 border-black px-2 py-1 text-[11px] font-black">
                                     AP {progress.apCredits}
+                                </span>
+                            )}
+                            {gpa.overall !== null && (
+                                <span className="border-2 border-black px-2 py-1 text-[11px] font-black">
+                                    GPA {gpa.overall.toFixed(2)}
+                                    {gpa.natural !== null && (
+                                        <span className="text-black/50">
+                                            {" · 자연 "}
+                                            {gpa.natural.toFixed(2)}
+                                        </span>
+                                    )}
                                 </span>
                             )}
                         </div>
@@ -464,6 +590,95 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
 
                     <RetroCard className="bg-white p-6 space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
+                            <RetroSubTitle title="Grades" icon={Award} />
+                            <div className="flex flex-wrap items-center gap-2">
+                                {gpa.overall !== null ? (
+                                    <>
+                                        <span className="border-2 border-black px-2 py-1 text-[11px] font-black">
+                                            전체 {gpa.overall.toFixed(2)}
+                                        </span>
+                                        {gpa.natural !== null && (
+                                            <span className="border-2 border-black px-2 py-1 text-[11px] font-black">
+                                                자연 {gpa.natural.toFixed(2)}
+                                            </span>
+                                        )}
+                                        <span className="text-[10px] font-bold text-black/40">
+                                            {gpa.gradedCredits}학점 반영
+                                        </span>
+                                    </>
+                                ) : (
+                                    <span className="text-[10px] font-bold text-black/40">
+                                        평어를 넣으면 평점이 계산됩니다
+                                    </span>
+                                )}
+                                {gpa.missing > 0 && (
+                                    <span className="text-[10px] font-bold text-retro-accent4">
+                                        미입력 {gpa.missing}과목
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {gradableCourses.length === 0 ? (
+                            <p className="text-xs font-bold text-black/40">
+                                이수한 과목이 없습니다.
+                            </p>
+                        ) : (
+                            <div className="divide-y-2 divide-black/10 border-2 border-black/10">
+                                {gradableCourses.map((course) => {
+                                    const grade = grades[course.name] ?? null;
+                                    const isAuto =
+                                        autoTaken.has(course.name) || currentCourses.has(course.name);
+                                    return (
+                                        <div
+                                            key={course.name}
+                                            className="flex flex-wrap items-center gap-2 px-2 py-1.5"
+                                            onMouseEnter={() => setFocused(course.name)}
+                                        >
+                                            <span className="text-[11px] font-black min-w-[9rem] flex-1 truncate">
+                                                {course.name}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-black/40 shrink-0">
+                                                {course.department} · {course.credits}학점
+                                                {!isAuto && " · 직접 체크"}
+                                            </span>
+                                            {course.is_pf ? (
+                                                <span className="border-2 border-black/20 px-2 py-0.5 text-[10px] font-black text-black/40 shrink-0">
+                                                    P/F — 평점 제외
+                                                </span>
+                                            ) : (
+                                                <select
+                                                    value={grade ?? ""}
+                                                    onChange={(e) =>
+                                                        setGrade(course.name, e.target.value || null)
+                                                    }
+                                                    className={`shrink-0 w-20 border-2 px-1.5 py-0.5 text-[11px] font-black outline-none transition-all duration-100 ${
+                                                        grade
+                                                            ? "bg-black text-white border-black"
+                                                            : "bg-white border-black/20 hover:border-black"
+                                                    }`}
+                                                >
+                                                    <option value="">—</option>
+                                                    {GRADE_OPTIONS.map((option) => (
+                                                        <option key={option} value={option}>
+                                                            {option}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        <p className="text-[10px] font-bold text-black/40 leading-relaxed">
+                            평어는 계정에 저장되어 다른 기기에서도 그대로 보입니다. P/F 과목은
+                            등급이 아니라 통과 여부라 평점에서 뺍니다.
+                        </p>
+                    </RetroCard>
+
+                    <RetroCard className="bg-white p-6 space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
                             <RetroSubTitle title="Course Map" icon={GraduationCap} />
                             <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold">
                                 {(Object.keys(STATE_LABEL) as CourseState[]).map((state) => (
@@ -521,7 +736,8 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
                                             prereqIndex,
                                         );
                                         const style = STATE_STYLE[state];
-                                        const isManual = manualTaken.has(node.name);
+                                        const isManual = recorded.has(node.name);
+                                        const grade = grades[node.name];
                                         const editable =
                                             !autoTaken.has(node.name) && !currentCourses.has(node.name);
                                         return (
@@ -533,7 +749,7 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
                                                 height={NODE_HEIGHT}
                                             >
                                                 <button
-                                                    onClick={() => toggleManual(node.name)}
+                                                    onClick={() => toggleTaken(node.name)}
                                                     onMouseEnter={() => setFocused(node.name)}
                                                     disabled={!editable}
                                                     className={`w-full h-full border-2 px-2 flex flex-col items-start justify-center gap-0.5 text-left transition-all duration-100 ${style.box} ${style.text} ${
@@ -556,6 +772,11 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
                                                         <span className="text-[11px] font-black truncate">
                                                             {node.course.name}
                                                         </span>
+                                                        {grade && (
+                                                            <span className="ml-auto shrink-0 border-2 border-black bg-white px-1 text-[9px] font-black">
+                                                                {grade}
+                                                            </span>
+                                                        )}
                                                     </span>
                                                     <span className="text-[9px] font-bold opacity-60">
                                                         {node.course.department !== department && (

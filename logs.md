@@ -1,5 +1,14 @@
 # Logs
 
+## 2026-07-30 — 성적 입력 + 계정별 상태 저장
+
+- 변경 파일: `backend/models.py`, `backend/state_router.py` (신규), `backend/curriculum_router.py`, `backend/main.py`, `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/src/lib/userState.ts` (신규), `frontend/src/lib/curriculum.ts`, `frontend/src/lib/curriculum.guide.md`, `frontend/src/pages/PlanPage.tsx`, `frontend/src/pages/TradePage.tsx`, `frontend/CLAUDE.md`, `frontend/component-guide.md`
+- 요약: 과목별 평어를 입력해 평점(4.3 만점)을 내고, 작업 중인 계획을 기기가 아니라 계정에 저장하도록 바꿨습니다. `UserState`(화면 상태 JSON)와 `CourseGrade`(이수+평어) 두 테이블을 추가했고, 예전 기기에 남은 localStorage 값은 처음 열 때 한 번 서버로 옮기고 지웁니다.
+- 평점: 평어를 넣은 과목만 셈에 넣고 미입력은 제외합니다(0점 아님). P/F 과목은 등급이 아니라 통과 여부라 평어가 있어도 뺍니다. 전체 평점과 자연계열 평점을 따로 냅니다. 환산표는 서버가 `grade_points`로 내려줍니다.
+- 이수 기록과 평어를 한 테이블로 합쳤습니다 — 행이 있으면 이수, `grade`는 선택. 덕분에 수집 이전 학기를 채우는 수단과 성적 입력이 하나로 정리됩니다.
+- 고친 버그: PlanPage가 불러오기 전에 저장을 돌려 서버 상태를 `{stuId: null}`로 덮어쓰고 있었습니다. 실사용이면 계획이 통째로 날아갔을 문제라 두 페이지 모두 `restored` 가드를 넣었습니다.
+- 검증: 계정 격리(같은 학번도 계정이 다르면 안 보임), 옛 localStorage 이관, 평점 계산(A+·2 + B0·2 + A0·2 = 3.77 → 미적분학1 A0 추가 시 전체 3.86·자연 4.00), 새로고침 후 유지까지 확인.
+
 ## 2026-07-30 — Sweet Zamong 통합 (교육과정 이수 현황)
 
 - 변경 파일: `backend/models.py`, `backend/curriculum_router.py` (신규), `backend/build_curriculum_seed.py` (신규), `backend/import_curriculum.py` (신규), `backend/curriculum_seed.json` (신규), `backend/main.py`, `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/src/lib/curriculum.ts` (신규), `frontend/src/lib/curriculum.guide.md` (신규), `frontend/src/pages/PlanPage.tsx` (신규), `frontend/src/App.tsx`, `frontend/src/components/Sidebar.tsx`, `frontend/src/components/BottomNav.tsx`, `frontend/CLAUDE.md`, `frontend/component-guide.md`, `CLAUDE.md`

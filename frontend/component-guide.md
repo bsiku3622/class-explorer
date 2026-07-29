@@ -48,7 +48,7 @@
 | `AnalysisPage` | `/analysis` | 학사 데이터 통계 대시보드 |
 | `BrowsePage` | `/browse` | 학생/교사 목록 탐색 (모드 토글, 학년 필터) |
 | `TradePage` | `/trade` | 수강 변경 탐색 (2026-2 한정, features 플래그) |
-| `PlanPage` | `/plan` | 교육과정 이수 현황 — 졸업 요건 진척도 + 학과별 선수관계 그래프 |
+| `PlanPage` | `/plan` | 교육과정 이수 현황 — 졸업 요건 진척도 + 평어·평점 + 학과별 선수관계 그래프 |
 | `SettingsPage` | `/about` | 기능 가이드북 + About |
 
 ## 상세 가이드

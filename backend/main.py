@@ -12,6 +12,7 @@ from backend.auth import get_current_user, get_db
 from backend.auth_router import router as auth_router
 from backend.admin_router import router as admin_router
 from backend.curriculum_router import router as curriculum_router
+from backend.state_router import router as state_router
 from backend.migrations import run_migrations
 from backend.terms import list_terms, resolve_term
 
@@ -83,6 +84,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(curriculum_router)
+app.include_router(state_router)
 
 # ───────────── 유틸 ─────────────
 def get_section_num(section_str):

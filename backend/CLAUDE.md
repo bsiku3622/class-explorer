@@ -14,6 +14,7 @@ backend/
 ├── auth_router.py   → 인증 엔드포인트 (/auth/*)
 ├── admin_router.py  → 관리자 전용 엔드포인트 (/admin/*)
 ├── curriculum_router.py → 교육과정 엔드포인트 (/curriculum/*)
+├── state_router.py  → 계정별 화면 상태 (/state/*)
 ├── create_user.py   → 관리자 계정 생성 CLI 스크립트
 ├── import_credits.py→ SweetZamong 교육과정 DB → 과목 학점 임포트
 ├── build_curriculum_seed.py → Zamong 워크북 → curriculum_seed.json (로컬 전용)
@@ -74,7 +75,27 @@ is_ec / is_pf                  UniqueConstraint (before, after)
 recommended_semester
 description / description_sections
 description_source / description_page
+
+UserState                      CourseGrade
+─────────────────────────────  ─────────────────────────────
+id (PK)                        id (PK)
+user_id (FK→User)              user_id (FK→User)
+key ("plan" | "trade")         stu_id (계획 대상 학번)
+data (JSON, 서버는 해석 안 함)   course (FK→Course.name)
+updated_at                     grade ("A+"... | None)
+UniqueConstraint (user_id,key) UniqueConstraint (user_id,stu_id,course)
 ```
+
+### 계정별 상태
+
+작업 중인 계획과 이수 기록은 기기가 아니라 **계정**에 붙습니다.
+
+- `UserState` — 화면이 쓰던 JSON을 그대로 맡아 둡니다. 구조가 화면마다 달라 컬럼으로
+  펼치지 않았고, 서버는 내용을 해석하지 않습니다
+- `CourseGrade` — 평어는 서버가 검증해야 해서(교육과정에 있는 과목인지, 아는 평어인지)
+  구조화했습니다. 행이 있으면 이수한 것으로 보고 `grade`는 선택입니다
+
+같은 학번이라도 계정이 다르면 서로 보이지 않습니다.
 
 ### 수업과 교육과정의 연결
 

@@ -72,3 +72,4 @@
 - [x] 과목별 학점 데이터 도입 (SweetZamong → SubjectCredit) + 트레이드 학점 집계
 - [x] 분반 교환 구인 글 템플릿 + 복사 버튼
 - [x] Sweet Zamong 통합 — 교육과정 카탈로그 + 선수관계 그래프 + 졸업 요건 진척도 (PlanPage)
+- [x] 성적(평어) 입력 + GPA, 계획·이수 기록을 계정별 DB 저장으로 전환
