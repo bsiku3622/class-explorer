@@ -66,6 +66,7 @@ interface SavedState {
     stuId: string | null;
     actions: Record<string, PlanAction>;
     addSelections: AddSelection[];
+    moveTargets: Record<string, number | null>;
 }
 
 /** 작업 중인 계획은 새로고침·페이지 이동 후에도 남습니다 */
@@ -81,6 +82,7 @@ const loadState = (): SavedState | null => {
             addSelections: Array.isArray(parsed.addSelections)
                 ? parsed.addSelections
                 : [],
+            moveTargets: parsed.moveTargets ?? {},
         };
     } catch {
         return null;
@@ -98,6 +100,10 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
     const [addSelections, setAddSelections] = useState<AddSelection[]>(
         saved?.addSelections ?? [],
     );
+    /** 이동으로 표시한 과목의 목표 분반 (null = 아무 분반이나 탐색) */
+    const [moveTargets, setMoveTargets] = useState<Record<string, number | null>>(
+        saved?.moveTargets ?? {},
+    );
     const [addQuery, setAddQuery] = useState("");
     const [openSubject, setOpenSubject] = useState<string | null>(null);
     const [previewKey, setPreviewKey] = useState<string | null>(null);
@@ -109,9 +115,9 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
         }
         localStorage.setItem(
             STATE_KEY,
-            JSON.stringify({ stuId, actions, addSelections }),
+            JSON.stringify({ stuId, actions, addSelections, moveTargets }),
         );
-    }, [stuId, actions, addSelections]);
+    }, [stuId, actions, addSelections, moveTargets]);
 
     const index = useMemo(() => buildSubjectIndex(allClassesData), [allClassesData]);
     const studentIndex = useMemo(
@@ -149,6 +155,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
         setStudentQuery("");
         setActions({});
         setAddSelections([]);
+        setMoveTargets({});
         setAddQuery("");
         setOpenSubject(null);
         setPreviewKey(null);
@@ -157,7 +164,24 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
     const setAction = useCallback((subject: string, action: PlanAction) => {
         setPreviewKey(null);
         setActions((prev) => ({ ...prev, [subject]: action }));
+        // 이동을 껐다 켜면 목표 분반은 초기화합니다
+        if (action !== "move") {
+            setMoveTargets((prev) => {
+                if (!(subject in prev)) return prev;
+                const next = { ...prev };
+                delete next[subject];
+                return next;
+            });
+        }
     }, []);
+
+    const setMoveTarget = useCallback(
+        (subject: string, sectionId: number | null) => {
+            setPreviewKey(null);
+            setMoveTargets((prev) => ({ ...prev, [subject]: sectionId }));
+        },
+        [],
+    );
 
     const toggleAddSubject = useCallback((subject: string) => {
         setPreviewKey(null);
@@ -181,8 +205,8 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
     const { results: plans, truncated } = useMemo(() => {
         if (!stuId || schedule.length === 0)
             return { results: [] as PlanResult[], truncated: false };
-        return findPlans({ schedule, index, actions, addSelections });
-    }, [stuId, schedule, index, actions, addSelections]);
+        return findPlans({ schedule, index, actions, addSelections, moveTargets });
+    }, [stuId, schedule, index, actions, addSelections, moveTargets]);
 
     const previewPlan = useMemo(
         () => plans.find((p) => p.key === previewKey) ?? null,
@@ -219,7 +243,31 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                 if ((actions[s.subject] ?? "keep") === "drop") leaving.add(s.subject);
             });
 
-            const staying = schedule.filter((s) => !leaving.has(s.subject));
+            // 목표 분반을 고른 이동은 그 자리로 옮겨 그립니다
+            const movedTo = new Map<string, SectionInfo>();
+            schedule.forEach((s) => {
+                if ((actions[s.subject] ?? "keep") !== "move") return;
+                const targetId = moveTargets[s.subject];
+                if (targetId == null || targetId === s.id) return;
+                const target = (index.get(s.subject) ?? []).find(
+                    (x) => x.id === targetId,
+                );
+                if (target) movedTo.set(s.subject, target);
+            });
+
+            const staying = schedule
+                .filter((s) => !leaving.has(s.subject))
+                .map((s) => movedTo.get(s.subject) ?? s);
+            movedTo.forEach((_, subject) => entering.add(subject));
+
+            // 옮겨간 분반이 다른 과목과 부딪히는지
+            movedTo.forEach((target, subject) => {
+                findBlockers(
+                    staying.filter((s) => s.subject !== subject),
+                    target,
+                ).forEach((b) => conflicting.add(b.subject));
+            });
+
             const added: SectionInfo[] = [];
             addSelections.forEach(({ subject, sectionId }) => {
                 if (sectionId === null) return; // 분반 미정이면 그릴 수 없습니다
@@ -240,7 +288,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                 enteringSubjects: entering,
                 conflictingSubjects: conflicting,
             };
-        }, [schedule, previewPlan, actions, addSelections, index]);
+        }, [schedule, previewPlan, actions, addSelections, moveTargets, index]);
 
     /**
      * 조합에 포함된 분반 이동마다, 그 자리를 서로 맞바꿀 수 있는 학생.
@@ -747,6 +795,22 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                     const isOpen = openSubject === sec.subject;
                                     const siblings = index.get(sec.subject) ?? [];
                                     const isDropped = action === "drop";
+                                    const isMoving = action === "move";
+                                    const moveTarget = moveTargets[sec.subject] ?? null;
+                                    const movedSection = isMoving
+                                        ? siblings.find((s) => s.id === moveTarget)
+                                        : undefined;
+                                    // 이동 후보별 충돌 — 다른 과목(드랍 제외) 기준
+                                    const othersForMove = activeSchedule.filter(
+                                        (s) => s.subject !== sec.subject,
+                                    );
+                                    const movableCount = isMoving
+                                        ? siblings.filter(
+                                              (s) =>
+                                                  s.id !== sec.id &&
+                                                  findBlockers(othersForMove, s).length === 0,
+                                          ).length
+                                        : 0;
                                     return (
                                         <RetroCard
                                             key={sec.subject}
@@ -754,7 +818,9 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                             className={
                                                 isDropped
                                                     ? "bg-retro-primary/15 border-retro-primary"
-                                                    : `bg-white ${action !== "keep" ? "border-black" : "border-black"}`
+                                                    : isMoving
+                                                      ? "bg-retro-accent1/15 border-retro-accent1"
+                                                      : "bg-white border-black"
                                             }
                                         >
                                             <div className="p-3 flex flex-wrap items-center gap-2">
@@ -764,12 +830,36 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                     >
                                                         {getKoreanName(sec.subject)}
                                                     </p>
-                                                    <p
-                                                        className={`text-[10px] font-bold truncate ${isDropped ? "text-retro-primary/60" : "text-black/40"}`}
-                                                    >
-                                                        {sectionLabel(sec)} ·{" "}
-                                                        {formatSectionTimes(sec.times)}
-                                                    </p>
+                                                    {isMoving ? (
+                                                        <p className="text-[10px] font-bold truncate text-black/60">
+                                                            {movedSection ? (
+                                                                <>
+                                                                    {getSectionNumber(
+                                                                        sec.section,
+                                                                    )}
+                                                                    분반 →{" "}
+                                                                    <b>
+                                                                        {sectionLabel(
+                                                                            movedSection,
+                                                                        )}
+                                                                    </b>{" "}
+                                                                    ·{" "}
+                                                                    {formatSectionTimes(
+                                                                        movedSection.times,
+                                                                    )}
+                                                                </>
+                                                            ) : (
+                                                                `옮길 분반을 고르세요 — 지금 갈 수 있는 분반 ${movableCount}개 (자동은 조합에서 탐색)`
+                                                            )}
+                                                        </p>
+                                                    ) : (
+                                                        <p
+                                                            className={`text-[10px] font-bold truncate ${isDropped ? "text-retro-primary/60" : "text-black/40"}`}
+                                                        >
+                                                            {sectionLabel(sec)} ·{" "}
+                                                            {formatSectionTimes(sec.times)}
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-1">
                                                     {ACTION_ORDER.map((a) => (
@@ -786,12 +876,78 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                     : isDropped
                                                                       ? // 드랍한 카드 안에서는 버튼도 카드 색을 따릅니다
                                                                         "bg-white/50 border-retro-primary text-retro-primary hover:bg-white/80"
-                                                                      : "bg-white border-black text-black/40 hover:border-black hover:text-black"
+                                                                      : isMoving
+                                                                        ? "bg-white/50 border-retro-accent1 text-black/50 hover:bg-white/80 hover:text-black"
+                                                                        : "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                             }`}
                                                         >
                                                             {ACTION_LABEL[a]}
                                                         </button>
                                                     ))}
+
+                                                    {/* 이동 대상 분반 — 자동은 조합 탐색에 맡깁니다 */}
+                                                    {isMoving && (
+                                                        <>
+                                                            <span className="w-px h-5 bg-black/20 mx-0.5" />
+                                                            <button
+                                                                onClick={() =>
+                                                                    setMoveTarget(
+                                                                        sec.subject,
+                                                                        null,
+                                                                    )
+                                                                }
+                                                                className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
+                                                                    moveTarget === null
+                                                                        ? "bg-black text-white border-black"
+                                                                        : "bg-white/50 border-retro-accent1 text-black/50 hover:bg-white/80 hover:text-black"
+                                                                }`}
+                                                            >
+                                                                자동
+                                                            </button>
+                                                            {siblings
+                                                                .filter(
+                                                                    (sib) =>
+                                                                        sib.id !== sec.id,
+                                                                )
+                                                                .map((sib) => {
+                                                                    const sibBlockers =
+                                                                        findBlockers(
+                                                                            othersForMove,
+                                                                            sib,
+                                                                        );
+                                                                    const blocked =
+                                                                        sibBlockers.length;
+                                                                    return (
+                                                                        <button
+                                                                            key={sib.id}
+                                                                            onClick={() =>
+                                                                                setMoveTarget(
+                                                                                    sec.subject,
+                                                                                    sib.id,
+                                                                                )
+                                                                            }
+                                                                            title={`${sib.teacher} · ${formatSectionTimes(sib.times)} · ${sib.studentCount}명${blocked ? ` · 충돌: ${sibBlockers.map((b) => getKoreanName(b.subject)).join(", ")}` : " · 바로 이동 가능"}`}
+                                                                            className={`px-2 py-1 border-2 text-[10px] font-black transition-all duration-100 ${
+                                                                                moveTarget ===
+                                                                                sib.id
+                                                                                    ? blocked
+                                                                                        ? "bg-retro-accent4 text-black border-retro-accent4"
+                                                                                        : "bg-black text-white border-black"
+                                                                                    : blocked
+                                                                                      ? "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4 hover:bg-retro-accent4/40"
+                                                                                      : "bg-white/50 border-retro-accent1 text-black/60 hover:bg-white/80 hover:text-black"
+                                                                            }`}
+                                                                        >
+                                                                            {getSectionNumber(
+                                                                                sib.section,
+                                                                            )}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            <span className="w-px h-5 bg-black/20 mx-0.5" />
+                                                        </>
+                                                    )}
+
                                                     <button
                                                         onClick={() =>
                                                             setOpenSubject(
@@ -804,7 +960,9 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                 ? "bg-black text-white border-black"
                                                                 : isDropped
                                                                   ? "bg-white/50 border-retro-primary text-retro-primary hover:bg-white/80"
-                                                                  : "bg-white border-black text-black/40 hover:border-black hover:text-black"
+                                                                  : isMoving
+                                                                    ? "bg-white/50 border-retro-accent1 text-black/50 hover:bg-white/80 hover:text-black"
+                                                                    : "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                         }`}
                                                     >
                                                         <ChevronDown

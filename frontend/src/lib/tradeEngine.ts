@@ -213,6 +213,11 @@ export interface PlanRequest {
     actions: Record<string, PlanAction>;
     /** 새로 넣고 싶은 과목 (분반 고정 가능) */
     addSelections: AddSelection[];
+    /**
+     * `move`로 표시한 과목의 목표 분반. 값이 없거나 null이면 모든 분반을 탐색합니다.
+     * 특정 분반을 지정하면 그 분반만 후보가 됩니다.
+     */
+    moveTargets?: Record<string, number | null>;
 }
 
 /**
@@ -229,7 +234,7 @@ export const findPlans = (
     request: PlanRequest,
     limit: number = MAX_PLAN_RESULTS,
 ): PlanSearchResult => {
-    const { schedule, index, actions, addSelections } = request;
+    const { schedule, index, actions, addSelections, moveTargets } = request;
 
     const fixedSlots = new Set<SlotKey>();
     const variables: Variable[] = [];
@@ -248,10 +253,14 @@ export const findPlans = (
             });
             return;
         }
+        const all = index.get(current.subject) ?? [current];
+        const target = moveTargets?.[current.subject];
+        const candidates =
+            target == null ? all : all.filter((s) => s.id === target);
         variables.push({
             subject: current.subject,
             from: current,
-            candidates: index.get(current.subject) ?? [current],
+            candidates: candidates.length > 0 ? candidates : all,
         });
     });
 
