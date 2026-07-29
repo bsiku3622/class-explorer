@@ -126,7 +126,13 @@ class User(Base):
     is_admin = Column(Boolean, default=False, nullable=False)
     # 이 계정이 누구인지. 본인이 학번과 이름을 대조해 등록합니다.
     # 등록 전에는 비어 있고, 그동안 이수 기록 같은 개인 데이터를 쓸 수 없습니다.
-    stu_id = Column(String, ForeignKey("students.stuId"), nullable=True, index=True)
+    #
+    # 한 학번은 한 계정만 가질 수 있습니다. 라우터에서도 검사하지만, 두 사람이 동시에
+    # 같은 학번을 넣으면 둘 다 통과할 수 있어 DB에서 막습니다.
+    # NULL 은 유니크 검사에서 빠지므로 미등록 계정은 얼마든지 있어도 됩니다.
+    stu_id = Column(
+        String, ForeignKey("students.stuId"), nullable=True, index=True, unique=True
+    )
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
 
 
