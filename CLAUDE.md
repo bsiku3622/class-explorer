@@ -46,6 +46,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | `src/lib/searchEngine.ts` | 검색 전체 로직 (prefix 파싱, 불린 연산, 초성 매칭)                              |
 | `src/lib/utils.ts`        | `DAY_MAP`, `DAYS_ORDER`, `PERIODS`, `extractSearchTerms()`, `getStudentColor()` |
 | `src/lib/api.ts`          | axios 인스턴스 (`VITE_API_BASE_URL` 기반 baseURL)                               |
+| `src/lib/curriculum.ts`   | 졸업 요건 진척도 + 선수관계 그래프 배치                                          |
 
 **View Mode**: `isConsolidatedView = (searchMode !== 'general') || isLogicalSearch`
 
@@ -111,6 +112,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | `/analysis`         | AnalysisPage    | 학사 통계 대시보드                |
 | `/browse`           | BrowsePage      | 학생/교사 목록 탐색 (모드 토글)   |
 | `/trade`            | TradePage       | 수강 변경 탐색 (2026-2 한정, 플래그) |
+| `/plan`             | PlanPage        | 교육과정 이수 현황 + 선수관계 그래프 |
 | `/about`            | SettingsPage    | 기능 가이드북 + About             |
 | `/admin`            | AdminPage       | 관리자 전용 (is_admin=true만)     |
 

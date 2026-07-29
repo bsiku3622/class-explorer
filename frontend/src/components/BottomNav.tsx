@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Map, BarChart3, Library, Info, ArrowLeftRight } from "lucide-react";
+import { Search, Map, BarChart3, Library, Info, ArrowLeftRight, GraduationCap } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface BottomNavItemProps {
@@ -40,6 +40,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activePage, setActivePage, showTr
         ...(showTrade
             ? [{ id: "trade", label: "Trade", icon: ArrowLeftRight }]
             : [{ id: "browse", label: "Browse", icon: Library }]),
+        { id: "plan", label: "Plan", icon: GraduationCap },
         { id: "about", label: "About", icon: Info },
     ];
 

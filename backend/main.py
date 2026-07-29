@@ -11,6 +11,7 @@ from backend.database import engine, SessionLocal
 from backend.auth import get_current_user, get_db
 from backend.auth_router import router as auth_router
 from backend.admin_router import router as admin_router
+from backend.curriculum_router import router as curriculum_router
 from backend.migrations import run_migrations
 from backend.terms import list_terms, resolve_term
 
@@ -81,6 +82,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 # ───────────── 라우터 등록 ─────────────
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(curriculum_router)
 
 # ───────────── 유틸 ─────────────
 def get_section_num(section_str):
