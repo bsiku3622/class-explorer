@@ -131,6 +131,9 @@
       "subject_student_count": 45,
       "section_count": 3,
       "aliases": ["수학", "Math"],
+      "credits": 3.0,
+      "is_ec": false,
+      "is_pf": false,
       "sections": [
         {
           "id": 1,

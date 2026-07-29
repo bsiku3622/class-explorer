@@ -156,18 +156,28 @@ async def get_all_data(
     for a in all_aliases:
         alias_map.setdefault(a.subject, []).append(a.alias)
 
+    # 3-1. 과목 학점 (SweetZamong 교육과정 기준, 미매칭 과목은 빠집니다)
+    credit_map = {
+        c.subject: {"credits": c.credits, "is_ec": c.is_ec, "is_pf": c.is_pf}
+        for c in db.query(models.SubjectCredit).all()
+    }
+
     # 4. final_data 구성
     final_data = []
     for subject in sorted(grouped.keys()):
         sections = grouped[subject]
         sections.sort(key=lambda s: get_section_num(s["section"]))
         sub_students = set(stu["stuId"] for s in sections for stu in s["students"])
+        credit = credit_map.get(subject)
         final_data.append({
             "subject": subject,
             "subject_student_count": len(sub_students),
             "section_count": len(sections),
             "sections": sections,
-            "aliases": alias_map.get(subject, [])
+            "aliases": alias_map.get(subject, []),
+            "credits": credit["credits"] if credit else None,
+            "is_ec": credit["is_ec"] if credit else False,
+            "is_pf": credit["is_pf"] if credit else False,
         })
 
     return {

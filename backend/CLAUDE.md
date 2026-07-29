@@ -14,6 +14,7 @@ backend/
 ├── auth_router.py   → 인증 엔드포인트 (/auth/*)
 ├── admin_router.py  → 관리자 전용 엔드포인트 (/admin/*)
 ├── create_user.py   → 관리자 계정 생성 CLI 스크립트
+├── import_credits.py→ SweetZamong 교육과정 DB → 과목 학점 임포트
 ├── parser.py        → KEIS API 응답 파싱 로직
 ├── parser_run.py    → 학기별 데이터 동기화 실행 스크립트
 ├── students.txt     → 학생 목록 (학번 + 이름)
@@ -52,12 +53,12 @@ UniqueConstraint     is_admin (bool)        device_type (web|mobile)
                                             last_used_at
                                             expires_at
 
-SubjectAlias
-─────────────────────────────
-id (PK)
-subject  (Class.subject 과 일치, index)
-alias    (검색 키워드)
-UniqueConstraint (subject, alias)
+SubjectAlias                  SubjectCredit
+─────────────────────────────  ─────────────────────────────
+id (PK)                        subject (PK, Class.subject와 일치)
+subject  (Class.subject 과 일치) credits (float)
+alias    (검색 키워드)           ap_credits / is_ec / is_pf
+UniqueConstraint (subject,alias) matched_name (SweetZamong 과목명)
 ```
 
 ## 데이터 수집 흐름 (parser_run.py)
@@ -86,6 +87,15 @@ uvicorn backend.main:app --reload
 python -m backend.parser_run                       # 오늘 날짜 기준 학기
 python -m backend.parser_run --year 2026 --semester 2
 ```
+
+### 과목 학점 임포트
+```bash
+python -m backend.import_credits --dry-run   # 매칭 결과만 확인
+python -m backend.import_credits             # 저장
+```
+KEIS에는 학점 정보가 없어 SweetZamong `courses` 테이블을 정본으로 씁니다.
+과목명 표기가 달라(`미적분학2(EC)(Calculus2(EC))` vs `미적분학2(EC)`) 뒤쪽 영문 괄호를
+균형 맞춰 떼고 EC 태그를 붙였다 뗐다 하며 매칭합니다.
 
 ### 계정 생성 (관리자 CLI)
 ```bash
