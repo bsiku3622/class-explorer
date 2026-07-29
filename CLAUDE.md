@@ -110,6 +110,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | `/emptyroomfinder`  | RoomsPage       | 빈 강의실 탐색                    |
 | `/analysis`         | AnalysisPage    | 학사 통계 대시보드                |
 | `/browse`           | BrowsePage      | 학생/교사 목록 탐색 (모드 토글)   |
+| `/trade`            | TradePage       | 수강 변경 탐색 (2026-2 한정, 플래그) |
 | `/about`            | SettingsPage    | 기능 가이드북 + About             |
 | `/admin`            | AdminPage       | 관리자 전용 (is_admin=true만)     |
 

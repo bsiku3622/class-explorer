@@ -48,3 +48,13 @@
 - [x] admin_router.py: teachers/subjects 학기 필터, /admin/terms, /admin/sync 학기 지정
 - [x] 프론트: TermSwitcher 컴포넌트 + 학기별 캐시 분리 + 선택 학기 보존
 - [x] 서버 배포 및 2026-2 데이터 수집
+
+## 2026-07-29 — 수강 변경 탐색(Trade) + 유사도 검색
+- [x] tradeEngine.ts: 유지/이동/드랍/추가를 하나의 백트래킹 탐색으로 통합
+- [x] TradePage: 학생 선택 → 과목별 액션 지정 → 조합 결과 + 시간표 미리보기
+- [x] SectionsTimetable: 한 과목의 전 분반을 한 그리드에 표시, 충돌 분반 회색 처리
+- [x] 드랍 과목 빨간색 표시 + 목록 하단 정렬
+- [x] 추가 과목을 My Subjects 리스트에 편입, 분반 고정(자동/특정 분반) 지원
+- [x] 드랍으로 열리는 과목 목록(Opened by Drop)
+- [x] searchEngine: fuzzyMatch 도입 — "정3" → "정보과학3" (별칭 등록 불필요)
+- [x] features.ts: TRADE_FEATURE 플래그로 기간 종료 시 일괄 차단
