@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
     ArrowLeftRight,
     ArrowRight,
@@ -8,11 +8,13 @@ import {
     Search,
     Trash2,
     TriangleAlert,
+    Users,
     X,
 } from "lucide-react";
 import type { SubjectData, Term } from "../types";
 import {
     buildSubjectIndex,
+    buildStudentIndex,
     getStudentSchedule,
     findPlans,
     applyPlan,
@@ -20,6 +22,7 @@ import {
     evaluateAddCandidates,
     findBlockers,
     findAddableAfterDrop,
+    findTradePartners,
     MAX_PLAN_RESULTS,
     type AddSelection,
     type PlanAction,
@@ -57,16 +60,64 @@ const ACTION_ORDER: PlanAction[] = ["keep", "move", "drop"];
 const sectionLabel = (s: SectionInfo) =>
     `${getSectionNumber(s.section)}분반 · ${s.teacher}`;
 
+const STATE_KEY = "ksa_trade_state";
+
+interface SavedState {
+    stuId: string | null;
+    actions: Record<string, PlanAction>;
+    addSelections: AddSelection[];
+}
+
+/** 작업 중인 계획은 새로고침·페이지 이동 후에도 남습니다 */
+const loadState = (): SavedState | null => {
+    try {
+        const raw = localStorage.getItem(STATE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (typeof parsed !== "object" || parsed === null) return null;
+        return {
+            stuId: typeof parsed.stuId === "string" ? parsed.stuId : null,
+            actions: parsed.actions ?? {},
+            addSelections: Array.isArray(parsed.addSelections)
+                ? parsed.addSelections
+                : [],
+        };
+    } catch {
+        return null;
+    }
+};
+
 const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
-    const [stuId, setStuId] = useState<string | null>(null);
+    const [saved] = useState(loadState);
+
+    const [stuId, setStuId] = useState<string | null>(saved?.stuId ?? null);
     const [studentQuery, setStudentQuery] = useState("");
-    const [actions, setActions] = useState<Record<string, PlanAction>>({});
-    const [addSelections, setAddSelections] = useState<AddSelection[]>([]);
+    const [actions, setActions] = useState<Record<string, PlanAction>>(
+        saved?.actions ?? {},
+    );
+    const [addSelections, setAddSelections] = useState<AddSelection[]>(
+        saved?.addSelections ?? [],
+    );
     const [addQuery, setAddQuery] = useState("");
     const [openSubject, setOpenSubject] = useState<string | null>(null);
     const [previewKey, setPreviewKey] = useState<string | null>(null);
 
+    useEffect(() => {
+        if (!stuId) {
+            localStorage.removeItem(STATE_KEY);
+            return;
+        }
+        localStorage.setItem(
+            STATE_KEY,
+            JSON.stringify({ stuId, actions, addSelections }),
+        );
+    }, [stuId, actions, addSelections]);
+
     const index = useMemo(() => buildSubjectIndex(allClassesData), [allClassesData]);
+    const studentIndex = useMemo(
+        () => buildStudentIndex(allClassesData),
+        [allClassesData],
+    );
 
     const allStudents = useMemo(() => {
         const map = new Map<string, string>();
@@ -184,11 +235,42 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
         };
     }, [schedule, previewPlan, actions, addSelections, index]);
 
+    /**
+     * 조합에 포함된 분반 이동마다, 그 자리를 서로 맞바꿀 수 있는 학생.
+     * 조합을 고른 뒤에만 계산합니다 — 후보가 수백 개일 수 있어서입니다.
+     */
+    const partnersForPreview = useMemo(() => {
+        if (!previewPlan || !stuId) return [];
+        return previewPlan.choices
+            .filter((c) => c.from && c.to && c.from.id !== c.to.id)
+            .map((c) => ({
+                subject: c.subject,
+                from: c.from as SectionInfo,
+                to: c.to as SectionInfo,
+                partners: findTradePartners(
+                    studentIndex,
+                    stuId,
+                    c.from as SectionInfo,
+                    c.to as SectionInfo,
+                ),
+            }));
+    }, [previewPlan, stuId, studentIndex]);
+
+    /** 펼친 과목의 분반별 교환 상대 수 */
+    const partnerCountBySection = useCallback(
+        (current: SectionInfo, target: SectionInfo): number => {
+            if (!stuId || current.id === target.id) return 0;
+            return findTradePartners(studentIndex, stuId, current, target).length;
+        },
+        [studentIndex, stuId],
+    );
+
+    // index.css의 테마 값 (retro-primary / retro-green)
     const cellColorFor = useCallback(
         (time: { subject?: string }) => {
             if (!time.subject) return undefined;
-            if (leavingSubjects.has(time.subject)) return "#ff3e3e";
-            if (enteringSubjects.has(time.subject)) return "#00a32a";
+            if (leavingSubjects.has(time.subject)) return "#ff4eba";
+            if (enteringSubjects.has(time.subject)) return "#00c22a";
             return undefined;
         },
         [leavingSubjects, enteringSubjects],
@@ -451,7 +533,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                             className={
                                                 isDropped
                                                     ? "bg-retro-primary/15 border-retro-primary"
-                                                    : `bg-white ${action !== "keep" ? "border-black" : "border-black/20"}`
+                                                    : `bg-white ${action !== "keep" ? "border-black" : "border-black"}`
                                             }
                                         >
                                             <div className="p-3 flex flex-wrap items-center gap-2">
@@ -477,7 +559,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                             }
                                                             className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
                                                                 action !== a
-                                                                    ? "bg-white border-black/20 text-black/40 hover:border-black hover:text-black"
+                                                                    ? "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                                     : a === "drop"
                                                                       ? "bg-retro-primary text-white border-retro-primary"
                                                                       : "bg-black text-white border-black"
@@ -498,7 +580,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                 ? "bg-black text-white border-black"
                                                                 : isDropped
                                                                   ? "bg-white border-retro-primary/40 text-retro-primary hover:border-retro-primary"
-                                                                  : "bg-white border-black/20 text-black/40 hover:border-black hover:text-black"
+                                                                  : "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                         }`}
                                                     >
                                                         <ChevronDown
@@ -571,6 +653,25 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                                     .join(", ")}
                                                                             </span>
                                                                         )}
+                                                                    {!isCurrent &&
+                                                                        blockers.length ===
+                                                                            0 &&
+                                                                        (() => {
+                                                                            const n =
+                                                                                partnerCountBySection(
+                                                                                    sec,
+                                                                                    sib,
+                                                                                );
+                                                                            return (
+                                                                                <span
+                                                                                    className={`block text-[9px] ${n > 0 ? "text-black/60" : "text-black/35"}`}
+                                                                                >
+                                                                                    {n > 0
+                                                                                        ? `교환 상대 ${n}명`
+                                                                                        : "교환 상대 없음"}
+                                                                                </span>
+                                                                            );
+                                                                        })()}
                                                                 </div>
                                                             );
                                                         })}
@@ -623,7 +724,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                         className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
                                                             sectionId === null
                                                                 ? "bg-black text-white border-black"
-                                                                : "bg-white border-black/20 text-black/40 hover:border-black hover:text-black"
+                                                                : "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                         }`}
                                                     >
                                                         자동
@@ -648,7 +749,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                         ? "bg-black text-white border-black"
                                                                         : blocked
                                                                           ? "bg-white border-black/10 text-black/25 hover:border-black/40"
-                                                                          : "bg-white border-black/20 text-black/60 hover:border-black hover:text-black"
+                                                                          : "bg-white border-black text-black/60 hover:border-black hover:text-black"
                                                                 }`}
                                                             >
                                                                 {getSectionNumber(
@@ -667,7 +768,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                         className={`p-1.5 border-2 transition-all duration-100 ${
                                                             isOpen
                                                                 ? "bg-black text-white border-black"
-                                                                : "bg-white border-black/20 text-black/40 hover:border-black hover:text-black"
+                                                                : "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                         }`}
                                                     >
                                                         <ChevronDown
@@ -681,7 +782,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                             toggleAddSubject(subject)
                                                         }
                                                         title="추가 취소"
-                                                        className="p-1.5 border-2 border-black/20 hover:border-black transition-all duration-100"
+                                                        className="p-1.5 border-2 border-black hover:border-black transition-all duration-100"
                                                     >
                                                         <Trash2
                                                             size={14}
@@ -803,7 +904,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                 className={`border-2 px-2 py-1 text-[11px] font-bold transition-all duration-100 ${
                                                     picked
                                                         ? "bg-black text-white border-black"
-                                                        : "bg-white border-black/20 hover:border-black"
+                                                        : "bg-white border-black hover:border-black"
                                                 }`}
                                             >
                                                 <span className="font-black">
@@ -829,6 +930,76 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                             )}
                         </div>
                     </div>
+
+                    {/* 선택한 조합의 교환 상대 */}
+                    {partnersForPreview.length > 0 && (
+                        <div className="lg:col-span-12 space-y-3">
+                            <RetroSubTitle title="Trade Partners" icon={Users} />
+                            <p className="text-[10px] font-bold text-black/40">
+                                선택한 조합에서 분반을 맞바꿀 수 있는 사람입니다. 상대가 그
+                                분반을 듣고 있고, 내 자리로 옮겨도 상대 시간표가 깨지지
+                                않는 경우만 나옵니다.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {partnersForPreview.map(
+                                    ({ subject, from, to, partners }) => (
+                                        <RetroCard
+                                            key={subject}
+                                            shadow="sm"
+                                            className="bg-white"
+                                        >
+                                            <div className="p-3 space-y-2">
+                                                <div>
+                                                    <p className="font-black text-sm truncate">
+                                                        {getKoreanName(subject)}
+                                                    </p>
+                                                    <p className="flex items-center gap-1 text-[11px] font-bold text-black/50">
+                                                        {getSectionNumber(from.section)}
+                                                        분반
+                                                        <ArrowRight size={10} />
+                                                        {getSectionNumber(to.section)}분반
+                                                        · {to.teacher}
+                                                    </p>
+                                                </div>
+                                                {partners.length === 0 ? (
+                                                    <p className="text-[11px] font-bold text-black/40 border-t-2 border-black/10 pt-2">
+                                                        맞바꿀 상대가 없습니다. 빈자리가
+                                                        나기를 노려야 합니다.
+                                                    </p>
+                                                ) : (
+                                                    <div className="border-t-2 border-black/10 pt-2 space-y-1.5">
+                                                        <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                                                            {partners.length}명
+                                                        </p>
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {partners.map((p) => (
+                                                                <span
+                                                                    key={p.stuId}
+                                                                    className="border-2 px-2 py-1 text-[11px] font-black italic"
+                                                                    style={{
+                                                                        backgroundColor: `${getStudentColor(p.stuId)}15`,
+                                                                        borderColor:
+                                                                            getStudentColor(
+                                                                                p.stuId,
+                                                                            ),
+                                                                        color: getStudentColor(
+                                                                            p.stuId,
+                                                                        ),
+                                                                    }}
+                                                                >
+                                                                    {p.stuId} {p.name}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </RetroCard>
+                                    ),
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* 결과 */}
                     <div className="lg:col-span-12 space-y-3">
@@ -868,7 +1039,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                         <RetroCard
                                             key={plan.key}
                                             shadow="sm"
-                                            className={`bg-white transition-all duration-100 ${active ? "border-black" : "border-black/20"}`}
+                                            className={`bg-white transition-all duration-100 ${active ? "border-black" : "border-black"}`}
                                         >
                                             <button
                                                 onClick={() =>

@@ -317,9 +317,16 @@ const filterMatchingClasses = (
 
             if (isDividerSearch) {
                 // 과목명과 분반 번호가 모두 일치해야 함 (분반은 숫자만 추출해서 비교)
-                const lowerSubject = subjectName.toLowerCase();
+                // 과목명은 유사도까지 허용 — "체4/5" → 체육4 5분반
                 const sectionNum = sec.section.replace(/[^0-9]/g, "");
-                isSectionMatch = lowerSubject.includes(targetSubject) && sectionNum === targetSection;
+                const subjectMatches =
+                    subjectName.toLowerCase().includes(targetSubject) ||
+                    fuzzyMatch(subjectName, targetSubject) ||
+                    fuzzyMatch(getKoreanName(subjectName), targetSubject) ||
+                    (subject.aliases || []).some((a: string) =>
+                        fuzzyMatch(a, targetSubject),
+                    );
+                isSectionMatch = subjectMatches && sectionNum === targetSection;
             } else if (mode === "student") {
                 isSectionMatch = evaluate(effectiveQuery, [
                     ...activeStudents.map((s: any) => s.stuId),

@@ -30,8 +30,22 @@
 | `findBlockers(schedule, candidate)` | 어떤 분반을 넣을 때 부딪히는 기존 과목들 |
 | `evaluateAddCandidates(schedule, index, subject)` | 과목의 각 분반별 추가 가능 여부 + 블로커 |
 | `findAddableAfterDrop(schedule, index, dropSubjects)` | 드랍 후 새로 들어갈 수 있는 분반 |
+| `buildStudentIndex(allClassesData)` | 학번 → 시간표 맵. 여러 학생을 훑는 탐색용 |
+| `findTradePartners(studentIndex, myStuId, from, to)` | 분반을 맞바꿀 수 있는 학생 |
 | `applyPlan(schedule, plan)` | 조합을 적용한 최종 시간표 (미리보기용) |
 | `scheduleToTimes(sections)` | `TimetableGrid`에 넘길 `SectionTime[]`로 변환 |
+
+## 교환 상대 (`findTradePartners`)
+교환이 성립하려면 양쪽 모두 옮길 수 있어야 합니다.
+
+| 조건 | 검사 위치 |
+|------|-----------|
+| 상대가 `to`를 듣고 있고, `from`으로 와도 충돌 없음 | `findTradePartners` |
+| **내가 `to`로 갈 수 있음** | **호출하는 쪽** |
+
+두 번째 조건은 이 함수가 보지 않습니다. 조합 탐색 결과(`PlanResult.choices`)나
+`findBlockers`가 빈 분반에 대해서만 호출해야 합니다. 그냥 부르면 한쪽만 성립하는
+경우까지 상대로 잡혀 실제보다 많이 나옵니다.
 
 ## 탐색 성능
 - 후보가 적은 변수부터 배치해 불가능한 가지를 일찍 잘라냅니다

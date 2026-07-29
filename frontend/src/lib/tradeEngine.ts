@@ -1,4 +1,4 @@
-import type { SubjectData, Section, SectionTime } from "../types";
+import type { SubjectData, Section, SectionTime, StudentInfo } from "../types";
 import { DAYS_ORDER } from "./utils";
 
 /**
@@ -23,6 +23,7 @@ export interface SectionInfo {
     room: string;
     times: SectionTime[];
     slots: SlotKey[];
+    students: StudentInfo[];
     studentCount: number;
 }
 
@@ -71,6 +72,7 @@ const toSectionInfo = (subject: string, sec: Section): SectionInfo => ({
     room: sec.room,
     times: sec.times || [],
     slots: (sec.times || []).map((t) => toSlotKey(t.day, t.period)),
+    students: sec.students || [],
     studentCount: sec.student_count ?? sec.students?.length ?? 0,
 });
 
@@ -101,8 +103,78 @@ export const getStudentSchedule = (
     return result.sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
 };
 
+/** 학생 학번 → 그 학생의 시간표. 여러 학생을 훑는 탐색에서 재조회를 피합니다 */
+export type StudentIndex = Map<string, SectionInfo[]>;
+
+export const buildStudentIndex = (allClassesData: SubjectData[]): StudentIndex => {
+    const index: StudentIndex = new Map();
+    allClassesData.forEach((subj) => {
+        subj.sections.forEach((sec) => {
+            const info = toSectionInfo(subj.subject, sec);
+            sec.students?.forEach((s) => {
+                const list = index.get(s.stuId);
+                if (list) list.push(info);
+                else index.set(s.stuId, [info]);
+            });
+        });
+    });
+    return index;
+};
+
 const conflicts = (slots: SlotKey[], used: Set<SlotKey>): boolean =>
     slots.some((s) => used.has(s));
+
+export interface TradePartner {
+    stuId: string;
+    name: string;
+    /** 상대가 내주게 될 분반 (= 내가 가고 싶은 곳) */
+    gives: SectionInfo;
+    /** 상대가 받게 될 분반 (= 내 현재 자리) */
+    takes: SectionInfo;
+}
+
+/**
+ * 나와 분반을 맞바꿀 수 있는 학생을 찾습니다.
+ *
+ * 상대가 내가 가고 싶은 분반(`to`)을 듣고 있고, 내 분반(`from`)으로 옮겨도
+ * 상대 시간표에 충돌이 없는 경우만 남깁니다.
+ *
+ * 여기서 검사하는 것은 **상대 쪽 성립 여부뿐**입니다. 내가 `to`로 갈 수 있는지는
+ * 호출하는 쪽에서 이미 확인된 상태여야 합니다 (조합 탐색 결과이거나
+ * `findBlockers`가 비어 있는 분반). 그 전제 없이 부르면 한쪽만 성립하는
+ * 조합까지 상대로 잡힙니다.
+ */
+export const findTradePartners = (
+    studentIndex: StudentIndex,
+    myStuId: string,
+    from: SectionInfo,
+    to: SectionInfo,
+): TradePartner[] => {
+    const partners: TradePartner[] = [];
+
+    to.students.forEach((student) => {
+        if (student.stuId === myStuId) return;
+
+        const theirSchedule = studentIndex.get(student.stuId);
+        if (!theirSchedule) return;
+
+        const busy = new Set<SlotKey>();
+        theirSchedule.forEach((s) => {
+            if (s.id === to.id) return; // 맞바꿀 분반은 비워집니다
+            s.slots.forEach((slot) => busy.add(slot));
+        });
+
+        if (conflicts(from.slots, busy)) return;
+        partners.push({
+            stuId: student.stuId,
+            name: student.name,
+            gives: to,
+            takes: from,
+        });
+    });
+
+    return partners.sort((a, b) => a.stuId.localeCompare(b.stuId));
+};
 
 /** 두 분반이 시간상 겹치는지 */
 export const sectionsOverlap = (a: SectionInfo, b: SectionInfo): boolean => {
