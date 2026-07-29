@@ -138,9 +138,60 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
         [plans, previewKey],
     );
 
-    const previewSchedule = useMemo(
-        () => (previewPlan ? applyPlan(schedule, previewPlan) : schedule),
-        [schedule, previewPlan],
+    /**
+     * 왼쪽 시간표에 그릴 내용.
+     * 조합을 고르면 그 결과를, 고르기 전에는 지금까지 지정한 드랍·추가를 바로 반영합니다.
+     * 빠지는 과목은 남겨둔 채 색으로 구분해 어느 시간이 비는지 보이게 합니다.
+     */
+    const { previewSchedule, leavingSubjects, enteringSubjects } = useMemo(() => {
+        const leaving = new Set<string>();
+        const entering = new Set<string>();
+
+        if (previewPlan) {
+            previewPlan.choices.forEach((c) => {
+                if (!c.to) leaving.add(c.subject);
+                else if (!c.from || c.from.id !== c.to.id) entering.add(c.subject);
+            });
+            const dropped = schedule.filter((s) => leaving.has(s.subject));
+            // 빠지는 과목을 앞에 둬서, 같은 칸이 겹치면 새로 들어오는 쪽이 보이게 합니다
+            return {
+                previewSchedule: [...dropped, ...applyPlan(schedule, previewPlan)],
+                leavingSubjects: leaving,
+                enteringSubjects: entering,
+            };
+        }
+
+        schedule.forEach((s) => {
+            if ((actions[s.subject] ?? "keep") === "drop") leaving.add(s.subject);
+        });
+
+        const added: SectionInfo[] = [];
+        addSelections.forEach(({ subject, sectionId }) => {
+            if (sectionId === null) return; // 분반 미정이면 그릴 수 없습니다
+            const section = (index.get(subject) ?? []).find((s) => s.id === sectionId);
+            if (section) {
+                added.push(section);
+                entering.add(subject);
+            }
+        });
+
+        const dropped = schedule.filter((s) => leaving.has(s.subject));
+        const kept = schedule.filter((s) => !leaving.has(s.subject));
+        return {
+            previewSchedule: [...dropped, ...kept, ...added],
+            leavingSubjects: leaving,
+            enteringSubjects: entering,
+        };
+    }, [schedule, previewPlan, actions, addSelections, index]);
+
+    const cellColorFor = useCallback(
+        (time: { subject?: string }) => {
+            if (!time.subject) return undefined;
+            if (leavingSubjects.has(time.subject)) return "#ff3e3e";
+            if (enteringSubjects.has(time.subject)) return "#00a32a";
+            return undefined;
+        },
+        [leavingSubjects, enteringSubjects],
     );
 
     /** 특정 과목을 비웠다고 가정했을 때 다른 과목이 차지 중인 슬롯 */
@@ -356,15 +407,31 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                         <TimetableGrid
                             times={scheduleToTimes(previewSchedule)}
                             color={studentColor}
+                            colorFor={cellColorFor}
                             showTitle={false}
                             mode="student"
                         />
-                        {previewPlan && (
-                            <p className="text-[10px] font-bold text-black/40">
-                                * 선택한 조합을 적용한 결과입니다. 실제 신청은 직접
-                                진행해야 합니다.
-                            </p>
+                        {(leavingSubjects.size > 0 || enteringSubjects.size > 0) && (
+                            <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-widest">
+                                {leavingSubjects.size > 0 && (
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="w-3 h-3 border-2 border-black bg-retro-primary/30" />
+                                        빠짐
+                                    </span>
+                                )}
+                                {enteringSubjects.size > 0 && (
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="w-3 h-3 border-2 border-black bg-retro-green/30" />
+                                        들어옴
+                                    </span>
+                                )}
+                            </div>
                         )}
+                        <p className="text-[10px] font-bold text-black/40">
+                            {previewPlan
+                                ? "* 선택한 조합을 적용한 결과입니다. 실제 신청은 직접 진행해야 합니다."
+                                : "* 지정한 드랍·추가가 바로 반영됩니다. 분반을 정하지 않은 추가 과목은 그리지 않습니다."}
+                        </p>
                     </div>
 
                     {/* 우: 과목별 처리 + 추가신청 */}
