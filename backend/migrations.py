@@ -116,6 +116,56 @@ def _drop_grade_student_column(conn) -> None:
     print(f"[migration] course_grades → stu_id 제거 (이관 {moved}건{note})")
 
 
+def _unique_student_link(conn) -> None:
+    """
+    users.stu_id 를 유니크로 만듭니다 — 한 학번은 한 계정만.
+
+    처음에는 평범한 인덱스로 만들었는데, 그러면 라우터 검사를 통과한 두 요청이 동시에
+    같은 학번을 넣을 수 있습니다. SQLite 는 유니크 검사에서 NULL 을 빼므로 미등록
+    계정이 여럿이어도 문제없습니다.
+
+    이미 중복이 있으면 인덱스를 만들 수 없어, 늦게 등록한 쪽을 비워 자리를 만듭니다.
+    """
+    rows = conn.execute(
+        text("SELECT name FROM sqlite_master WHERE type='index' AND name='ix_users_stu_id'")
+    ).fetchall()
+    if not rows:
+        return  # 아직 컬럼 추가 전 — 위쪽 simple 문에서 만들고 다음 실행 때 처리됩니다
+
+    is_unique = conn.execute(
+        text("SELECT \"unique\" FROM pragma_index_list('users') WHERE name='ix_users_stu_id'")
+    ).scalar()
+    if is_unique:
+        return
+
+    duplicates = conn.execute(
+        text(
+            """
+            SELECT stu_id, COUNT(*) FROM users
+            WHERE stu_id IS NOT NULL GROUP BY stu_id HAVING COUNT(*) > 1
+            """
+        )
+    ).fetchall()
+    for stu_id, _ in duplicates:
+        # 가장 먼저 등록한 계정만 남깁니다
+        conn.execute(
+            text(
+                """
+                UPDATE users SET stu_id = NULL
+                WHERE stu_id = :stu_id
+                  AND id != (SELECT MIN(id) FROM users WHERE stu_id = :stu_id)
+                """
+            ),
+            {"stu_id": stu_id},
+        )
+        print(f"[migration] 학번 {stu_id} 중복 — 먼저 등록한 계정만 남기고 비웠습니다")
+
+    conn.execute(text("DROP INDEX ix_users_stu_id"))
+    conn.execute(text("CREATE UNIQUE INDEX ix_users_stu_id ON users (stu_id)"))
+    conn.commit()
+    print("[migration] users.stu_id → 유니크 (한 학번 = 한 계정)")
+
+
 def run_migrations(engine: Engine) -> None:
     # 단순 컬럼 추가 — 이미 있으면 무시
     simple = [
@@ -140,3 +190,4 @@ def run_migrations(engine: Engine) -> None:
 
         _add_semester_columns(conn)
         _drop_grade_student_column(conn)
+        _unique_student_link(conn)

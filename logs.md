@@ -1,5 +1,12 @@
 # Logs
 
+## 2026-07-30 — 한 학번 = 한 계정
+
+- 변경 파일: `backend/models.py`, `backend/migrations.py`, `backend/auth_router.py`, `backend/CLAUDE.md`, `backend/api-guide.md`
+- 요약: 이미 다른 계정이 등록한 학번은 쓸 수 없게 했습니다. 라우터에 검사가 있었지만 애플리케이션 레벨뿐이라, 두 요청이 동시에 들어오면 검사와 커밋 사이를 파고들어 둘 다 통과할 수 있었습니다. `users.stu_id`에 유니크 인덱스를 걸고 `IntegrityError`를 409로 바꿉니다. NULL은 유니크 검사에서 빠지므로 미등록 계정은 얼마든지 공존합니다.
+- 마이그레이션은 기존 인덱스를 유니크로 재생성하며, 이미 중복이 있으면 먼저 등록한 계정만 남기고 나머지를 비웁니다.
+- 검증: 순차 등록 시 두 번째 409, 동시 등록 시 한쪽만 200이고 DB에 하나만 남는 것까지 확인.
+
 ## 2026-07-30 — 계정에 학번 등록
 
 - 변경 파일: `backend/models.py`, `backend/migrations.py`, `backend/database.py`, `backend/auth_router.py`, `backend/curriculum_router.py`, `backend/main.py`, `backend/create_user.py`, `backend/import_credits.py`, `backend/import_curriculum.py`, `backend/parser_run.py`, `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/src/components/LinkStudentModal.tsx` (신규), `frontend/src/pages/PlanPage.tsx`, `frontend/src/pages/TradePage.tsx`, `frontend/src/App.tsx`, `frontend/CLAUDE.md`, `frontend/component-guide.md`, `frontend/src/lib/curriculum.guide.md`

@@ -7,6 +7,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend import models
@@ -209,7 +210,15 @@ def link_student(
         ).delete()
 
     current_user.stu_id = student.stuId
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # 위 검사와 커밋 사이에 다른 요청이 같은 학번을 채간 경우
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="이미 다른 계정이 쓰고 있는 학번입니다.",
+        )
     return {"stu_id": student.stuId, "student_name": student.name}
 
 
