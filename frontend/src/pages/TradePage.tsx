@@ -521,6 +521,199 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                         <div className="space-y-3">
                             <RetroSubTitle title="My Subjects" />
                             <div className="space-y-2">
+                                {/* 추가 신청 과목 — 목록 맨 위 */}
+                                {addSelections.map(({ subject, sectionId }) => {
+                                    const siblings = index.get(subject) ?? [];
+                                    const isOpen = openSubject === subject;
+                                    const candidates = evaluateAddCandidates(
+                                        schedule,
+                                        index,
+                                        subject,
+                                    );
+                                    const chosen = siblings.find(
+                                        (s) => s.id === sectionId,
+                                    );
+                                    return (
+                                        <RetroCard
+                                            key={`add-${subject}`}
+                                            shadow="sm"
+                                            className="bg-retro-green/15 border-retro-green"
+                                        >
+                                            <div className="p-3 flex flex-wrap items-center gap-2">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-black text-sm truncate flex items-center gap-1.5">
+                                                        <Plus
+                                                            size={12}
+                                                            strokeWidth={3}
+                                                            className="shrink-0"
+                                                        />
+                                                        {getKoreanName(subject)}
+                                                    </p>
+                                                    {(() => {
+                                                        const chosenBlockers = chosen
+                                                            ? (candidates.find(
+                                                                  (c) =>
+                                                                      c.section.id ===
+                                                                      chosen.id,
+                                                              )?.blockers ?? [])
+                                                            : [];
+                                                        const freeCount = candidates.filter(
+                                                            (c) => c.blockers.length === 0,
+                                                        ).length;
+
+                                                        if (chosen) {
+                                                            return (
+                                                                <p
+                                                                    className={`text-[10px] font-bold truncate ${chosenBlockers.length ? "text-retro-primary" : "text-black/50"}`}
+                                                                >
+                                                                    {sectionLabel(chosen)} ·{" "}
+                                                                    {formatSectionTimes(
+                                                                        chosen.times,
+                                                                    )}
+                                                                    {chosenBlockers.length >
+                                                                        0 &&
+                                                                        ` — ${chosenBlockers.map((b) => getKoreanName(b.subject)).join(", ")} 비워야 함`}
+                                                                </p>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <p
+                                                                className={`text-[10px] font-bold truncate ${freeCount === 0 ? "text-retro-primary" : "text-black/50"}`}
+                                                            >
+                                                                {freeCount > 0
+                                                                    ? `분반 미지정 — 바로 들어갈 수 있는 분반 ${freeCount}/${candidates.length}개`
+                                                                    : `지금 그대로는 들어갈 분반이 없습니다 — 다른 과목을 이동·드랍해보세요 (${"∨"} 눌러 충돌 확인)`}
+                                                            </p>
+                                                        );
+                                                    })()}
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={() =>
+                                                            setAddSection(subject, null)
+                                                        }
+                                                        className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
+                                                            sectionId === null
+                                                                ? "bg-black text-white border-black"
+                                                                : "bg-white border-black text-black/40 hover:border-black hover:text-black"
+                                                        }`}
+                                                    >
+                                                        자동
+                                                    </button>
+                                                    {siblings.map((sib) => {
+                                                        const sibBlockers =
+                                                            candidates.find(
+                                                                (c) =>
+                                                                    c.section.id === sib.id,
+                                                            )?.blockers ?? [];
+                                                        const blocked = sibBlockers.length;
+                                                        return (
+                                                            <button
+                                                                key={sib.id}
+                                                                onClick={() =>
+                                                                    setAddSection(
+                                                                        subject,
+                                                                        sib.id,
+                                                                    )
+                                                                }
+                                                                title={`${sib.teacher} · ${formatSectionTimes(sib.times)}${blocked ? ` · 충돌: ${sibBlockers.map((b) => getKoreanName(b.subject)).join(", ")}` : " · 바로 추가 가능"}`}
+                                                                className={`px-2 py-1 border-2 text-[10px] font-black transition-all duration-100 ${
+                                                                    sectionId === sib.id
+                                                                        ? "bg-black text-white border-black"
+                                                                        : blocked
+                                                                          ? "bg-white border-black/10 text-black/25 hover:border-black/40"
+                                                                          : "bg-white border-black text-black/60 hover:border-black hover:text-black"
+                                                                }`}
+                                                            >
+                                                                {getSectionNumber(
+                                                                    sib.section,
+                                                                )}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                    <button
+                                                        onClick={() =>
+                                                            setOpenSubject(
+                                                                isOpen ? null : subject,
+                                                            )
+                                                        }
+                                                        title="모든 분반 시간표 보기"
+                                                        className={`p-1.5 border-2 transition-all duration-100 ${
+                                                            isOpen
+                                                                ? "bg-black text-white border-black"
+                                                                : "bg-white border-black text-black/40 hover:border-black hover:text-black"
+                                                        }`}
+                                                    >
+                                                        <ChevronDown
+                                                            size={14}
+                                                            strokeWidth={2.5}
+                                                            className={`transition-transform duration-100 ${isOpen ? "rotate-180" : ""}`}
+                                                        />
+                                                    </button>
+                                                    <button
+                                                        onClick={() =>
+                                                            toggleAddSubject(subject)
+                                                        }
+                                                        title="추가 취소"
+                                                        className="p-1.5 border-2 border-black hover:border-black transition-all duration-100"
+                                                    >
+                                                        <Trash2
+                                                            size={14}
+                                                            strokeWidth={2.5}
+                                                        />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            {isOpen && (
+                                                <div className="border-t-2 border-black/10 p-3 space-y-2">
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                                                        {getKoreanName(subject)} ·{" "}
+                                                        {siblings.length}개 분반
+                                                    </p>
+                                                    <SectionsTimetable
+                                                        sections={siblings}
+                                                        currentSectionId={
+                                                            sectionId ?? undefined
+                                                        }
+                                                        busySlots={busySlotsExcluding("")}
+                                                    />
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {candidates.map(
+                                                            ({ section, blockers }) => (
+                                                                <div
+                                                                    key={section.id}
+                                                                    className={`border-2 px-2 py-1 text-[10px] font-bold ${
+                                                                        blockers.length ===
+                                                                        0
+                                                                            ? "bg-retro-green/20 border-black"
+                                                                            : "bg-black/[0.04] border-black/10 text-black/40"
+                                                                    }`}
+                                                                >
+                                                                    <span className="font-black">
+                                                                        {getSectionNumber(
+                                                                            section.section,
+                                                                        )}
+                                                                        분반
+                                                                    </span>{" "}
+                                                                    {section.teacher} ·{" "}
+                                                                    {formatSectionTimes(
+                                                                        section.times,
+                                                                    )}
+                                                                    <span className="block text-[9px]">
+                                                                        {blockers.length >
+                                                                        0
+                                                                            ? `${blockers.map((b) => getKoreanName(b.subject)).join(", ")} 비워야 함`
+                                                                            : "바로 추가 가능"}
+                                                                    </span>
+                                                                </div>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </RetroCard>
+                                    );
+                                })}
                                 {orderedSchedule.map((sec) => {
                                     const action = actions[sec.subject] ?? "keep";
                                     const isOpen = openSubject === sec.subject;
@@ -682,165 +875,6 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                     );
                                 })}
 
-                                {/* 추가 신청 과목 — 같은 리스트에 이어 붙습니다 */}
-                                {addSelections.map(({ subject, sectionId }) => {
-                                    const siblings = index.get(subject) ?? [];
-                                    const isOpen = openSubject === subject;
-                                    const candidates = evaluateAddCandidates(
-                                        schedule,
-                                        index,
-                                        subject,
-                                    );
-                                    const chosen = siblings.find(
-                                        (s) => s.id === sectionId,
-                                    );
-                                    return (
-                                        <RetroCard
-                                            key={`add-${subject}`}
-                                            shadow="sm"
-                                            className="bg-retro-green/15 border-retro-green"
-                                        >
-                                            <div className="p-3 flex flex-wrap items-center gap-2">
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="font-black text-sm truncate flex items-center gap-1.5">
-                                                        <Plus
-                                                            size={12}
-                                                            strokeWidth={3}
-                                                            className="shrink-0"
-                                                        />
-                                                        {getKoreanName(subject)}
-                                                    </p>
-                                                    <p className="text-[10px] font-bold text-black/50 truncate">
-                                                        {chosen
-                                                            ? `${sectionLabel(chosen)} · ${formatSectionTimes(chosen.times)}`
-                                                            : "분반 미지정 — 가능한 분반을 모두 탐색합니다"}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <button
-                                                        onClick={() =>
-                                                            setAddSection(subject, null)
-                                                        }
-                                                        className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
-                                                            sectionId === null
-                                                                ? "bg-black text-white border-black"
-                                                                : "bg-white border-black text-black/40 hover:border-black hover:text-black"
-                                                        }`}
-                                                    >
-                                                        자동
-                                                    </button>
-                                                    {siblings.map((sib) => {
-                                                        const blocked = candidates.find(
-                                                            (c) =>
-                                                                c.section.id === sib.id,
-                                                        )?.blockers.length;
-                                                        return (
-                                                            <button
-                                                                key={sib.id}
-                                                                onClick={() =>
-                                                                    setAddSection(
-                                                                        subject,
-                                                                        sib.id,
-                                                                    )
-                                                                }
-                                                                title={`${sib.teacher} · ${formatSectionTimes(sib.times)}${blocked ? " · 충돌 있음" : ""}`}
-                                                                className={`px-2 py-1 border-2 text-[10px] font-black transition-all duration-100 ${
-                                                                    sectionId === sib.id
-                                                                        ? "bg-black text-white border-black"
-                                                                        : blocked
-                                                                          ? "bg-white border-black/10 text-black/25 hover:border-black/40"
-                                                                          : "bg-white border-black text-black/60 hover:border-black hover:text-black"
-                                                                }`}
-                                                            >
-                                                                {getSectionNumber(
-                                                                    sib.section,
-                                                                )}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                    <button
-                                                        onClick={() =>
-                                                            setOpenSubject(
-                                                                isOpen ? null : subject,
-                                                            )
-                                                        }
-                                                        title="모든 분반 시간표 보기"
-                                                        className={`p-1.5 border-2 transition-all duration-100 ${
-                                                            isOpen
-                                                                ? "bg-black text-white border-black"
-                                                                : "bg-white border-black text-black/40 hover:border-black hover:text-black"
-                                                        }`}
-                                                    >
-                                                        <ChevronDown
-                                                            size={14}
-                                                            strokeWidth={2.5}
-                                                            className={`transition-transform duration-100 ${isOpen ? "rotate-180" : ""}`}
-                                                        />
-                                                    </button>
-                                                    <button
-                                                        onClick={() =>
-                                                            toggleAddSubject(subject)
-                                                        }
-                                                        title="추가 취소"
-                                                        className="p-1.5 border-2 border-black hover:border-black transition-all duration-100"
-                                                    >
-                                                        <Trash2
-                                                            size={14}
-                                                            strokeWidth={2.5}
-                                                        />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            {isOpen && (
-                                                <div className="border-t-2 border-black/10 p-3 space-y-2">
-                                                    <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
-                                                        {getKoreanName(subject)} ·{" "}
-                                                        {siblings.length}개 분반
-                                                    </p>
-                                                    <SectionsTimetable
-                                                        sections={siblings}
-                                                        currentSectionId={
-                                                            sectionId ?? undefined
-                                                        }
-                                                        busySlots={busySlotsExcluding("")}
-                                                    />
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {candidates.map(
-                                                            ({ section, blockers }) => (
-                                                                <div
-                                                                    key={section.id}
-                                                                    className={`border-2 px-2 py-1 text-[10px] font-bold ${
-                                                                        blockers.length ===
-                                                                        0
-                                                                            ? "bg-retro-green/20 border-black"
-                                                                            : "bg-black/[0.04] border-black/10 text-black/40"
-                                                                    }`}
-                                                                >
-                                                                    <span className="font-black">
-                                                                        {getSectionNumber(
-                                                                            section.section,
-                                                                        )}
-                                                                        분반
-                                                                    </span>{" "}
-                                                                    {section.teacher} ·{" "}
-                                                                    {formatSectionTimes(
-                                                                        section.times,
-                                                                    )}
-                                                                    <span className="block text-[9px]">
-                                                                        {blockers.length >
-                                                                        0
-                                                                            ? `${blockers.map((b) => getKoreanName(b.subject)).join(", ")} 비워야 함`
-                                                                            : "바로 추가 가능"}
-                                                                    </span>
-                                                                </div>
-                                                            ),
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </RetroCard>
-                                    );
-                                })}
                             </div>
                         </div>
 
