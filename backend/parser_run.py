@@ -19,7 +19,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from backend import models, parser
-from backend.database import SessionLocal, engine
+from backend.database import SessionLocal, init_schema
 from backend.terms import current_term
 
 API_BASE = "https://keis.ksa.hs.kr/restapi/v1/schedule"
@@ -29,7 +29,7 @@ MAX_CONCURRENT_REQUESTS = 20
 REQUEST_TIMEOUT = 15.0
 MAX_RETRIES = 2
 
-models.Base.metadata.create_all(bind=engine)
+init_schema()
 
 
 # ───────────── 수집 ─────────────

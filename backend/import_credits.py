@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from backend import models
-from backend.database import SessionLocal, engine
+from backend.database import SessionLocal, init_schema
 
 DEFAULT_SOURCE = os.path.expanduser(
     "~/Projects/Side Projects/SweetZamong/backend/sweet_zamong.db"
@@ -179,7 +179,7 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true", help="저장 없이 매칭 결과만 출력")
     args = ap.parse_args()
 
-    models.Base.metadata.create_all(bind=engine)
+    init_schema()
     return run(args.source, args.dry_run)
 
 

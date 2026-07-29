@@ -91,6 +91,17 @@ src/
 - localStorage 키: `ksa_session_token`
 - 로그아웃 시 캐시(`ksa_class_finder_cache`)도 함께 삭제
 
+## 계정과 학번
+
+`currentUser.stu_id`가 이 계정이 누구인지 정합니다. 없으면 Plan 화면이
+`<LinkStudentModal />`을 띄워 본인 학번·이름을 받습니다 (서버가 둘을 대조).
+
+| 화면 | 대상 학생 |
+|------|-----------|
+| Plan | **본인 고정** — 성적은 본인 것만 기록합니다 |
+| Trade | 본인이 기본값, 다른 학생도 선택 가능 (친구 계획을 봐주는 쓰임) |
+| Search·Browse | 제한 없음 — 탐색 도구입니다 |
+
 ## 계정별 화면 상태
 
 작업 중인 계획(Plan·Trade)은 **계정**에 저장됩니다. 기기를 옮겨도 이어서 쓸 수 있게
@@ -98,8 +109,8 @@ src/
 
 | 대상 | 저장 위치 |
 |------|-----------|
-| 선택한 학생, 트레이드 계획 | `PUT /state/{plan\|trade}` |
-| 이수 체크와 평어 | `PUT /curriculum/grades/{stuId}` |
+| 트레이드 계획 | `PUT /state/trade` |
+| 이수 체크와 평어 | `PUT /curriculum/grades` (본인 것) |
 
 `src/lib/userState.ts`의 `loadState`/`saveState`를 씁니다. 예전 기기에 남은 값
 (`ksa_plan_state`, `ksa_trade_state`)은 처음 열 때 한 번 서버로 옮기고 지웁니다.

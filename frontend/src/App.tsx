@@ -67,7 +67,14 @@ const App: React.FC = () => {
     const [sessionToken, setSessionToken] = useState<string | null>(
         () => localStorage.getItem(SESSION_TOKEN_KEY),
     );
-    const [currentUser, setCurrentUser] = useState<{ id: number; username: string; is_admin: boolean } | null>(null);
+    const [currentUser, setCurrentUser] = useState<{
+        id: number;
+        username: string;
+        is_admin: boolean;
+        /** 계정에 등록된 본인 학번 — 등록 전에는 null */
+        stu_id: string | null;
+        student_name: string | null;
+    } | null>(null);
 
     const initialSearch = useMemo(
         () =>
@@ -540,6 +547,7 @@ const App: React.FC = () => {
                                         <TradePage
                                             allClassesData={allClassesData}
                                             term={term}
+                                            myStuId={currentUser?.stu_id ?? null}
                                         />
                                     }
                                 />
@@ -547,7 +555,21 @@ const App: React.FC = () => {
                             <Route
                                 path="/plan"
                                 element={
-                                    <PlanPage allClassesData={allClassesData} />
+                                    <PlanPage
+                                        stuId={currentUser?.stu_id ?? null}
+                                        studentName={currentUser?.student_name ?? null}
+                                        onLinked={(info) =>
+                                            setCurrentUser((prev) =>
+                                                prev
+                                                    ? {
+                                                          ...prev,
+                                                          stu_id: info.stu_id,
+                                                          student_name: info.student_name,
+                                                      }
+                                                    : prev,
+                                            )
+                                        }
+                                    />
                                 }
                             />
                             <Route

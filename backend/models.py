@@ -124,6 +124,9 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
+    # 이 계정이 누구인지. 본인이 학번과 이름을 대조해 등록합니다.
+    # 등록 전에는 비어 있고, 그동안 이수 기록 같은 개인 데이터를 쓸 수 없습니다.
+    stu_id = Column(String, ForeignKey("students.stuId"), nullable=True, index=True)
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
 
 
@@ -148,22 +151,21 @@ class UserState(Base):
 
 class CourseGrade(Base):
     """
-    계정이 기록한 이수 내역과 성적.
+    계정 본인의 이수 내역과 성적.
 
     행이 있으면 이수한 것으로 봅니다. `grade`는 선택이라, 성적 없이 이수 여부만
     체크해 둘 수도 있습니다.
 
-    `stu_id`를 함께 두는 이유는 한 계정으로 여러 학생의 계획을 짤 수 있기 때문입니다
-    (탐색 도구 성격상 학번을 직접 고르는 구조). 다른 계정의 기록은 보이지 않습니다.
+    누구의 기록인지는 `User.stu_id`가 정하므로 여기에 학번을 두지 않습니다 —
+    성적은 본인 것만 기록합니다.
     """
     __tablename__ = "course_grades"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    stu_id = Column(String, nullable=False, index=True)
     course = Column(String, ForeignKey("courses.name"), nullable=False)
     grade = Column(String, nullable=True)  # "A+", "A0" ... 미입력이면 None
 
-    __table_args__ = (UniqueConstraint('user_id', 'stu_id', 'course', name='_course_grade_uc'),)
+    __table_args__ = (UniqueConstraint('user_id', 'course', name='_course_grade_uc'),)
 
 
 class Session(Base):

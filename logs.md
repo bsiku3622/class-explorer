@@ -1,5 +1,14 @@
 # Logs
 
+## 2026-07-30 — 계정에 학번 등록
+
+- 변경 파일: `backend/models.py`, `backend/migrations.py`, `backend/database.py`, `backend/auth_router.py`, `backend/curriculum_router.py`, `backend/main.py`, `backend/create_user.py`, `backend/import_credits.py`, `backend/import_curriculum.py`, `backend/parser_run.py`, `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/src/components/LinkStudentModal.tsx` (신규), `frontend/src/pages/PlanPage.tsx`, `frontend/src/pages/TradePage.tsx`, `frontend/src/App.tsx`, `frontend/CLAUDE.md`, `frontend/component-guide.md`, `frontend/src/lib/curriculum.guide.md`
+- 요약: `User.stu_id`를 두어 계정이 누구인지 정하게 했습니다. 본인이 **학번과 이름을 함께** 입력해 등록하며, 둘 중 하나만 맞아도 반려합니다 — 아무 학번이나 골라 남의 이름으로 성적을 기록해 두는 걸 막으려는 검증입니다. 어느 쪽이 틀렸는지는 알려주지 않고, 이미 다른 계정이 쓰는 학번이면 409입니다.
+- 덕분에 `CourseGrade.stu_id`가 사라졌습니다. 이수 기록은 본인 것만 남고 `/curriculum/grades`도 학번을 받지 않습니다. Plan 화면에서 학생 선택 UI를 걷어냈고, Trade는 본인이 기본값이되 다른 학생도 고를 수 있게 뒀습니다(친구 계획을 봐주는 쓰임).
+- 미등록 계정은 Plan에서 `LinkStudentModal`로 안내합니다. 학번을 다른 학번으로 바꾸면 이전 사람의 이수 기록을 지웁니다.
+- 함께 고친 것: CLI 스크립트들이 `create_all`만 하고 마이그레이션을 돌리지 않아, 서버에서 계정 생성을 먼저 하면 `no such column: users.stu_id`로 죽었습니다. `database.init_schema()`로 모아 앱·CLI가 같은 경로를 쓰게 했습니다.
+- 검증: 이름 불일치·없는 학번·한쪽만 일치를 전부 400으로 막고, 띄어쓰기 차이는 허용. 중복 학번 409, 학번 변경 시 기존 성적 삭제, 옛 `course_grades.stu_id` 제거 마이그레이션(본인 것만 이관, 주인 불명은 폐기)까지 확인.
+
 ## 2026-07-30 — 성적 입력 + 계정별 상태 저장
 
 - 변경 파일: `backend/models.py`, `backend/state_router.py` (신규), `backend/curriculum_router.py`, `backend/main.py`, `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/src/lib/userState.ts` (신규), `frontend/src/lib/curriculum.ts`, `frontend/src/lib/curriculum.guide.md`, `frontend/src/pages/PlanPage.tsx`, `frontend/src/pages/TradePage.tsx`, `frontend/CLAUDE.md`, `frontend/component-guide.md`
