@@ -336,7 +336,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
         (time: { subject?: string }) => {
             if (!time.subject) return undefined;
             if (leavingSubjects.has(time.subject)) return "#ff4eba";
-            if (movedSubjects.has(time.subject)) return "#00b5e7";
+            if (movedSubjects.has(time.subject)) return "#00c8ff";
             if (enteringSubjects.has(time.subject)) return "#00c22a";
             if (conflictingSubjects.has(time.subject)) return "#ff9100";
             return undefined;
@@ -838,7 +838,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                 isDropped
                                                     ? "bg-retro-primary/15 border-retro-primary"
                                                     : isMoving
-                                                      ? "bg-white border-retro-accent1"
+                                                      ? "bg-retro-accent5/15 border-retro-accent5"
                                                       : "bg-white border-black"
                                             }
                                         >
@@ -892,13 +892,13 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                     ? a === "drop"
                                                                         ? "bg-retro-primary text-white border-retro-primary"
                                                                         : a === "move"
-                                                                          ? "bg-retro-accent1 text-black border-retro-accent1"
+                                                                          ? "bg-retro-accent5 text-black border-retro-accent5"
                                                                           : "bg-black text-white border-black"
                                                                     : isDropped
                                                                       ? // 드랍한 카드 안에서는 버튼도 카드 색을 따릅니다
                                                                         "bg-white/50 border-retro-primary text-retro-primary hover:bg-white/80"
                                                                       : isMoving
-                                                                        ? "bg-white border-retro-accent1 text-black/50 hover:bg-retro-accent1/20 hover:text-black"
+                                                                        ? "bg-white/60 border-retro-accent5 text-black/50 hover:bg-white hover:text-black"
                                                                         : "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                             }`}
                                                         >
@@ -919,8 +919,8 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                 }
                                                                 className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
                                                                     moveTarget === null
-                                                                        ? "bg-retro-accent1 text-black border-retro-accent1"
-                                                                        : "bg-white border-retro-accent1 text-black/50 hover:bg-retro-accent1/20 hover:text-black"
+                                                                        ? "bg-retro-accent5 text-black border-retro-accent5"
+                                                                        : "bg-white/60 border-retro-accent5 text-black/50 hover:bg-white hover:text-black"
                                                                 }`}
                                                             >
                                                                 자동
@@ -953,10 +953,10 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                                 sib.id
                                                                                     ? blocked
                                                                                         ? "bg-retro-accent4 text-black border-retro-accent4"
-                                                                                        : "bg-retro-accent1 text-black border-retro-accent1"
+                                                                                        : "bg-retro-accent5 text-black border-retro-accent5"
                                                                                     : blocked
                                                                                       ? "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4 hover:bg-retro-accent4/40"
-                                                                                      : "bg-white border-retro-accent1 text-black/60 hover:bg-retro-accent1/20 hover:text-black"
+                                                                                      : "bg-white/60 border-retro-accent5 text-black/60 hover:bg-white hover:text-black"
                                                                             }`}
                                                                         >
                                                                             {getSectionNumber(
@@ -982,7 +982,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                 : isDropped
                                                                   ? "bg-white/50 border-retro-primary text-retro-primary hover:bg-white/80"
                                                                   : isMoving
-                                                                    ? "bg-white border-retro-accent1 text-black/50 hover:bg-retro-accent1/20 hover:text-black"
+                                                                    ? "bg-white/60 border-retro-accent5 text-black/50 hover:bg-white hover:text-black"
                                                                     : "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                         }`}
                                                     >
@@ -1027,7 +1027,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                     key={sib.id}
                                                                     className={`border-2 px-2 py-1 text-[10px] font-bold ${
                                                                         isCurrent
-                                                                            ? "bg-black text-white border-black"
+                                                                            ? "bg-retro-accent1 border-black text-black"
                                                                             : blockers.length ===
                                                                                 0
                                                                               ? "bg-retro-green/20 border-black"

@@ -27,7 +27,7 @@ interface CellEntry {
 /** 내 분반만 진하게, 나머지는 연하게. 충돌은 주황으로 구분합니다 */
 const STATE_STYLE: Record<CellState, string> = {
     current: "bg-retro-accent1 border-black text-black",
-    free: "bg-retro-accent1/25 border-black/40 text-black",
+    free: "bg-retro-green/25 border-retro-green text-black",
     blocked: "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4",
 };
 
@@ -167,7 +167,7 @@ const SectionsTimetable: React.FC<SectionsTimetableProps> = ({
                                     hoveredState === "current"
                                         ? "bg-retro-accent1"
                                         : hoveredState === "free"
-                                          ? "bg-retro-green/30"
+                                          ? "bg-retro-green/25"
                                           : "bg-retro-accent4/30"
                                 }`}
                             >
