@@ -1,5 +1,13 @@
 # Logs
 
+## 2026-07-30 — Sweet Zamong 통합 (교육과정 이수 현황)
+
+- 변경 파일: `backend/models.py`, `backend/curriculum_router.py` (신규), `backend/build_curriculum_seed.py` (신규), `backend/import_curriculum.py` (신규), `backend/curriculum_seed.json` (신규), `backend/main.py`, `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/src/lib/curriculum.ts` (신규), `frontend/src/lib/curriculum.guide.md` (신규), `frontend/src/pages/PlanPage.tsx` (신규), `frontend/src/App.tsx`, `frontend/src/components/Sidebar.tsx`, `frontend/src/components/BottomNav.tsx`, `frontend/CLAUDE.md`, `frontend/component-guide.md`, `CLAUDE.md`
+- 요약: SweetZamong의 교육과정 도메인을 7번째 기능 `/plan`으로 들여왔습니다. 버전 관리(브랜치·커밋)는 가져오지 않았고, 기존 `SubjectCredit`을 확장하는 형태로 `Course`(145과목)와 `CoursePrereq`(선수관계 117개)를 추가했습니다. `Class.subject → SubjectCredit.matched_name → Course.name`으로 이어져 실제 수강 이력이 교육과정에 그대로 붙습니다.
+- 선수관계 파싱: Zamong 워크북에 선수관계가 **데이터가 아니라 셀 배경색으로 그린 그림**으로 들어 있었습니다. 회색(D2D2D6) 셀을 4방향으로 이어 붙여 선 한 가닥을 만들고, 그 좌우에 닿은 과목 상자를 엮는 방식으로 읽었습니다. 융합 시트만 표기법이 달라(선수 과목명을 글자로 적고 "OR"로 택일 표시) 별도 규칙을 씁니다. 결과는 `curriculum_seed.json`으로 커밋 — 원본 xlsx(685KB)와 SweetZamong DB는 넣지 않습니다.
+- 이수 추정: 수집 학기가 2026-1부터라 그 이전이 비어 있어, 그냥 두면 미적분학1을 이수했는데 선수인 수학1·수학2가 잠긴 채 남습니다. 이수 과목에서 선수 체인을 거슬러 올라가 채우되(택일은 제외) 추정분은 학점에 넣지 않고 점선으로 구분합니다. 눌러서 확정하면 합산됩니다.
+- 검증: 25-059 기준 2026-1·2026-2 자동 반영(48학점, AP 13), 일반화학1 확정 시 52학점·자연 32학점으로 갱신되고 화학과예술이 열리는 것까지 확인.
+
 ## 2026-07-29 — 과목 학점 도입
 
 - 변경 파일: `backend/models.py`, `backend/import_credits.py` (신규), `backend/main.py`, `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/src/lib/tradeEngine.ts`, `frontend/src/pages/TradePage.tsx`, `frontend/src/types/index.ts`
