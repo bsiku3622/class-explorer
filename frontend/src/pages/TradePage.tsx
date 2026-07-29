@@ -194,46 +194,53 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
      * 조합을 고르면 그 결과를, 고르기 전에는 지금까지 지정한 드랍·추가를 바로 반영합니다.
      * 빠지는 과목은 남겨둔 채 색으로 구분해 어느 시간이 비는지 보이게 합니다.
      */
-    const { previewSchedule, leavingSubjects, enteringSubjects } = useMemo(() => {
-        const leaving = new Set<string>();
-        const entering = new Set<string>();
+    const { previewSchedule, leavingSubjects, enteringSubjects, conflictingSubjects } =
+        useMemo(() => {
+            const leaving = new Set<string>();
+            const entering = new Set<string>();
+            const conflicting = new Set<string>();
 
-        if (previewPlan) {
-            previewPlan.choices.forEach((c) => {
-                if (!c.to) leaving.add(c.subject);
-                else if (!c.from || c.from.id !== c.to.id) entering.add(c.subject);
+            if (previewPlan) {
+                previewPlan.choices.forEach((c) => {
+                    if (!c.to) leaving.add(c.subject);
+                    else if (!c.from || c.from.id !== c.to.id) entering.add(c.subject);
+                });
+                const dropped = schedule.filter((s) => leaving.has(s.subject));
+                // 빠지는 과목을 앞에 둬서, 같은 칸이 겹치면 새로 들어오는 쪽이 보이게 합니다
+                return {
+                    previewSchedule: [...dropped, ...applyPlan(schedule, previewPlan)],
+                    leavingSubjects: leaving,
+                    enteringSubjects: entering,
+                    conflictingSubjects: conflicting, // 성립한 조합이라 충돌이 없습니다
+                };
+            }
+
+            schedule.forEach((s) => {
+                if ((actions[s.subject] ?? "keep") === "drop") leaving.add(s.subject);
             });
-            const dropped = schedule.filter((s) => leaving.has(s.subject));
-            // 빠지는 과목을 앞에 둬서, 같은 칸이 겹치면 새로 들어오는 쪽이 보이게 합니다
-            return {
-                previewSchedule: [...dropped, ...applyPlan(schedule, previewPlan)],
-                leavingSubjects: leaving,
-                enteringSubjects: entering,
-            };
-        }
 
-        schedule.forEach((s) => {
-            if ((actions[s.subject] ?? "keep") === "drop") leaving.add(s.subject);
-        });
-
-        const added: SectionInfo[] = [];
-        addSelections.forEach(({ subject, sectionId }) => {
-            if (sectionId === null) return; // 분반 미정이면 그릴 수 없습니다
-            const section = (index.get(subject) ?? []).find((s) => s.id === sectionId);
-            if (section) {
+            const staying = schedule.filter((s) => !leaving.has(s.subject));
+            const added: SectionInfo[] = [];
+            addSelections.forEach(({ subject, sectionId }) => {
+                if (sectionId === null) return; // 분반 미정이면 그릴 수 없습니다
+                const section = (index.get(subject) ?? []).find((s) => s.id === sectionId);
+                if (!section) return;
                 added.push(section);
                 entering.add(subject);
-            }
-        });
+                // 충돌을 감수하고 고정했다면, 부딪히는 기존 과목을 짚어줍니다
+                findBlockers(staying, section).forEach((b) =>
+                    conflicting.add(b.subject),
+                );
+            });
 
-        const dropped = schedule.filter((s) => leaving.has(s.subject));
-        const kept = schedule.filter((s) => !leaving.has(s.subject));
-        return {
-            previewSchedule: [...dropped, ...kept, ...added],
-            leavingSubjects: leaving,
-            enteringSubjects: entering,
-        };
-    }, [schedule, previewPlan, actions, addSelections, index]);
+            const dropped = schedule.filter((s) => leaving.has(s.subject));
+            return {
+                previewSchedule: [...dropped, ...staying, ...added],
+                leavingSubjects: leaving,
+                enteringSubjects: entering,
+                conflictingSubjects: conflicting,
+            };
+        }, [schedule, previewPlan, actions, addSelections, index]);
 
     /**
      * 조합에 포함된 분반 이동마다, 그 자리를 서로 맞바꿀 수 있는 학생.
@@ -265,15 +272,16 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
         [studentIndex, stuId],
     );
 
-    // index.css의 테마 값 (retro-primary / retro-green)
+    // index.css의 테마 값 (retro-primary / retro-green / retro-accent4)
     const cellColorFor = useCallback(
         (time: { subject?: string }) => {
             if (!time.subject) return undefined;
             if (leavingSubjects.has(time.subject)) return "#ff4eba";
             if (enteringSubjects.has(time.subject)) return "#00c22a";
+            if (conflictingSubjects.has(time.subject)) return "#ff9100";
             return undefined;
         },
-        [leavingSubjects, enteringSubjects],
+        [leavingSubjects, enteringSubjects, conflictingSubjects],
     );
 
     /** 특정 과목을 비웠다고 가정했을 때 다른 과목이 차지 중인 슬롯 */
@@ -493,7 +501,9 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                             showTitle={false}
                             mode="student"
                         />
-                        {(leavingSubjects.size > 0 || enteringSubjects.size > 0) && (
+                        {(leavingSubjects.size > 0 ||
+                            enteringSubjects.size > 0 ||
+                            conflictingSubjects.size > 0) && (
                             <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-widest">
                                 {leavingSubjects.size > 0 && (
                                     <span className="flex items-center gap-1.5">
@@ -505,6 +515,12 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                     <span className="flex items-center gap-1.5">
                                         <span className="w-3 h-3 border-2 border-black bg-retro-green/30" />
                                         들어옴
+                                    </span>
+                                )}
+                                {conflictingSubjects.size > 0 && (
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="w-3 h-3 border-2 border-black bg-retro-accent4/40" />
+                                        충돌
                                     </span>
                                 )}
                             </div>
@@ -564,7 +580,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                         if (chosen) {
                                                             return (
                                                                 <p
-                                                                    className={`text-[10px] font-bold truncate ${chosenBlockers.length ? "text-retro-primary" : "text-black/50"}`}
+                                                                    className={`text-[10px] font-bold truncate ${chosenBlockers.length ? "text-retro-accent4" : "text-black/50"}`}
                                                                 >
                                                                     {sectionLabel(chosen)} ·{" "}
                                                                     {formatSectionTimes(
@@ -578,7 +594,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                         }
                                                         return (
                                                             <p
-                                                                className={`text-[10px] font-bold truncate ${freeCount === 0 ? "text-retro-primary" : "text-black/50"}`}
+                                                                className={`text-[10px] font-bold truncate ${freeCount === 0 ? "text-retro-accent4" : "text-black/50"}`}
                                                             >
                                                                 {freeCount > 0
                                                                     ? `분반 미지정 — 바로 들어갈 수 있는 분반 ${freeCount}/${candidates.length}개`
@@ -595,7 +611,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                         className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
                                                             sectionId === null
                                                                 ? "bg-black text-white border-black"
-                                                                : "bg-white border-black text-black/40 hover:border-black hover:text-black"
+                                                                : "bg-white/50 border-retro-green text-black/50 hover:bg-white/80 hover:text-black"
                                                         }`}
                                                     >
                                                         자동
@@ -619,10 +635,12 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                 title={`${sib.teacher} · ${formatSectionTimes(sib.times)}${blocked ? ` · 충돌: ${sibBlockers.map((b) => getKoreanName(b.subject)).join(", ")}` : " · 바로 추가 가능"}`}
                                                                 className={`px-2 py-1 border-2 text-[10px] font-black transition-all duration-100 ${
                                                                     sectionId === sib.id
-                                                                        ? "bg-black text-white border-black"
+                                                                        ? blocked
+                                                                            ? "bg-retro-accent4 text-black border-retro-accent4"
+                                                                            : "bg-black text-white border-black"
                                                                         : blocked
-                                                                          ? "bg-white border-black/10 text-black/25 hover:border-black/40"
-                                                                          : "bg-white border-black text-black/60 hover:border-black hover:text-black"
+                                                                          ? "bg-retro-accent4/25 border-retro-accent4 text-black/70 hover:bg-retro-accent4/40"
+                                                                          : "bg-white/50 border-retro-green text-black/60 hover:bg-white/80 hover:text-black"
                                                                 }`}
                                                             >
                                                                 {getSectionNumber(
@@ -641,7 +659,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                         className={`p-1.5 border-2 transition-all duration-100 ${
                                                             isOpen
                                                                 ? "bg-black text-white border-black"
-                                                                : "bg-white border-black text-black/40 hover:border-black hover:text-black"
+                                                                : "bg-white/50 border-retro-green text-black/50 hover:bg-white/80 hover:text-black"
                                                         }`}
                                                     >
                                                         <ChevronDown
@@ -655,7 +673,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                             toggleAddSubject(subject)
                                                         }
                                                         title="추가 취소"
-                                                        className="p-1.5 border-2 border-black hover:border-black transition-all duration-100"
+                                                        className="p-1.5 border-2 bg-white/50 border-retro-green text-black/50 hover:bg-white/80 hover:text-black transition-all duration-100"
                                                     >
                                                         <Trash2
                                                             size={14}
@@ -686,7 +704,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                         blockers.length ===
                                                                         0
                                                                             ? "bg-retro-green/20 border-black"
-                                                                            : "bg-black/[0.04] border-black/10 text-black/40"
+                                                                            : "bg-retro-accent4/25 border-retro-accent4 text-black/70"
                                                                     }`}
                                                                 >
                                                                     <span className="font-black">
@@ -751,11 +769,14 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                 setAction(sec.subject, a)
                                                             }
                                                             className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
-                                                                action !== a
-                                                                    ? "bg-white border-black text-black/40 hover:border-black hover:text-black"
-                                                                    : a === "drop"
-                                                                      ? "bg-retro-primary text-white border-retro-primary"
-                                                                      : "bg-black text-white border-black"
+                                                                action === a
+                                                                    ? a === "drop"
+                                                                        ? "bg-retro-primary text-white border-retro-primary"
+                                                                        : "bg-black text-white border-black"
+                                                                    : isDropped
+                                                                      ? // 드랍한 카드 안에서는 버튼도 카드 색을 따릅니다
+                                                                        "bg-white/50 border-retro-primary text-black/50 hover:bg-white/80 hover:text-black"
+                                                                      : "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                             }`}
                                                         >
                                                             {ACTION_LABEL[a]}
@@ -772,7 +793,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                             isOpen
                                                                 ? "bg-black text-white border-black"
                                                                 : isDropped
-                                                                  ? "bg-white border-retro-primary/40 text-retro-primary hover:border-retro-primary"
+                                                                  ? "bg-white/50 border-retro-primary text-black/50 hover:bg-white/80 hover:text-black"
                                                                   : "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                         }`}
                                                     >
@@ -821,7 +842,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                             : blockers.length ===
                                                                                 0
                                                                               ? "bg-retro-green/20 border-black"
-                                                                              : "bg-black/[0.04] border-black/10 text-black/40"
+                                                                              : "bg-retro-accent4/25 border-retro-accent4 text-black/70"
                                                                     }`}
                                                                 >
                                                                     <span className="font-black">
