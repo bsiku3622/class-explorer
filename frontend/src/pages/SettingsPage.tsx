@@ -39,6 +39,8 @@ const guideSections: GuideSection[] = [
                     <Row label={<Code>강의실</Code>} desc="강의실명(예: 형3202)으로 검색" />
                     <Row label={<Code>월1</Code>} desc="요일+교시(월1, 화3, 수5 등)로 해당 시간 수업 검색" />
                     <Row label={<Code>ㅈㄱ</Code>} desc="초성만 입력하면 초성 검색 (예: ㅈㄱ → 자구, ㅍㅁㅎ → 프문해)" />
+                    <Row label={<Code>정3</Code>} desc="줄여 써도 찾아줍니다 (예: 정3 → 정보과학3, 일물실1 → 일반물리학실험1)" />
+                    <Row label={<Code>체육4/5</Code>} desc="과목/분반으로 특정 분반만 검색. 여러 개는 콤마로 (예: 체육4/2,3)" />
                 </div>
             </div>
         ),
