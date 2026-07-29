@@ -1,4 +1,9 @@
-import { formatSubjectWithSection, DAY_MAP as dayMap, replaceRomanNumerals } from "./utils";
+import {
+    formatSubjectWithSection,
+    DAY_MAP as dayMap,
+    replaceRomanNumerals,
+    getKoreanName,
+} from "./utils";
 
 const _CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
 const _chosungCache = new Map<string, string>();
@@ -18,8 +23,66 @@ export const getChosung = (str: string): string => {
     return result;
 };
 
+const _normalizeCache = new Map<string, string>();
+
 /**
- * 초성 검색을 포함한 문자열 매칭 함수
+ * 비교용 정규화: 소문자 · 로마숫자 → 아라비아 · 구분 기호 제거
+ * 예) "영어Ⅲ(English III)" → "영어3english3"
+ */
+const normalize = (str: string): string => {
+    const cached = _normalizeCache.get(str);
+    if (cached !== undefined) return cached;
+    // 로마숫자 치환이 먼저입니다 — toLowerCase가 "Ⅲ"를 "ⅲ"로 바꿔버리면 매칭에 실패합니다
+    const result = replaceRomanNumerals(str)
+        .toLowerCase()
+        .replace(/[\s,./\-_()[\]]/g, "");
+    _normalizeCache.set(str, result);
+    return result;
+};
+
+/**
+ * needle의 문자들이 haystack에 순서대로 나타나는 구간 중 가장 짧은 길이.
+ * 매칭되지 않으면 Infinity.
+ */
+const minMatchSpan = (haystack: string, needle: string): number => {
+    let best = Infinity;
+    for (let start = 0; start <= haystack.length - needle.length; start++) {
+        if (haystack[start] !== needle[0]) continue;
+        let k = 0;
+        let i = start;
+        for (; i < haystack.length && k < needle.length; i++) {
+            if (haystack[i] === needle[k]) k++;
+        }
+        if (k === needle.length && i - start < best) best = i - start;
+    }
+    return best;
+};
+
+/**
+ * 띄엄띄엄 입력한 검색어를 매칭합니다. 예) "정3" → "정보과학3"
+ *
+ * 문자가 순서대로 나타나기만 하면 통과시키면 오탐이 쏟아지므로,
+ * 매칭 구간이 검색어 길이에 비해 지나치게 벌어지면 탈락시킵니다.
+ * "그세"가 "그림,음악,영화로보는세계사"에 걸리는 것을 막는 장치입니다.
+ */
+export const fuzzyMatch = (item: string, term: string): boolean => {
+    if (!item || !term) return false;
+    const haystack = normalize(item);
+    const needle = normalize(term);
+    if (!needle || !haystack) return false;
+
+    if (haystack.includes(needle)) return true;
+    if (needle.length < 2) return false;
+
+    const limit = needle.length * 3 + 2;
+    if (minMatchSpan(haystack, needle) <= limit) return true;
+
+    // 초성이 섞인 검색어도 같은 방식으로 처리 — "ㅈㅂ3" → "정보과학3"
+    return minMatchSpan(getChosung(haystack), needle) <= limit;
+};
+
+/**
+ * 초성·유사도 검색을 포함한 문자열 매칭 함수
  */
 const matchesItem = (item: string, term: string, strictIDMatch: boolean = false) => {
     const lowerItem = item.toLowerCase();
@@ -41,7 +104,8 @@ const matchesItem = (item: string, term: string, strictIDMatch: boolean = false)
         return itemChosung.includes(lowerTerm);
     }
 
-    return false;
+    // 4. 유사도 검색 — 별칭 등록 없이도 줄여 쓴 검색어를 받아냅니다
+    return fuzzyMatch(item, term);
 };
 
 /**
@@ -225,6 +289,8 @@ const filterMatchingClasses = (
             const sectionPool = [
                 subjectName,
                 replaceRomanNumerals(subjectName),
+                // 영문 병기를 뗀 한글명 — 유사도 매칭의 정확도를 높입니다
+                getKoreanName(subjectName),
                 ...(subject.aliases || []),
                 sec.section,
                 sec.teacher,
