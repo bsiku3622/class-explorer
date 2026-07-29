@@ -218,16 +218,24 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
      * 조합을 고르면 그 결과를, 고르기 전에는 지금까지 지정한 드랍·추가를 바로 반영합니다.
      * 빠지는 과목은 남겨둔 채 색으로 구분해 어느 시간이 비는지 보이게 합니다.
      */
-    const { previewSchedule, leavingSubjects, enteringSubjects, conflictingSubjects } =
-        useMemo(() => {
-            const leaving = new Set<string>();
-            const entering = new Set<string>();
-            const conflicting = new Set<string>();
+    const {
+        previewSchedule,
+        leavingSubjects,
+        enteringSubjects,
+        movedSubjects,
+        conflictingSubjects,
+    } = useMemo(() => {
+        const leaving = new Set<string>();
+        const entering = new Set<string>();
+        const moved = new Set<string>();
+        const conflicting = new Set<string>();
 
+        {
             if (previewPlan) {
                 previewPlan.choices.forEach((c) => {
                     if (!c.to) leaving.add(c.subject);
-                    else if (!c.from || c.from.id !== c.to.id) entering.add(c.subject);
+                    else if (!c.from) entering.add(c.subject);
+                    else if (c.from.id !== c.to.id) moved.add(c.subject);
                 });
                 const dropped = schedule.filter((s) => leaving.has(s.subject));
                 // 빠지는 과목을 앞에 둬서, 같은 칸이 겹치면 새로 들어오는 쪽이 보이게 합니다
@@ -235,6 +243,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                     previewSchedule: [...dropped, ...applyPlan(schedule, previewPlan)],
                     leavingSubjects: leaving,
                     enteringSubjects: entering,
+                    movedSubjects: moved,
                     conflictingSubjects: conflicting, // 성립한 조합이라 충돌이 없습니다
                 };
             }
@@ -258,7 +267,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
             const staying = schedule
                 .filter((s) => !leaving.has(s.subject))
                 .map((s) => movedTo.get(s.subject) ?? s);
-            movedTo.forEach((_, subject) => entering.add(subject));
+            movedTo.forEach((_, subject) => moved.add(subject));
 
             // 옮겨간 분반이 다른 과목과 부딪히는지
             movedTo.forEach((target, subject) => {
@@ -286,9 +295,11 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                 previewSchedule: [...dropped, ...staying, ...added],
                 leavingSubjects: leaving,
                 enteringSubjects: entering,
+                movedSubjects: moved,
                 conflictingSubjects: conflicting,
             };
-        }, [schedule, previewPlan, actions, addSelections, moveTargets, index]);
+        }
+    }, [schedule, previewPlan, actions, addSelections, moveTargets, index]);
 
     /**
      * 조합에 포함된 분반 이동마다, 그 자리를 서로 맞바꿀 수 있는 학생.
@@ -325,11 +336,12 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
         (time: { subject?: string }) => {
             if (!time.subject) return undefined;
             if (leavingSubjects.has(time.subject)) return "#ff4eba";
+            if (movedSubjects.has(time.subject)) return "#00b5e7";
             if (enteringSubjects.has(time.subject)) return "#00c22a";
             if (conflictingSubjects.has(time.subject)) return "#ff9100";
             return undefined;
         },
-        [leavingSubjects, enteringSubjects, conflictingSubjects],
+        [leavingSubjects, movedSubjects, enteringSubjects, conflictingSubjects],
     );
 
     /** 특정 과목을 비웠다고 가정했을 때 다른 과목이 차지 중인 슬롯 */
@@ -561,12 +573,19 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                         />
                         {(leavingSubjects.size > 0 ||
                             enteringSubjects.size > 0 ||
+                            movedSubjects.size > 0 ||
                             conflictingSubjects.size > 0) && (
                             <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-widest">
                                 {leavingSubjects.size > 0 && (
                                     <span className="flex items-center gap-1.5">
                                         <span className="w-3 h-3 border-2 border-black bg-retro-primary/30" />
                                         빠짐
+                                    </span>
+                                )}
+                                {movedSubjects.size > 0 && (
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="w-3 h-3 border-2 border-black bg-retro-accent5/40" />
+                                        이동
                                     </span>
                                 )}
                                 {enteringSubjects.size > 0 && (
@@ -668,7 +687,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                         }
                                                         className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
                                                             sectionId === null
-                                                                ? "bg-black text-white border-black"
+                                                                ? "bg-retro-green text-black border-retro-green"
                                                                 : "bg-white/50 border-retro-green text-retro-green hover:bg-white/80"
                                                         }`}
                                                     >
@@ -695,7 +714,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                     sectionId === sib.id
                                                                         ? blocked
                                                                             ? "bg-retro-accent4 text-black border-retro-accent4"
-                                                                            : "bg-black text-white border-black"
+                                                                            : "bg-retro-green text-black border-retro-green"
                                                                         : blocked
                                                                           ? "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4 hover:bg-retro-accent4/40"
                                                                           : "bg-white/50 border-retro-green text-retro-green hover:bg-white/80"
@@ -819,7 +838,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                 isDropped
                                                     ? "bg-retro-primary/15 border-retro-primary"
                                                     : isMoving
-                                                      ? "bg-retro-accent1/15 border-retro-accent1"
+                                                      ? "bg-white border-retro-accent1"
                                                       : "bg-white border-black"
                                             }
                                         >
@@ -872,12 +891,14 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                 action === a
                                                                     ? a === "drop"
                                                                         ? "bg-retro-primary text-white border-retro-primary"
-                                                                        : "bg-black text-white border-black"
+                                                                        : a === "move"
+                                                                          ? "bg-retro-accent1 text-black border-retro-accent1"
+                                                                          : "bg-black text-white border-black"
                                                                     : isDropped
                                                                       ? // 드랍한 카드 안에서는 버튼도 카드 색을 따릅니다
                                                                         "bg-white/50 border-retro-primary text-retro-primary hover:bg-white/80"
                                                                       : isMoving
-                                                                        ? "bg-white/50 border-retro-accent1 text-black/50 hover:bg-white/80 hover:text-black"
+                                                                        ? "bg-white border-retro-accent1 text-black/50 hover:bg-retro-accent1/20 hover:text-black"
                                                                         : "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                             }`}
                                                         >
@@ -898,8 +919,8 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                 }
                                                                 className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
                                                                     moveTarget === null
-                                                                        ? "bg-black text-white border-black"
-                                                                        : "bg-white/50 border-retro-accent1 text-black/50 hover:bg-white/80 hover:text-black"
+                                                                        ? "bg-retro-accent1 text-black border-retro-accent1"
+                                                                        : "bg-white border-retro-accent1 text-black/50 hover:bg-retro-accent1/20 hover:text-black"
                                                                 }`}
                                                             >
                                                                 자동
@@ -932,10 +953,10 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                                 sib.id
                                                                                     ? blocked
                                                                                         ? "bg-retro-accent4 text-black border-retro-accent4"
-                                                                                        : "bg-black text-white border-black"
+                                                                                        : "bg-retro-accent1 text-black border-retro-accent1"
                                                                                     : blocked
                                                                                       ? "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4 hover:bg-retro-accent4/40"
-                                                                                      : "bg-white/50 border-retro-accent1 text-black/60 hover:bg-white/80 hover:text-black"
+                                                                                      : "bg-white border-retro-accent1 text-black/60 hover:bg-retro-accent1/20 hover:text-black"
                                                                             }`}
                                                                         >
                                                                             {getSectionNumber(
@@ -961,7 +982,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                 : isDropped
                                                                   ? "bg-white/50 border-retro-primary text-retro-primary hover:bg-white/80"
                                                                   : isMoving
-                                                                    ? "bg-white/50 border-retro-accent1 text-black/50 hover:bg-white/80 hover:text-black"
+                                                                    ? "bg-white border-retro-accent1 text-black/50 hover:bg-retro-accent1/20 hover:text-black"
                                                                     : "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                         }`}
                                                     >
