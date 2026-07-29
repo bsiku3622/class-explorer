@@ -301,12 +301,22 @@ class SyncRequest(BaseModel):
 @router.post("/sync")
 def sync_data(
     body: SyncRequest | None = None,
+    db: Session = Depends(get_db),
     _: models.User = Depends(get_current_admin),
 ):
-    """KEIS API에서 수업 데이터 재수집. 학기 미지정 시 오늘 날짜 기준 학기."""
-    cmd = [sys.executable, "-m", "backend.parser_run"]
-    if body and body.year is not None and body.semester is not None:
-        cmd += ["--year", str(body.year), "--semester", str(body.semester)]
+    """
+    KEIS API에서 수업 데이터 재수집.
+    학기 미지정 시 데이터가 있는 최신 학기 — 화면 기본 조회 학기와 일치시킵니다.
+    """
+    year = body.year if body else None
+    semester = body.semester if body else None
+    target_year, target_semester = resolve_term(db, year, semester)
+
+    cmd = [
+        sys.executable, "-m", "backend.parser_run",
+        "--year", str(target_year),
+        "--semester", str(target_semester),
+    ]
 
     try:
         result = subprocess.run(
@@ -328,6 +338,10 @@ def sync_data(
                         k, v = token.split("=", 1)
                         if k in stats:
                             stats[k] = v if k == "elapsed" else int(v)
-        return {"detail": "Sync complete", "stats": stats}
+        return {
+            "detail": "Sync complete",
+            "term": {"year": target_year, "semester": target_semester},
+            "stats": stats,
+        }
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504, detail="Sync timed out (300s)")

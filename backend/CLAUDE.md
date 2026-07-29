@@ -110,7 +110,7 @@ python -m backend.create_user <username> <password>
 | `GET` | `/admin/subjects?year=&semester=` | 해당 학기 과목 + 별칭 목록 (학기 기본값=최신) |
 | `PUT` | `/admin/subjects/{subject}/aliases` | 과목 별칭 전체 교체 (`{"aliases": [...]}`, 학기 무관) |
 | `GET` | `/admin/terms` | 데이터가 존재하는 학기 목록 |
-| `POST` | `/admin/sync` | 데이터 재수집 (`{"year": 2026, "semester": 2}` 선택, 생략 시 오늘 기준 학기) |
+| `POST` | `/admin/sync` | 데이터 재수집 (`{"year": 2026, "semester": 2}` 선택, 생략 시 DB 최신 학기) |
 
 ## 인증 시스템
 - **방식**: Session Token (랜덤 48바이트, DB 저장) — 매 요청마다 DB 조회
