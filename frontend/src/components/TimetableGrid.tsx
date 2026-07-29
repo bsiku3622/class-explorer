@@ -95,7 +95,10 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
                         {DAYS.map((day) => {
                             const info = timeMap.get(`${day}-${period}`);
                             const { display, keyword } = info ? getCellContent(info) : { display: "", keyword: "" };
-                            const cellColor = (info && colorFor?.(info)) || color;
+                            // colorFor가 색을 지정한 칸은 강조 대상 — 배경을 진하게 깔아 눈에 띄게 합니다
+                            const accent = info ? colorFor?.(info) : undefined;
+                            const cellColor = accent || color;
+                            const cellBg = accent ? `${accent}59` : `${color}10`;
 
                             return (
                                 <div
@@ -119,7 +122,13 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
                                             {/* Cell Background & Content */}
                                             <div
                                                 className="absolute inset-0 flex items-center p-1.5 pl-2.5 z-10"
-                                                style={{ backgroundColor: `${cellColor}1f` }}
+                                                style={{
+                                                    backgroundColor: cellBg,
+                                                    // 강조 칸은 테두리까지 둘러 배경색만으로 헷갈리지 않게 합니다
+                                                    boxShadow: accent
+                                                        ? `inset 0 0 0 2px ${accent}`
+                                                        : undefined,
+                                                }}
                                                 title={display}>
                                                 <span className="text-[11px] font-black text-black leading-[1.1] text-left break-all line-clamp-3 pointer-events-none">
                                                     {display}
