@@ -346,6 +346,16 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
             .sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
     }, [dropSubjects, schedule, index]);
 
+    /**
+     * 드랍으로 표시한 과목을 뺀 시간표.
+     * 충돌 판정은 모두 이걸 기준으로 해야 합니다 — 이미 버리기로 한 과목이
+     * 계속 자리를 차지하는 것처럼 보이면 안 되니까요.
+     */
+    const activeSchedule = useMemo(
+        () => schedule.filter((s) => (actions[s.subject] ?? "keep") !== "drop"),
+        [schedule, actions],
+    );
+
     const addedSubjects = useMemo(
         () => addSelections.map((a) => a.subject),
         [addSelections],
@@ -371,14 +381,14 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
         const map = new Map<string, { free: number; total: number }>();
         [...addedSubjects, ...addMatches].forEach((subject) => {
             if (map.has(subject)) return;
-            const candidates = evaluateAddCandidates(schedule, index, subject);
+            const candidates = evaluateAddCandidates(activeSchedule, index, subject);
             map.set(subject, {
                 free: candidates.filter((c) => c.blockers.length === 0).length,
                 total: candidates.length,
             });
         });
         return map;
-    }, [addedSubjects, addMatches, schedule, index]);
+    }, [addedSubjects, addMatches, activeSchedule, index]);
 
     const studentColor = stuId ? getStudentColor(stuId) : "#000000";
 
@@ -542,7 +552,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                     const siblings = index.get(subject) ?? [];
                                     const isOpen = openSubject === subject;
                                     const candidates = evaluateAddCandidates(
-                                        schedule,
+                                        activeSchedule,
                                         index,
                                         subject,
                                     );
@@ -611,7 +621,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                         className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
                                                             sectionId === null
                                                                 ? "bg-black text-white border-black"
-                                                                : "bg-white/50 border-retro-green text-black/50 hover:bg-white/80 hover:text-black"
+                                                                : "bg-white/50 border-retro-green text-retro-green hover:bg-white/80"
                                                         }`}
                                                     >
                                                         자동
@@ -639,8 +649,8 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                             ? "bg-retro-accent4 text-black border-retro-accent4"
                                                                             : "bg-black text-white border-black"
                                                                         : blocked
-                                                                          ? "bg-retro-accent4/25 border-retro-accent4 text-black/70 hover:bg-retro-accent4/40"
-                                                                          : "bg-white/50 border-retro-green text-black/60 hover:bg-white/80 hover:text-black"
+                                                                          ? "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4 hover:bg-retro-accent4/40"
+                                                                          : "bg-white/50 border-retro-green text-retro-green hover:bg-white/80"
                                                                 }`}
                                                             >
                                                                 {getSectionNumber(
@@ -659,7 +669,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                         className={`p-1.5 border-2 transition-all duration-100 ${
                                                             isOpen
                                                                 ? "bg-black text-white border-black"
-                                                                : "bg-white/50 border-retro-green text-black/50 hover:bg-white/80 hover:text-black"
+                                                                : "bg-white/50 border-retro-green text-retro-green hover:bg-white/80"
                                                         }`}
                                                     >
                                                         <ChevronDown
@@ -673,7 +683,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                             toggleAddSubject(subject)
                                                         }
                                                         title="추가 취소"
-                                                        className="p-1.5 border-2 bg-white/50 border-retro-green text-black/50 hover:bg-white/80 hover:text-black transition-all duration-100"
+                                                        className="p-1.5 border-2 bg-white/50 border-retro-green text-retro-green hover:bg-white/80 transition-all duration-100"
                                                     >
                                                         <Trash2
                                                             size={14}
@@ -704,7 +714,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                         blockers.length ===
                                                                         0
                                                                             ? "bg-retro-green/20 border-black"
-                                                                            : "bg-retro-accent4/25 border-retro-accent4 text-black/70"
+                                                                            : "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4"
                                                                     }`}
                                                                 >
                                                                     <span className="font-black">
@@ -775,7 +785,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                         : "bg-black text-white border-black"
                                                                     : isDropped
                                                                       ? // 드랍한 카드 안에서는 버튼도 카드 색을 따릅니다
-                                                                        "bg-white/50 border-retro-primary text-black/50 hover:bg-white/80 hover:text-black"
+                                                                        "bg-white/50 border-retro-primary text-retro-primary hover:bg-white/80"
                                                                       : "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                             }`}
                                                         >
@@ -793,7 +803,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                             isOpen
                                                                 ? "bg-black text-white border-black"
                                                                 : isDropped
-                                                                  ? "bg-white/50 border-retro-primary text-black/50 hover:bg-white/80 hover:text-black"
+                                                                  ? "bg-white/50 border-retro-primary text-retro-primary hover:bg-white/80"
                                                                   : "bg-white border-black text-black/40 hover:border-black hover:text-black"
                                                         }`}
                                                     >
@@ -824,7 +834,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                 sib.id === sec.id
                                                                     ? []
                                                                     : findBlockers(
-                                                                          schedule.filter(
+                                                                          activeSchedule.filter(
                                                                               (s) =>
                                                                                   s.subject !==
                                                                                   sec.subject,
@@ -842,7 +852,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                             : blockers.length ===
                                                                                 0
                                                                               ? "bg-retro-green/20 border-black"
-                                                                              : "bg-retro-accent4/25 border-retro-accent4 text-black/70"
+                                                                              : "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4"
                                                                     }`}
                                                                 >
                                                                     <span className="font-black">

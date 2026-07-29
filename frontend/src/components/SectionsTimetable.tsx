@@ -28,7 +28,7 @@ interface CellEntry {
 const STATE_STYLE: Record<CellState, string> = {
     current: "bg-retro-accent1 border-black text-black",
     free: "bg-retro-accent1/25 border-black/40 text-black",
-    blocked: "bg-retro-accent4/25 border-retro-accent4 text-black/70",
+    blocked: "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4",
 };
 
 const STATE_LABEL: Record<CellState, string> = {
