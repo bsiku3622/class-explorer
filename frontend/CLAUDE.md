@@ -15,6 +15,7 @@ src/
 │   ├── utils.ts              → 공통 상수 + 유틸 함수
 │   ├── searchEngine.ts       → 클라이언트 검색 엔진 (논리 연산 + 유사도 매칭)
 │   ├── tradeEngine.ts        → 수강 변경 조합 탐색 (슬롯 충돌 기반)
+│   ├── curriculum.ts         → 졸업 요건 진척도 + 선수관계 그래프 배치
 │   └── features.ts           → 한시 기능 노출 플래그 (TRADE_FEATURE)
 ├── constants/
 │   └── motion.ts             → Framer Motion 설정값
@@ -28,6 +29,7 @@ src/
 │   ├── AnalysisPage.tsx      → 학사 통계 대시보드
 │   ├── BrowsePage.tsx        → 학생/교사 목록 탐색 (모드 토글 + 학년 필터)
 │   ├── TradePage.tsx         → 수강 변경 탐색 (2026-2 한정, features 플래그)
+│   ├── PlanPage.tsx          → 교육과정 이수 현황 + 선수관계 그래프
 │   └── SettingsPage.tsx      → 기능 가이드북 + About
 └── components/
     ├── atoms/                → 재사용 원자 컴포넌트 9종
@@ -110,6 +112,7 @@ src/
 | [src/App.guide.md](src/App.guide.md) | App.tsx 상세 |
 | [src/lib/searchEngine.guide.md](src/lib/searchEngine.guide.md) | 검색 엔진 상세 |
 | [src/lib/tradeEngine.guide.md](src/lib/tradeEngine.guide.md) | 수강 변경 탐색 엔진 상세 |
+| [src/lib/curriculum.guide.md](src/lib/curriculum.guide.md) | 교육과정 진척도·그래프 상세 |
 
 ## 한시 기능 (features.ts)
 `TRADE_FEATURE.enabled`를 `false`로 내리면 `/trade` 라우트와 메뉴가 통째로 사라집니다.
