@@ -208,10 +208,30 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
         return findPlans({ schedule, index, actions, addSelections, moveTargets });
     }, [stuId, schedule, index, actions, addSelections, moveTargets]);
 
-    const previewPlan = useMemo(
-        () => plans.find((p) => p.key === previewKey) ?? null,
-        [plans, previewKey],
+    /** 분반을 직접 고르지 않고 "자동"으로 둔 항목이 있는지 */
+    const hasAutoChoice = useMemo(
+        () =>
+            addSelections.some((a) => a.sectionId === null) ||
+            schedule.some(
+                (s) =>
+                    (actions[s.subject] ?? "keep") === "move" &&
+                    moveTargets[s.subject] == null,
+            ),
+        [addSelections, schedule, actions, moveTargets],
     );
+
+    /**
+     * 미리 볼 조합. 사용자가 고른 게 있으면 그것을,
+     * 없더라도 자동으로 맡긴 항목이 있으면 첫 조합을 보여줍니다 —
+     * "자동"인데 시간표가 그대로면 아무 일도 안 한 것처럼 보이니까요.
+     */
+    const previewPlan = useMemo(() => {
+        if (previewKey) return plans.find((p) => p.key === previewKey) ?? null;
+        return hasAutoChoice ? (plans[0] ?? null) : null;
+    }, [plans, previewKey, hasAutoChoice]);
+
+    /** 자동으로 고른 조합인지 (사용자가 직접 누른 게 아님) */
+    const isAutoPreview = !previewKey && previewPlan !== null;
 
     /**
      * 왼쪽 시간표에 그릴 내용.
@@ -220,6 +240,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
      */
     const {
         previewSchedule,
+        effectiveSchedule,
         leavingSubjects,
         enteringSubjects,
         movedSubjects,
@@ -239,8 +260,10 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                 });
                 const dropped = schedule.filter((s) => leaving.has(s.subject));
                 // 빠지는 과목을 앞에 둬서, 같은 칸이 겹치면 새로 들어오는 쪽이 보이게 합니다
+                const applied = applyPlan(schedule, previewPlan);
                 return {
-                    previewSchedule: [...dropped, ...applyPlan(schedule, previewPlan)],
+                    previewSchedule: [...dropped, ...applied],
+                    effectiveSchedule: applied,
                     leavingSubjects: leaving,
                     enteringSubjects: entering,
                     movedSubjects: moved,
@@ -293,6 +316,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
             const dropped = schedule.filter((s) => leaving.has(s.subject));
             return {
                 previewSchedule: [...dropped, ...staying, ...added],
+                effectiveSchedule: [...staying, ...added],
                 leavingSubjects: leaving,
                 enteringSubjects: entering,
                 movedSubjects: moved,
@@ -335,10 +359,10 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
     const cellColorFor = useCallback(
         (time: { subject?: string }) => {
             if (!time.subject) return undefined;
+            if (conflictingSubjects.has(time.subject)) return "#ff9100";
             if (leavingSubjects.has(time.subject)) return "#ff4eba";
             if (movedSubjects.has(time.subject)) return "#00c8ff";
             if (enteringSubjects.has(time.subject)) return "#00c22a";
-            if (conflictingSubjects.has(time.subject)) return "#ff9100";
             return undefined;
         },
         [leavingSubjects, movedSubjects, enteringSubjects, conflictingSubjects],
@@ -406,16 +430,6 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
             .sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
     }, [dropSubjects, schedule, index]);
 
-    /**
-     * 드랍으로 표시한 과목을 뺀 시간표.
-     * 충돌 판정은 모두 이걸 기준으로 해야 합니다 — 이미 버리기로 한 과목이
-     * 계속 자리를 차지하는 것처럼 보이면 안 되니까요.
-     */
-    const activeSchedule = useMemo(
-        () => schedule.filter((s) => (actions[s.subject] ?? "keep") !== "drop"),
-        [schedule, actions],
-    );
-
     const addedSubjects = useMemo(
         () => addSelections.map((a) => a.subject),
         [addSelections],
@@ -441,14 +455,14 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
         const map = new Map<string, { free: number; total: number }>();
         [...addedSubjects, ...addMatches].forEach((subject) => {
             if (map.has(subject)) return;
-            const candidates = evaluateAddCandidates(activeSchedule, index, subject);
+            const candidates = evaluateAddCandidates(effectiveSchedule, index, subject);
             map.set(subject, {
                 free: candidates.filter((c) => c.blockers.length === 0).length,
                 total: candidates.length,
             });
         });
         return map;
-    }, [addedSubjects, addMatches, activeSchedule, index]);
+    }, [addedSubjects, addMatches, effectiveSchedule, index]);
 
     const studentColor = stuId ? getStudentColor(stuId) : "#000000";
 
@@ -552,7 +566,13 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                     <div className="lg:col-span-5 space-y-3">
                         <div className="flex items-center justify-between gap-2">
                             <RetroSubTitle
-                                title={previewPlan ? "Preview" : "Current Schedule"}
+                                title={
+                                    isAutoPreview
+                                        ? "Auto Preview"
+                                        : previewPlan
+                                          ? "Preview"
+                                          : "Current Schedule"
+                                }
                             />
                             {previewPlan && (
                                 <RetroButton
@@ -603,9 +623,11 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                             </div>
                         )}
                         <p className="text-[10px] font-bold text-black/40">
-                            {previewPlan
-                                ? "* 선택한 조합을 적용한 결과입니다. 실제 신청은 직접 진행해야 합니다."
-                                : "* 지정한 드랍·추가가 바로 반영됩니다. 분반을 정하지 않은 추가 과목은 그리지 않습니다."}
+                            {isAutoPreview
+                                ? "* 자동으로 맡긴 항목을 아래 조합 중 첫 번째로 배치해본 결과입니다. 다른 조합을 눌러 바꿔볼 수 있습니다."
+                                : previewPlan
+                                  ? "* 선택한 조합을 적용한 결과입니다. 실제 신청은 직접 진행해야 합니다."
+                                  : "* 지정한 드랍·이동·추가가 바로 반영됩니다."}
                         </p>
                     </div>
 
@@ -619,7 +641,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                     const siblings = index.get(subject) ?? [];
                                     const isOpen = openSubject === subject;
                                     const candidates = evaluateAddCandidates(
-                                        activeSchedule,
+                                        effectiveSchedule,
                                         index,
                                         subject,
                                     );
@@ -820,7 +842,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                         ? siblings.find((s) => s.id === moveTarget)
                                         : undefined;
                                     // 이동 후보별 충돌 — 다른 과목(드랍 제외) 기준
-                                    const othersForMove = activeSchedule.filter(
+                                    const othersForMove = effectiveSchedule.filter(
                                         (s) => s.subject !== sec.subject,
                                     );
                                     const movableCount = isMoving
@@ -1013,7 +1035,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                 sib.id === sec.id
                                                                     ? []
                                                                     : findBlockers(
-                                                                          activeSchedule.filter(
+                                                                          effectiveSchedule.filter(
                                                                               (s) =>
                                                                                   s.subject !==
                                                                                   sec.subject,
@@ -1278,7 +1300,9 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                                 {plans.map((plan, i) => {
-                                    const active = plan.key === previewKey;
+                                    const active =
+                                        plan.key === previewKey ||
+                                        (isAutoPreview && plan.key === previewPlan?.key);
                                     return (
                                         <RetroCard
                                             key={plan.key}
@@ -1362,7 +1386,9 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                                 size={12}
                                                                 strokeWidth={3}
                                                             />
-                                                            Previewing
+                                                            {isAutoPreview
+                                                                ? "Auto"
+                                                                : "Previewing"}
                                                         </>
                                                     ) : (
                                                         "Click to preview"
