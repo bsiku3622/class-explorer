@@ -7,16 +7,28 @@
 backend/
 ├── main.py          → FastAPI 앱 + API 엔드포인트 (인증 포함)
 ├── models.py        → SQLAlchemy ORM 모델 (6개 테이블)
+├── migrations.py    → 앱 시작 시 실행되는 SQLite 스키마 마이그레이션 (멱등)
+├── terms.py         → 학년도/학기 해석 유틸 (current_term, list_terms, resolve_term)
 ├── database.py      → DB 연결 설정 (SQLite)
 ├── auth.py          → 패스워드 해싱, 세션 토큰 생성, get_current_user 의존성
 ├── auth_router.py   → 인증 엔드포인트 (/auth/*)
 ├── admin_router.py  → 관리자 전용 엔드포인트 (/admin/*)
 ├── create_user.py   → 관리자 계정 생성 CLI 스크립트
-├── parser.py        → KSAIN API 응답 파싱 로직
-├── parser_run.py    → 데이터 동기화 실행 스크립트
+├── parser.py        → KEIS API 응답 파싱 로직
+├── parser_run.py    → 학기별 데이터 동기화 실행 스크립트
 ├── students.txt     → 학생 목록 (학번 + 이름)
 └── ksa_timetable.db → SQLite 데이터베이스
 ```
+
+## 학기 모델
+
+수업 데이터는 **학기 단위**로 공존합니다 (`Class.year` / `Class.semester`).
+
+- 조회 기준 학기는 `terms.resolve_term(db, year, semester)`로 결정 — 둘 다 주어졌을 때만 그대로, 아니면 최신 학기
+- 수집은 `parser_run.py`가 학기 단위로 원자적 교체 — 다른 학기 데이터는 건드리지 않음
+- `Student`는 학기 공통 마스터. 학기별 재적 여부는 `Enrollment → Class` 조인으로 판단
+- `SubjectAlias`는 학기 무관 전역 (과목명이 같으면 재사용)
+- 스키마 변경은 `migrations.py`에서 처리 — `main.py` import 시 자동 실행
 
 ## DB 스키마 (models.py)
 
@@ -52,14 +64,15 @@ UniqueConstraint (subject, alias)
 ```
 students.txt (학번 목록)
       ↓
-asyncio + httpx (동시 요청 최대 20개)
+asyncio + httpx (동시 요청 최대 20개, 실패 시 2회 재시도)
       ↓
-KSAIN API: https://api.ksain.net/ksain/timetable.php
+KEIS API: https://keis.ksa.hs.kr/restapi/v1/schedule/{stuId}/{year}/{semester}
       ↓
-parse_ksain_data() → [{subject, section, teacher, room, times}]
+parse_schedule() → [{subject, section, teacher, room, times}]
       ↓
-SQLite UPSERT (Student, Class, ClassTime, Enrollment)
+[전원 수집 후] 해당 학기 Class/ClassTime/Enrollment 전량 교체
 ```
+수집 도중 실패해도 DB는 변경되지 않습니다. 요청 실패가 과반을 넘으면 중단합니다.
 
 ## 실행 방법
 
@@ -70,7 +83,8 @@ uvicorn backend.main:app --reload
 
 ### 데이터 동기화
 ```bash
-python -m backend.parser_run
+python -m backend.parser_run                       # 오늘 날짜 기준 학기
+python -m backend.parser_run --year 2026 --semester 2
 ```
 
 ### 계정 생성 (관리자 CLI)
@@ -91,11 +105,12 @@ python -m backend.create_user <username> <password>
 | `DELETE` | `/admin/sessions/{id}` | 세션 강제 종료 |
 | `GET` | `/admin/students?q=` | 학생 목록 (학번/이름 필터) |
 | `PATCH` | `/admin/students/{stuId}` | 학생 이름 수정 (`{"name": "..."}`) |
-| `GET` | `/admin/teachers` | 교사 목록 + 담당 분반 수 |
-| `PATCH` | `/admin/teachers/{teacher_name}` | 교사 이름 일괄 변경 (`{"new_name": "..."}`) |
-| `GET` | `/admin/subjects` | 전체 과목 + 별칭 목록 |
-| `PUT` | `/admin/subjects/{subject}/aliases` | 과목 별칭 전체 교체 (`{"aliases": [...]}`) |
-| `POST` | `/admin/sync` | 데이터 재수집 (parser_run) |
+| `GET` | `/admin/teachers?year=&semester=` | 교사 목록 + 담당 분반 수 (학기 기본값=최신) |
+| `PATCH` | `/admin/teachers/{teacher_name}` | 교사 이름 일괄 변경 (`{"new_name": "..."}`, 전 학기 적용) |
+| `GET` | `/admin/subjects?year=&semester=` | 해당 학기 과목 + 별칭 목록 (학기 기본값=최신) |
+| `PUT` | `/admin/subjects/{subject}/aliases` | 과목 별칭 전체 교체 (`{"aliases": [...]}`, 학기 무관) |
+| `GET` | `/admin/terms` | 데이터가 존재하는 학기 목록 |
+| `POST` | `/admin/sync` | 데이터 재수집 (`{"year": 2026, "semester": 2}` 선택, 생략 시 오늘 기준 학기) |
 
 ## 인증 시스템
 - **방식**: Session Token (랜덤 48바이트, DB 저장) — 매 요청마다 DB 조회

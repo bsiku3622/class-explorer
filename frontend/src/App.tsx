@@ -8,7 +8,7 @@ import {
     Route,
     Navigate,
 } from "react-router-dom";
-import type { SubjectData, Stats, SearchResultStats } from "./types";
+import type { SubjectData, Stats, SearchResultStats, Term } from "./types";
 import { searchInClient } from "./lib/searchEngine";
 import { useModifierKey } from "./hooks/useModifierKey";
 import Navigation from "./components/Navigation";
@@ -25,7 +25,31 @@ const LoginPage = React.lazy(() => import("./pages/LoginPage"));
 const AdminPage = React.lazy(() => import("./pages/AdminPage"));
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
-const CACHE_KEY = "ksa_class_finder_cache";
+const CACHE_PREFIX = "ksa_class_finder_cache";
+const TERM_KEY = "ksa_selected_term";
+const CACHE_EXPIRY = 60 * 60 * 1000;
+
+/** 데이터 캐시는 학기별로 분리 보관 */
+const cacheKeyFor = (term: Term) => `${CACHE_PREFIX}_${term.year}_${term.semester}`;
+
+const clearDataCache = () => {
+    Object.keys(localStorage)
+        .filter((key) => key.startsWith(CACHE_PREFIX))
+        .forEach((key) => localStorage.removeItem(key));
+};
+
+const loadSavedTerm = (): Term | null => {
+    try {
+        const raw = localStorage.getItem(TERM_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return typeof parsed?.year === "number" && typeof parsed?.semester === "number"
+            ? { year: parsed.year, semester: parsed.semester }
+            : null;
+    } catch {
+        return null;
+    }
+};
 
 const App: React.FC = () => {
     const location = useLocation();
@@ -64,6 +88,8 @@ const App: React.FC = () => {
         "general" | "student" | "teacher" | "room"
     >("general");
     const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
+    const [term, setTerm] = useState<Term | null>(loadSavedTerm);
+    const [availableTerms, setAvailableTerms] = useState<Term[]>([]);
 
     const isModifierPressed = useModifierKey();
 
@@ -81,7 +107,7 @@ const App: React.FC = () => {
             }
         }
         localStorage.removeItem(SESSION_TOKEN_KEY);
-        localStorage.removeItem(CACHE_KEY);
+        clearDataCache();
         setSessionToken(null);
         setCurrentUser(null);
         setAllClassesData([]);
@@ -156,19 +182,25 @@ const App: React.FC = () => {
         return map;
     }, [allClassesData]);
 
-    const fetchInitialData = async (force: boolean = false) => {
+    const fetchInitialData = async (force: boolean = false, targetTerm?: Term) => {
         const token = localStorage.getItem(SESSION_TOKEN_KEY);
         if (!token) return;
+        // 학기 미지정(최초 진입)이면 서버가 최신 학기를 골라 응답합니다
+        const requestedTerm = targetTerm ?? term;
         try {
             setLoading(true);
-            const cached = !force && localStorage.getItem(CACHE_KEY);
+            const cached =
+                !force && requestedTerm
+                    ? localStorage.getItem(cacheKeyFor(requestedTerm))
+                    : null;
             if (cached) {
-                const { timestamp, student_counts, data } = JSON.parse(cached);
-                const CACHE_EXPIRY = 60 * 60 * 1000;
+                const { timestamp, student_counts, data, available_terms } =
+                    JSON.parse(cached);
                 if (Date.now() - timestamp < CACHE_EXPIRY) {
                     setStudentCounts(student_counts);
                     setSelectedYears(Object.keys(student_counts));
                     setAllClassesData(data);
+                    if (available_terms) setAvailableTerms(available_terms);
                     setLastUpdated(timestamp);
                     setLoading(false);
                     return;
@@ -176,13 +208,31 @@ const App: React.FC = () => {
             }
             const response = await api.get("/", {
                 headers: { Authorization: `Bearer ${token}` },
+                params: requestedTerm
+                    ? { year: requestedTerm.year, semester: requestedTerm.semester }
+                    : undefined,
             });
-            const { student_counts, data } = response.data;
+            const {
+                student_counts,
+                data,
+                term: resolvedTerm,
+                available_terms,
+            } = response.data;
             const now = Date.now();
-            localStorage.setItem(
-                CACHE_KEY,
-                JSON.stringify({ timestamp: now, student_counts, data }),
-            );
+            if (resolvedTerm) {
+                localStorage.setItem(
+                    cacheKeyFor(resolvedTerm),
+                    JSON.stringify({
+                        timestamp: now,
+                        student_counts,
+                        data,
+                        available_terms,
+                    }),
+                );
+                localStorage.setItem(TERM_KEY, JSON.stringify(resolvedTerm));
+                setTerm(resolvedTerm);
+            }
+            if (available_terms) setAvailableTerms(available_terms);
             setStudentCounts(student_counts);
             setSelectedYears(Object.keys(student_counts));
             setAllClassesData(data);
@@ -197,6 +247,17 @@ const App: React.FC = () => {
             setLoading(false);
         }
     };
+
+    const handleTermChange = useCallback(
+        (next: Term) => {
+            if (term?.year === next.year && term?.semester === next.semester) return;
+            setTerm(next);
+            localStorage.setItem(TERM_KEY, JSON.stringify(next));
+            fetchInitialData(false, next);
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [term],
+    );
 
     const handleSearch = useCallback(() => {
         if (allClassesData.length === 0 || location.pathname !== "/") return;
@@ -287,6 +348,11 @@ const App: React.FC = () => {
     }, [searchTerm, location.pathname, navigate]);
 
     useEffect(() => {
+        // 학기 분리 이전 버전이 남긴 캐시 정리
+        localStorage.removeItem(CACHE_PREFIX);
+    }, []);
+
+    useEffect(() => {
         if (!sessionToken) { setLoading(false); return; }
         const token = localStorage.getItem(SESSION_TOKEN_KEY);
         api.get("/auth/me", { headers: { Authorization: `Bearer ${token}` } })
@@ -370,6 +436,9 @@ const App: React.FC = () => {
                 onLogout={handleLogout}
                 isAdmin={currentUser?.is_admin ?? false}
                 username={currentUser?.username ?? ""}
+                terms={availableTerms}
+                currentTerm={term}
+                onTermChange={handleTermChange}
             />
             <div className="flex pt-20">
                 <Sidebar

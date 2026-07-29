@@ -1,15 +1,28 @@
 import React from "react";
 import { Navbar, NavbarBrand, NavbarContent } from "@heroui/react";
 import { LogOut, ShieldCheck } from "lucide-react";
+import TermSwitcher from "./TermSwitcher";
+import type { Term } from "../types";
 
 interface NavigationProps {
     onLogoClick: () => void;
     onLogout: () => void;
     isAdmin?: boolean;
     username?: string;
+    terms?: Term[];
+    currentTerm?: Term | null;
+    onTermChange?: (term: Term) => void;
 }
 
-const Navigation: React.FC<NavigationProps> = ({ onLogoClick, onLogout, isAdmin = false, username = "" }) => {
+const Navigation: React.FC<NavigationProps> = ({
+    onLogoClick,
+    onLogout,
+    isAdmin = false,
+    username = "",
+    terms = [],
+    currentTerm = null,
+    onTermChange,
+}) => {
     return (
         <Navbar
             isBordered={false}
@@ -24,7 +37,14 @@ const Navigation: React.FC<NavigationProps> = ({ onLogoClick, onLogout, isAdmin 
                     Class Explorer
                 </button>
             </NavbarBrand>
-            <NavbarContent justify="end" className="gap-6">
+            <NavbarContent justify="end" className="gap-3 sm:gap-6">
+                {onTermChange && (
+                    <TermSwitcher
+                        terms={terms}
+                        current={currentTerm}
+                        onChange={onTermChange}
+                    />
+                )}
                 {username && (
                     <span className="hidden sm:flex items-center gap-1.5 text-white/50 text-[11px] font-black uppercase tracking-widest">
                         {isAdmin && <ShieldCheck size={12} className="text-white/60" />}

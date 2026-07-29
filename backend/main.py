@@ -1,33 +1,22 @@
 import os
 import re
-from fastapi import FastAPI, Depends, Response
+from fastapi import FastAPI, Depends, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 from sqlalchemy.orm import Session, selectinload, joinedload
-from sqlalchemy import text
 
 from backend import models
 from backend.database import engine, SessionLocal
 from backend.auth import get_current_user, get_db
 from backend.auth_router import router as auth_router
 from backend.admin_router import router as admin_router
+from backend.migrations import run_migrations
+from backend.terms import list_terms, resolve_term
 
 # ───────────── DB 초기화 ─────────────
 models.Base.metadata.create_all(bind=engine)
-
-# 컬럼 추가 마이그레이션
-with engine.connect() as _conn:
-    for _stmt in [
-        "ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0 NOT NULL",
-        "ALTER TABLE sessions ADD COLUMN ip_address VARCHAR",
-        "CREATE TABLE IF NOT EXISTS subject_aliases (id INTEGER PRIMARY KEY, subject VARCHAR NOT NULL, alias VARCHAR NOT NULL, UNIQUE (subject, alias))",
-    ]:
-        try:
-            _conn.execute(text(_stmt))
-            _conn.commit()
-        except Exception:
-            pass  # 이미 존재하면 무시
+run_migrations(engine)
 
 # ───────────── FastAPI 앱 생성 ─────────────
 app = FastAPI()
@@ -99,18 +88,34 @@ def get_section_num(section_str):
     return int(match.group(1)) if match else 0
 
 # ───────────── 메인 엔드포인트 ─────────────
-@app.get("/")
-async def get_all_data(
-    response: Response,
+@app.get("/terms")
+async def get_terms(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """전체 수업/학생/별칭 데이터 반환 (인증 필요)"""
+    """데이터가 존재하는 학기 목록 (최신순)"""
+    return {"terms": list_terms(db)}
+
+
+@app.get("/")
+async def get_all_data(
+    response: Response,
+    year: int | None = Query(default=None, ge=2000, le=2100),
+    semester: int | None = Query(default=None, ge=1, le=2),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """지정 학기의 수업/학생/별칭 데이터 반환 (인증 필요). 학기 미지정 시 최신 학기."""
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     response.headers["Pragma"] = "no-cache"
 
+    target_year, target_semester = resolve_term(db, year, semester)
+
     # 1. 수업 및 수강 정보 조회
-    all_classes = db.query(models.Class).options(
+    all_classes = db.query(models.Class).filter(
+        models.Class.year == target_year,
+        models.Class.semester == target_semester,
+    ).options(
         selectinload(models.Class.enrollments).joinedload(models.Enrollment.student),
         selectinload(models.Class.times),
     ).all()
@@ -139,10 +144,9 @@ async def get_all_data(
             )
         })
 
-    # 2. 학년별 전체 학생 수 통계
-    all_students = db.query(models.Student.stuId).all()
+    # 2. 학년별 학생 수 통계 (해당 학기 수강 이력이 있는 학생 기준)
     student_counts = {}
-    for (s_id,) in all_students:
+    for s_id in total_active_students:
         yr = s_id.split("-")[0] if "-" in s_id else "Unknown"
         student_counts[yr] = student_counts.get(yr, 0) + 1
 
@@ -167,6 +171,8 @@ async def get_all_data(
         })
 
     return {
+        "term": {"year": target_year, "semester": target_semester},
+        "available_terms": list_terms(db),
         "stats": {
             "total_subjects": len(final_data),
             "total_sections": len(all_classes),

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.auth import get_current_admin, get_db, hash_password
+from backend.terms import list_terms, resolve_term
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -183,14 +184,22 @@ class RenameTeacherRequest(BaseModel):
 
 @router.get("/teachers")
 def list_teachers(
+    year: int | None = Query(default=None, ge=2000, le=2100),
+    semester: int | None = Query(default=None, ge=1, le=2),
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_admin),
 ):
-    """교사 목록 + 담당 분반 수 반환"""
+    """교사 목록 + 담당 분반 수 반환 (학기 미지정 시 최신 학기 기준)"""
     from sqlalchemy import func
+    target_year, target_semester = resolve_term(db, year, semester)
     rows = (
         db.query(models.Class.teacher, func.count(models.Class.id).label("section_count"))
-        .filter(models.Class.teacher != None, models.Class.teacher != "배정중")
+        .filter(
+            models.Class.teacher != None,
+            models.Class.teacher != "배정중",
+            models.Class.year == target_year,
+            models.Class.semester == target_semester,
+        )
         .group_by(models.Class.teacher)
         .order_by(models.Class.teacher)
         .all()
@@ -227,12 +236,22 @@ class SetAliasesRequest(BaseModel):
 
 @router.get("/subjects")
 def list_subjects(
+    year: int | None = Query(default=None, ge=2000, le=2100),
+    semester: int | None = Query(default=None, ge=1, le=2),
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_admin),
 ):
-    """DB에 존재하는 모든 과목 + 각 과목의 별칭 목록 반환"""
+    """해당 학기 과목 + 각 과목의 별칭 목록 반환 (별칭은 학기 무관 전역)"""
     from backend import models as m
-    subjects = [row[0] for row in db.query(m.Class.subject).distinct().order_by(m.Class.subject).all()]
+    target_year, target_semester = resolve_term(db, year, semester)
+    subjects = [
+        row[0]
+        for row in db.query(m.Class.subject)
+        .filter(m.Class.year == target_year, m.Class.semester == target_semester)
+        .distinct()
+        .order_by(m.Class.subject)
+        .all()
+    ]
     all_aliases = db.query(m.SubjectAlias).all()
     alias_map: dict[str, list[str]] = {}
     for a in all_aliases:
@@ -263,13 +282,35 @@ def set_subject_aliases(
     return {"subject": subject, "aliases": sorted(seen)}
 
 
+# ─── 학기 목록 ───────────────────────────────────────────────────────────────
+@router.get("/terms")
+def get_terms(
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    """데이터가 존재하는 학기 목록 (최신순)"""
+    return {"terms": list_terms(db)}
+
+
 # ─── 데이터 동기화 ───────────────────────────────────────────────────────────
+class SyncRequest(BaseModel):
+    year: int | None = Field(default=None, ge=2000, le=2100)
+    semester: int | None = Field(default=None, ge=1, le=2)
+
+
 @router.post("/sync")
-def sync_data(_: models.User = Depends(get_current_admin)):
-    """KSAIN API에서 수업 데이터 재수집"""
+def sync_data(
+    body: SyncRequest | None = None,
+    _: models.User = Depends(get_current_admin),
+):
+    """KEIS API에서 수업 데이터 재수집. 학기 미지정 시 오늘 날짜 기준 학기."""
+    cmd = [sys.executable, "-m", "backend.parser_run"]
+    if body and body.year is not None and body.semester is not None:
+        cmd += ["--year", str(body.year), "--semester", str(body.semester)]
+
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "backend.parser_run"],
+            cmd,
             capture_output=True,
             text=True,
             timeout=300,

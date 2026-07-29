@@ -16,12 +16,16 @@ class Class(Base):
     section = Column(String)             # 분반
     teacher = Column(String)             # 교사
     room = Column(String)                # 강의실 (대표 강의실)
+    year = Column(Integer, index=True, nullable=False)     # 학년도 (예: 2026)
+    semester = Column(Integer, index=True, nullable=False) # 학기 (1 | 2)
 
     enrollments = relationship("Enrollment", back_populates="class_info")
     times = relationship("ClassTime", back_populates="class_info", cascade="all, delete-orphan")
 
-    # 동일한 과목/분반/교사 조합이 중복되지 않도록 설정
-    __table_args__ = (UniqueConstraint('subject', 'section', 'teacher', name='_subject_section_uc'),)
+    # 동일 학기 안에서 과목/분반/교사 조합이 중복되지 않도록 설정
+    __table_args__ = (
+        UniqueConstraint('subject', 'section', 'teacher', 'year', 'semester', name='_subject_section_uc'),
+    )
 
 class ClassTime(Base):
     __tablename__ = "class_times"

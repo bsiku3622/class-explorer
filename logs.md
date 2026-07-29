@@ -1,5 +1,10 @@
 # Logs
 
+## 2026-07-29 — KEIS API 전환 및 학기별 데이터 구조 도입
+
+- 변경 파일: `backend/parser.py`, `backend/parser_run.py`, `backend/models.py`, `backend/migrations.py` (신규), `backend/terms.py` (신규), `backend/main.py`, `backend/admin_router.py`, `frontend/src/App.tsx`, `frontend/src/components/Navigation.tsx`, `frontend/src/components/TermSwitcher.tsx` (신규), `frontend/src/types/index.ts`
+- 요약: 데이터 소스를 `api.ksain.net`에서 `keis.ksa.hs.kr/restapi/v1/schedule/{stuId}/{year}/{semester}`로 전환. 응답 포맷은 동일하나 교시를 배열 인덱스가 아닌 `kyosi` 필드로 읽도록 파서 재작성(12교시 대응, 강의실 `"배정중"` 처리, 대표 강의실 선정). `Class`에 `year`/`semester`를 추가해 학기별 데이터를 한 DB에 공존시키고, `UniqueConstraint`를 `(subject, section, teacher, year, semester)`로 확장 — SQLite 제약 변경 불가로 `migrations.py`에서 테이블 재생성(id 보존해 FK 유지, 기존 데이터는 2026-1로 지정). `parser_run.py`는 학기 단위 원자적 교체 방식으로 재작성(전원 수집 후 반영, 재시도 2회, 요청 실패 과반 시 중단, `students.txt` 파괴적 덮어쓰기를 `--prune` 옵션으로 분리). `GET /`에 `year`/`semester` 쿼리와 `GET /terms` 추가, admin의 teachers/subjects도 학기 필터. 프론트는 `TermSwitcher`로 학기 전환하며 캐시 키를 학기별로 분리하고 선택 학기를 `ksa_selected_term`에 보존. 2026-2 수집 결과 342명 동기화(237분반), 2026-1(357명·247분반) 보존 확인.
+
 ## 2026-03-17 — 효율성 수정 3건
 
 - 변경 파일: `backend/auth_router.py`, `frontend/src/lib/searchEngine.ts`, `frontend/src/pages/AnalysisPage.tsx`
