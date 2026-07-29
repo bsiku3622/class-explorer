@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 import type { SubjectData, Stats, SearchResultStats, Term } from "./types";
 import { searchInClient } from "./lib/searchEngine";
+import { isTradeAvailable } from "./lib/features";
 import { useModifierKey } from "./hooks/useModifierKey";
 import Navigation from "./components/Navigation";
 import Sidebar from "./components/Sidebar";
@@ -23,6 +24,7 @@ const BrowsePage = React.lazy(() => import("./pages/BrowsePage"));
 const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
 const LoginPage = React.lazy(() => import("./pages/LoginPage"));
 const AdminPage = React.lazy(() => import("./pages/AdminPage"));
+const TradePage = React.lazy(() => import("./pages/TradePage"));
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
 const CACHE_PREFIX = "ksa_class_finder_cache";
@@ -92,6 +94,7 @@ const App: React.FC = () => {
     const [availableTerms, setAvailableTerms] = useState<Term[]>([]);
 
     const isModifierPressed = useModifierKey();
+    const tradeAvailable = isTradeAvailable(term);
 
     const handleLogout = useCallback(async () => {
         const token = localStorage.getItem(SESSION_TOKEN_KEY);
@@ -451,6 +454,7 @@ const App: React.FC = () => {
                         navigate(id === "home" ? "/" : `/${id}`)
                     }
                     isAdmin={currentUser?.is_admin ?? false}
+                    showTrade={tradeAvailable}
                 />
                 <main className="flex-1 p-4 md:p-10 transition-all duration-300 md:ml-64 min-w-0 pb-20 md:pb-10">
                     <div className="max-w-6xl mx-auto">
@@ -521,6 +525,17 @@ const App: React.FC = () => {
                                     />
                                 }
                             />
+                            {tradeAvailable && (
+                                <Route
+                                    path="/trade"
+                                    element={
+                                        <TradePage
+                                            allClassesData={allClassesData}
+                                            term={term}
+                                        />
+                                    }
+                                />
+                            )}
                             <Route
                                 path="/about"
                                 element={<SettingsPage />}
@@ -546,6 +561,7 @@ const App: React.FC = () => {
                 setActivePage={(id) =>
                     navigate(id === "home" ? "/" : `/${id}`)
                 }
+                showTrade={tradeAvailable}
             />
         </div>
     );

@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Map, BarChart3, Library, Info } from "lucide-react";
+import { Search, Map, BarChart3, Library, Info, ArrowLeftRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface BottomNavItemProps {
@@ -28,14 +28,18 @@ const BottomNavItem: React.FC<BottomNavItemProps> = ({ icon: Icon, label, isActi
 interface BottomNavProps {
     activePage: string;
     setActivePage: (page: string) => void;
+    /** 수강 변경 탐색 — 정정 기간에만 노출 */
+    showTrade?: boolean;
 }
 
-const BottomNav: React.FC<BottomNavProps> = ({ activePage, setActivePage }) => {
+const BottomNav: React.FC<BottomNavProps> = ({ activePage, setActivePage, showTrade = false }) => {
     const menuItems = [
         { id: "home", label: "Search", icon: Search },
         { id: "emptyroomfinder", label: "Rooms", icon: Map },
         { id: "analysis", label: "Analysis", icon: BarChart3 },
-        { id: "browse", label: "Browse", icon: Library },
+        ...(showTrade
+            ? [{ id: "trade", label: "Trade", icon: ArrowLeftRight }]
+            : [{ id: "browse", label: "Browse", icon: Library }]),
         { id: "about", label: "About", icon: Info },
     ];
 

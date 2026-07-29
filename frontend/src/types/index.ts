@@ -32,6 +32,8 @@ export interface SubjectData {
     subject_student_count: number;
     section_count: number;
     sections: Section[];
+    /** 검색용 별칭 (관리자 등록) */
+    aliases?: string[];
 }
 
 export interface Stats {

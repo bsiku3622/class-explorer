@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Map, BarChart3, Library, Info, ShieldCheck } from "lucide-react";
+import { Search, Map, BarChart3, Library, Info, ShieldCheck, ArrowLeftRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface SidebarItemProps {
@@ -29,14 +29,17 @@ interface SidebarProps {
     activePage: string;
     setActivePage: (page: string) => void;
     isAdmin?: boolean;
+    /** 수강 변경 탐색 — 정정 기간에만 노출 */
+    showTrade?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, isAdmin = false }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, isAdmin = false, showTrade = false }) => {
     const menuItems = [
         { id: "home", label: "Search", icon: Search },
         { id: "emptyroomfinder", label: "Rooms", icon: Map },
         { id: "analysis", label: "Analysis", icon: BarChart3 },
         { id: "browse", label: "Browse", icon: Library },
+        ...(showTrade ? [{ id: "trade", label: "Trade", icon: ArrowLeftRight }] : []),
         { id: "about", label: "About", icon: Info },
     ];
 

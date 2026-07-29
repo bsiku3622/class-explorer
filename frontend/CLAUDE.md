@@ -13,7 +13,9 @@ src/
 ├── lib/
 │   ├── api.ts                → axios 인스턴스 (VITE_API_BASE_URL 기반 baseURL)
 │   ├── utils.ts              → 공통 상수 + 유틸 함수
-│   └── searchEngine.ts       → 클라이언트 검색 엔진 (논리 연산)
+│   ├── searchEngine.ts       → 클라이언트 검색 엔진 (논리 연산 + 유사도 매칭)
+│   ├── tradeEngine.ts        → 수강 변경 조합 탐색 (슬롯 충돌 기반)
+│   └── features.ts           → 한시 기능 노출 플래그 (TRADE_FEATURE)
 ├── constants/
 │   └── motion.ts             → Framer Motion 설정값
 ├── hooks/
@@ -25,6 +27,7 @@ src/
 │   ├── RoomsPage.tsx         → 빈 강의실 탐색
 │   ├── AnalysisPage.tsx      → 학사 통계 대시보드
 │   ├── BrowsePage.tsx        → 학생/교사 목록 탐색 (모드 토글 + 학년 필터)
+│   ├── TradePage.tsx         → 수강 변경 탐색 (2026-2 한정, features 플래그)
 │   └── SettingsPage.tsx      → 기능 가이드북 + About
 └── components/
     ├── atoms/                → 재사용 원자 컴포넌트 9종
@@ -104,3 +107,8 @@ src/
 | [component-guide.md](component-guide.md) | 컴포넌트 사전 |
 | [src/App.guide.md](src/App.guide.md) | App.tsx 상세 |
 | [src/lib/searchEngine.guide.md](src/lib/searchEngine.guide.md) | 검색 엔진 상세 |
+| [src/lib/tradeEngine.guide.md](src/lib/tradeEngine.guide.md) | 수강 변경 탐색 엔진 상세 |
+
+## 한시 기능 (features.ts)
+`TRADE_FEATURE.enabled`를 `false`로 내리면 `/trade` 라우트와 메뉴가 통째로 사라집니다.
+학기 조건(`year`/`semester`)도 함께 검사하므로 다른 학기를 보고 있으면 노출되지 않습니다.

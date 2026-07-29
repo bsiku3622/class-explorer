@@ -1,0 +1,374 @@
+import type { SubjectData, Section, SectionTime } from "../types";
+import { DAYS_ORDER } from "./utils";
+
+/**
+ * 수강 변경 탐색 엔진.
+ *
+ * 분반 이동 · 드랍 · 추가신청을 하나의 제약 탐색으로 처리합니다.
+ * 과목마다 "가능한 최종 상태"의 후보 목록을 만들고, 시간 슬롯이 겹치지 않는
+ * 조합을 백트래킹으로 찾습니다.
+ */
+
+/** `"MON-3"` 형태의 시간 슬롯 키 */
+export type SlotKey = string;
+
+export const toSlotKey = (day: string, period: number): SlotKey =>
+    `${day}-${period}`;
+
+export interface SectionInfo {
+    id: number;
+    subject: string;
+    section: string;
+    teacher: string;
+    room: string;
+    times: SectionTime[];
+    slots: SlotKey[];
+    studentCount: number;
+}
+
+/** 과목명 → 그 과목의 전체 분반 */
+export type SubjectIndex = Map<string, SectionInfo[]>;
+
+/** 과목에 지정할 수 있는 처리 방식 */
+export type PlanAction = "keep" | "move" | "drop";
+
+export interface PlanChoice {
+    subject: string;
+    /** 현재 듣는 분반. 신규 추가 과목이면 null */
+    from: SectionInfo | null;
+    /** 변경 후 분반. 드랍이면 null */
+    to: SectionInfo | null;
+}
+
+export interface PlanResult {
+    key: string;
+    /** 변화가 있는 항목만 담습니다 (유지된 과목은 제외) */
+    choices: PlanChoice[];
+    moveCount: number;
+    dropCount: number;
+    addCount: number;
+}
+
+export interface PlanSearchResult {
+    results: PlanResult[];
+    /** 상한에 걸려 일부만 반환했는지 */
+    truncated: boolean;
+}
+
+/** 결과 상한 — 조합이 폭발해도 UI가 감당할 수 있는 수준으로 자릅니다 */
+export const MAX_PLAN_RESULTS = 200;
+
+const sectionNumber = (section: string): number => {
+    const match = section.match(/\d+/);
+    return match ? parseInt(match[0], 10) : 0;
+};
+
+const toSectionInfo = (subject: string, sec: Section): SectionInfo => ({
+    id: sec.id,
+    subject,
+    section: sec.section,
+    teacher: sec.teacher,
+    room: sec.room,
+    times: sec.times || [],
+    slots: (sec.times || []).map((t) => toSlotKey(t.day, t.period)),
+    studentCount: sec.student_count ?? sec.students?.length ?? 0,
+});
+
+export const buildSubjectIndex = (allClassesData: SubjectData[]): SubjectIndex => {
+    const index: SubjectIndex = new Map();
+    allClassesData.forEach((subj) => {
+        const sections = subj.sections
+            .map((sec) => toSectionInfo(subj.subject, sec))
+            .sort((a, b) => sectionNumber(a.section) - sectionNumber(b.section));
+        index.set(subj.subject, sections);
+    });
+    return index;
+};
+
+/** 특정 학생이 듣는 분반 목록 */
+export const getStudentSchedule = (
+    allClassesData: SubjectData[],
+    stuId: string,
+): SectionInfo[] => {
+    const result: SectionInfo[] = [];
+    allClassesData.forEach((subj) => {
+        subj.sections.forEach((sec) => {
+            if (sec.students?.some((s) => s.stuId === stuId)) {
+                result.push(toSectionInfo(subj.subject, sec));
+            }
+        });
+    });
+    return result.sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
+};
+
+const conflicts = (slots: SlotKey[], used: Set<SlotKey>): boolean =>
+    slots.some((s) => used.has(s));
+
+/** 두 분반이 시간상 겹치는지 */
+export const sectionsOverlap = (a: SectionInfo, b: SectionInfo): boolean => {
+    const set = new Set(a.slots);
+    return b.slots.some((s) => set.has(s));
+};
+
+/**
+ * 어떤 분반을 시간표에 넣으려 할 때 부딪히는 기존 과목들.
+ * 추가신청 가능 여부와 "무엇을 비워야 하는지"를 판정하는 데 씁니다.
+ */
+export const findBlockers = (
+    schedule: SectionInfo[],
+    candidate: SectionInfo,
+): SectionInfo[] =>
+    schedule.filter(
+        (s) => s.subject !== candidate.subject && sectionsOverlap(s, candidate),
+    );
+
+interface Variable {
+    subject: string;
+    from: SectionInfo | null;
+    candidates: (SectionInfo | null)[];
+}
+
+export interface AddSelection {
+    subject: string;
+    /** 특정 분반으로 고정. null이면 모든 분반이 후보 */
+    sectionId: number | null;
+}
+
+export interface PlanRequest {
+    schedule: SectionInfo[];
+    index: SubjectIndex;
+    /** 과목명 → 처리 방식. 지정하지 않은 과목은 `keep` */
+    actions: Record<string, PlanAction>;
+    /** 새로 넣고 싶은 과목 (분반 고정 가능) */
+    addSelections: AddSelection[];
+}
+
+/**
+ * 조건을 만족하는 수강 조합을 찾습니다.
+ *
+ * - `keep` 과목의 시간은 고정 제약이 됩니다
+ * - `move` 과목은 같은 과목의 다른 분반(현재 분반 포함)이 후보
+ * - `drop` 과목은 시간표에서 빠집니다
+ * - 추가 과목은 해당 과목의 모든 분반이 후보이며 반드시 편성되어야 합니다
+ *
+ * 변화가 전혀 없는 조합(전부 현재 분반 유지)은 결과에서 제외합니다.
+ */
+export const findPlans = (
+    request: PlanRequest,
+    limit: number = MAX_PLAN_RESULTS,
+): PlanSearchResult => {
+    const { schedule, index, actions, addSelections } = request;
+
+    const fixedSlots = new Set<SlotKey>();
+    const variables: Variable[] = [];
+
+    schedule.forEach((current) => {
+        const action = actions[current.subject] ?? "keep";
+        if (action === "keep") {
+            current.slots.forEach((s) => fixedSlots.add(s));
+            return;
+        }
+        if (action === "drop") {
+            variables.push({
+                subject: current.subject,
+                from: current,
+                candidates: [null],
+            });
+            return;
+        }
+        variables.push({
+            subject: current.subject,
+            from: current,
+            candidates: index.get(current.subject) ?? [current],
+        });
+    });
+
+    const enrolledSubjects = new Set(schedule.map((s) => s.subject));
+    addSelections.forEach(({ subject, sectionId }) => {
+        if (enrolledSubjects.has(subject)) return;
+        const all = index.get(subject);
+        if (!all || all.length === 0) return;
+        const candidates =
+            sectionId === null ? all : all.filter((s) => s.id === sectionId);
+        if (candidates.length === 0) return;
+        variables.push({ subject, from: null, candidates });
+    });
+
+    if (variables.length === 0) return { results: [], truncated: false };
+
+    // 후보가 적은 변수부터 배치하면 불가능한 가지를 일찍 잘라냅니다
+    const ordered = [...variables].sort(
+        (a, b) => a.candidates.length - b.candidates.length,
+    );
+
+    const results: PlanResult[] = [];
+    let truncated = false;
+    const picked: (SectionInfo | null)[] = new Array(ordered.length).fill(null);
+
+    const record = () => {
+        const choices: PlanChoice[] = [];
+        let moveCount = 0;
+        let dropCount = 0;
+        let addCount = 0;
+
+        ordered.forEach((variable, i) => {
+            const to = picked[i];
+            const from = variable.from;
+            if (from && to && from.id === to.id) return; // 유지 — 결과에 싣지 않음
+
+            if (!from && to) addCount++;
+            else if (from && !to) dropCount++;
+            else moveCount++;
+
+            choices.push({ subject: variable.subject, from, to });
+        });
+
+        if (choices.length === 0) return; // 변화 없음
+
+        choices.sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
+        results.push({
+            key: choices.map((c) => `${c.subject}:${c.to?.id ?? "x"}`).join("|"),
+            choices,
+            moveCount,
+            dropCount,
+            addCount,
+        });
+    };
+
+    const backtrack = (depth: number, used: Set<SlotKey>) => {
+        if (results.length >= limit) {
+            truncated = true;
+            return;
+        }
+        if (depth === ordered.length) {
+            record();
+            return;
+        }
+
+        for (const candidate of ordered[depth].candidates) {
+            if (candidate && conflicts(candidate.slots, used)) continue;
+
+            picked[depth] = candidate;
+            if (candidate) candidate.slots.forEach((s) => used.add(s));
+
+            backtrack(depth + 1, used);
+
+            if (candidate) candidate.slots.forEach((s) => used.delete(s));
+            picked[depth] = null;
+
+            if (results.length >= limit) {
+                truncated = true;
+                return;
+            }
+        }
+    };
+
+    backtrack(0, new Set(fixedSlots));
+
+    results.sort((a, b) => {
+        const changeA = a.moveCount + a.dropCount;
+        const changeB = b.moveCount + b.dropCount;
+        if (changeA !== changeB) return changeA - changeB;
+        return a.key.localeCompare(b.key);
+    });
+
+    return { results, truncated };
+};
+
+export interface AddCandidate {
+    section: SectionInfo;
+    /** 이 분반을 넣으려면 비워야 하는 기존 과목들. 비어 있으면 바로 추가 가능 */
+    blockers: SectionInfo[];
+}
+
+/**
+ * 특정 과목의 각 분반이 현재 시간표에 들어갈 수 있는지 판정합니다.
+ * 막혀 있다면 어떤 과목이 걸리는지 함께 돌려줍니다.
+ */
+export const evaluateAddCandidates = (
+    schedule: SectionInfo[],
+    index: SubjectIndex,
+    subject: string,
+): AddCandidate[] => {
+    const sections = index.get(subject) ?? [];
+    return sections.map((section) => ({
+        section,
+        blockers: findBlockers(schedule, section),
+    }));
+};
+
+/**
+ * 지정한 과목들을 뺐을 때 새로 들어갈 수 있는 과목·분반 목록.
+ * 이미 수강 중인 과목은 후보에서 제외합니다.
+ */
+export const findAddableAfterDrop = (
+    schedule: SectionInfo[],
+    index: SubjectIndex,
+    dropSubjects: string[],
+): SectionInfo[] => {
+    const dropped = new Set(dropSubjects);
+    const remaining = schedule.filter((s) => !dropped.has(s.subject));
+    const usedSlots = new Set<SlotKey>();
+    remaining.forEach((s) => s.slots.forEach((slot) => usedSlots.add(slot)));
+
+    const enrolled = new Set(schedule.map((s) => s.subject));
+    const addable: SectionInfo[] = [];
+
+    index.forEach((sections, subject) => {
+        if (enrolled.has(subject)) return;
+        sections.forEach((section) => {
+            if (section.slots.length === 0) return;
+            if (!conflicts(section.slots, usedSlots)) addable.push(section);
+        });
+    });
+
+    return addable.sort(
+        (a, b) =>
+            a.subject.localeCompare(b.subject, "ko") ||
+            sectionNumber(a.section) - sectionNumber(b.section),
+    );
+};
+
+/** 시간표를 요일·교시 순으로 정렬된 슬롯 목록으로 (그리드 렌더링용) */
+export const scheduleToTimes = (sections: SectionInfo[]): SectionTime[] =>
+    sections
+        .flatMap((s) =>
+            s.times.map((t) => ({
+                ...t,
+                subject: s.subject,
+                section: s.section,
+                teacher: s.teacher,
+            })),
+        )
+        .sort(
+            (a, b) =>
+                DAYS_ORDER.indexOf(a.day as (typeof DAYS_ORDER)[number]) -
+                    DAYS_ORDER.indexOf(b.day as (typeof DAYS_ORDER)[number]) ||
+                a.period - b.period,
+        );
+
+/** 조합을 적용한 뒤의 최종 시간표 */
+export const applyPlan = (
+    schedule: SectionInfo[],
+    plan: PlanResult,
+): SectionInfo[] => {
+    const changed = new Map(plan.choices.map((c) => [c.subject, c.to]));
+    const result: SectionInfo[] = [];
+
+    schedule.forEach((s) => {
+        if (!changed.has(s.subject)) {
+            result.push(s);
+            return;
+        }
+        const to = changed.get(s.subject);
+        if (to) result.push(to);
+        changed.delete(s.subject);
+    });
+
+    // 신규 추가 과목
+    changed.forEach((to) => {
+        if (to) result.push(to);
+    });
+
+    return result.sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
+};
