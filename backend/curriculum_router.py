@@ -1,6 +1,6 @@
 """교육과정 API — 과목 카탈로그, 선수관계, 졸업 요건"""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -138,16 +138,26 @@ class GradesRequest(BaseModel):
     entries: list[GradeEntry] = Field(default_factory=list, max_length=400)
 
 
-@router.get("/grades/{stu_id}")
+def _require_linked(user: models.User) -> str:
+    """이수 기록은 본인 것만 다루므로 학번이 등록돼 있어야 합니다."""
+    if not user.stu_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="계정에 학번이 등록되어 있지 않습니다.",
+        )
+    return user.stu_id
+
+
+@router.get("/grades")
 def get_grades(
-    stu_id: str,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    """로그인한 계정이 이 학생에 대해 기록해 둔 이수·성적"""
+    """로그인한 계정 본인의 이수·성적"""
+    stu_id = _require_linked(user)
     rows = (
         db.query(models.CourseGrade)
-        .filter(models.CourseGrade.user_id == user.id, models.CourseGrade.stu_id == stu_id)
+        .filter(models.CourseGrade.user_id == user.id)
         .order_by(models.CourseGrade.course)
         .all()
     )
@@ -157,19 +167,19 @@ def get_grades(
     }
 
 
-@router.put("/grades/{stu_id}")
+@router.put("/grades")
 def put_grades(
-    stu_id: str,
     payload: GradesRequest,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
     """
-    이 학생에 대한 기록을 통째로 바꿉니다.
+    본인 기록을 통째로 바꿉니다.
 
     항목이 145개를 넘지 않아 부분 갱신보다 전체 교체가 단순하고, 여러 기기에서
     편집해도 마지막 저장이 이깁니다.
     """
+    stu_id = _require_linked(user)
     known = {name for (name,) in db.query(models.Course.name).all()}
     unknown = sorted({entry.course for entry in payload.entries} - known)
     if unknown:
@@ -187,19 +197,12 @@ def put_grades(
             status_code=400, detail=f"알 수 없는 평어: {', '.join(bad_grades[:5])}"
         )
 
-    db.query(models.CourseGrade).filter(
-        models.CourseGrade.user_id == user.id,
-        models.CourseGrade.stu_id == stu_id,
-    ).delete()
+    db.query(models.CourseGrade).filter(models.CourseGrade.user_id == user.id).delete()
 
     # 같은 과목이 두 번 오면 뒤엣것을 씁니다 — UNIQUE 위반을 막습니다
     deduped = {entry.course: entry.grade for entry in payload.entries}
     for course, grade in deduped.items():
-        db.add(
-            models.CourseGrade(
-                user_id=user.id, stu_id=stu_id, course=course, grade=grade
-            )
-        )
+        db.add(models.CourseGrade(user_id=user.id, course=course, grade=grade))
     db.commit()
     return {"stu_id": stu_id, "saved": len(deduped)}
 

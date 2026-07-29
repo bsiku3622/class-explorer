@@ -18,7 +18,7 @@ import os
 from sqlalchemy.orm import Session
 
 from backend import models
-from backend.database import SessionLocal, engine
+from backend.database import SessionLocal, init_schema
 
 DEFAULT_SEED = os.path.join(os.path.dirname(__file__), "curriculum_seed.json")
 
@@ -105,7 +105,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="저장 없이 결과만 출력")
     args = parser.parse_args()
 
-    models.Base.metadata.create_all(bind=engine)
+    init_schema()
     return run(args.seed, args.dry_run)
 
 

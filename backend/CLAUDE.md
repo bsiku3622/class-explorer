@@ -80,11 +80,19 @@ UserState                      CourseGrade
 ─────────────────────────────  ─────────────────────────────
 id (PK)                        id (PK)
 user_id (FK→User)              user_id (FK→User)
-key ("plan" | "trade")         stu_id (계획 대상 학번)
-data (JSON, 서버는 해석 안 함)   course (FK→Course.name)
-updated_at                     grade ("A+"... | None)
-UniqueConstraint (user_id,key) UniqueConstraint (user_id,stu_id,course)
+key ("plan" | "trade")         course (FK→Course.name)
+data (JSON, 서버는 해석 안 함)   grade ("A+"... | None)
+updated_at                     UniqueConstraint (user_id, course)
+UniqueConstraint (user_id,key)
 ```
+
+### 계정과 학번
+
+`User.stu_id`가 이 계정이 누구인지 정합니다. 본인이 `POST /auth/link-student`에서
+**학번과 이름을 함께** 대조해 등록하며, 둘 중 하나만 맞아도 반려합니다 — 아무 학번이나
+골라 남의 이름으로 성적을 기록해 두는 걸 막기 위해서입니다.
+
+등록 전에는 `stu_id`가 비어 있고, 그동안 이수 기록 API는 `409`를 돌려줍니다.
 
 ### 계정별 상태
 
@@ -93,9 +101,15 @@ UniqueConstraint (user_id,key) UniqueConstraint (user_id,stu_id,course)
 - `UserState` — 화면이 쓰던 JSON을 그대로 맡아 둡니다. 구조가 화면마다 달라 컬럼으로
   펼치지 않았고, 서버는 내용을 해석하지 않습니다
 - `CourseGrade` — 평어는 서버가 검증해야 해서(교육과정에 있는 과목인지, 아는 평어인지)
-  구조화했습니다. 행이 있으면 이수한 것으로 보고 `grade`는 선택입니다
+  구조화했습니다. 행이 있으면 이수한 것으로 보고 `grade`는 선택입니다. 누구의 기록인지는
+  `User.stu_id`가 정하므로 학번 컬럼을 두지 않습니다
 
-같은 학번이라도 계정이 다르면 서로 보이지 않습니다.
+### 스키마 초기화
+
+앱과 CLI 스크립트 모두 `database.init_schema()`를 씁니다. `create_all`은 없는
+**테이블**만 만들고 이미 있는 테이블에 **컬럼**을 붙이지 않아서, 마이그레이션과 항상
+같이 돌려야 합니다. 서버에서 계정 생성이나 데이터 수집을 먼저 실행하는 일이 흔한데
+그때 스키마가 뒤처져 있으면 엉뚱한 곳에서 터집니다.
 
 ### 수업과 교육과정의 연결
 

@@ -52,6 +52,8 @@ import CopyButton from "../components/atoms/CopyButton";
 interface TradePageProps {
     allClassesData: SubjectData[];
     term: Term | null;
+    /** 계정에 등록된 본인 학번 — 저장된 계획이 없을 때 기본으로 잡습니다 */
+    myStuId: string | null;
 }
 
 const ACTION_LABEL: Record<PlanAction, string> = {
@@ -75,7 +77,7 @@ interface SavedState {
     moveTargets: Record<string, number | null>;
 }
 
-const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
+const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) => {
     const [stuId, setStuId] = useState<string | null>(null);
     const [studentQuery, setStudentQuery] = useState("");
     const [actions, setActions] = useState<Record<string, PlanAction>>({});
@@ -88,18 +90,23 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
     /** 불러오기 전에는 저장하지 않습니다 — 빈 값으로 덮어쓰는 걸 막습니다 */
     const [restored, setRestored] = useState(false);
 
+    // 계정 정보(`myStuId`)가 늦게 도착할 수 있어, 복원 전까지는 다시 시도합니다
     useEffect(() => {
+        if (restored) return;
         let cancelled = false;
         loadState<SavedState>("trade", LEGACY_STATE_KEY)
             .then((state) => {
                 if (cancelled) return;
-                if (state) {
-                    setStuId(typeof state.stuId === "string" ? state.stuId : null);
+                if (state?.stuId) {
+                    setStuId(state.stuId);
                     setActions(state.actions ?? {});
                     setAddSelections(
                         Array.isArray(state.addSelections) ? state.addSelections : [],
                     );
                     setMoveTargets(state.moveTargets ?? {});
+                } else if (myStuId) {
+                    // 저장된 계획이 없으면 본인 시간표에서 시작합니다
+                    setStuId(myStuId);
                 }
                 setRestored(true);
             })
@@ -109,7 +116,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [restored, myStuId]);
 
     /** 작업 중인 계획은 계정에 남아 다른 기기에서도 이어집니다 */
     useEffect(() => {

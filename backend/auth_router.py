@@ -140,8 +140,77 @@ def logout(
 
 
 @router.get("/me")
-def me(current_user: models.User = Depends(get_current_user)):
-    return {"id": current_user.id, "username": current_user.username, "is_admin": current_user.is_admin}
+def me(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    student = (
+        db.query(models.Student).filter(models.Student.stuId == current_user.stu_id).first()
+        if current_user.stu_id
+        else None
+    )
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "is_admin": current_user.is_admin,
+        "stu_id": current_user.stu_id,
+        "student_name": student.name if student else None,
+    }
+
+
+class LinkStudentRequest(BaseModel):
+    stu_id: str = Field(min_length=1, max_length=16)
+    name: str = Field(min_length=1, max_length=32)
+
+
+def _normalize_name(value: str) -> str:
+    """이름 대조용 — 띄어쓰기 차이로 반려하지 않게 공백만 걷어냅니다."""
+    return "".join(value.split())
+
+
+@router.post("/link-student")
+def link_student(
+    payload: LinkStudentRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    계정에 본인 학번을 등록합니다. 학번과 이름이 함께 맞아야 합니다.
+
+    아무 학번이나 골라 남의 이름으로 성적을 기록해 두는 일을 막으려는 것이라,
+    둘 중 하나만 맞아도 반려합니다. 어느 쪽이 틀렸는지는 알려주지 않습니다.
+    """
+    student = (
+        db.query(models.Student)
+        .filter(models.Student.stuId == payload.stu_id.strip())
+        .first()
+    )
+    if student is None or _normalize_name(student.name or "") != _normalize_name(payload.name):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="학번과 이름이 맞지 않습니다.",
+        )
+
+    taken = (
+        db.query(models.User)
+        .filter(models.User.stu_id == student.stuId, models.User.id != current_user.id)
+        .first()
+    )
+    if taken is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="이미 다른 계정이 쓰고 있는 학번입니다.",
+        )
+
+    # 학번을 바꾸면 이전 사람의 이수 기록이 남아 있으면 안 됩니다
+    if current_user.stu_id and current_user.stu_id != student.stuId:
+        db.query(models.CourseGrade).filter(
+            models.CourseGrade.user_id == current_user.id
+        ).delete()
+
+    current_user.stu_id = student.stuId
+    db.commit()
+    return {"stu_id": student.stuId, "student_name": student.name}
 
 
 @router.get("/sessions")
