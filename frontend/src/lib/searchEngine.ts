@@ -204,8 +204,8 @@ const parseQuery = (searchTerm: string, _allData: any[]) => {
     let effectiveQuery = cleanKeyword;
     let warning: string | undefined = undefined;
 
-    // '국어1/1' 같은 과목/분반 패턴 확인 (문자열/숫자 형식)
-    const isDividerSearch = /.+\/\d+$/.test(cleanKeyword);
+    // '국어1/1' 같은 과목/분반 패턴 확인. '체육4/2,3'처럼 분반 여러 개도 받습니다
+    const isDividerSearch = /.+\/\d+(?:\s*,\s*\d+)*$/.test(cleanKeyword);
 
     if (cleanKeyword.includes(":")) {
         const [prefix, ...rest] = cleanKeyword.split(":");
@@ -271,12 +271,18 @@ const filterMatchingClasses = (
     } = queryParams;
     const matchingClasses: any[] = [];
 
-    // '국어1/1' 패턴에서 과목과 분반 분리
-    let targetSubject = "", targetSection = "";
+    // '국어1/1' 패턴에서 과목과 분반 분리 (분반은 콤마로 여러 개 가능)
+    let targetSubject = "";
+    const targetSections = new Set<string>();
     if (isDividerSearch) {
         const lastSlashIndex = effectiveQuery.lastIndexOf("/");
         targetSubject = effectiveQuery.substring(0, lastSlashIndex).toLowerCase();
-        targetSection = effectiveQuery.substring(lastSlashIndex + 1);
+        effectiveQuery
+            .substring(lastSlashIndex + 1)
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .forEach((s) => targetSections.add(s));
     }
 
     allData.forEach((subject) => {
@@ -326,7 +332,7 @@ const filterMatchingClasses = (
                     (subject.aliases || []).some((a: string) =>
                         fuzzyMatch(a, targetSubject),
                     );
-                isSectionMatch = subjectMatches && sectionNum === targetSection;
+                isSectionMatch = subjectMatches && targetSections.has(sectionNum);
             } else if (mode === "student") {
                 isSectionMatch = evaluate(effectiveQuery, [
                     ...activeStudents.map((s: any) => s.stuId),

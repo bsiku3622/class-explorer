@@ -186,13 +186,16 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
 
         // formatSubjectWithSection이 만든 "과목명(분반)" 형태에서 뒤쪽 괄호만 분반으로 떼어냅니다.
         // 과목명 자체에 숫자나 괄호가 있어도(체육4, 미적분학2(EC)) 그쪽을 분반으로 오인하지 않게.
-        const parsed = subjectFull.match(/^(.*?)\(([\d,]+)\)$/);
-        const sections = parsed?.[2] ?? "";
+        const parsed = subjectFull.match(/^(.*?)\(([\d,\s]+)\)$/);
 
-        // 분반이 여럿이면(교사·강의실 카드) 특정 분반을 집을 수 없으니 과목으로만 검색합니다
-        if (parsed && !sections.includes(",")) {
-            handleSearchToggle(`${getKoreanName(parsed[1]).trim()}/${sections}`);
-            return;
+        if (parsed) {
+            const name = getKoreanName(parsed[1]).trim();
+            // 분반이 여럿이면 "과목/1,4" — 검색 쪽에서 콤마 목록을 받습니다
+            const sections = parsed[2].replace(/\s/g, "");
+            if (name && sections) {
+                handleSearchToggle(`${name}/${sections}`);
+                return;
+            }
         }
 
         const nameOnly = getKoreanName(parsed ? parsed[1] : subjectFull).trim();

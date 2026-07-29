@@ -30,6 +30,7 @@ searchTerm → parseQuery() → filterMatchingClasses() → extractEntities()
 
 특수 패턴:
 - `수학/1` → `isDividerSearch=true` (과목명/분반번호 매칭)
+- `체육4/2,3` → 분반 여러 개를 콤마로 나열 (공백 허용)
 - `&&` 또는 `mode=room` → `isStrictMode=true`
 
 ### `filterMatchingClasses(allData, queryParams, selectedYears)`
@@ -38,7 +39,7 @@ searchTerm → parseQuery() → filterMatchingClasses() → extractEntities()
 - `mode=student`: 학번 + 이름 풀에서만 검색
 - `mode=teacher`: 교사명만 검색
 - `mode=room`: 강의실명만 검색 (시간별 room 포함)
-- `isDividerSearch`: 과목명 + 분반번호 정확 매칭
+- `isDividerSearch`: 과목명(유사도 허용) + 분반번호 집합 매칭 — `체4/2,3`도 통합니다
 
 ### `extractEntities(matchingClasses, flatTerms, mode, effectiveQuery)`
 매칭된 분반에서 학생/교사/강의실 엔티티 추출.
