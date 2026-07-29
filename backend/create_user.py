@@ -5,11 +5,11 @@
 """
 import sys
 
-from backend.database import SessionLocal, engine
+from backend.database import SessionLocal, init_schema
 from backend import models
 from backend.auth import hash_password
 
-models.Base.metadata.create_all(bind=engine)
+init_schema()
 
 
 def create_user(username: str, password: str, is_admin: bool = False):

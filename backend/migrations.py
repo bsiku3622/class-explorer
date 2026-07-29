@@ -65,10 +65,63 @@ def _add_semester_columns(conn) -> None:
     print(f"[migration] classes → year/semester 추가 (기존 데이터 {LEGACY_YEAR}-{LEGACY_SEMESTER} 지정)")
 
 
+def _drop_grade_student_column(conn) -> None:
+    """
+    course_grades 에서 stu_id 를 걷어냅니다.
+
+    한 계정이 여러 학생의 이수 기록을 들 수 있던 시절의 컬럼입니다. 이제 계정에 학번이
+    붙으므로 본인 기록만 남기면 됩니다 — 계정의 학번과 일치하는 행만 옮기고, 학번이
+    등록되지 않은 계정의 기록은 누구 것인지 알 수 없어 버립니다.
+    """
+    if not _has_column(conn, "course_grades", "stu_id"):
+        return
+
+    conn.execute(text("PRAGMA foreign_keys=OFF"))
+    conn.execute(
+        text(
+            """
+            CREATE TABLE course_grades_migrated (
+                id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                course VARCHAR NOT NULL,
+                grade VARCHAR,
+                PRIMARY KEY (id),
+                CONSTRAINT _course_grade_uc UNIQUE (user_id, course)
+            )
+            """
+        )
+    )
+    conn.execute(
+        text(
+            """
+            INSERT INTO course_grades_migrated (id, user_id, course, grade)
+            SELECT g.id, g.user_id, g.course, g.grade
+            FROM course_grades g
+            JOIN users u ON u.id = g.user_id
+            WHERE u.stu_id IS NOT NULL AND u.stu_id = g.stu_id
+            """
+        )
+    )
+    moved = conn.execute(text("SELECT COUNT(*) FROM course_grades_migrated")).scalar()
+    total = conn.execute(text("SELECT COUNT(*) FROM course_grades")).scalar()
+    conn.execute(text("DROP TABLE course_grades"))
+    conn.execute(text("ALTER TABLE course_grades_migrated RENAME TO course_grades"))
+    conn.execute(text("CREATE INDEX ix_course_grades_id ON course_grades (id)"))
+    conn.execute(text("CREATE INDEX ix_course_grades_user_id ON course_grades (user_id)"))
+    conn.execute(text("PRAGMA foreign_keys=ON"))
+    conn.commit()
+
+    dropped = (total or 0) - (moved or 0)
+    note = f", 주인을 알 수 없어 버림 {dropped}건" if dropped else ""
+    print(f"[migration] course_grades → stu_id 제거 (이관 {moved}건{note})")
+
+
 def run_migrations(engine: Engine) -> None:
     # 단순 컬럼 추가 — 이미 있으면 무시
     simple = [
         "ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0 NOT NULL",
+        "ALTER TABLE users ADD COLUMN stu_id VARCHAR REFERENCES students(stuId)",
+        "CREATE INDEX IF NOT EXISTS ix_users_stu_id ON users (stu_id)",
         "ALTER TABLE sessions ADD COLUMN ip_address VARCHAR",
         (
             "CREATE TABLE IF NOT EXISTS subject_aliases ("
@@ -86,3 +139,4 @@ def run_migrations(engine: Engine) -> None:
                 conn.rollback()  # 이미 존재하면 무시
 
         _add_semester_columns(conn)
+        _drop_grade_student_column(conn)

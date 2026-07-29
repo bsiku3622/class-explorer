@@ -1,16 +1,14 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
     GraduationCap,
-    Search,
-    X,
     Check,
     Lock,
     BookOpen,
     CircleAlert,
     Award,
+    IdCard,
 } from "lucide-react";
 import api from "../lib/api";
-import type { SubjectData } from "../types";
 import {
     buildPrereqIndex,
     buildUnlockIndex,
@@ -30,13 +28,13 @@ import {
     type GradeMap,
     type ProgressTerm,
 } from "../lib/curriculum";
-import { loadState, saveState } from "../lib/userState";
-import { fuzzyMatch } from "../lib/searchEngine";
+import { clearState, loadState } from "../lib/userState";
 import { getStudentColor } from "../lib/utils";
 import RetroCard from "../components/atoms/RetroCard";
 import RetroButton from "../components/atoms/RetroButton";
 import RetroSubTitle from "../components/atoms/RetroSubTitle";
 import PageHeader from "../components/molecules/PageHeader";
+import LinkStudentModal from "../components/LinkStudentModal";
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
 /** 계정 저장으로 옮기기 전에 쓰던 키 — 남아 있으면 한 번 옮겨 옵니다 */
@@ -48,26 +46,22 @@ const authHeader = () => {
 };
 
 interface PlanPageProps {
-    allClassesData: SubjectData[];
+    /** 계정에 등록된 본인 학번 — 없으면 등록 안내를 띄웁니다 */
+    stuId: string | null;
+    studentName: string | null;
+    onLinked: (info: { stu_id: string; student_name: string }) => void;
 }
 
-/** 계정에 저장하는 화면 상태 — 성적은 `/curriculum/grades`에 따로 둡니다 */
-interface PlanState {
+/** 옛 localStorage 형식 — 학번별로 직접 체크한 과목을 담고 있었습니다 */
+interface LegacyPlanState {
     stuId?: string | null;
-    /** 옛 형식: 학번 → 직접 체크한 과목 목록. 처음 열 때 성적 기록으로 옮깁니다 */
     manual?: Record<string, string[]>;
 }
 
 /** 이수 기록을 서버에 통째로 올립니다. 실패해도 화면은 계속 쓸 수 있게 조용히 넘깁니다 */
-const persistGrades = (stuId: string, grades: GradeMap) => {
+const persistGrades = (grades: GradeMap) => {
     const entries = Object.entries(grades).map(([course, grade]) => ({ course, grade }));
-    api
-        .put(
-            `/curriculum/grades/${encodeURIComponent(stuId)}`,
-            { entries },
-            { headers: authHeader() },
-        )
-        .catch(() => {});
+    api.put("/curriculum/grades", { entries }, { headers: authHeader() }).catch(() => {});
 };
 
 const STATE_STYLE: Record<CourseState, { box: string; text: string }> = {
@@ -89,12 +83,10 @@ const STATE_LABEL: Record<CourseState, string> = {
     locked: "선수 미이수",
 };
 
-const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
+const PlanPage: React.FC<PlanPageProps> = ({ stuId, studentName, onLinked }) => {
     const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [stuId, setStuId] = useState<string | null>(null);
-    const [studentQuery, setStudentQuery] = useState("");
-    /** 어느 학생의 응답인지 함께 들고 있어야 학생을 빠르게 바꿀 때 섞이지 않습니다 */
+    /** 어느 학생의 응답인지 함께 들고 있어야 학번이 바뀔 때 섞이지 않습니다 */
     const [progressData, setProgressData] = useState<{
         stuId: string;
         terms: ProgressTerm[];
@@ -103,33 +95,12 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
     const [gradeData, setGradeData] = useState<{ stuId: string; grades: GradeMap } | null>(null);
     const [department, setDepartment] = useState<string>("수학");
     const [focused, setFocused] = useState<string | null>(null);
-    /** 불러오기 전에는 저장하지 않습니다 — 빈 값으로 덮어쓰는 걸 막습니다 */
-    const [restored, setRestored] = useState(false);
-
-    /** 옛 localStorage 형식에 남아 있던 직접 체크 내역 — 학생을 고르면 그때 옮깁니다 */
-    const pendingLegacy = useRef<Record<string, string[]>>({});
+    const [dismissedLink, setDismissedLink] = useState(false);
 
     useEffect(() => {
         api.get("/curriculum", { headers: authHeader() })
             .then((res) => setCurriculum(res.data))
             .catch(() => setLoadError("교육과정 데이터를 불러오지 못했습니다."));
-    }, []);
-
-    useEffect(() => {
-        let cancelled = false;
-        loadState<PlanState>("plan", LEGACY_STATE_KEY)
-            .then((state) => {
-                if (cancelled) return;
-                pendingLegacy.current = state?.manual ?? {};
-                if (state?.stuId) setStuId(state.stuId);
-                setRestored(true);
-            })
-            .catch(() => {
-                if (!cancelled) setRestored(true);
-            });
-        return () => {
-            cancelled = true;
-        };
     }, []);
 
     useEffect(() => {
@@ -150,8 +121,8 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
     useEffect(() => {
         if (!stuId) return;
         let cancelled = false;
-        api.get(`/curriculum/grades/${encodeURIComponent(stuId)}`, { headers: authHeader() })
-            .then((res) => {
+        api.get("/curriculum/grades", { headers: authHeader() })
+            .then(async (res) => {
                 if (cancelled) return;
                 const loaded: GradeMap = {};
                 (res.data.entries ?? []).forEach(
@@ -159,18 +130,20 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
                         loaded[entry.course] = entry.grade;
                     },
                 );
-                // 계정에 기록이 없고 옛 기기 데이터가 있으면 그걸 옮겨 심습니다
-                const legacy = pendingLegacy.current[stuId];
-                if (!Object.keys(loaded).length && legacy?.length) {
-                    legacy.forEach((name) => {
-                        loaded[name] = null;
-                    });
-                    delete pendingLegacy.current[stuId];
-                    persistGrades(stuId, loaded);
-                    // 옮긴 뒤에는 화면 상태에서도 지웁니다
-                    saveState("plan", { stuId, manual: pendingLegacy.current });
+                // 계정에 기록이 없으면, 예전 기기에 남은 체크 내역을 한 번 옮겨 옵니다
+                if (!Object.keys(loaded).length) {
+                    const legacy = await loadState<LegacyPlanState>("plan", LEGACY_STATE_KEY);
+                    const checked = legacy?.manual?.[stuId];
+                    if (checked?.length) {
+                        checked.forEach((name) => {
+                            loaded[name] = null;
+                        });
+                        persistGrades(loaded);
+                    }
+                    // 학번이 계정에 붙은 뒤로는 이 상태가 필요 없습니다
+                    await clearState("plan");
                 }
-                setGradeData({ stuId, grades: loaded });
+                if (!cancelled) setGradeData({ stuId, grades: loaded });
             })
             .catch(() => {
                 if (cancelled) return;
@@ -180,33 +153,6 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
             cancelled = true;
         };
     }, [stuId]);
-
-    useEffect(() => {
-        if (!restored) return;
-        // 아직 성적 기록으로 옮기지 못한 옛 체크 내역은 그대로 들고 갑니다 —
-        // 여기서 빠뜨리면 학생을 고르기 전에 저장이 돌 때 사라집니다
-        saveState("plan", { stuId, manual: pendingLegacy.current });
-    }, [restored, stuId]);
-
-    const allStudents = useMemo(() => {
-        const map = new Map<string, string>();
-        allClassesData.forEach((subject) =>
-            subject.sections.forEach((section) =>
-                section.students?.forEach((student) => map.set(student.stuId, student.name)),
-            ),
-        );
-        return Array.from(map, ([id, name]) => ({ stuId: id, name })).sort((a, b) =>
-            a.stuId.localeCompare(b.stuId),
-        );
-    }, [allClassesData]);
-
-    const studentMatches = useMemo(() => {
-        const query = studentQuery.trim();
-        if (!query) return [];
-        return allStudents
-            .filter((s) => fuzzyMatch(s.stuId, query) || fuzzyMatch(s.name, query))
-            .slice(0, 12);
-    }, [allStudents, studentQuery]);
 
     const terms = useMemo(
         () => (progressData?.stuId === stuId ? progressData.terms : []),
@@ -292,7 +238,7 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
                 const base = prev?.stuId === stuId ? prev.grades : {};
                 const next = { ...base };
                 mutate(next);
-                persistGrades(stuId, next);
+                persistGrades(next);
                 return { stuId, grades: next };
             });
         },
@@ -359,95 +305,53 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
     }
 
     const studentColor = stuId ? getStudentColor(stuId) : "#000000";
-    const studentName = allStudents.find((s) => s.stuId === stuId)?.name;
 
     return (
         <div className="flex flex-col gap-4 md:gap-6 pb-20">
-            <PageHeader
-                title="Plan"
-                subtitle="교육과정 이수 현황"
-                icon={GraduationCap}
-                action={
-                    stuId ? (
-                        <RetroButton
-                            size="sm"
-                            onClick={() => {
-                                setStuId(null);
-                                setStudentQuery("");
+            {!stuId && !dismissedLink && (
+                <LinkStudentModal
+                    onLinked={onLinked}
+                    onDismiss={() => setDismissedLink(true)}
+                />
+            )}
+
+            <PageHeader title="Plan" subtitle="교육과정 이수 현황" icon={GraduationCap}>
+                {stuId && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                            Planning for
+                        </span>
+                        <span
+                            className="border-2 px-2 py-1 text-xs font-black italic"
+                            style={{
+                                backgroundColor: `${studentColor}15`,
+                                borderColor: studentColor,
+                                color: studentColor,
                             }}
-                            icon={<X size={14} strokeWidth={2.5} />}
                         >
-                            Reset
-                        </RetroButton>
-                    ) : undefined
-                }
-            >
-                <div className="space-y-3">
-                    <RetroSubTitle title="Select Student" icon={Search} />
-                    <input
-                        value={studentQuery}
-                        onChange={(e) => setStudentQuery(e.target.value)}
-                        placeholder="학번 또는 이름으로 검색 (예: 25-059, 백재원)"
-                        className="w-full border-2 border-black px-4 py-3 text-sm font-bold outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-all duration-100"
-                    />
-                    {studentMatches.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                            {studentMatches.map((student) => (
-                                <button
-                                    key={student.stuId}
-                                    onClick={() => {
-                                        setStuId(student.stuId);
-                                        setStudentQuery("");
-                                    }}
-                                    className="flex items-center gap-2 border-2 px-2 py-1 text-[11px] font-black italic transition-all duration-100 hover:scale-105 active:scale-95"
-                                    style={{
-                                        backgroundColor: `${getStudentColor(student.stuId)}15`,
-                                        borderColor: getStudentColor(student.stuId),
-                                        color: getStudentColor(student.stuId),
-                                    }}
-                                >
-                                    {student.stuId} {student.name}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                    {stuId && (
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-black/40">
-                                Planning for
-                            </span>
-                            <span
-                                className="border-2 px-2 py-1 text-xs font-black italic"
-                                style={{
-                                    backgroundColor: `${studentColor}15`,
-                                    borderColor: studentColor,
-                                    color: studentColor,
-                                }}
-                            >
-                                {stuId} {studentName}
-                            </span>
+                            {stuId} {studentName}
+                        </span>
+                        <span className="border-2 border-black px-2 py-1 text-[11px] font-black">
+                            {progress.totalCredits}학점 이수
+                        </span>
+                        {progress.apCredits > 0 && (
                             <span className="border-2 border-black px-2 py-1 text-[11px] font-black">
-                                {progress.totalCredits}학점 이수
+                                AP {progress.apCredits}
                             </span>
-                            {progress.apCredits > 0 && (
-                                <span className="border-2 border-black px-2 py-1 text-[11px] font-black">
-                                    AP {progress.apCredits}
-                                </span>
-                            )}
-                            {gpa.overall !== null && (
-                                <span className="border-2 border-black px-2 py-1 text-[11px] font-black">
-                                    GPA {gpa.overall.toFixed(2)}
-                                    {gpa.natural !== null && (
-                                        <span className="text-black/50">
-                                            {" · 자연 "}
-                                            {gpa.natural.toFixed(2)}
-                                        </span>
-                                    )}
-                                </span>
-                            )}
-                        </div>
-                    )}
-                </div>
+                        )}
+                        {gpa.overall !== null && (
+                            <span className="border-2 border-black px-2 py-1 text-[11px] font-black">
+                                GPA {gpa.overall.toFixed(2)}
+                                {gpa.natural !== null && (
+                                    <span className="text-black/50">
+                                        {" · 자연 "}
+                                        {gpa.natural.toFixed(2)}
+                                    </span>
+                                )}
+                            </span>
+                        )}
+                    </div>
+                )}
             </PageHeader>
 
             {!curriculum ? (
@@ -457,14 +361,23 @@ const PlanPage: React.FC<PlanPageProps> = ({ allClassesData }) => {
                     </p>
                 </RetroCard>
             ) : !stuId ? (
-                <RetroCard className="bg-white p-8 text-center">
+                <RetroCard className="bg-white p-8 text-center space-y-3">
                     <p className="font-black uppercase tracking-widest text-black/40">
-                        학생을 선택하면 이수 현황이 표시됩니다
+                        학번을 등록하면 이수 현황이 표시됩니다
                     </p>
-                    <p className="text-xs font-bold text-black/40 mt-2">
-                        교육과정에는 {curriculum.courses.length}개 과목과{" "}
-                        {curriculum.prerequisites.length}개의 선수관계가 등록되어 있습니다.
+                    <p className="text-xs font-bold text-black/40">
+                        이수 기록과 성적은 계정에 저장되므로 누구의 기록인지 정해야 합니다.
                     </p>
+                    <div className="flex justify-center pt-1">
+                        <RetroButton
+                            size="sm"
+                            isSelected
+                            onClick={() => setDismissedLink(false)}
+                            icon={<IdCard size={14} strokeWidth={2.5} />}
+                        >
+                            학번 등록
+                        </RetroButton>
+                    </div>
                 </RetroCard>
             ) : (
                 <>

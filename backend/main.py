@@ -7,18 +7,16 @@ from starlette.requests import Request as StarletteRequest
 from sqlalchemy.orm import Session, selectinload, joinedload
 
 from backend import models
-from backend.database import engine, SessionLocal
+from backend.database import SessionLocal, init_schema
 from backend.auth import get_current_user, get_db
 from backend.auth_router import router as auth_router
 from backend.admin_router import router as admin_router
 from backend.curriculum_router import router as curriculum_router
 from backend.state_router import router as state_router
-from backend.migrations import run_migrations
 from backend.terms import list_terms, resolve_term
 
 # ───────────── DB 초기화 ─────────────
-models.Base.metadata.create_all(bind=engine)
-run_migrations(engine)
+init_schema()
 
 # ───────────── FastAPI 앱 생성 ─────────────
 app = FastAPI()

@@ -29,6 +29,7 @@
 | `Navigation` | 상단 고정 네비게이션 바 (`onLogoClick`, `onLogout`, `isAdmin`, `username`, `terms`, `currentTerm`, `onTermChange` props) |
 | `TermSwitcher` | 학기 전환 토글 (`terms`, `current`, `onChange`). Navigation 전용 — 다크 배경 기준 스타일, 학기 1개면 미렌더 |
 | `SectionsTimetable` | 한 과목의 **모든 분반**을 한 그리드에 겹쳐 표시 (`sections`, `currentSectionId`, `busySlots`). 칸에 분반 번호만 넣고, 호버하면 그리드 아래 바에 상세(교사·강의실·시간·인원·상태)를 띄웁니다. 내 분반 `retro-accent1` 진하게 / 이동 가능 연하게 / 충돌 회색 |
+| `LinkStudentModal` | 계정에 본인 학번을 등록하는 안내창 (`onLinked`, `onDismiss`). 학번·이름을 함께 받아 서버가 대조하며, 안 맞으면 창 안에 오류를 띄웁니다 |
 | `Sidebar` | 좌측 고정 사이드바 메뉴 |
 | `FilterSection` | 학년 선택 필터 + 새로고침 |
 | `SearchResultDisplay` | 검색 결과 표시 (통합/그리드 뷰) |
