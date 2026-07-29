@@ -83,14 +83,37 @@
 
 ## 데이터 엔드포인트
 
+### `GET /terms` *(인증 필요)*
+데이터가 존재하는 학기 목록 (최신순)
+
+**Response**:
+```json
+{ "terms": [{ "year": 2026, "semester": 2 }, { "year": 2026, "semester": 1 }] }
+```
+
+---
+
 ### `GET /` *(인증 필요)*
-전체 수업 데이터, 학년별 학생 수, 통계를 한 번에 반환합니다.
+지정 학기의 수업 데이터, 학년별 학생 수, 통계를 한 번에 반환합니다.
 
 **Headers**: `Authorization: Bearer <session_token>`
+
+**Query Parameters**:
+| 파라미터 | 타입 | 설명 |
+|----------|------|------|
+| `year` | int (2000~2100) | 학년도. 생략 시 데이터가 있는 최신 학기 |
+| `semester` | int (1\|2) | 학기. 생략 시 데이터가 있는 최신 학기 |
+
+> `year`와 `semester`가 **둘 다** 주어졌을 때만 해당 학기를 조회합니다. 하나만 주면 최신 학기로 폴백합니다.
 
 **Response**:
 ```json
 {
+  "term": { "year": 2026, "semester": 2 },
+  "available_terms": [
+    { "year": 2026, "semester": 2 },
+    { "year": 2026, "semester": 1 }
+  ],
   "stats": {
     "total_subjects": 80,
     "total_sections": 240,
@@ -134,6 +157,8 @@
 - 각 `students`: 학번(stuId) 오름차순
 - 각 `times`: 요일(MON→FRI), 교시 오름차순
 
+`student_counts`는 **해당 학기에 수강 이력이 있는 학생** 기준입니다 (전체 재적생이 아님).
+
 ## 프론트엔드 연동
 Vite 개발 서버에서 `/api/*` → `http://localhost:8000`으로 프록시합니다.
 (rewrite: `/api/auth/login` → `POST /auth/login`)
@@ -158,5 +183,6 @@ const data = await api.get('/', {
 - 모든 요청: username `max_length=64`, password `max_length=128`
 
 ## 캐싱
-- 프론트엔드 localStorage에 1시간 캐싱
+- 프론트엔드 localStorage에 1시간 캐싱 — 키는 학기별로 분리 (`ksa_class_finder_cache_{year}_{semester}`)
+- 선택 학기는 `ksa_selected_term`에 보존 (새로고침 시 유지)
 - 강제 갱신: `fetchInitialData(true)`

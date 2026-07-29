@@ -25,7 +25,8 @@
 ## Organisms (`src/components/`)
 | 컴포넌트 | 역할 |
 |----------|------|
-| `Navigation` | 상단 고정 네비게이션 바 (`onLogoClick`, `onLogout`, `isAdmin`, `username` props) |
+| `Navigation` | 상단 고정 네비게이션 바 (`onLogoClick`, `onLogout`, `isAdmin`, `username`, `terms`, `currentTerm`, `onTermChange` props) |
+| `TermSwitcher` | 학기 전환 토글 (`terms`, `current`, `onChange`). Navigation 전용 — 다크 배경 기준 스타일, 학기 1개면 미렌더 |
 | `Sidebar` | 좌측 고정 사이드바 메뉴 |
 | `FilterSection` | 학년 선택 필터 + 새로고침 |
 | `SearchResultDisplay` | 검색 결과 표시 (통합/그리드 뷰) |

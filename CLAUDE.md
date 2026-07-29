@@ -17,7 +17,8 @@ npm run lint      # ESLint
 
 # Backend (repo root)
 uvicorn backend.main:app --reload   # FastAPI (port 8000)
-python -m backend.parser_run        # KSAIN API → SQLite 동기화
+python -m backend.parser_run                       # KEIS API → SQLite 동기화 (오늘 기준 학기)
+python -m backend.parser_run -y 2026 -s 2          # 학기 지정
 ```
 
 테스트 미구현. 검증은 `npm run build` + `npm run lint` 통과로 대체. **테스트 파일 생성 금지.**
@@ -27,18 +28,21 @@ python -m backend.parser_run        # KSAIN API → SQLite 동기화
 ## Architecture
 
 ```
-KSAIN API → parser_run.py → ksa_timetable.db
+KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
                                   ↓
-                    FastAPI (GET /, /auth/*, /admin/*)
+              FastAPI (GET /?year=&semester=, /terms, /auth/*, /admin/*)
                                   ↓
-                 App.tsx — localStorage 캐시 (1h TTL)
+              App.tsx — 학기별 localStorage 캐시 (1h TTL)
                                   ↓
                  searchInClient() — 완전 클라이언트 사이드
 ```
 
+**학기 모델**: 수업 데이터는 `Class.year`/`Class.semester`로 학기별 공존.
+학기 미지정 요청은 최신 학기로 응답하고, 프론트는 `ksa_selected_term`에 선택 학기를 보존합니다.
+
 | 파일                      | 역할                                                                            |
 | ------------------------- | ------------------------------------------------------------------------------- |
-| `App.tsx`                 | 전역 상태 + 라우터 + fetch + 검색 오케스트레이터 (context/store 없음)           |
+| `App.tsx`                 | 전역 상태 + 라우터 + fetch + 학기 전환 + 검색 오케스트레이터 (context/store 없음) |
 | `src/lib/searchEngine.ts` | 검색 전체 로직 (prefix 파싱, 불린 연산, 초성 매칭)                              |
 | `src/lib/utils.ts`        | `DAY_MAP`, `DAYS_ORDER`, `PERIODS`, `extractSearchTerms()`, `getStudentColor()` |
 | `src/lib/api.ts`          | axios 인스턴스 (`VITE_API_BASE_URL` 기반 baseURL)                               |

@@ -37,3 +37,14 @@
 - [x] [SEC-13] Race Condition: 동시 로그인 세션 생성 분석 → SQLite 직렬화로 안전. PostgreSQL 이전 시 FOR UPDATE 락 필요
 - [x] [SEC-14] Dependency 취약점: requirements.txt 버전 미고정 수정 → 수정 (>=최소버전 명시, bcrypt>=4.0.0, python-multipart>=0.0.12)
 - [x] [SEC-15] 로그/에러 처리: 민감정보 로그 기록 여부 확인 → 안전 (user enumeration 방지, SEC-09에서 stderr 노출 수정)
+
+## 2026-07-29 — KEIS API 전환 + 학기별 데이터
+- [x] parser.py: KEIS restapi 기준 재작성 (kyosi 필드로 교시 결정, 강의실 "배정중" 대응)
+- [x] parser_run.py: 학기별 수집 (--year/--semester), 원자적 교체, 재시도·과반 실패 가드
+- [x] models.py: Class에 year/semester 추가, UniqueConstraint 학기 단위로 확장
+- [x] migrations.py: classes 테이블 재생성 마이그레이션 (기존 데이터 2026-1 지정, 멱등)
+- [x] terms.py: 학기 해석 유틸 (current_term / list_terms / resolve_term)
+- [x] main.py: GET / 학기 파라미터, GET /terms 추가
+- [x] admin_router.py: teachers/subjects 학기 필터, /admin/terms, /admin/sync 학기 지정
+- [x] 프론트: TermSwitcher 컴포넌트 + 학기별 캐시 분리 + 선택 학기 보존
+- [x] 서버 배포 및 2026-2 데이터 수집

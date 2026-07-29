@@ -46,13 +46,16 @@ src/
 | `selectedYears` | `string[]` | 선택된 학년 필터 |
 | `searchResult` | `SearchResultStats \| null` | 검색 결과 메타 정보 |
 | `searchMode` | `'general' \| 'student' \| 'teacher' \| 'room'` | 현재 검색 모드 |
+| `term` | `Term \| null` | 현재 조회 중인 학기 (localStorage 동기화) |
+| `availableTerms` | `Term[]` | 데이터가 존재하는 학기 목록 (API 응답 기반) |
 
 ## 핵심 함수 (App.tsx)
 | 함수 | 역할 |
 |------|------|
 | `handleLogin(token)` | token을 localStorage + state에 저장 |
 | `handleLogout()` | 서버 logout 호출 → localStorage 클리어 → sessionToken null |
-| `fetchInitialData()` | API fetch + localStorage 캐싱 (1h TTL), 401 시 자동 logout |
+| `fetchInitialData(force?, targetTerm?)` | 지정 학기 API fetch + 학기별 localStorage 캐싱 (1h TTL), 401 시 자동 logout |
+| `handleTermChange(term)` | 학기 전환 → localStorage 저장 후 해당 학기 재조회 |
 | `handleSearch()` | searchInClient 호출 → 상태 업데이트 |
 | `buildSearchValue()` | prefix(student:/teacher:/room:) 조립 |
 | `handleSearchToggle()` | 동일 값이면 검색어 초기화, 다르면 설정 |
@@ -83,10 +86,16 @@ src/
 - 로그아웃 시 캐시(`ksa_class_finder_cache`)도 함께 삭제
 
 ## 데이터 캐싱
-- 키: `ksa_class_finder_cache`
+- 키: `ksa_class_finder_cache_{year}_{semester}` — **학기별로 분리**
 - 만료: 1시간 (3,600,000ms)
-- 저장 내용: `{ timestamp, student_counts, data }`
+- 저장 내용: `{ timestamp, student_counts, data, available_terms }`
 - 강제 갱신: `fetchInitialData(true)` 호출
+- 로그아웃 시 `ksa_class_finder_cache` prefix가 붙은 키를 모두 삭제
+
+## 학기 전환
+- 선택 학기: `ksa_selected_term`에 `{ year, semester }` 저장 → 새로고침 시 유지
+- 저장된 학기가 없으면 학기 파라미터 없이 요청 → 서버가 최신 학기를 응답 (`term` 필드)
+- UI: `<TermSwitcher />` (Navigation 우측). 학기가 1개뿐이면 렌더링하지 않음
 
 ## 관련 가이드
 | 파일 | 내용 |

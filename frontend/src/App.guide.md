@@ -24,6 +24,8 @@
 | `expandedSubjects` | `[]` | 펼쳐진 과목 이름 목록 |
 | `lastUpdated` | `null` | 마지막 데이터 fetch 타임스탬프 |
 | `loading` | `true` | 데이터 로딩 상태 |
+| `term` | localStorage | 현재 조회 학기 `{ year, semester }`. null이면 서버가 최신 학기 선택 |
+| `availableTerms` | `[]` | 데이터가 존재하는 학기 목록 (API `available_terms`) |
 
 ## useMemo 파생 상태
 | 값 | 의존 | 설명 |
@@ -41,11 +43,23 @@ handleLogin(token) → localStorage.setItem + setSessionToken → 메인 앱 렌
 handleLogout() → POST /api/auth/logout → localStorage 클리어 → setSessionToken(null)
 fetchInitialData() 401 → handleLogout() 자동 호출
 ```
-- localStorage 키: `ksa_session_token` (세션), `ksa_class_finder_cache` (데이터 캐시)
-- 로그아웃 시 캐시도 함께 삭제
+- localStorage 키: `ksa_session_token` (세션), `ksa_class_finder_cache_{year}_{semester}` (학기별 데이터 캐시), `ksa_selected_term` (선택 학기)
+- 로그아웃 시 `ksa_class_finder_cache` prefix 키를 모두 삭제 (`clearDataCache()`)
 - 세션 토큰 있으면 앱 마운트 시 `/auth/me` 호출 → `currentUser` 설정
 
 ## 핵심 로직
+
+### 학기 전환
+```
+term(null) → GET /            → 서버가 최신 학기 응답 → term 확정 + 캐시 저장
+term(있음) → GET /?year=&semester=
+
+handleTermChange(next)
+  → setTerm + localStorage 저장
+  → fetchInitialData(false, next)   // 캐시 유효하면 즉시 복원
+```
+캐시 키가 학기별로 갈리므로 학기를 오가도 재요청 없이 복원됩니다.
+`fetchInitialData(force, targetTerm)`의 `targetTerm`은 state 반영 전 즉시 조회할 때 사용합니다.
 
 ### 검색 debounce (300ms)
 ```ts
@@ -82,7 +96,7 @@ sessionToken=null → LoginPage (라우터 밖, 전체 화면 대체)
 
 ## 레이아웃 구조
 ```
-Navigation (fixed top)
+Navigation (fixed top) — TermSwitcher 포함
   ↓
 Sidebar (fixed left, md+)
   ↓

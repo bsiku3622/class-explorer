@@ -1,3 +1,8 @@
+export interface Term {
+    year: number;
+    semester: number;
+}
+
 export interface StudentInfo {
     stuId: string;
     name: string;
