@@ -15,7 +15,8 @@ src/
 │   ├── utils.ts              → 공통 상수 + 유틸 함수
 │   ├── searchEngine.ts       → 클라이언트 검색 엔진 (논리 연산 + 유사도 매칭)
 │   ├── tradeEngine.ts        → 수강 변경 조합 탐색 (슬롯 충돌 기반)
-│   ├── curriculum.ts         → 졸업 요건 진척도 + 선수관계 그래프 배치
+│   ├── curriculum.ts         → 졸업 요건 진척도 + 평점 + 선수관계 그래프 배치
+│   ├── userState.ts          → 계정별 화면 상태 저장/복원 (localStorage 이관 포함)
 │   └── features.ts           → 한시 기능 노출 플래그 (TRADE_FEATURE)
 ├── constants/
 │   └── motion.ts             → Framer Motion 설정값
@@ -89,6 +90,22 @@ src/
 - `fetchInitialData` 401 응답 → `handleLogout()` 자동 호출 → LoginPage로
 - localStorage 키: `ksa_session_token`
 - 로그아웃 시 캐시(`ksa_class_finder_cache`)도 함께 삭제
+
+## 계정별 화면 상태
+
+작업 중인 계획(Plan·Trade)은 **계정**에 저장됩니다. 기기를 옮겨도 이어서 쓸 수 있게
+하려는 것이라, localStorage에 담지 않습니다.
+
+| 대상 | 저장 위치 |
+|------|-----------|
+| 선택한 학생, 트레이드 계획 | `PUT /state/{plan\|trade}` |
+| 이수 체크와 평어 | `PUT /curriculum/grades/{stuId}` |
+
+`src/lib/userState.ts`의 `loadState`/`saveState`를 씁니다. 예전 기기에 남은 값
+(`ksa_plan_state`, `ksa_trade_state`)은 처음 열 때 한 번 서버로 옮기고 지웁니다.
+
+**불러오기 전에는 저장하지 않습니다.** 마운트 직후 빈 상태로 저장이 돌면 서버 값을
+덮어써 날려버립니다 — 두 페이지 모두 `restored` 플래그로 막고 있습니다.
 
 ## 데이터 캐싱
 - 키: `ksa_class_finder_cache_{year}_{semester}` — **학기별로 분리**

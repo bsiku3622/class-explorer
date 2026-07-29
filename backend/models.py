@@ -127,6 +127,45 @@ class User(Base):
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
 
 
+class UserState(Base):
+    """
+    계정별 화면 상태. 기기(localStorage)가 아니라 계정에 붙여서 어디서 접속하든
+    이어서 작업할 수 있게 합니다.
+
+    `key`는 화면 이름(`plan` | `trade`)이고 `data`는 그 화면이 쓰던 JSON 그대로입니다.
+    구조가 화면마다 달라 컬럼으로 펼치지 않았습니다 — 서버는 내용을 해석하지 않습니다.
+    성적처럼 서버가 알아야 하는 값은 `CourseGrade`로 따로 뺐습니다.
+    """
+    __tablename__ = "user_states"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    key = Column(String, nullable=False)
+    data = Column(JSON, nullable=False)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint('user_id', 'key', name='_user_state_uc'),)
+
+
+class CourseGrade(Base):
+    """
+    계정이 기록한 이수 내역과 성적.
+
+    행이 있으면 이수한 것으로 봅니다. `grade`는 선택이라, 성적 없이 이수 여부만
+    체크해 둘 수도 있습니다.
+
+    `stu_id`를 함께 두는 이유는 한 계정으로 여러 학생의 계획을 짤 수 있기 때문입니다
+    (탐색 도구 성격상 학번을 직접 고르는 구조). 다른 계정의 기록은 보이지 않습니다.
+    """
+    __tablename__ = "course_grades"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    stu_id = Column(String, nullable=False, index=True)
+    course = Column(String, ForeignKey("courses.name"), nullable=False)
+    grade = Column(String, nullable=True)  # "A+", "A0" ... 미입력이면 None
+
+    __table_args__ = (UniqueConstraint('user_id', 'stu_id', 'course', name='_course_grade_uc'),)
+
+
 class Session(Base):
     __tablename__ = "sessions"
     id = Column(Integer, primary_key=True, index=True)
