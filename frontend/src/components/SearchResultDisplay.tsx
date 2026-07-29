@@ -8,7 +8,7 @@ import {
     LayoutList,
 } from "lucide-react";
 import type { SearchResultStats, SearchEntity } from "../types";
-import { getStudentColor, getKoreanName, getSectionNumber } from "../lib/utils";
+import { getStudentColor, getKoreanName } from "../lib/utils";
 import { tooltipMotionProps } from "../constants/motion";
 import TimetableGrid from "./TimetableGrid";
 import EntityCard from "./EntityCard";
@@ -184,14 +184,19 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
             subjectFull = mode === "room" ? parts[1].trim() : parts[0].trim();
         }
 
-        const koreanName = getKoreanName(subjectFull);
-        const sectionNum = getSectionNumber(subjectFull);
+        // formatSubjectWithSection이 만든 "과목명(분반)" 형태에서 뒤쪽 괄호만 분반으로 떼어냅니다.
+        // 과목명 자체에 숫자나 괄호가 있어도(체육4, 미적분학2(EC)) 그쪽을 분반으로 오인하지 않게.
+        const parsed = subjectFull.match(/^(.*?)\(([\d,]+)\)$/);
+        const sections = parsed?.[2] ?? "";
 
-        if (koreanName && sectionNum) {
-            handleSearchToggle(`${koreanName}/${sectionNum}`);
-        } else {
-            handleSearchToggle(koreanName || subjectFull);
+        // 분반이 여럿이면(교사·강의실 카드) 특정 분반을 집을 수 없으니 과목으로만 검색합니다
+        if (parsed && !sections.includes(",")) {
+            handleSearchToggle(`${getKoreanName(parsed[1]).trim()}/${sections}`);
+            return;
         }
+
+        const nameOnly = getKoreanName(parsed ? parsed[1] : subjectFull).trim();
+        handleSearchToggle(nameOnly || subjectFull);
     };
 
     if (isConsolidatedView) {
