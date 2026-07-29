@@ -4,6 +4,7 @@
 
 - 변경 파일: `backend/models.py`, `backend/import_credits.py` (신규), `backend/main.py`, `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/src/lib/tradeEngine.ts`, `frontend/src/pages/TradePage.tsx`, `frontend/src/types/index.ts`
 - 요약: KEIS restapi에 학점 엔드포인트가 없어(schedule 외 전부 404) SweetZamong `courses` 테이블을 정본으로 삼아 `SubjectCredit`에 임포트. 과목명 표기가 달라(`미적분학2(EC)(Calculus2(EC))` vs `미적분학2(EC)`) 뒤쪽 영문 괄호를 괄호 균형 기준으로 떼어낸 뒤 EC 태그를 붙였다 뗐다 하며 매칭 — 139과목 중 138개 매칭(실패: 한국정치사(조선붕당정치)). `GET /` 응답에 `credits`/`is_ec`/`is_pf` 추가. 트레이드 화면에 현재 학점과 계획 적용 후 학점(증감 포함), 과목 카드별 학점, 조합별 학점을 표시. 학점 미등록 과목은 합계에서 빠지며 그 사실을 화면에 알립니다.
+- 후속: 배포 직후 학점이 0으로 보이던 문제 — 브라우저가 1시간 캐시로 학점 필드 없는 옛 응답을 들고 있었습니다. 캐시 payload에 `v`(CACHE_VERSION)를 넣어 스키마가 바뀌면 자동 무효화되게 했습니다. API 응답에 필드를 추가할 때는 이 값을 올려야 합니다.
 - 함께 수정: `Opened by Drop` 목록이 드랍만 반영하고 이동·추가를 무시하던 문제 — `effectiveSchedule` 기준으로 변경.
 
 ## 2026-07-29 — 수강 변경 탐색(Trade) 및 유사도 검색

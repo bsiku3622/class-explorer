@@ -28,6 +28,12 @@ const TradePage = React.lazy(() => import("./pages/TradePage"));
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
 const CACHE_PREFIX = "ksa_class_finder_cache";
+/**
+ * 캐시된 응답의 스키마 버전. API 응답에 필드가 늘면 올려야 합니다.
+ * 안 올리면 예전 응답을 든 브라우저가 최대 1시간 동안 새 필드를 못 받아
+ * 학점이 0으로 보이는 식의 문제가 생깁니다.
+ */
+const CACHE_VERSION = 2;
 const TERM_KEY = "ksa_selected_term";
 const CACHE_EXPIRY = 60 * 60 * 1000;
 
@@ -197,9 +203,9 @@ const App: React.FC = () => {
                     ? localStorage.getItem(cacheKeyFor(requestedTerm))
                     : null;
             if (cached) {
-                const { timestamp, student_counts, data, available_terms } =
+                const { v, timestamp, student_counts, data, available_terms } =
                     JSON.parse(cached);
-                if (Date.now() - timestamp < CACHE_EXPIRY) {
+                if (v === CACHE_VERSION && Date.now() - timestamp < CACHE_EXPIRY) {
                     setStudentCounts(student_counts);
                     setSelectedYears(Object.keys(student_counts));
                     setAllClassesData(data);
@@ -226,6 +232,7 @@ const App: React.FC = () => {
                 localStorage.setItem(
                     cacheKeyFor(resolvedTerm),
                     JSON.stringify({
+                        v: CACHE_VERSION,
                         timestamp: now,
                         student_counts,
                         data,

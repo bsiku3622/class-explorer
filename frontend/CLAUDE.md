@@ -91,7 +91,9 @@ src/
 ## 데이터 캐싱
 - 키: `ksa_class_finder_cache_{year}_{semester}` — **학기별로 분리**
 - 만료: 1시간 (3,600,000ms)
-- 저장 내용: `{ timestamp, student_counts, data, available_terms }`
+- 저장 내용: `{ v, timestamp, student_counts, data, available_terms }`
+- `v`는 스키마 버전(`CACHE_VERSION`). **API 응답에 필드를 추가하면 반드시 올리세요** —
+  안 올리면 예전 응답을 든 브라우저가 최대 1시간 동안 새 필드를 못 받습니다
 - 강제 갱신: `fetchInitialData(true)` 호출
 - 로그아웃 시 `ksa_class_finder_cache` prefix가 붙은 키를 모두 삭제
 
