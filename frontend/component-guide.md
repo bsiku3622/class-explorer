@@ -34,7 +34,7 @@
 | `SectionCard` | 개별 분반 카드 (학생 배지, 교사, 강의실, 시간) |
 | `SubjectAccordionItem` | 과목 아코디언 (분반 목록 토글) |
 | `StatsCards` | 3열 통계 카드 (과목수, 분반수, 학생수) |
-| `TimetableGrid` | 요일×교시 시간표 그리드 |
+| `TimetableGrid` | 요일×교시 시간표 그리드. `colorFor(time)`로 칸마다 다른 색 지정 가능 (미지정 시 `color`) |
 | `EntityCard` | 검색된 엔티티 카드 (학생/교사/강의실) |
 
 ## Pages (`src/pages/`)

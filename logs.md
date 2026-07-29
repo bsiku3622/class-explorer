@@ -4,6 +4,7 @@
 
 - 변경 파일: `frontend/src/lib/tradeEngine.ts` (신규), `frontend/src/lib/features.ts` (신규), `frontend/src/pages/TradePage.tsx` (신규), `frontend/src/components/SectionsTimetable.tsx` (신규), `frontend/src/lib/searchEngine.ts`, `frontend/src/App.tsx`, `frontend/src/components/Sidebar.tsx`, `frontend/src/components/BottomNav.tsx`, `frontend/src/types/index.ts`
 - 요약: 분반 이동·드랍·추가신청을 한 화면에서 처리하는 `/trade` 추가. 과목마다 유지/이동/드랍을 지정하고 추가 과목은 분반까지 고정할 수 있으며, 시간 슬롯이 겹치지 않는 조합을 백트래킹으로 찾아 나열합니다(상한 200, 변경 건수 오름차순). 조합을 누르면 적용 후 시간표를 미리 보여줍니다. 드랍한 과목은 빨간색으로 표시되고 목록 하단으로 내려가며, 드랍으로 비는 시간에 들어갈 수 있는 과목을 따로 제시합니다. 과목 카드를 펼치면 해당 과목 전 분반을 한 그리드에서 비교할 수 있고 충돌하는 분반은 회색 처리됩니다. 검색은 `fuzzyMatch`를 도입해 별칭 등록 없이 "정3"으로 "정보과학3"을 찾습니다 — 서브시퀀스 매칭에 구간 길이 제약(`검색어×3+2`)을 걸어 오탐을 억제했습니다. 기능 전체는 `TRADE_FEATURE.enabled` 한 줄로 끌 수 있고 2026-2에서만 노출됩니다. 정원 정보가 없어 시간 충돌만 판정합니다.
+- 후속: 조합을 고르기 전에도 지정한 드랍·추가가 왼쪽 시간표에 즉시 반영되도록 수정. 빠지는 과목은 빨강, 들어오는 과목은 초록으로 칠하고 범례를 붙였습니다(`TimetableGrid`에 `colorFor` prop 추가 — 기존 사용처는 영향 없음). 빠지는 과목을 지우지 않고 남겨둬 어느 시간이 비는지 보이게 했고, 분반을 정하지 않은 추가 과목은 그리지 않습니다.
 
 ## 2026-07-29 — KEIS API 전환 및 학기별 데이터 구조 도입
 

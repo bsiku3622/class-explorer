@@ -5,6 +5,8 @@ import { getKoreanName, getSectionNumber, DAYS_ORDER, PERIODS } from "../lib/uti
 interface TimetableGridProps {
     times: SectionTime[];
     color?: string;
+    /** 칸마다 다른 색을 쓰고 싶을 때. 반환값이 없으면 `color`로 떨어집니다 */
+    colorFor?: (time: SectionTime) => string | undefined;
     className?: string;
     showTitle?: boolean;
     onCellClick?: (subject: string) => void;
@@ -16,6 +18,7 @@ const DAYS = DAYS_ORDER;
 const TimetableGrid: React.FC<TimetableGridProps> = ({
     times,
     color = "#7828c8",
+    colorFor,
     className = "",
     showTitle = true,
     onCellClick,
@@ -92,6 +95,7 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
                         {DAYS.map((day) => {
                             const info = timeMap.get(`${day}-${period}`);
                             const { display, keyword } = info ? getCellContent(info) : { display: "", keyword: "" };
+                            const cellColor = (info && colorFor?.(info)) || color;
 
                             return (
                                 <div
@@ -104,8 +108,8 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
                                             <div
                                                 className="absolute border-2 transition-all duration-200 pointer-events-none z-30 opacity-0 group-hover:opacity-100"
                                                 style={{
-                                                    borderColor: color,
-                                                    backgroundColor: `${color}15`,
+                                                    borderColor: cellColor,
+                                                    backgroundColor: `${cellColor}15`,
                                                     top: "-1px",
                                                     left: "-2px",
                                                     right: "-1px",
@@ -115,7 +119,7 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
                                             {/* Cell Background & Content */}
                                             <div
                                                 className="absolute inset-0 flex items-center p-1.5 pl-2.5 z-10"
-                                                style={{ backgroundColor: `${color}10` }}
+                                                style={{ backgroundColor: `${cellColor}1f` }}
                                                 title={display}>
                                                 <span className="text-[11px] font-black text-black leading-[1.1] text-left break-all line-clamp-3 pointer-events-none">
                                                     {display}
