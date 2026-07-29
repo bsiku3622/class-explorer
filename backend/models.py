@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, UniqueConstraint, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, UniqueConstraint, DateTime, Text, JSON
 from sqlalchemy.orm import relationship
 from backend.database import Base
 import datetime
@@ -63,6 +63,51 @@ class SubjectCredit(Base):
     is_pf = Column(Boolean, default=False, nullable=False)
     # 매칭에 쓴 SweetZamong 과목명 — 어떤 항목과 이어졌는지 추적용
     matched_name = Column(String, nullable=True)
+
+
+class Course(Base):
+    """
+    교육과정 카탈로그. 학교가 개설할 수 있는 과목의 정의로, 특정 학기에 실제로 열린
+    분반(`Class`)과는 다른 층위입니다.
+
+    `Class.subject`(KEIS 원문)와는 `SubjectCredit.matched_name`을 거쳐 이어집니다.
+
+        Class.subject → SubjectCredit.subject
+                        SubjectCredit.matched_name → Course.name
+
+    출처는 Zamong 워크북이며 `curriculum_seed.json`으로 옮겨 담습니다.
+    """
+    __tablename__ = "courses"
+    name = Column(String, primary_key=True, index=True)
+    english_name = Column(String, nullable=True)
+    department = Column(String, index=True, nullable=False)   # 수학, 물리학, 융합 ...
+    category = Column(String, index=True, nullable=False)     # natural | humanities | convergence
+    credits = Column(Float, nullable=False)
+    ap_credits = Column(Float, default=0, nullable=False)
+    is_ec = Column(Boolean, default=False, nullable=False)
+    is_pf = Column(Boolean, default=False, nullable=False)
+    recommended_semester = Column(String, nullable=True)      # "1"~"6" | "summer"
+    description = Column(Text, nullable=True)
+    description_sections = Column(JSON, default=dict, nullable=False)
+    description_source = Column(String, nullable=True)        # 출처 책자
+    description_page = Column(Integer, nullable=True)
+
+
+class CoursePrereq(Base):
+    """
+    과목 선수관계. `before`를 이수해야 `after`를 들을 수 있습니다.
+
+    `alternative`는 같은 `after`를 향한 다른 항목과 **택일** 관계라는 뜻입니다.
+    예를 들어 예술속의물리는 물리학및실험2 또는 일반물리학2 중 하나면 되지만,
+    법과학은 화학및실험과 생물학및실험을 모두 들어야 합니다.
+    """
+    __tablename__ = "course_prereqs"
+    id = Column(Integer, primary_key=True, index=True)
+    before = Column(String, ForeignKey("courses.name"), index=True, nullable=False)
+    after = Column(String, ForeignKey("courses.name"), index=True, nullable=False)
+    alternative = Column(Boolean, default=False, nullable=False)
+
+    __table_args__ = (UniqueConstraint('before', 'after', name='_course_prereq_uc'),)
 
 
 class SubjectAlias(Base):

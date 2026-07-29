@@ -13,8 +13,12 @@ backend/
 ├── auth.py          → 패스워드 해싱, 세션 토큰 생성, get_current_user 의존성
 ├── auth_router.py   → 인증 엔드포인트 (/auth/*)
 ├── admin_router.py  → 관리자 전용 엔드포인트 (/admin/*)
+├── curriculum_router.py → 교육과정 엔드포인트 (/curriculum/*)
 ├── create_user.py   → 관리자 계정 생성 CLI 스크립트
 ├── import_credits.py→ SweetZamong 교육과정 DB → 과목 학점 임포트
+├── build_curriculum_seed.py → Zamong 워크북 → curriculum_seed.json (로컬 전용)
+├── import_curriculum.py → curriculum_seed.json → Course/CoursePrereq 적재
+├── curriculum_seed.json → 교육과정 카탈로그 145과목 + 선수관계 117개
 ├── parser.py        → KEIS API 응답 파싱 로직
 ├── parser_run.py    → 학기별 데이터 동기화 실행 스크립트
 ├── students.txt     → 학생 목록 (학번 + 이름)
@@ -58,8 +62,31 @@ SubjectAlias                  SubjectCredit
 id (PK)                        subject (PK, Class.subject와 일치)
 subject  (Class.subject 과 일치) credits (float)
 alias    (검색 키워드)           ap_credits / is_ec / is_pf
-UniqueConstraint (subject,alias) matched_name (SweetZamong 과목명)
+UniqueConstraint (subject,alias) matched_name (→ Course.name)
+
+Course                         CoursePrereq
+─────────────────────────────  ─────────────────────────────
+name (PK)                      id (PK)
+english_name                   before (FK→Course.name)
+department / category          after  (FK→Course.name)
+credits / ap_credits           alternative (bool, 택일 여부)
+is_ec / is_pf                  UniqueConstraint (before, after)
+recommended_semester
+description / description_sections
+description_source / description_page
 ```
+
+### 수업과 교육과정의 연결
+
+`Class`는 특정 학기에 열린 분반이고, `Course`는 학교가 개설할 수 있는 과목의 정의입니다.
+둘은 `SubjectCredit`을 다리 삼아 이어집니다.
+
+```
+Class.subject ─→ SubjectCredit.subject
+                 SubjectCredit.matched_name ─→ Course.name ─→ CoursePrereq
+```
+
+이 체인 덕분에 "이 학생이 듣는 분반"에서 "계열·학점·선수관계"까지 바로 갑니다.
 
 ## 데이터 수집 흐름 (parser_run.py)
 ```
@@ -96,6 +123,20 @@ python -m backend.import_credits             # 저장
 KEIS에는 학점 정보가 없어 SweetZamong `courses` 테이블을 정본으로 씁니다.
 과목명 표기가 달라(`미적분학2(EC)(Calculus2(EC))` vs `미적분학2(EC)`) 뒤쪽 영문 괄호를
 균형 맞춰 떼고 EC 태그를 붙였다 뗐다 하며 매칭합니다.
+
+### 교육과정 적재
+```bash
+python -m backend.import_curriculum --dry-run   # 결과만 확인
+python -m backend.import_curriculum             # 저장
+```
+`curriculum_seed.json`만 있으면 되므로 서버에서 그대로 돌아갑니다.
+
+seed를 다시 만들려면 (로컬에서만 — Zamong 워크북과 SweetZamong DB가 필요):
+```bash
+python -m backend.build_curriculum_seed
+```
+선수관계는 워크북 학과 시트에 **셀 배경색으로 그린 그림**이라 따로 읽습니다. 자세한
+원리는 `build_curriculum_seed.py` 상단 주석에 적어 뒀습니다.
 
 ### 계정 생성 (관리자 CLI)
 ```bash
