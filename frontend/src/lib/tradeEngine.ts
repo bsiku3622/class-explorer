@@ -25,6 +25,8 @@ export interface SectionInfo {
     slots: SlotKey[];
     students: StudentInfo[];
     studentCount: number;
+    /** 과목 학점 — 교육과정에 없으면 null */
+    credits: number | null;
 }
 
 /** 과목명 → 그 과목의 전체 분반 */
@@ -64,7 +66,11 @@ const sectionNumber = (section: string): number => {
     return match ? parseInt(match[0], 10) : 0;
 };
 
-const toSectionInfo = (subject: string, sec: Section): SectionInfo => ({
+const toSectionInfo = (
+    subject: string,
+    sec: Section,
+    credits: number | null,
+): SectionInfo => ({
     id: sec.id,
     subject,
     section: sec.section,
@@ -74,13 +80,14 @@ const toSectionInfo = (subject: string, sec: Section): SectionInfo => ({
     slots: (sec.times || []).map((t) => toSlotKey(t.day, t.period)),
     students: sec.students || [],
     studentCount: sec.student_count ?? sec.students?.length ?? 0,
+    credits,
 });
 
 export const buildSubjectIndex = (allClassesData: SubjectData[]): SubjectIndex => {
     const index: SubjectIndex = new Map();
     allClassesData.forEach((subj) => {
         const sections = subj.sections
-            .map((sec) => toSectionInfo(subj.subject, sec))
+            .map((sec) => toSectionInfo(subj.subject, sec, subj.credits ?? null))
             .sort((a, b) => sectionNumber(a.section) - sectionNumber(b.section));
         index.set(subj.subject, sections);
     });
@@ -96,7 +103,7 @@ export const getStudentSchedule = (
     allClassesData.forEach((subj) => {
         subj.sections.forEach((sec) => {
             if (sec.students?.some((s) => s.stuId === stuId)) {
-                result.push(toSectionInfo(subj.subject, sec));
+                result.push(toSectionInfo(subj.subject, sec, subj.credits ?? null));
             }
         });
     });
@@ -110,7 +117,7 @@ export const buildStudentIndex = (allClassesData: SubjectData[]): StudentIndex =
     const index: StudentIndex = new Map();
     allClassesData.forEach((subj) => {
         subj.sections.forEach((sec) => {
-            const info = toSectionInfo(subj.subject, sec);
+            const info = toSectionInfo(subj.subject, sec, subj.credits ?? null);
             sec.students?.forEach((s) => {
                 const list = index.get(s.stuId);
                 if (list) list.push(info);
@@ -453,3 +460,11 @@ export const applyPlan = (
 
     return result.sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
 };
+
+/** 시간표의 총 학점. 교육과정에 없는 과목은 0으로 셉니다 */
+export const totalCredits = (sections: SectionInfo[]): number =>
+    sections.reduce((sum, s) => sum + (s.credits ?? 0), 0);
+
+/** 학점이 없어 합계에서 빠진 과목 */
+export const missingCreditSubjects = (sections: SectionInfo[]): string[] =>
+    sections.filter((s) => s.credits == null).map((s) => s.subject);

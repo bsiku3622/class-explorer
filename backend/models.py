@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, UniqueConstraint, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, UniqueConstraint, DateTime
 from sqlalchemy.orm import relationship
 from backend.database import Base
 import datetime
@@ -48,6 +48,21 @@ class Enrollment(Base):
 
     # 학생이 동일 수업에 중복 등록 방지
     __table_args__ = (UniqueConstraint('stuId', 'classId', name='_student_enrollment_uc'),)
+
+
+class SubjectCredit(Base):
+    """
+    과목별 학점. KEIS 시간표 API에는 학점이 없어 SweetZamong 교육과정 데이터에서 가져옵니다.
+    과목명은 `Class.subject` 원문 그대로 저장합니다 (분반과 무관하게 과목 단위).
+    """
+    __tablename__ = "subject_credits"
+    subject = Column(String, primary_key=True, index=True)
+    credits = Column(Float, nullable=False)
+    ap_credits = Column(Float, default=0, nullable=False)
+    is_ec = Column(Boolean, default=False, nullable=False)
+    is_pf = Column(Boolean, default=False, nullable=False)
+    # 매칭에 쓴 SweetZamong 과목명 — 어떤 항목과 이어졌는지 추적용
+    matched_name = Column(String, nullable=True)
 
 
 class SubjectAlias(Base):

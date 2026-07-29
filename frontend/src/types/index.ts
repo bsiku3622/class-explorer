@@ -34,6 +34,10 @@ export interface SubjectData {
     sections: Section[];
     /** 검색용 별칭 (관리자 등록) */
     aliases?: string[];
+    /** 학점 — 교육과정에 없는 과목은 null */
+    credits?: number | null;
+    is_ec?: boolean;
+    is_pf?: boolean;
 }
 
 export interface Stats {

@@ -23,6 +23,8 @@ import {
     findBlockers,
     findAddableAfterDrop,
     findTradePartners,
+    totalCredits,
+    missingCreditSubjects,
     MAX_PLAN_RESULTS,
     type AddSelection,
     type PlanAction,
@@ -356,6 +358,23 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
     );
 
     // index.css의 테마 값 (retro-primary / retro-green / retro-accent4)
+    /** 지금 수강 학점과, 계획을 적용했을 때의 학점 */
+    const creditSummary = useMemo(() => {
+        const now = totalCredits(schedule);
+        const planned = totalCredits(effectiveSchedule);
+        return {
+            now,
+            planned,
+            delta: planned - now,
+            unknown: [
+                ...new Set([
+                    ...missingCreditSubjects(schedule),
+                    ...missingCreditSubjects(effectiveSchedule),
+                ]),
+            ],
+        };
+    }, [schedule, effectiveSchedule]);
+
     const cellColorFor = useCallback(
         (time: { subject?: string }) => {
             if (!time.subject) return undefined;
@@ -407,7 +426,8 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
     /** 드랍으로 비는 시간에 새로 들어갈 수 있는 과목 (과목 단위로 묶음) */
     const openedByDrop = useMemo(() => {
         if (dropSubjects.length === 0) return [];
-        const addable = findAddableAfterDrop(schedule, index, dropSubjects);
+        // 지금 계획대로의 시간표 기준 — 이동·추가까지 반영해야 실제로 들어갈 수 있는 것만 남습니다
+        const addable = findAddableAfterDrop(effectiveSchedule, index, []);
         const grouped = new Map<string, SectionInfo[]>();
         addable.forEach((sec) => {
             if (!grouped.has(sec.subject)) grouped.set(sec.subject, []);
@@ -428,7 +448,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
         }))
             .filter((g) => g.usesFreed)
             .sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
-    }, [dropSubjects, schedule, index]);
+    }, [dropSubjects, schedule, effectiveSchedule, index]);
 
     const addedSubjects = useMemo(
         () => addSelections.map((a) => a.subject),
@@ -549,6 +569,31 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                             <span className="text-[10px] font-bold text-black/40">
                                 {schedule.length}과목 수강 중
                             </span>
+                            <span className="border-2 border-black px-2 py-1 text-[11px] font-black">
+                                {creditSummary.now}학점
+                                {creditSummary.delta !== 0 && (
+                                    <span
+                                        className={
+                                            creditSummary.delta > 0
+                                                ? "text-retro-green"
+                                                : "text-retro-primary"
+                                        }
+                                    >
+                                        {" "}
+                                        → {creditSummary.planned}학점 (
+                                        {creditSummary.delta > 0 ? "+" : ""}
+                                        {creditSummary.delta})
+                                    </span>
+                                )}
+                            </span>
+                            {creditSummary.unknown.length > 0 && (
+                                <span
+                                    className="text-[10px] font-bold text-retro-accent4"
+                                    title={creditSummary.unknown.join(", ")}
+                                >
+                                    학점 미등록 {creditSummary.unknown.length}과목 제외
+                                </span>
+                            )}
                         </div>
                     )}
                 </div>
@@ -899,6 +944,8 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                         >
                                                             {sectionLabel(sec)} ·{" "}
                                                             {formatSectionTimes(sec.times)}
+                                                            {sec.credits != null &&
+                                                                ` · ${sec.credits}학점`}
                                                         </p>
                                                     )}
                                                 </div>
@@ -1318,6 +1365,20 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                 <div className="flex items-center justify-between gap-2">
                                                     <span className="text-[10px] font-black uppercase tracking-widest text-black/40">
                                                         Plan {i + 1}
+                                                        {(() => {
+                                                            const after = totalCredits(
+                                                                applyPlan(schedule, plan),
+                                                            );
+                                                            const diff =
+                                                                after - creditSummary.now;
+                                                            return (
+                                                                <span className="ml-1.5 text-black/60">
+                                                                    {after}학점
+                                                                    {diff !== 0 &&
+                                                                        ` (${diff > 0 ? "+" : ""}${diff})`}
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </span>
                                                     <span className="flex items-center gap-1 text-[10px] font-black">
                                                         {plan.moveCount > 0 && (
