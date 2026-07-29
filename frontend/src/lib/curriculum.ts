@@ -33,7 +33,12 @@ export interface Curriculum {
     /** KEIS 과목명 → 카탈로그 과목명 */
     subject_map: Record<string, string>;
     requirements: Record<string, number>;
+    /** 평어 → 평점 (4.3 만점) */
+    grade_points: Record<string, number>;
 }
+
+/** 계정에 기록해 둔 이수 내역 — 과목명 → 평어 (평어 없이 이수만 체크 가능) */
+export type GradeMap = Record<string, string | null>;
 
 export interface ProgressTerm {
     year: number;
@@ -214,6 +219,73 @@ export const computeProgress = (
         byCategory,
         requirements: progress,
         graduationReady: progress.every((item) => item.met),
+    };
+};
+
+// ─── 평점 ────────────────────────────────────────────────────────────────────
+
+/** 평어 선택지 — 높은 순 */
+export const GRADE_OPTIONS = [
+    "A+", "A0", "A-",
+    "B+", "B0", "B-",
+    "C+", "C0", "C-",
+    "D+", "D0", "D-",
+    "F",
+];
+
+export interface Gpa {
+    /** 전체 평점 — 평어를 넣은 과목만 */
+    overall: number | null;
+    /** 자연과학 계열 평점 */
+    natural: number | null;
+    /** 평점에 반영된 학점 */
+    gradedCredits: number;
+    /** 평어를 아직 안 넣은 과목 수 (P/F 제외) */
+    missing: number;
+}
+
+/**
+ * 평점을 냅니다. 평어를 넣은 과목만 셈에 들어갑니다.
+ *
+ * P/F 과목은 평어가 있어도 제외합니다 — 등급이 아니라 통과 여부라 평점에 섞이면
+ * 숫자가 왜곡됩니다.
+ */
+export const computeGpa = (
+    grades: GradeMap,
+    byName: Map<string, Course>,
+    gradePoints: Record<string, number>,
+    /** 평어를 넣을 수 있는 과목 전체 — 미입력 개수를 세는 데 씁니다 */
+    scope: Set<string>,
+): Gpa => {
+    let points = 0;
+    let credits = 0;
+    let naturalPoints = 0;
+    let naturalCredits = 0;
+
+    Object.entries(grades).forEach(([name, grade]) => {
+        const course = byName.get(name);
+        if (!course || course.is_pf || !grade) return;
+        const point = gradePoints[grade];
+        if (point === undefined) return;
+        points += point * course.credits;
+        credits += course.credits;
+        if (course.category === "natural") {
+            naturalPoints += point * course.credits;
+            naturalCredits += course.credits;
+        }
+    });
+
+    const missing = [...scope].filter((name) => {
+        const course = byName.get(name);
+        return course && !course.is_pf && !grades[name];
+    }).length;
+
+    const round = (value: number) => Math.round(value * 100) / 100;
+    return {
+        overall: credits ? round(points / credits) : null,
+        natural: naturalCredits ? round(naturalPoints / naturalCredits) : null,
+        gradedCredits: credits,
+        missing,
     };
 };
 

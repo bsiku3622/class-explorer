@@ -1,6 +1,7 @@
 """교육과정 API — 과목 카탈로그, 선수관계, 졸업 요건"""
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend import models
@@ -14,6 +15,15 @@ REQUIREMENTS = {
     "humanities": 52.0,
     "convergence": 8.0,
     "ec": 10.0,
+}
+
+# 평어 → 평점 (4.3 만점)
+GRADE_POINTS = {
+    "A+": 4.3, "A0": 4.0, "A-": 3.7,
+    "B+": 3.3, "B0": 3.0, "B-": 2.7,
+    "C+": 2.3, "C0": 2.0, "C-": 1.7,
+    "D+": 1.3, "D0": 1.0, "D-": 0.7,
+    "F": 0.0,
 }
 
 
@@ -63,6 +73,7 @@ def get_curriculum(
         ],
         "subject_map": subject_map,
         "requirements": REQUIREMENTS,
+        "grade_points": GRADE_POINTS,
     }
 
 
@@ -116,6 +127,81 @@ def get_progress(
             for (year, semester), items in sorted(terms.items())
         ],
     }
+
+
+class GradeEntry(BaseModel):
+    course: str = Field(min_length=1, max_length=160)
+    grade: str | None = Field(default=None, max_length=4)
+
+
+class GradesRequest(BaseModel):
+    entries: list[GradeEntry] = Field(default_factory=list, max_length=400)
+
+
+@router.get("/grades/{stu_id}")
+def get_grades(
+    stu_id: str,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """로그인한 계정이 이 학생에 대해 기록해 둔 이수·성적"""
+    rows = (
+        db.query(models.CourseGrade)
+        .filter(models.CourseGrade.user_id == user.id, models.CourseGrade.stu_id == stu_id)
+        .order_by(models.CourseGrade.course)
+        .all()
+    )
+    return {
+        "stu_id": stu_id,
+        "entries": [{"course": row.course, "grade": row.grade} for row in rows],
+    }
+
+
+@router.put("/grades/{stu_id}")
+def put_grades(
+    stu_id: str,
+    payload: GradesRequest,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    """
+    이 학생에 대한 기록을 통째로 바꿉니다.
+
+    항목이 145개를 넘지 않아 부분 갱신보다 전체 교체가 단순하고, 여러 기기에서
+    편집해도 마지막 저장이 이깁니다.
+    """
+    known = {name for (name,) in db.query(models.Course.name).all()}
+    unknown = sorted({entry.course for entry in payload.entries} - known)
+    if unknown:
+        raise HTTPException(
+            status_code=400,
+            detail=f"교육과정에 없는 과목: {', '.join(unknown[:5])}",
+        )
+
+    bad_grades = sorted(
+        {entry.grade for entry in payload.entries if entry.grade}
+        - set(GRADE_POINTS)
+    )
+    if bad_grades:
+        raise HTTPException(
+            status_code=400, detail=f"알 수 없는 평어: {', '.join(bad_grades[:5])}"
+        )
+
+    db.query(models.CourseGrade).filter(
+        models.CourseGrade.user_id == user.id,
+        models.CourseGrade.stu_id == stu_id,
+    ).delete()
+
+    # 같은 과목이 두 번 오면 뒤엣것을 씁니다 — UNIQUE 위반을 막습니다
+    deduped = {entry.course: entry.grade for entry in payload.entries}
+    for course, grade in deduped.items():
+        db.add(
+            models.CourseGrade(
+                user_id=user.id, stu_id=stu_id, course=course, grade=grade
+            )
+        )
+    db.commit()
+    return {"stu_id": stu_id, "saved": len(deduped)}
 
 
 @router.get("/courses/{name}")

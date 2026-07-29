@@ -187,7 +187,8 @@
     { "before": "미적분학1", "after": "미적분학2(EC)", "alternative": false }
   ],
   "subject_map": { "미적분학2(EC)(Calculus2(EC))": "미적분학2(EC)" },
-  "requirements": { "natural": 67.0, "humanities": 52.0, "convergence": 8.0, "ec": 10.0 }
+  "requirements": { "natural": 67.0, "humanities": 52.0, "convergence": 8.0, "ec": 10.0 },
+  "grade_points": { "A+": 4.3, "A0": 4.0, "A-": 3.7, "B+": 3.3, "...": 0.0 }
 }
 ```
 
@@ -230,6 +231,42 @@
 과목 하나의 상세 — 책자에서 가져온 설명 본문(`description_sections`)까지 포함합니다.
 `prerequisites`(선수 목록)와 `unlocks`(이 과목이 여는 과목)를 함께 돌려줍니다.
 없는 이름이면 `404`.
+
+---
+
+### `GET·PUT /curriculum/grades/{stuId}` *(인증 필요)*
+**로그인한 계정이** 이 학생에 대해 기록한 이수 내역과 평어. 다른 계정의 기록은
+보이지 않습니다.
+
+행이 있으면 이수한 것으로 봅니다. `grade`는 선택이라 평어 없이 이수 체크만 할 수도
+있습니다. 수집된 학기(`/curriculum/progress`)와는 별개로, 그 이전 학기를 채우는 용도입니다.
+
+```json
+{ "entries": [ { "course": "미적분학1", "grade": "A+" },
+               { "course": "수학1", "grade": null } ] }
+```
+
+`PUT`은 **전체 교체**입니다. 항목이 145개를 넘지 않아 부분 갱신보다 단순하고, 여러
+기기에서 편집해도 마지막 저장이 이깁니다. 교육과정에 없는 과목이나 알 수 없는 평어는
+`400`. 같은 과목이 두 번 오면 뒤엣것을 씁니다.
+
+---
+
+## 계정 상태 엔드포인트
+
+작업 중인 계획을 기기(localStorage)가 아니라 계정에 붙여 둡니다. 서버는 `data` 내용을
+해석하지 않습니다 — 화면마다 구조가 다르고 자주 바뀌기 때문입니다.
+
+### `GET·PUT·DELETE /state/{key}` *(인증 필요)*
+`key`는 `plan` | `trade`만 허용하며, 그 외에는 `404`. 저장 크기 상한은 256KB(`413`).
+
+```json
+// PUT 요청
+{ "data": { "stuId": "25-059", "actions": { "체육4(...)": "drop" } } }
+
+// GET 응답 — 저장된 적 없으면 data가 null
+{ "key": "trade", "data": { "...": "..." }, "updated_at": "2026-07-30T01:20:00" }
+```
 
 ---
 

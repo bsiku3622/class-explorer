@@ -40,6 +40,7 @@ import {
     formatSectionTimes,
 } from "../lib/utils";
 import { fuzzyMatch } from "../lib/searchEngine";
+import { loadState, saveState } from "../lib/userState";
 import RetroCard from "../components/atoms/RetroCard";
 import RetroButton from "../components/atoms/RetroButton";
 import RetroSubTitle from "../components/atoms/RetroSubTitle";
@@ -64,7 +65,8 @@ const ACTION_ORDER: PlanAction[] = ["keep", "move", "drop"];
 const sectionLabel = (s: SectionInfo) =>
     `${getSectionNumber(s.section)}분반 · ${s.teacher}`;
 
-const STATE_KEY = "ksa_trade_state";
+/** 계정 저장으로 옮기기 전에 쓰던 키 — 남아 있으면 한 번 옮겨 옵니다 */
+const LEGACY_STATE_KEY = "ksa_trade_state";
 
 interface SavedState {
     stuId: string | null;
@@ -73,55 +75,47 @@ interface SavedState {
     moveTargets: Record<string, number | null>;
 }
 
-/** 작업 중인 계획은 새로고침·페이지 이동 후에도 남습니다 */
-const loadState = (): SavedState | null => {
-    try {
-        const raw = localStorage.getItem(STATE_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (typeof parsed !== "object" || parsed === null) return null;
-        return {
-            stuId: typeof parsed.stuId === "string" ? parsed.stuId : null,
-            actions: parsed.actions ?? {},
-            addSelections: Array.isArray(parsed.addSelections)
-                ? parsed.addSelections
-                : [],
-            moveTargets: parsed.moveTargets ?? {},
-        };
-    } catch {
-        return null;
-    }
-};
-
 const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
-    const [saved] = useState(loadState);
-
-    const [stuId, setStuId] = useState<string | null>(saved?.stuId ?? null);
+    const [stuId, setStuId] = useState<string | null>(null);
     const [studentQuery, setStudentQuery] = useState("");
-    const [actions, setActions] = useState<Record<string, PlanAction>>(
-        saved?.actions ?? {},
-    );
-    const [addSelections, setAddSelections] = useState<AddSelection[]>(
-        saved?.addSelections ?? [],
-    );
+    const [actions, setActions] = useState<Record<string, PlanAction>>({});
+    const [addSelections, setAddSelections] = useState<AddSelection[]>([]);
     /** 이동으로 표시한 과목의 목표 분반 (null = 아무 분반이나 탐색) */
-    const [moveTargets, setMoveTargets] = useState<Record<string, number | null>>(
-        saved?.moveTargets ?? {},
-    );
+    const [moveTargets, setMoveTargets] = useState<Record<string, number | null>>({});
     const [addQuery, setAddQuery] = useState("");
     const [openSubject, setOpenSubject] = useState<string | null>(null);
     const [previewKey, setPreviewKey] = useState<string | null>(null);
+    /** 불러오기 전에는 저장하지 않습니다 — 빈 값으로 덮어쓰는 걸 막습니다 */
+    const [restored, setRestored] = useState(false);
 
     useEffect(() => {
-        if (!stuId) {
-            localStorage.removeItem(STATE_KEY);
-            return;
-        }
-        localStorage.setItem(
-            STATE_KEY,
-            JSON.stringify({ stuId, actions, addSelections, moveTargets }),
-        );
-    }, [stuId, actions, addSelections, moveTargets]);
+        let cancelled = false;
+        loadState<SavedState>("trade", LEGACY_STATE_KEY)
+            .then((state) => {
+                if (cancelled) return;
+                if (state) {
+                    setStuId(typeof state.stuId === "string" ? state.stuId : null);
+                    setActions(state.actions ?? {});
+                    setAddSelections(
+                        Array.isArray(state.addSelections) ? state.addSelections : [],
+                    );
+                    setMoveTargets(state.moveTargets ?? {});
+                }
+                setRestored(true);
+            })
+            .catch(() => {
+                if (!cancelled) setRestored(true);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    /** 작업 중인 계획은 계정에 남아 다른 기기에서도 이어집니다 */
+    useEffect(() => {
+        if (!restored) return;
+        saveState("trade", stuId ? { stuId, actions, addSelections, moveTargets } : {});
+    }, [restored, stuId, actions, addSelections, moveTargets]);
 
     const index = useMemo(() => buildSubjectIndex(allClassesData), [allClassesData]);
     const studentIndex = useMemo(
