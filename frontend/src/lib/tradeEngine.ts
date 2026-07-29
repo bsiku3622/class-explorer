@@ -1,5 +1,5 @@
 import type { SubjectData, Section, SectionTime, StudentInfo } from "../types";
-import { DAYS_ORDER } from "./utils";
+import { DAYS_ORDER, DAY_MAP, getKoreanName, getSectionNumber } from "./utils";
 
 /**
  * 수강 변경 탐색 엔진.
@@ -468,3 +468,38 @@ export const totalCredits = (sections: SectionInfo[]): number =>
 /** 학점이 없어 합계에서 빠진 과목 */
 export const missingCreditSubjects = (sections: SectionInfo[]): string[] =>
     sections.filter((s) => s.credits == null).map((s) => s.subject);
+
+/**
+ * 구인 글에 쓰는 짧은 시간 표기. "월67 목9"
+ * 10교시 이상이 섞이면 붙여 쓸 수 없어 콤마로 나눕니다 ("화10,11").
+ */
+export const compactTimes = (times: SectionTime[]): string => {
+    const byDay: Record<string, number[]> = {};
+    times.forEach((t) => {
+        (byDay[t.day] ??= []).push(t.period);
+    });
+    return DAYS_ORDER.filter((day) => byDay[day])
+        .map((day) => {
+            const periods = byDay[day].sort((a, b) => a - b);
+            const joined = periods.some((p) => p >= 10)
+                ? periods.join(",")
+                : periods.join("");
+            return `${DAY_MAP[day]}${joined}`;
+        })
+        .join(" ");
+};
+
+/** 분반 교환 상대를 구하는 글. 그대로 복사해 붙여넣을 수 있는 형태입니다 */
+export const buildTradePost = (
+    subject: string,
+    from: SectionInfo,
+    to: SectionInfo,
+): string => {
+    const mine = `${getSectionNumber(from.section)}분반(${compactTimes(from.times)})`;
+    const theirs = `${getSectionNumber(to.section)}분반(${compactTimes(to.times)})`;
+    return [
+        `${getKoreanName(subject)} 트레이드 구합니다.`,
+        `나: ${mine} -> ${theirs}`,
+        `너: ${theirs} -> ${mine}`,
+    ].join("\n");
+};

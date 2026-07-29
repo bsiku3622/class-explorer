@@ -32,6 +32,8 @@
 | `findAddableAfterDrop(schedule, index, dropSubjects)` | 드랍 후 새로 들어갈 수 있는 분반 |
 | `buildStudentIndex(allClassesData)` | 학번 → 시간표 맵. 여러 학생을 훑는 탐색용 |
 | `findTradePartners(studentIndex, myStuId, from, to)` | 분반을 맞바꿀 수 있는 학생 |
+| `compactTimes(times)` | 구인 글용 짧은 시간 표기 (`월67 목9`). 10교시 이상은 콤마로 구분 |
+| `buildTradePost(subject, from, to)` | 교환 상대 구하는 글 생성 (복사용) |
 | `applyPlan(schedule, plan)` | 조합을 적용한 최종 시간표 (미리보기용) |
 | `scheduleToTimes(sections)` | `TimetableGrid`에 넘길 `SectionTime[]`로 변환 |
 

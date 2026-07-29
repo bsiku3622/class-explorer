@@ -23,6 +23,7 @@ import {
     findBlockers,
     findAddableAfterDrop,
     findTradePartners,
+    buildTradePost,
     totalCredits,
     missingCreditSubjects,
     MAX_PLAN_RESULTS,
@@ -45,6 +46,7 @@ import RetroSubTitle from "../components/atoms/RetroSubTitle";
 import PageHeader from "../components/molecules/PageHeader";
 import TimetableGrid from "../components/TimetableGrid";
 import SectionsTimetable from "../components/SectionsTimetable";
+import CopyButton from "../components/atoms/CopyButton";
 
 interface TradePageProps {
     allClassesData: SubjectData[];
@@ -1063,6 +1065,28 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                     </button>
                                                 </div>
                                             </div>
+                                            {movedSection && (
+                                                <div className="border-t-2 border-black/10 p-3 flex flex-wrap items-center gap-2">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                                                        구인 글
+                                                    </span>
+                                                    <code className="text-[10px] font-bold text-black/60 whitespace-pre-line leading-tight">
+                                                        {buildTradePost(
+                                                            sec.subject,
+                                                            sec,
+                                                            movedSection,
+                                                        )}
+                                                    </code>
+                                                    <CopyButton
+                                                        className="ml-auto"
+                                                        text={buildTradePost(
+                                                            sec.subject,
+                                                            sec,
+                                                            movedSection,
+                                                        )}
+                                                    />
+                                                </div>
+                                            )}
                                             {isOpen && (
                                                 <div className="border-t-2 border-black/10 p-3 space-y-2">
                                                     <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
@@ -1273,6 +1297,15 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term }) => {
                                                         {getSectionNumber(to.section)}분반
                                                         · {to.teacher}
                                                     </p>
+                                                    <CopyButton
+                                                        label="구인 글 복사"
+                                                        className="mt-2"
+                                                        text={buildTradePost(
+                                                            subject,
+                                                            from,
+                                                            to,
+                                                        )}
+                                                    />
                                                 </div>
                                                 {partners.length === 0 ? (
                                                     <p className="text-[11px] font-bold text-black/40 border-t-2 border-black/10 pt-2">

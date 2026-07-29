@@ -11,6 +11,7 @@
 | `RetroStatItem` | `label`, `value`, `unit`, `size` (sm/lg) | 숫자 통계 아이템 |
 | `RetroSubTitle` | `title`, `icon` | 섹션 소제목 (표준 스타일 고정) |
 | `StudentBadge` | `studentId`, `studentName`, `size`, `onClick` | 학번색 뱃지 |
+| `CopyButton` | `text`, `label`, `title` | 클립보드 복사 + 1.5초간 "복사됨" 표시. https가 아닌 환경은 execCommand로 폴백 |
 | `SearchInput` | `value`, `onChange`, `placeholder`, `className` | 검색 입력 필드 |
 | `StudentCard` | `stuId`, `name`, `subjects`, `onClick` | 학생 프로필 카드 (툴팁용) |
 | `TeacherCard` | `name`, `subjects`, `onClick` | 교사 프로필 카드 (툴팁용) |
