@@ -28,14 +28,6 @@
 - 배경색은 `className`으로 별도 지정 (기본값 없음)
 - `shadow`: sm=4px, md=6px, lg=8px 하드 쉐도우
 
-## RetroFeatureTag
-```tsx
-<RetroFeatureTag feature="Search Engine" />
-```
-- 부모에 `relative` 필요 (absolute 위치)
-- 우상단 고정: `top-0 right-0`
-- 검정 배경 + 흰색 `text-[10px] font-black uppercase`
-
 ## RetroStatItem
 ```tsx
 <RetroStatItem

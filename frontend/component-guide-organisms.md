@@ -16,7 +16,7 @@
   {/* 추가 내용 */}
 </PageHeader>
 ```
-- `RetroCard` 기반, `RetroFeatureTag` 내장
+- `RetroCard` 기반
 - `action`: 우측 버튼 영역
 
 ### AccordionSection
