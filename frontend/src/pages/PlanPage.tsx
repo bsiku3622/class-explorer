@@ -173,14 +173,20 @@ const PlanPage: React.FC<PlanPageProps> = ({ stuId, studentName, onLinked }) => 
     );
 
     /** 가장 최근 학기는 "수강 중", 그 이전은 "이수"로 봅니다 */
-    const { autoTaken, currentCourses } = useMemo(() => {
+    const { autoTaken, currentCourses, englishTaken } = useMemo(() => {
         const auto = new Set<string>();
         const now = new Set<string>();
+        // EC 요건은 과목의 성질이 아니라 어느 분반을 들었느냐로 정해집니다
+        const english = new Set<string>();
         terms.forEach((term, index) => {
             const target = index === terms.length - 1 ? now : auto;
-            term.courses.forEach((item) => item.course && target.add(item.course));
+            term.courses.forEach((item) => {
+                if (!item.course) return;
+                target.add(item.course);
+                if (item.subject.endsWith("(EC)")) english.add(item.course);
+            });
         });
-        return { autoTaken: auto, currentCourses: now };
+        return { autoTaken: auto, currentCourses: now, englishTaken: english };
     }, [terms]);
 
     const grades = useMemo(
@@ -212,8 +218,8 @@ const PlanPage: React.FC<PlanPageProps> = ({ stuId, studentName, onLinked }) => 
     );
 
     const progress = useMemo(
-        () => computeProgress(earned, byName, curriculum?.requirements ?? {}),
-        [earned, byName, curriculum],
+        () => computeProgress(earned, byName, curriculum?.requirements ?? {}, englishTaken),
+        [earned, byName, curriculum, englishTaken],
     );
 
     const departments = useMemo(() => {
@@ -698,7 +704,7 @@ const PlanPage: React.FC<PlanPageProps> = ({ stuId, studentName, onLinked }) => 
                                                             </span>
                                                         )}
                                                         {node.course.credits}학점
-                                                        {node.course.is_ec && " · EC"}
+                                                        {englishTaken.has(node.name) && " · EC 수강"}
                                                         {node.course.is_pf && " · P/F"}
                                                     </span>
                                                 </button>

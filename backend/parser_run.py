@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from backend import models, parser
 from backend.database import SessionLocal, init_schema
+from backend.subject_names import match_course, split_name
 from backend.terms import current_term
 
 API_BASE = "https://keis.ksa.hs.kr/restapi/v1/schedule"
@@ -63,6 +64,47 @@ async def fetch_student(
 
 
 # ───────────── DB 반영 ─────────────
+def resolve_subject(db: Session, raw: str, courses: dict[str, int]) -> int:
+    """
+    KEIS 과목명에 해당하는 `Subject` 행을 찾거나 만들어 id를 돌려줍니다.
+
+    같은 과목이라도 영어강의(EC)와 한국어강의는 별개 행입니다 — 실제로 따로
+    개설되고 수강생도 다릅니다. 반면 영문 표기가 학기마다 흔들리는 것(`Physics &
+    Exp.1` → `Physics and Exp.1`)은 같은 과목이므로, `(name, is_ec)`로 찾고
+    원문은 최근 값으로 갱신합니다.
+    """
+    name, english, is_ec = split_name(raw)
+
+    subject = (
+        db.query(models.Subject)
+        .filter(models.Subject.name == name, models.Subject.is_ec == is_ec)
+        .first()
+    )
+    if subject is not None:
+        if subject.name_raw != raw:
+            subject.name_raw = raw
+        if english and subject.name_english != english:
+            subject.name_english = english
+        # 교육과정이 나중에 들어와 이제 이어지는 경우
+        if subject.course_id is None:
+            matched = match_course(name, courses)
+            if matched:
+                subject.course_id = courses[matched]
+        return subject.id
+
+    matched = match_course(name, courses)
+    subject = models.Subject(
+        course_id=courses[matched] if matched else None,
+        name=name,
+        name_english=english,
+        name_raw=raw,
+        is_ec=is_ec,
+    )
+    db.add(subject)
+    db.flush()
+    return subject.id
+
+
 def replace_term_data(
     db: Session,
     year: int,
@@ -104,16 +146,25 @@ def replace_term_data(
             db.query(models.Student).filter(models.Student.stuId == stu_id).update({"name": name})
     db.flush()
 
+    # 과목명 → Subject. 학기마다 새로 만들지 않고 이미 있는 행을 재사용합니다
+    courses = {name: cid for name, cid in db.query(models.Course.name, models.Course.id).all()}
+    subject_ids: dict[str, int] = {}
+    for parsed_classes in fetched.values():
+        for pc in parsed_classes:
+            if pc["subject"] not in subject_ids:
+                subject_ids[pc["subject"]] = resolve_subject(db, pc["subject"], courses)
+    db.flush()
+
     # 수업 등록 — 동일 (과목, 분반, 교사) 는 학기 안에서 하나로 합쳐집니다
-    class_ids: dict[tuple[str, str, str], Any] = {}
+    class_ids: dict[tuple[int, str, str], Any] = {}
     for stu_id, parsed_classes in fetched.items():
         for pc in parsed_classes:
-            key = (pc["subject"], pc["section"], pc["teacher"])
+            key = (subject_ids[pc["subject"]], pc["section"], pc["teacher"])
             if key in class_ids:
                 continue
 
             cls = models.Class(
-                subject=pc["subject"],
+                subject_id=subject_ids[pc["subject"]],
                 section=pc["section"],
                 teacher=pc["teacher"],
                 room=pc["room"],
@@ -135,7 +186,7 @@ def replace_term_data(
     for stu_id, parsed_classes in fetched.items():
         seen: set[int] = set()
         for pc in parsed_classes:
-            class_id = class_ids[(pc["subject"], pc["section"], pc["teacher"])]
+            class_id = class_ids[(subject_ids[pc["subject"]], pc["section"], pc["teacher"])]
             if class_id in seen:
                 continue
             seen.add(class_id)
