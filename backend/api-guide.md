@@ -166,13 +166,16 @@
   },
   "data": [
     {
-      "subject": "수학(Math I)",
+      "subject": "미적분학2",
+      "subject_id": 12,
+      "subject_english": "Calculus2",
+      "is_ec": false,
       "subject_student_count": 45,
       "section_count": 3,
-      "aliases": ["수학", "Math"],
       "credits": 3.0,
-      "is_ec": false,
       "is_pf": false,
+      "department": "수학",
+      "category": "natural",
       "sections": [
         {
           "id": 1,
