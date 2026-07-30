@@ -25,6 +25,9 @@ from backend.terms import current_term
 API_BASE = "https://keis.ksa.hs.kr/restapi/v1/schedule"
 STUDENTS_TXT = os.path.join(os.path.dirname(__file__), "students.txt")
 
+# 이름을 아직 모르는 학생. 이 값으로는 이미 알고 있는 이름을 덮어쓰지 않습니다
+UNKNOWN_NAME = "Unknown"
+
 MAX_CONCURRENT_REQUESTS = 20
 REQUEST_TIMEOUT = 15.0
 MAX_RETRIES = 2
@@ -90,11 +93,14 @@ def replace_term_data(
         ).delete(synchronize_session=False)
 
     # 학생 마스터 갱신 (신규만 추가, 이름은 최신 목록 기준)
+    #
+    # 이름을 모르는 명단(과거 학기 학번은 API로 긁어와서 이름이 없습니다)으로 수집할 때
+    # 이미 알고 있는 이름을 UNKNOWN_NAME 으로 덮어쓰면 안 됩니다.
     existing = {row[0]: row[1] for row in db.query(models.Student.stuId, models.Student.name).all()}
     for stu_id, name in students.items():
         if stu_id not in existing:
             db.add(models.Student(stuId=stu_id, name=name))
-        elif existing[stu_id] != name:
+        elif existing[stu_id] != name and name != UNKNOWN_NAME:
             db.query(models.Student).filter(models.Student.stuId == stu_id).update({"name": name})
     db.flush()
 
