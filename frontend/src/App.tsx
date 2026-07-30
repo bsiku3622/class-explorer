@@ -15,6 +15,7 @@ import { useModifierKey } from "./hooks/useModifierKey";
 import Navigation from "./components/Navigation";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
+import GoogleLinkModal from "./components/GoogleLinkModal";
 
 // Pages (lazy loaded for code splitting)
 const SearchPage = React.lazy(() => import("./pages/SearchPage"));
@@ -74,6 +75,8 @@ const App: React.FC = () => {
         /** 계정에 등록된 본인 학번 — 등록 전에는 null */
         stu_id: string | null;
         student_name: string | null;
+        /** 학교 구글 계정. 옛 계정은 비어 있고, 연결하기 전에는 앱을 쓸 수 없습니다 */
+        email: string | null;
     } | null>(null);
 
     const initialSearch = useMemo(
@@ -444,6 +447,29 @@ const App: React.FC = () => {
         );
     }
 
+    // 아이디·비밀번호로 들어온 옛 계정은 학교 구글 계정을 붙이기 전까지 막습니다 —
+    // 누구 계정인지 모르면 이수 기록을 남길 수 없습니다
+    if (currentUser && !currentUser.email) {
+        return (
+            <GoogleLinkModal
+                username={currentUser.username}
+                onLinked={(info) =>
+                    setCurrentUser((prev) =>
+                        prev
+                            ? {
+                                  ...prev,
+                                  email: info.email,
+                                  stu_id: info.stu_id,
+                                  student_name: info.student_name,
+                              }
+                            : prev,
+                    )
+                }
+                onLogout={handleLogout}
+            />
+        );
+    }
+
     return (
         <div className="min-h-screen bg-retro-bg text-retro-fg font-sans">
             <Navigation
@@ -558,17 +584,6 @@ const App: React.FC = () => {
                                     <ZamongPage
                                         stuId={currentUser?.stu_id ?? null}
                                         studentName={currentUser?.student_name ?? null}
-                                        onLinked={(info) =>
-                                            setCurrentUser((prev) =>
-                                                prev
-                                                    ? {
-                                                          ...prev,
-                                                          stu_id: info.stu_id,
-                                                          student_name: info.student_name,
-                                                      }
-                                                    : prev,
-                                            )
-                                        }
                                     />
                                 }
                             />

@@ -3,12 +3,18 @@ import axios from "axios";
 import api from "../lib/api";
 import RetroCard from "../components/atoms/RetroCard";
 import RetroButton from "../components/atoms/RetroButton";
-import GoogleLoginButton from "../components/GoogleLoginButton";
 
 interface LoginPageProps {
     onLogin: (token: string) => void;
 }
 
+/**
+ * 아이디·비밀번호 로그인.
+ *
+ * 계정은 관리자가 만들어 줍니다 — 아는 사람만 쓰는 서비스라 스스로 만드는 길은
+ * 두지 않았습니다. 구글 계정은 로그인이 아니라 **학번 확인**에만 쓰고, 들어온
+ * 다음 `GoogleLinkModal`이 한 번 받습니다.
+ */
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
@@ -17,7 +23,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (e.nativeEvent instanceof KeyboardEvent && (e.nativeEvent as KeyboardEvent & { isComposing: boolean }).isComposing) return;
+        if (
+            e.nativeEvent instanceof KeyboardEvent &&
+            (e.nativeEvent as KeyboardEvent & { isComposing: boolean }).isComposing
+        )
+            return;
         setError("");
         setLoading(true);
         try {
@@ -29,22 +39,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             } else {
                 setError("로그인 중 오류가 발생했습니다.");
             }
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleGoogle = async (credential: string) => {
-        setError("");
-        setLoading(true);
-        try {
-            const res = await api.post("/auth/google", { credential });
-            onLogin(res.data.session_token);
-        } catch (err: unknown) {
-            const detail = axios.isAxiosError(err)
-                ? (err.response?.data as { detail?: string } | undefined)?.detail
-                : undefined;
-            setError(detail ?? "로그인 중 오류가 발생했습니다.");
         } finally {
             setLoading(false);
         }
@@ -65,9 +59,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     </p>
                 </div>
 
-                <RetroCard shadow="lg" className="bg-white p-8 space-y-6">
-                    <GoogleLoginButton onCredential={handleGoogle} onError={setError} />
-
+                <RetroCard shadow="lg" className="bg-white p-8">
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-black text-black/40 uppercase tracking-widest block">
@@ -98,12 +90,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                             />
                         </div>
 
-                        {error && (
-                            <p className="text-xs font-bold text-red-600 border-2 border-red-500 px-3 py-2 bg-red-50">
-                                {error}
-                            </p>
-                        )}
-
                         <RetroButton
                             type="submit"
                             variant="black"
@@ -113,13 +99,19 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         >
                             {loading ? "로그인 중..." : "로그인"}
                         </RetroButton>
-                    </form>
-                </RetroCard>
 
-                <p className="mt-4 text-center text-[10px] font-bold leading-relaxed text-black/40">
-                    아이디·비밀번호로 쓰던 계정은 학교 구글 계정으로 한 번 들어오시면
-                    그대로 이어집니다.
-                </p>
+                        <p className="text-[10px] font-bold leading-relaxed text-black/40">
+                            계정은 관리자가 만들어 줍니다. 처음 들어오시면 학교 구글 계정으로
+                            학번을 한 번 확인합니다 — 그동안 기록한 내용은 그대로 남습니다.
+                        </p>
+                    </form>
+
+                    {error && (
+                        <p className="mt-5 border-2 border-retro-primary bg-retro-primary/10 px-3 py-2 text-xs font-bold text-retro-primary">
+                            {error}
+                        </p>
+                    )}
+                </RetroCard>
             </div>
         </div>
     );

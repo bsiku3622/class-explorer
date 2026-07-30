@@ -142,11 +142,6 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     return SessionResponse(session_token=token)
 
 
-class GoogleLoginRequest(BaseModel):
-    credential: str = Field(min_length=1, max_length=4096)
-    device_type: Literal["web", "mobile"] = "web"
-
-
 def _student_id_from_email(email: str) -> str | None:
     """
     `25-059@ksa.hs.kr` → `25-059`
@@ -164,14 +159,14 @@ async def _verify_google_credential(credential: str) -> dict:
     """
     구글이 발급한 ID 토큰을 구글에게 되물어 확인합니다.
 
-    서명을 직접 검증하려면 라이브러리가 하나 더 필요한데, 로그인은 자주 일어나는 일이
-    아니라 왕복 한 번이 더 낫다고 봤습니다. 대신 `aud`(우리 앱인지)와 이메일 인증
-    여부는 여기서 반드시 확인합니다 — 확인을 빠뜨리면 남의 앱 토큰으로 들어올 수 있습니다.
+    서명을 직접 검증하려면 라이브러리가 하나 더 필요한데, 학번 확인은 계정마다 한 번뿐이라
+    왕복 한 번이 더 낫다고 봤습니다. 대신 `aud`(우리 앱인지)와 이메일 인증 여부는 여기서
+    반드시 확인합니다 — 확인을 빠뜨리면 남의 앱 토큰으로 남의 학번을 가져갈 수 있습니다.
     """
     if not GOOGLE_CLIENT_ID:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="구글 로그인이 설정되지 않았습니다.",
+            detail="학번 확인이 설정되지 않았습니다.",
         )
 
     try:
@@ -204,29 +199,33 @@ async def _verify_google_credential(credential: str) -> dict:
     return claims
 
 
-@router.post("/google", response_model=SessionResponse)
-async def google_login(
-    body: GoogleLoginRequest,
-    request: Request,
+class LinkGoogleRequest(BaseModel):
+    credential: str = Field(min_length=1, max_length=4096)
+
+
+@router.post("/link-google")
+async def link_google(
+    body: LinkGoogleRequest,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     """
-    학교 구글 계정으로 로그인합니다.
+    계정에 학교 구글 계정을 붙여 **학번을 확정합니다.**
 
-    이메일이 곧 학번이라 따로 대조할 필요가 없습니다. 처음 들어오는 사람은 계정이
-    자동으로 만들어지고, 관리자가 예전에 만들어 준 계정이 있으면 학번으로 찾아
-    이어붙입니다 — 그래야 그동안 기록해 둔 이수 내역이 남습니다.
+    로그인은 아이디·비밀번호로만 하고, 구글은 여기서만 씁니다 — 아이디만으로는 이 계정이
+    누구 것인지 알 방법이 없어서입니다. 학교 계정 이메일이 곧 학번이라(`25-059@ksa.hs.kr`)
+    한 번 거치면 신원이 정해지고, 그때부터 이수 기록을 남길 수 있습니다.
+
+    이미 학번이 정해진 계정이라면 구글 계정의 학번과 같아야 합니다 — 다르면 남의
+    계정에 붙이려는 것이므로 막습니다.
     """
-    client_ip = _get_client_ip(request)
-    _check_login_rate_limit(client_ip)
-
     claims = await _verify_google_credential(body.credential)
     email = (claims.get("email") or "").lower()
     stu_id = _student_id_from_email(email)
     if stu_id is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"{SCHOOL_DOMAIN} 학생 계정으로만 들어올 수 있습니다.",
+            detail=f"{SCHOOL_DOMAIN} 학생 계정으로만 연동할 수 있습니다.",
         )
 
     student = db.query(models.Student).filter(models.Student.stuId == stu_id).first()
@@ -236,46 +235,34 @@ async def google_login(
             detail=f"명단에서 {stu_id} 학번을 찾지 못했습니다.",
         )
 
-    user = db.query(models.User).filter(models.User.email == email).first()
-    if user is None:
-        # 관리자가 만들어 둔 계정이 이미 이 학번을 쓰고 있으면 그 계정에 붙입니다
-        user = db.query(models.User).filter(models.User.stu_id == stu_id).first()
-        if user is not None:
-            user.email = email
-        else:
-            user = models.User(
-                username=stu_id,
-                hashed_password=hash_password(generate_session_token()),  # 쓰지 않는 값
-                stu_id=stu_id,
-                email=email,
-                is_admin=False,
-            )
-            db.add(user)
-        db.flush()
-
-    _reset_login_rate_limit(client_ip)
-    clear_user_sessions(db, user)
-
-    token = generate_session_token()
-    db.add(
-        models.Session(
-            user_id=user.id,
-            session_token=token,
-            device_type=body.device_type,
-            ip_address=client_ip,
-            expires_at=datetime.datetime.utcnow() + datetime.timedelta(days=SESSION_EXPIRE_DAYS),
-        )
+    taken = (
+        db.query(models.User)
+        .filter(models.User.email == email, models.User.id != current_user.id)
+        .first()
     )
+    if taken is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="이미 다른 계정이 쓰고 있는 구글 계정입니다.",
+        )
+
+    if current_user.stu_id and current_user.stu_id != stu_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"이 계정은 {current_user.stu_id} 학번으로 등록되어 있습니다.",
+        )
+
+    current_user.email = email
+    current_user.stu_id = stu_id
     try:
         db.commit()
     except IntegrityError:
-        # 같은 사람이 동시에 두 번 눌렀을 때
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="다시 시도해주세요."
+            status_code=status.HTTP_409_CONFLICT, detail="이미 쓰이고 있는 학번입니다."
         )
 
-    return SessionResponse(session_token=token)
+    return {"email": email, "stu_id": stu_id, "student_name": student.name}
 
 
 @router.post("/logout")
@@ -306,69 +293,6 @@ def me(
         "student_name": student.name if student else None,
         "email": current_user.email,
     }
-
-
-class LinkStudentRequest(BaseModel):
-    stu_id: str = Field(min_length=1, max_length=16)
-    name: str = Field(min_length=1, max_length=32)
-
-
-def _normalize_name(value: str) -> str:
-    """이름 대조용 — 띄어쓰기 차이로 반려하지 않게 공백만 걷어냅니다."""
-    return "".join(value.split())
-
-
-@router.post("/link-student")
-def link_student(
-    payload: LinkStudentRequest,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    """
-    계정에 본인 학번을 등록합니다. 학번과 이름이 함께 맞아야 합니다.
-
-    아무 학번이나 골라 남의 이름으로 성적을 기록해 두는 일을 막으려는 것이라,
-    둘 중 하나만 맞아도 반려합니다. 어느 쪽이 틀렸는지는 알려주지 않습니다.
-    """
-    student = (
-        db.query(models.Student)
-        .filter(models.Student.stuId == payload.stu_id.strip())
-        .first()
-    )
-    if student is None or _normalize_name(student.name or "") != _normalize_name(payload.name):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="학번과 이름이 맞지 않습니다.",
-        )
-
-    taken = (
-        db.query(models.User)
-        .filter(models.User.stu_id == student.stuId, models.User.id != current_user.id)
-        .first()
-    )
-    if taken is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="이미 다른 계정이 쓰고 있는 학번입니다.",
-        )
-
-    # 학번을 바꾸면 이전 사람의 이수 기록이 남아 있으면 안 됩니다
-    if current_user.stu_id and current_user.stu_id != student.stuId:
-        db.query(models.CourseGrade).filter(
-            models.CourseGrade.user_id == current_user.id
-        ).delete()
-
-    current_user.stu_id = student.stuId
-    try:
-        db.commit()
-    except IntegrityError:
-        # 위 검사와 커밋 사이에 다른 요청이 같은 학번을 채간 경우
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="이미 다른 계정이 쓰고 있는 학번입니다.",
-        )
-    return {"stu_id": student.stuId, "student_name": student.name}
 
 
 @router.get("/sessions")
