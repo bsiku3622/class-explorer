@@ -467,7 +467,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                 (s) =>
                     fuzzyMatch(s.subject, q) ||
                     fuzzyMatch(getKoreanName(s.subject), q) ||
-                    (s.aliases || []).some((a) => fuzzyMatch(a, q)),
+                    (!!s.subject_english && fuzzyMatch(s.subject_english, q)),
             )
             .slice(0, 20)
             .map((s) => s.subject);

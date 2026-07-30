@@ -37,6 +37,10 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
                  searchInClient() — 완전 클라이언트 사이드
 ```
 
+**과목 4층**: `Department → Course → Subject → Class`.
+`Course`는 언어·표기를 벗겨낸 과목 정체성(학점·선수관계가 붙는 곳),
+`Subject`는 KEIS 개설명(영어강의 `(EC)`와 한국어강의가 별개 행)입니다.
+
 **학기 모델**: 수업 데이터는 `Class.year`/`Class.semester`로 학기별 공존.
 학기 미지정 요청은 최신 학기로 응답하고, 프론트는 `ksa_selected_term`에 선택 학기를 보존합니다.
 

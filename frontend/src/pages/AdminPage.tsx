@@ -34,7 +34,7 @@ interface SessionRow {
 
 interface StudentRow { stuId: string; name: string; }
 interface TeacherRow { name: string; section_count: number; }
-interface SubjectRow { subject: string; aliases: string[]; }
+interface SubjectRow { subject: string; is_ec: boolean; english: string | null; course: string | null; }
 
 type DataTab = "students" | "teachers" | "subjects";
 
@@ -137,9 +137,6 @@ const AdminPage: React.FC = () => {
     const [teacherSaving, setTeacherSaving] = useState(false);
 
     const [subjects, setSubjects] = useState<SubjectRow[]>([]);
-    const [editingSubject, setEditingSubject] = useState<string | null>(null);
-    const [aliasEditVal, setAliasEditVal] = useState("");
-    const [aliasSaving, setAliasSaving] = useState(false);
 
     const [error, setError] = useState("");
 
@@ -219,18 +216,6 @@ const AdminPage: React.FC = () => {
         } finally { setTeacherSaving(false); }
     };
 
-    const handleSaveAliases = async (subject: string) => {
-        setAliasSaving(true);
-        try {
-            const aliases = aliasEditVal.split(",").map((a) => a.trim()).filter(Boolean);
-            await api.put(`/admin/subjects/${encodeURIComponent(subject)}/aliases`, { aliases }, { headers: authHeader() });
-            setSubjects((prev) => prev.map((s) => s.subject === subject ? { ...s, aliases } : s));
-            setEditingSubject(null);
-        } catch (e) {
-            if (axios.isAxiosError(e)) setError(e.response?.data?.detail || "Failed to save aliases");
-        } finally { setAliasSaving(false); }
-    };
-
     // ── user handlers ─────────────────────────────────────────────────────────
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -299,7 +284,7 @@ const AdminPage: React.FC = () => {
     const handleDataTabChange = (tab: DataTab) => {
         setDataTab(tab);
         setDataSearch("");
-        setEditingStu(null); setEditingTeacher(null); setEditingSubject(null);
+        setEditingStu(null); setEditingTeacher(null);
         if (tab === "students" && students.length === 0) fetchStudents();
         if (tab === "teachers" && teachers.length === 0) fetchTeachers();
         if (tab === "subjects" && subjects.length === 0) fetchSubjects();
@@ -609,35 +594,36 @@ const AdminPage: React.FC = () => {
                             </>
                         )}
 
-                        {/* ── Subjects (Aliases) ── */}
+                        {/* ── Subjects ── */}
                         {dataTab === "subjects" && (
                             <>
                                 <p className="text-xs font-bold text-black/40">
-                                    쉼표로 구분해 여러 별칭을 입력하세요. 별칭으로도 검색됩니다.
+                                    교육과정에 이어지지 않은 과목은 학점·계열을 알 수 없습니다.
+                                    외국인 전형 과목이나 개편 전 이름이 여기 해당합니다.
                                 </p>
                                 {filteredSubjects.map((s) => (
-                                    <EditableRow
+                                    <div
                                         key={s.subject}
-                                        label={s.subject}
-                                        isEditing={editingSubject === s.subject}
-                                        editValue={aliasEditVal}
-                                        onEditValueChange={setAliasEditVal}
-                                        onStartEdit={() => { setEditingSubject(s.subject); setAliasEditVal(s.aliases.join(", ")); }}
-                                        onSave={() => handleSaveAliases(s.subject)}
-                                        onCancel={() => setEditingSubject(null)}
-                                        saving={aliasSaving}
-                                        placeholder="영어3, 영3, ..."
+                                        className="flex flex-wrap items-center gap-2 border-b-2 border-black/10 py-2"
                                     >
-                                        {s.aliases.length > 0 && (
-                                            <div className="flex flex-wrap gap-1">
-                                                {s.aliases.map((alias) => (
-                                                    <span key={alias} className="text-[10px] font-black uppercase px-1.5 py-0.5 bg-black text-white">
-                                                        {alias}
-                                                    </span>
-                                                ))}
-                                            </div>
+                                        <span className="text-sm font-black flex-1 min-w-[10rem]">
+                                            {s.subject}
+                                        </span>
+                                        {s.english && (
+                                            <span className="text-[10px] font-bold text-black/40">
+                                                {s.english}
+                                            </span>
                                         )}
-                                    </EditableRow>
+                                        {s.course ? (
+                                            <span className="border-2 border-retro-green bg-retro-green/15 px-1.5 py-0.5 text-[10px] font-black">
+                                                {s.course}
+                                            </span>
+                                        ) : (
+                                            <span className="border-2 border-retro-accent4 bg-retro-accent4/15 px-1.5 py-0.5 text-[10px] font-black text-retro-accent4">
+                                                교육과정 없음
+                                            </span>
+                                        )}
+                                    </div>
                                 ))}
                                 {filteredSubjects.length === 0 && (
                                     <p className="text-sm font-bold text-black/40">No subjects found.</p>
