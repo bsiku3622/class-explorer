@@ -297,7 +297,8 @@ const filterMatchingClasses = (
                 replaceRomanNumerals(subjectName),
                 // 영문 병기를 뗀 한글명 — 유사도 매칭의 정확도를 높입니다
                 getKoreanName(subjectName),
-                ...(subject.aliases || []),
+                // 영문명으로도 찾을 수 있게 (Calculus, Physics ...)
+                subject.subject_english,
                 sec.section,
                 sec.teacher,
                 sec.room,
@@ -329,9 +330,8 @@ const filterMatchingClasses = (
                     subjectName.toLowerCase().includes(targetSubject) ||
                     fuzzyMatch(subjectName, targetSubject) ||
                     fuzzyMatch(getKoreanName(subjectName), targetSubject) ||
-                    (subject.aliases || []).some((a: string) =>
-                        fuzzyMatch(a, targetSubject),
-                    );
+                    (!!subject.subject_english &&
+                        fuzzyMatch(subject.subject_english, targetSubject));
                 isSectionMatch = subjectMatches && targetSections.has(sectionNum);
             } else if (mode === "student") {
                 isSectionMatch = evaluate(effectiveQuery, [

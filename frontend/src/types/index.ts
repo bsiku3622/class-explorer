@@ -28,16 +28,24 @@ export interface Section {
 }
 
 export interface SubjectData {
+    /**
+     * 화면에 그대로 쓰는 과목명. 영문명은 이미 빠져 있고, 영어강의는 뒤에 `(EC)`가
+     * 붙어 한국어강의와 구분됩니다 — 둘은 따로 개설되는 별개 과목입니다.
+     */
     subject: string;
+    /** 개설 과목 id. 이름이 같은 영어·한국어강의를 가르는 진짜 키입니다 */
+    subject_id: number;
+    subject_english?: string | null;
+    /** 영어강의(English Class) 여부 */
+    is_ec?: boolean;
     subject_student_count: number;
     section_count: number;
     sections: Section[];
-    /** 검색용 별칭 (관리자 등록) */
-    aliases?: string[];
-    /** 학점 — 교육과정에 없는 과목은 null */
+    /** 학점 — 교육과정에 없는 과목(외국인 전형·개편 전 이름)은 null */
     credits?: number | null;
-    is_ec?: boolean;
     is_pf?: boolean;
+    department?: string | null;
+    category?: string | null;
 }
 
 export interface Stats {

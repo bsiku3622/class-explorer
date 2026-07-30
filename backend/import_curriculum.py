@@ -8,7 +8,9 @@
 seed는 `build_curriculum_seed.py`가 Zamong 워크북에서 만들어 둔 파일입니다.
 이 스크립트는 워크북도 SweetZamong DB도 필요 없어서 서버에서 그대로 돌릴 수 있습니다.
 
-교육과정은 학기와 무관한 정의라 통째로 갈아끼웁니다.
+교육과정은 학기와 무관한 정의라 통째로 갈아끼웁니다. 다만 `Subject`(KEIS 개설명)는
+지우지 않고 `course_id`만 다시 잇습니다 — 개설 이력은 교육과정이 바뀌어도 남아야
+하니까요.
 """
 
 import argparse
@@ -19,8 +21,24 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.database import SessionLocal, init_schema
+from backend.subject_names import EC_TAG, match_course
 
 DEFAULT_SEED = os.path.join(os.path.dirname(__file__), "curriculum_seed.json")
+
+# 학과 → 계열. 학과가 계열을 결정하므로 과목마다 들고 있지 않습니다
+DEPARTMENT_CATEGORY = {
+    "수학": "natural", "정보과학": "natural", "물리학": "natural",
+    "화학": "natural", "생물학": "natural", "지구과학": "natural",
+    "국어": "humanities", "사회": "humanities",
+    "외국어": "humanities", "예체능": "humanities",
+    "융합": "convergence",
+}
+
+# 화면에 늘어놓는 순서
+DEPARTMENT_ORDER = [
+    "수학", "정보과학", "물리학", "화학", "생물학", "지구과학",
+    "국어", "사회", "외국어", "예체능", "융합",
+]
 
 
 def load_seed(path: str) -> dict:
@@ -30,31 +48,48 @@ def load_seed(path: str) -> dict:
         return json.load(file)
 
 
+def strip_language_tag(name: str) -> str:
+    """
+    교육과정 이름에서 언어 태그를 뗍니다.
+
+    워크북은 일부 과목에만 `(EC)`를 달아 뒀는데(145개 중 4개), 그대로 두면 같은 과목의
+    한국어강의가 갈 곳이 없어집니다. 언어 구분은 `Subject.is_ec`가 담습니다.
+    """
+    return name[: -len(EC_TAG)].strip() if name.endswith(EC_TAG) else name
+
+
 def run(seed_path: str, dry_run: bool) -> int:
     seed = load_seed(seed_path)
-    courses = seed.get("courses", [])
+    raw_courses = seed.get("courses", [])
     prerequisites = seed.get("prerequisites", [])
 
-    # 워크북에 같은 과목이 여러 학기 슬롯으로 들어 있어 이름이 겹칠 수 있습니다
+    # 언어 태그를 뗀 이름으로 묶습니다. 워크북에 같은 과목이 여러 학기 슬롯으로
+    # 들어 있어 이름이 겹치기도 합니다
     by_name: dict[str, dict] = {}
-    for course in courses:
-        by_name.setdefault(course["name"], course)
-    duplicates = len(courses) - len(by_name)
+    alias: dict[str, str] = {}  # seed 원래 이름 → 태그 뗀 이름
+    for course in raw_courses:
+        clean = strip_language_tag(course["name"])
+        alias[course["name"]] = clean
+        by_name.setdefault(clean, course)
 
-    print(f"seed: 과목 {len(courses)}개 → 고유 {len(by_name)}개" + (f" (중복 {duplicates})" if duplicates else ""))
-    print(f"      선수관계 {len(prerequisites)}개")
+    departments = sorted(
+        {course["department"] for course in raw_courses},
+        key=lambda name: (
+            DEPARTMENT_ORDER.index(name) if name in DEPARTMENT_ORDER else len(DEPARTMENT_ORDER),
+            name,
+        ),
+    )
 
-    valid = [
-        edge for edge in prerequisites
-        if edge["before"] in by_name and edge["after"] in by_name
+    edges = [
+        (alias[edge["before"]], alias[edge["after"]], bool(edge.get("alternative")))
+        for edge in prerequisites
+        if alias.get(edge["before"]) in by_name
+        and alias.get(edge["after"]) in by_name
+        and alias[edge["before"]] != alias[edge["after"]]
     ]
-    if len(valid) != len(prerequisites):
-        dropped = [
-            f"{edge['before']}→{edge['after']}"
-            for edge in prerequisites
-            if edge not in valid
-        ]
-        print(f"      카탈로그에 없는 과목을 가리키는 관계 {len(dropped)}개 제외: {', '.join(dropped)}")
+
+    print(f"seed: 과목 {len(raw_courses)}개 → 고유 {len(by_name)}개 · 학과 {len(departments)}개")
+    print(f"      선수관계 {len(prerequisites)}개 중 {len(edges)}개 유효")
 
     if dry_run:
         print("\n--dry-run: 저장하지 않았습니다.")
@@ -62,38 +97,72 @@ def run(seed_path: str, dry_run: bool) -> int:
 
     db: Session = SessionLocal()
     try:
+        # 교육과정을 갈아끼우는 동안 개설 과목은 잠시 연결을 놓습니다
+        db.query(models.Subject).update({models.Subject.course_id: None})
         db.query(models.CoursePrereq).delete()
+        db.query(models.CourseGrade).delete()
         db.query(models.Course).delete()
+        db.query(models.Department).delete()
         db.flush()
 
-        for course in by_name.values():
-            db.add(
-                models.Course(
-                    name=course["name"],
-                    english_name=course.get("english_name"),
-                    department=course["department"],
-                    category=course["category"],
-                    credits=course.get("credits") or 0,
-                    ap_credits=course.get("ap_credits") or 0,
-                    is_ec=bool(course.get("is_ec")),
-                    is_pf=bool(course.get("is_pf")),
-                    recommended_semester=course.get("recommended_semester"),
-                    description=course.get("description"),
-                    description_sections=course.get("description_sections") or {},
-                    description_source=course.get("description_source"),
-                    description_page=course.get("description_page"),
-                )
+        department_id: dict[str, int] = {}
+        for index, name in enumerate(departments):
+            row = models.Department(
+                name=name,
+                category=DEPARTMENT_CATEGORY.get(name, "natural"),
+                display_order=index,
             )
-        for edge in valid:
+            db.add(row)
+            db.flush()
+            department_id[name] = row.id
+
+        course_id: dict[str, int] = {}
+        for name, course in by_name.items():
+            row = models.Course(
+                department_id=department_id[course["department"]],
+                name=name,
+                name_english=course.get("english_name"),
+                credits=course.get("credits") or 0,
+                ap_credits=course.get("ap_credits") or 0,
+                is_pf=bool(course.get("is_pf")),
+                recommended_semester=course.get("recommended_semester"),
+                description=course.get("description"),
+                description_sections=course.get("description_sections") or {},
+                description_source=course.get("description_source"),
+                description_page=course.get("description_page"),
+            )
+            db.add(row)
+            db.flush()
+            course_id[name] = row.id
+
+        seen: set[tuple[int, int]] = set()
+        for before, after, alternative in edges:
+            pair = (course_id[before], course_id[after])
+            if pair in seen:
+                continue
+            seen.add(pair)
             db.add(
                 models.CoursePrereq(
-                    before=edge["before"],
-                    after=edge["after"],
-                    alternative=bool(edge.get("alternative")),
+                    before_id=pair[0], after_id=pair[1], alternative=alternative
                 )
             )
+
+        # 개설 과목을 교육과정에 다시 잇습니다 — 예전 import_credits 가 하던 일입니다
+        linked, unlinked = 0, []
+        for subject in db.query(models.Subject).all():
+            matched = match_course(subject.name, course_id)
+            if matched:
+                subject.course_id = course_id[matched]
+                linked += 1
+            else:
+                unlinked.append(subject.name)
+
         db.commit()
-        print(f"\n과목 {len(by_name)}개, 선수관계 {len(valid)}개를 저장했습니다.")
+        print(f"\n학과 {len(department_id)} · 과목 {len(course_id)} · 선수관계 {len(seen)} 저장")
+        print(f"개설 과목 연결 {linked}개" + (f" · 교육과정에 없음 {len(unlinked)}개" if unlinked else ""))
+        if unlinked:
+            for name in sorted(unlinked):
+                print(f"  {name}")
         return 0
     finally:
         db.close()

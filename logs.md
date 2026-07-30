@@ -1,5 +1,15 @@
 # Logs
 
+## 2026-07-30 — 과목 4층 구조 분리
+
+- 변경 파일: `backend/models.py`, `backend/migrations.py`, `backend/subject_names.py` (신규), `backend/parser_run.py`, `backend/import_curriculum.py`, `backend/main.py`, `backend/curriculum_router.py`, `backend/admin_router.py`, `backend/import_credits.py` (삭제), `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/src/types/index.ts`, `frontend/src/lib/curriculum.ts`, `frontend/src/lib/searchEngine.ts`, `frontend/src/pages/PlanPage.tsx`, `frontend/src/pages/TradePage.tsx`, `frontend/src/pages/AdminPage.tsx`, `frontend/src/App.tsx`, 가이드 문서
+- 요약: `classes.subject` 문자열 하나가 표시 이름과 과목 식별자를 겸하던 것을 `Department → Course → Subject → Class` 네 층으로 나눴습니다. `Course`는 언어·표기를 벗겨낸 과목 정체성이고 `Subject`는 KEIS 개설명입니다.
+- **(EC)는 English Class**였습니다. KEIS는 영어강의와 한국어강의를 별개로 개설하고 실제로 19쌍이 함께 열리는데, 카탈로그에는 EC 표기가 4개뿐이라 18건이 엉뚱하게 이어져 있었습니다. 이제 `Subject.is_ec`가 언어를 담고 둘은 같은 `Course`를 가리킵니다 — 학점·선수관계는 하나, 개설·수강은 별개.
+- 로마숫자 과목(`물리학및실험Ⅰ`)은 외국인 전형 과목이라 `물리학및실험1`과 합치지 않습니다. 수강생이 100% 외국인 학번인 것을 확인했습니다.
+- `subject_credits` 폐기 — 학점은 `Subject → Course`로 조회합니다. `subject_aliases`도 폐기 — 98개 중 89개가 유사도 검색으로 이미 잡히고 나머지는 음차(칼큘→Calculus)였습니다.
+- EC 졸업 요건을 수강 이력 기준으로 바꿨습니다. 워크북 표기(4개)가 아니라 실제로 영어강의를 들었는지로 셉니다.
+- 마이그레이션 검증: 분반 1,539 · 수강 19,801 · 시간 4,224행 전부 보존, 고아 레코드 0건, `name_raw`로 원문 100% 복원 가능. 교육과정 연결이 학기별로 84~88 → 91~98개로 늘었습니다.
+
 ## 2026-07-30 — 한 학번 = 한 계정
 
 - 변경 파일: `backend/models.py`, `backend/migrations.py`, `backend/auth_router.py`, `backend/CLAUDE.md`, `backend/api-guide.md`

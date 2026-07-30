@@ -34,7 +34,7 @@ const CACHE_PREFIX = "ksa_class_finder_cache";
  * 안 올리면 예전 응답을 든 브라우저가 최대 1시간 동안 새 필드를 못 받아
  * 학점이 0으로 보이는 식의 문제가 생깁니다.
  */
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 const TERM_KEY = "ksa_selected_term";
 const CACHE_EXPIRY = 60 * 60 * 1000;
 
