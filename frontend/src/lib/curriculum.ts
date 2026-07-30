@@ -26,7 +26,14 @@ export interface Prereq {
     alternative: boolean;
 }
 
+export interface Department {
+    name: string;
+    category: Category;
+}
+
 export interface Curriculum {
+    /** 화면 표시 순서대로 */
+    departments: Department[];
     courses: Course[];
     prerequisites: Prereq[];
     /** KEIS 과목명 → 카탈로그 과목명 */
@@ -53,6 +60,17 @@ export interface ProgressTerm {
  * 말이 되게 하려고 둡니다.
  */
 export type CourseState = "taken" | "current" | "inferred" | "available" | "locked";
+
+/** 학과 탭에서 "전체"를 고른 상태 */
+export const ALL_DEPARTMENTS = "__all__";
+
+export const COURSE_STATE_LABEL: Record<CourseState, string> = {
+    taken: "이수",
+    current: "수강 중",
+    inferred: "이수 추정",
+    available: "수강 가능",
+    locked: "선수 미이수",
+};
 
 export const CATEGORY_LABEL: Record<Category, string> = {
     natural: "자연과학",
@@ -300,6 +318,8 @@ export const NODE_WIDTH = 150;
 export const NODE_HEIGHT = 50;
 const COLUMN_GAP = 58;
 const ROW_GAP = 12;
+/** 전체 보기에서 학과 레인 사이 여백 */
+const LANE_GAP = 34;
 
 export interface GraphNode {
     name: string;
@@ -355,6 +375,136 @@ const computeLevels = (
 
     names.forEach(resolve);
     return levels;
+};
+
+export interface GraphLane {
+    department: string;
+    category: Category | string;
+    /** 레인 위쪽 경계 */
+    y: number;
+    height: number;
+}
+
+export interface FullGraph extends Graph {
+    lanes: GraphLane[];
+}
+
+/**
+ * 교육과정 전체를 한 화면에 놓습니다.
+ *
+ * 가로는 **선수 깊이**입니다 — 왼쪽이 선수 없는 과목, 오른쪽으로 갈수록 쌓아 올린
+ * 과목입니다. 세로는 학과 레인이고, 학과를 넘는 선(융합 과목이 타 학과 과목을 선수로
+ * 받는 경우)이 레인을 가로지릅니다. 학과별 그래프에서는 볼 수 없던 흐름입니다.
+ *
+ * 깊이는 학과 안이 아니라 **전체 기준**으로 잽니다. 그래야 레인이 달라도 같은 세로선
+ * 위에 있는 과목들이 비슷한 시기에 들을 수 있는 과목이 됩니다.
+ */
+export const layoutFullGraph = (
+    courses: Course[],
+    prerequisites: Prereq[],
+    departmentOrder: string[],
+): FullGraph => {
+    const byName = new Map(courses.map((course) => [course.name, course]));
+    const inScope = new Set(byName.keys());
+    const scopedEdges = prerequisites.filter(
+        (edge) => inScope.has(edge.before) && inScope.has(edge.after),
+    );
+    const prereqIndex = buildPrereqIndex(scopedEdges);
+    const levels = computeLevels([...inScope], prereqIndex, inScope);
+
+    const order = new Map(departmentOrder.map((name, index) => [name, index]));
+    const grouped = new Map<string, Course[]>();
+    courses.forEach((course) => {
+        const list = grouped.get(course.department);
+        if (list) list.push(course);
+        else grouped.set(course.department, [course]);
+    });
+
+    const positions = new Map<string, { x: number; y: number }>();
+    const lanes: GraphLane[] = [];
+    let cursor = 0;
+
+    [...grouped.entries()]
+        .sort(([a], [b]) => (order.get(a) ?? 99) - (order.get(b) ?? 99))
+        .forEach(([department, members]) => {
+            // 레인 안에서 깊이별로 나눠 쌓습니다
+            const columns = new Map<number, Course[]>();
+            members.forEach((course) => {
+                const level = levels.get(course.name) ?? 0;
+                const column = columns.get(level);
+                if (column) column.push(course);
+                else columns.set(level, [course]);
+            });
+
+            const rows = Math.max(...[...columns.values()].map((c) => c.length), 1);
+            columns.forEach((column, level) => {
+                // 선수가 놓인 높이 순으로 세워 선이 덜 엉키게 합니다
+                const ordered = [...column].sort((a, b) => {
+                    const anchor = (course: Course) => {
+                        const parents = (prereqIndex.get(course.name) ?? [])
+                            .map((edge) => positions.get(edge.before)?.y)
+                            .filter((value): value is number => value !== undefined);
+                        return parents.length
+                            ? parents.reduce((sum, value) => sum + value, 0) / parents.length
+                            : Number.MAX_SAFE_INTEGER;
+                    };
+                    const diff = anchor(a) - anchor(b);
+                    return diff !== 0 ? diff : a.name.localeCompare(b.name);
+                });
+                ordered.forEach((course, row) => {
+                    positions.set(course.name, {
+                        x: level * (NODE_WIDTH + COLUMN_GAP),
+                        y: cursor + row * (NODE_HEIGHT + ROW_GAP),
+                    });
+                });
+            });
+
+            const height = rows * (NODE_HEIGHT + ROW_GAP) - ROW_GAP;
+            lanes.push({
+                department,
+                category: members[0]?.category ?? "natural",
+                y: cursor,
+                height,
+            });
+            cursor += height + LANE_GAP;
+        });
+
+    const nodes: GraphNode[] = courses.map((course) => {
+        const position = positions.get(course.name)!;
+        return {
+            name: course.name,
+            course,
+            level: levels.get(course.name) ?? 0,
+            x: position.x,
+            y: position.y,
+        };
+    });
+
+    const edges: GraphEdge[] = scopedEdges.map((edge) => {
+        const from = positions.get(edge.before)!;
+        const to = positions.get(edge.after)!;
+        const x1 = from.x + NODE_WIDTH;
+        const y1 = from.y + NODE_HEIGHT / 2;
+        const x2 = to.x;
+        const y2 = to.y + NODE_HEIGHT / 2;
+        // 뒤로 가는 선(오른쪽 → 왼쪽)은 크게 돌려 노드를 덜 가립니다
+        const bend = x2 > x1 ? Math.max(24, (x2 - x1) / 2) : 60;
+        return {
+            before: edge.before,
+            after: edge.after,
+            alternative: edge.alternative,
+            path: `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`,
+        };
+    });
+
+    const maxLevel = Math.max(...[...levels.values()], 0);
+    return {
+        nodes,
+        edges,
+        lanes,
+        width: (maxLevel + 1) * (NODE_WIDTH + COLUMN_GAP) - COLUMN_GAP,
+        height: Math.max(cursor - LANE_GAP, NODE_HEIGHT),
+    };
 };
 
 /**

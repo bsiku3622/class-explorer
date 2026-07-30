@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
     GraduationCap,
-    Check,
-    Lock,
     BookOpen,
     CircleAlert,
     Award,
@@ -10,20 +8,16 @@ import {
 } from "lucide-react";
 import api from "../lib/api";
 import {
+    ALL_DEPARTMENTS,
     buildPrereqIndex,
     buildUnlockIndex,
     computeGpa,
     computeProgress,
-    courseState,
     inferPrereqs,
-    layoutGraph,
     CATEGORY_LABEL,
     DEPARTMENT_ORDER,
     GRADE_OPTIONS,
-    NODE_WIDTH,
-    NODE_HEIGHT,
     type Course,
-    type CourseState,
     type Curriculum,
     type GradeMap,
     type ProgressTerm,
@@ -35,6 +29,7 @@ import RetroButton from "../components/atoms/RetroButton";
 import RetroSubTitle from "../components/atoms/RetroSubTitle";
 import PageHeader from "../components/molecules/PageHeader";
 import LinkStudentModal from "../components/LinkStudentModal";
+import CourseGraph, { CourseGraphLegend } from "../components/CourseGraph";
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
 /** 계정 저장으로 옮기기 전에 쓰던 키 — 남아 있으면 한 번 옮겨 옵니다 */
@@ -45,7 +40,7 @@ const authHeader = () => {
     return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-interface PlanPageProps {
+interface ZamongPageProps {
     /** 계정에 등록된 본인 학번 — 없으면 등록 안내를 띄웁니다 */
     stuId: string | null;
     studentName: string | null;
@@ -64,26 +59,7 @@ const persistGrades = (grades: GradeMap) => {
     api.put("/curriculum/grades", { entries }, { headers: authHeader() }).catch(() => {});
 };
 
-const STATE_STYLE: Record<CourseState, { box: string; text: string }> = {
-    taken: { box: "bg-retro-green/20 border-retro-green", text: "text-black" },
-    current: { box: "bg-retro-accent5/20 border-retro-accent5", text: "text-black" },
-    inferred: {
-        box: "bg-retro-green/[0.07] border-retro-green border-dashed",
-        text: "text-black/60",
-    },
-    available: { box: "bg-white border-black", text: "text-black" },
-    locked: { box: "bg-black/[0.04] border-black/20", text: "text-black/35" },
-};
-
-const STATE_LABEL: Record<CourseState, string> = {
-    taken: "이수",
-    current: "수강 중",
-    inferred: "이수 추정",
-    available: "수강 가능",
-    locked: "선수 미이수",
-};
-
-const PlanPage: React.FC<PlanPageProps> = ({ stuId, studentName, onLinked }) => {
+const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName, onLinked }) => {
     const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     /** 어느 학생의 응답인지 함께 들고 있어야 학번이 바뀔 때 섞이지 않습니다 */
@@ -222,18 +198,19 @@ const PlanPage: React.FC<PlanPageProps> = ({ stuId, studentName, onLinked }) => 
         [earned, byName, curriculum, englishTaken],
     );
 
+    /** 서버가 표시 순서대로 내려줍니다. 없으면 예전 상수 순서로 */
     const departments = useMemo(() => {
+        const fromServer = (curriculum?.departments ?? []).map((d) => d.name);
+        if (fromServer.length) return fromServer;
         const present = new Set((curriculum?.courses ?? []).map((course) => course.department));
         return DEPARTMENT_ORDER.filter((name) => present.has(name));
     }, [curriculum]);
 
-    const graph = useMemo(() => {
-        const courses = (curriculum?.courses ?? []).filter(
-            (course) => course.department === department,
-        );
-        if (!courses.length) return null;
-        return layoutGraph(courses, curriculum?.prerequisites ?? [], byName);
-    }, [curriculum, department, byName]);
+    /** 수집된 학기라 이미 확정된 과목 — 손댈 수 없습니다 */
+    const fixedCourses = useMemo(
+        () => new Set([...autoTaken, ...currentCourses]),
+        [autoTaken, currentCourses],
+    );
 
     /** 기록을 바꾸고 서버에 올립니다 */
     const updateGrades = useCallback(
@@ -302,7 +279,7 @@ const PlanPage: React.FC<PlanPageProps> = ({ stuId, studentName, onLinked }) => 
     if (loadError) {
         return (
             <div className="flex flex-col gap-6 pb-20">
-                <PageHeader title="Plan" subtitle="교육과정 이수 현황" icon={GraduationCap} />
+                <PageHeader title="Zamong" subtitle="교육과정 이수 현황" icon={GraduationCap} />
                 <RetroCard className="bg-white p-8 text-center">
                     <p className="font-black uppercase tracking-widest text-black/40">{loadError}</p>
                 </RetroCard>
@@ -321,7 +298,7 @@ const PlanPage: React.FC<PlanPageProps> = ({ stuId, studentName, onLinked }) => 
                 />
             )}
 
-            <PageHeader title="Plan" subtitle="교육과정 이수 현황" icon={GraduationCap}>
+            <PageHeader title="Zamong" subtitle="교육과정 이수 현황" icon={GraduationCap}>
                 {stuId && (
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[10px] font-black uppercase tracking-widest text-black/40">
@@ -599,19 +576,17 @@ const PlanPage: React.FC<PlanPageProps> = ({ stuId, studentName, onLinked }) => 
                     <RetroCard className="bg-white p-6 space-y-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                             <RetroSubTitle title="Course Map" icon={GraduationCap} />
-                            <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold">
-                                {(Object.keys(STATE_LABEL) as CourseState[]).map((state) => (
-                                    <span key={state} className="flex items-center gap-1.5">
-                                        <span
-                                            className={`w-3 h-3 border-2 ${STATE_STYLE[state].box}`}
-                                        />
-                                        {STATE_LABEL[state]}
-                                    </span>
-                                ))}
-                            </div>
+                            <CourseGraphLegend />
                         </div>
 
                         <div className="flex flex-wrap gap-2">
+                            <RetroButton
+                                size="sm"
+                                isSelected={department === ALL_DEPARTMENTS}
+                                onClick={() => setDepartment(ALL_DEPARTMENTS)}
+                            >
+                                전체
+                            </RetroButton>
                             {departments.map((name) => (
                                 <RetroButton
                                     key={name}
@@ -624,96 +599,22 @@ const PlanPage: React.FC<PlanPageProps> = ({ stuId, studentName, onLinked }) => 
                             ))}
                         </div>
 
-                        {graph && (
-                            <div className="overflow-x-auto border-2 border-black/10 bg-retro-bg/40 p-4">
-                                <svg
-                                    width={graph.width}
-                                    height={graph.height}
-                                    viewBox={`0 0 ${graph.width} ${graph.height}`}
-                                    style={{ minWidth: graph.width }}
-                                >
-                                    {graph.edges.map((edge) => (
-                                        <path
-                                            key={`${edge.before}→${edge.after}`}
-                                            d={edge.path}
-                                            fill="none"
-                                            stroke={
-                                                focused === edge.before || focused === edge.after
-                                                    ? "#000000"
-                                                    : "rgba(0,0,0,0.25)"
-                                            }
-                                            strokeWidth={2}
-                                            strokeDasharray={edge.alternative ? "5 4" : undefined}
-                                        />
-                                    ))}
-                                    {graph.nodes.map((node) => {
-                                        const state = courseState(
-                                            node.name,
-                                            taken,
-                                            currentCourses,
-                                            inferred,
-                                            prereqIndex,
-                                        );
-                                        const style = STATE_STYLE[state];
-                                        const isManual = recorded.has(node.name);
-                                        const grade = grades[node.name];
-                                        const editable =
-                                            !autoTaken.has(node.name) && !currentCourses.has(node.name);
-                                        return (
-                                            <foreignObject
-                                                key={node.name}
-                                                x={node.x}
-                                                y={node.y}
-                                                width={NODE_WIDTH}
-                                                height={NODE_HEIGHT}
-                                            >
-                                                <button
-                                                    onClick={() => toggleTaken(node.name)}
-                                                    onMouseEnter={() => setFocused(node.name)}
-                                                    disabled={!editable}
-                                                    className={`w-full h-full border-2 px-2 flex flex-col items-start justify-center gap-0.5 text-left transition-all duration-100 ${style.box} ${style.text} ${
-                                                        editable
-                                                            ? "cursor-pointer hover:shadow-[3px_3px_0_0_rgba(0,0,0,0.2)]"
-                                                            : "cursor-default"
-                                                    } ${focused === node.name ? "shadow-[3px_3px_0_0_rgba(0,0,0,0.2)]" : ""}`}
-                                                >
-                                                    <span className="flex items-center gap-1 w-full">
-                                                        {state === "locked" && (
-                                                            <Lock size={10} strokeWidth={3} className="shrink-0" />
-                                                        )}
-                                                        {isManual && (
-                                                            <Check
-                                                                size={10}
-                                                                strokeWidth={3}
-                                                                className="shrink-0 text-retro-green"
-                                                            />
-                                                        )}
-                                                        <span className="text-[11px] font-black truncate">
-                                                            {node.course.name}
-                                                        </span>
-                                                        {grade && (
-                                                            <span className="ml-auto shrink-0 border-2 border-black bg-white px-1 text-[9px] font-black">
-                                                                {grade}
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                    <span className="text-[9px] font-bold opacity-60">
-                                                        {node.course.department !== department && (
-                                                            <span className="text-retro-secondary">
-                                                                {node.course.department}{" · "}
-                                                            </span>
-                                                        )}
-                                                        {node.course.credits}학점
-                                                        {englishTaken.has(node.name) && " · EC 수강"}
-                                                        {node.course.is_pf && " · P/F"}
-                                                    </span>
-                                                </button>
-                                            </foreignObject>
-                                        );
-                                    })}
-                                </svg>
-                            </div>
-                        )}
+                        <CourseGraph
+                            courses={curriculum.courses}
+                            prerequisites={curriculum.prerequisites}
+                            departments={departments}
+                            department={department}
+                            taken={taken}
+                            current={currentCourses}
+                            inferred={inferred}
+                            englishTaken={englishTaken}
+                            grades={grades}
+                            recorded={recorded}
+                            fixed={fixedCourses}
+                            focused={focused}
+                            onFocus={setFocused}
+                            onSelect={toggleTaken}
+                        />
 
                         {focusedCourse ? (
                             <div className="border-2 border-black bg-retro-accent-light p-3 space-y-1">
@@ -781,4 +682,4 @@ const PlanPage: React.FC<PlanPageProps> = ({ stuId, studentName, onLinked }) => 
     );
 };
 
-export default PlanPage;
+export default ZamongPage;
