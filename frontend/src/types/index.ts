@@ -3,6 +3,65 @@ export interface Term {
     semester: number;
 }
 
+/**
+ * 계정 권한. **위계입니다** — admin 은 manager 가 하는 일을 전부 할 수 있습니다.
+ * 비교는 직접 하지 말고 `hasRole()` 을 쓰세요.
+ */
+export type Role = "user" | "manager" | "admin";
+
+/** 일정을 어떻게 적었는지. 학사일정은 전부 종일이고 개인 일정만 시각·교시를 씁니다 */
+export type TimeMode = "allday" | "clock" | "period";
+
+export type EventCategory =
+    | "holiday"
+    | "dorm"
+    | "exam"
+    | "term"
+    | "academic"
+    | "event";
+
+export interface CalendarEvent {
+    id: number;
+    title: string;
+    /** YYYY-MM-DD. 하루짜리여도 end_date 가 채워져 있습니다 */
+    start_date: string;
+    end_date: string;
+    time_mode: TimeMode;
+    start_minute: number | null;
+    end_minute: number | null;
+    start_period: number | null;
+    end_period: number | null;
+    category: EventCategory;
+    /** [1,2] 처럼. 비어 있으면 전학년 */
+    target_grades: number[];
+    /** pdf = 학사일정 문서에서 온 것 */
+    source: "pdf" | "manual";
+    /** true 면 내 개인 일정 — 나만 보이고 나만 고칩니다 */
+    is_personal: boolean;
+    /** 같은 반복 묶음이면 같은 값 */
+    series_id: string | null;
+    note: string | null;
+}
+
+export interface EventRequest {
+    id: number;
+    title: string;
+    start_date: string;
+    end_date: string;
+    time_mode: TimeMode;
+    start_minute: number | null;
+    end_minute: number | null;
+    start_period: number | null;
+    end_period: number | null;
+    category: EventCategory;
+    target_grades: number[];
+    note: string | null;
+    status: "pending" | "approved" | "rejected";
+    reason: string | null;
+    requested_by: string;
+    created_at: string;
+}
+
 export interface StudentInfo {
     stuId: string;
     name: string;

@@ -79,7 +79,7 @@ Enrollment           User                        Session
 id (PK)              id (PK)                     id (PK)
 stuId (FK→Student)   username (unique)           user_id (FK→User)
 classId (FK→Class)   hashed_password             session_token (unique)
-UniqueConstraint     is_admin (bool)             device_type (web|mobile)
+UniqueConstraint     role (user|manager|admin)   device_type (web|mobile)
 (stuId, classId)     email (unique, NULL 허용)     ip_address
                      stu_id (FK→Student,         created_at
                             unique, NULL 허용)     last_used_at
@@ -106,6 +106,21 @@ recommended_semester
 description / description_sections
 description_source / description_page
 
+CalendarEvent                  EventRequest
+─────────────────────────────  ─────────────────────────────
+id (PK)                        id (PK)
+title                          user_id (FK→User, 제안한 사람)
+start_date / end_date          title
+time_mode (allday|clock|       start_date / end_date
+           period)             time_mode / 시간 칸들
+start_minute / end_minute      category / target_grades / note
+start_period / end_period      status (pending|approved|rejected)
+category / target_grades       reason (거절 사유)
+source (pdf|manual)            decided_by_id / decided_at
+owner_id (FK→User, NULL=공용)   event_id (FK→CalendarEvent)
+series_id (반복 묶음)
+note
+
 UserState                      CourseGrade
 ─────────────────────────────  ─────────────────────────────
 id (PK)                        id (PK)
@@ -128,6 +143,24 @@ UniqueConstraint (user_id,key)
 미등록 계정은 얼마든지 있어도 됩니다.
 
 등록 전에는 `stu_id`가 비어 있고, 그동안 이수 기록 API는 `409`를 돌려줍니다.
+
+### 학사일정
+
+`CalendarEvent.owner_id` 가 비어 있으면 **학교 공용**(모두에게 보이고 매니저만 수정),
+차 있으면 그 계정의 **개인 일정**(본인만 보고 본인만 수정)입니다. 공개 범위 컬럼을
+따로 두지 않은 이유는 지금 경우의 수가 이 둘뿐이어서입니다 — 공유가 생기면 그때
+붙입니다.
+
+조회는 `GET /calendar` 한 곳뿐이고, 거기서 `owner_id IS NULL OR owner_id = 나` 를
+겁니다. 남의 개인 일정을 고치려 하면 **404**를 돌려줍니다 — 403 이면 그런 일정이
+있다는 사실이 새어 나갑니다.
+
+`source='pdf'` 는 학사일정 문서에서 온 것이라 `import_calendar` 가 통째로 갈아끼웁니다.
+사람이 넣은 일정(`manual`)과 개인 일정은 건드리지 않습니다.
+
+**반복은 규칙이 아니라 실제 행으로 펼쳐 둡니다.** 같은 묶음은 `series_id` 가 같습니다.
+규칙으로 두면 조회할 때마다 펼쳐야 하고 "이번 주만 빼기"가 어려워지는데, 행으로 두면
+한 회차만 지우는 게 그냥 삭제입니다. 한 번에 최대 200 회차까지 만듭니다.
 
 ### 계정별 상태
 
@@ -226,6 +259,20 @@ python -m backend.create_user <username> <password>
 
 로그인은 **아이디·비밀번호** (`POST /auth/login`) 하나뿐입니다. 계정은 관리자가
 만들어 줍니다 — 아는 사람만 쓰는 서비스라 스스로 만드는 길을 두지 않았습니다.
+
+### 권한
+
+`User.role` 한 컬럼이고 **위계**입니다 — 위 단계는 아래 단계가 하는 일을 전부 합니다.
+
+| role | 할 수 있는 것 |
+|------|---------------|
+| `user` | 내 일정 관리 + 공용 일정 **제안** |
+| `manager` | 학사일정 직접 수정 + 제안 허용·거절 |
+| `admin` | manager 전부 + 계정 관리 (`/admin/*`) |
+
+의존성은 `auth.get_current_manager` / `get_current_admin` 을 씁니다. `role == "admin"`
+처럼 직접 비교하면 매니저를 빠뜨리기 쉬우니 `User.has_role(최소등급)`을 거치세요.
+불리언을 여러 개 두지 않은 이유는 "둘 다 켜진 계정"의 뜻이 애매해지기 때문입니다.
 
 **구글 계정은 로그인이 아니라 학번 확인에만 씁니다** (`POST /auth/link-google`).
 이메일이 곧 학번이라(`25-059@ksa.hs.kr`) 한 번 거치면 신원이 정해집니다. 교사 계정처럼

@@ -19,6 +19,8 @@ npm run lint      # ESLint
 uvicorn backend.main:app --reload   # FastAPI (port 8000)
 python -m backend.parser_run                       # KEIS API → SQLite 동기화 (오늘 기준 학기)
 python -m backend.parser_run -y 2026 -s 2          # 학기 지정
+python -m backend.parse_calendar_pdf <학사일정.pdf>  # 연간 학사일정 PDF → calendar_seed.json
+python -m backend.import_calendar                  # seed → DB (source='pdf' 만 교체)
 ```
 
 테스트 미구현. 검증은 `npm run build` + `npm run lint` 통과로 대체. **테스트 파일 생성 금지.**
@@ -117,8 +119,9 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | `/browse`           | BrowsePage      | 학생·교사 목록 + 교육과정 그래프  |
 | `/trade`            | TradePage       | 수강 변경 탐색 (2026-2 한정, 플래그) |
 | `/zamong`           | ZamongPage      | 교육과정 이수 현황 + 평점 (학번 등록 필요) |
+| `/calendar`         | CalendarPage    | 학사일정 달력 + 개인 일정 + 일정 제안 |
 | `/about`            | SettingsPage    | 기능 가이드북 + About             |
-| `/admin`            | AdminPage       | 관리자 전용 (is_admin=true만)     |
+| `/admin`            | AdminPage       | 계정 관리 (role=admin만)          |
 
 ---
 

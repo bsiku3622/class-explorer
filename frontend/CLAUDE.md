@@ -31,6 +31,7 @@ src/
 │   ├── BrowsePage.tsx        → 학생·교사 목록 + 교육과정 그래프
 │   ├── TradePage.tsx         → 수강 변경 탐색 (2026-2 한정, features 플래그)
 │   ├── ZamongPage.tsx        → 교육과정 이수 현황 + 평점 (학번 등록 필요)
+│   ├── CalendarPage.tsx      → 학사일정 달력 + 개인 일정 + 일정 제안
 │   └── SettingsPage.tsx      → 기능 가이드북 + About
 └── components/
     ├── atoms/                → 재사용 원자 컴포넌트 9종
@@ -44,7 +45,7 @@ src/
 | 상태 | 타입 | 역할 |
 |------|------|------|
 | `sessionToken` | `string \| null` | 인증 토큰 (localStorage 동기화) |
-| `currentUser` | `{ id, username, is_admin } \| null` | 로그인한 사용자 정보 (`/auth/me`) |
+| `currentUser` | `{ id, username, role, stu_id, … } \| null` | 로그인한 사용자 정보 (`/auth/me`) |
 | `allClassesData` | `SubjectData[]` | API 원본 전체 데이터 |
 | `displayData` | `SubjectData[]` | 검색/필터 적용된 표시 데이터 |
 | `searchInput` | `string` | 입력 필드 값 (300ms debounce) |
@@ -106,10 +107,21 @@ src/
 
 그래서 앱 안에서는 **`stu_id`가 항상 있다고 봐도 됩니다.**
 
+## 권한
+
+`currentUser.role` 은 `user < manager < admin` **위계**입니다. 검사는 `hasRole(role, 최소등급)`
+(`lib/utils.ts`)로만 하세요 — `role === "admin"` 처럼 직접 비교하면 매니저를 빠뜨립니다.
+
+| role | 화면에서 |
+|------|----------|
+| `user` | 내 일정 추가 + 공용 일정 "제안" 버튼 |
+| `manager` | "학사일정 추가" 버튼 + 제안 서랍에 허용·거절 |
+| `admin` | 위 전부 + 사이드바 Admin 메뉴 |
+
 ## 계정과 학번
 
-`currentUser.stu_id`가 이 계정이 누구인지 정합니다. 없으면 Plan 화면이
-`<LinkStudentModal />`을 띄워 본인 학번·이름을 받습니다 (서버가 둘을 대조).
+`currentUser.stu_id`가 이 계정이 누구인지 정합니다. 구글 계정을 확인할 때 이메일에서
+함께 정해지므로(`25-059@ksa.hs.kr` → `25-059`) 손으로 받는 화면은 없습니다.
 
 | 화면 | 대상 학생 |
 |------|-----------|

@@ -30,6 +30,9 @@
 | `SectionsTimetable` | 한 과목의 **모든 분반**을 한 그리드에 겹쳐 표시 (`sections`, `currentSectionId`, `busySlots`). 칸에 분반 번호만 넣고, 호버하면 그리드 아래 바에 상세(교사·강의실·시간·인원·상태)를 띄웁니다. 내 분반 `retro-accent1` 진하게 / 이동 가능 연하게 / 충돌 회색 |
 | `CourseGraph` | 교육과정 선수관계 그래프. 학과 하나 또는 `ALL_DEPARTMENTS`(전체 — 학과를 가로 레인으로). 이수 상태를 넘기지 않으면 구조만 그립니다. 과목을 누르면 그 과목과 직접 이어진 것만 남고 나머지는 흐려집니다 |
 | `GoogleLoginButton` | 학교 구글 계정 확인 버튼 (`onCredential`, `onError`). **로그인이 아니라 학번 확인용** — `GoogleLinkModal`에서만 씁니다. 생김새는 인풋과 같게 우리가 그리고, 구글이 그린 버튼을 투명하게 그 위에 겹쳐 둡니다 (눌리는 건 구글 것). `VITE_GOOGLE_CLIENT_ID`가 없으면 아무것도 그리지 않습니다 |
+| `CalendarGrid` | 월 달력 격자(항상 6주). **그날 시작하는** 일정만 칩으로 쌓고, 걸쳐 있는 건 `⋯ N` 으로 접습니다 — 장기 일정이 달력을 도배하지 않게 |
+| `EventFormModal` | 일정 입력 창. `purpose`(personal/shared/request)에 따라 칸이 달라집니다. 시간은 종일·시각·교시 중 선택 |
+| `RequestSidebar` | 접었다 펴는 제안 서랍. 매니저면 허용·거절, 아니면 내가 낸 제안 상태만. 빨간 배지는 매니저에게만 |
 | `GoogleLinkModal` | 학번을 확인하라고 요구하는 창. **닫을 수 없고** 로그아웃만 가능합니다 |
 | `Sidebar` | 좌측 고정 사이드바 메뉴 |
 | `FilterSection` | 학년 선택 필터 + 새로고침 |
@@ -51,6 +54,7 @@
 | `BrowsePage` | `/browse` | 학생·교사 목록 + 교육과정 그래프 (Students / Teachers / Courses 토글) |
 | `TradePage` | `/trade` | 수강 변경 탐색 (2026-2 한정, features 플래그) |
 | `ZamongPage` | `/zamong` | 교육과정 이수 현황 — 졸업 요건 진척도 + 평어·평점 + 선수관계 그래프 (학번 등록 필요) |
+| `CalendarPage` | `/calendar` | 학사일정 달력 — 월 격자 + 날짜 상세 + 개인 일정(반복 가능) + 제안 서랍 |
 | `SettingsPage` | `/about` | 기능 가이드북 + About |
 
 ## 상세 가이드
