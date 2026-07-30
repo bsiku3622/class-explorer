@@ -29,6 +29,7 @@
 | `Navigation` | 상단 고정 네비게이션 바 (`onLogoClick`, `onLogout`, `isAdmin`, `username`, `terms`, `currentTerm`, `onTermChange` props) |
 | `TermSwitcher` | 학기 전환 토글 (`terms`, `current`, `onChange`). Navigation 전용 — 다크 배경 기준 스타일, 학기 1개면 미렌더 |
 | `SectionsTimetable` | 한 과목의 **모든 분반**을 한 그리드에 겹쳐 표시 (`sections`, `currentSectionId`, `busySlots`). 칸에 분반 번호만 넣고, 호버하면 그리드 아래 바에 상세(교사·강의실·시간·인원·상태)를 띄웁니다. 내 분반 `retro-accent1` 진하게 / 이동 가능 연하게 / 충돌 회색 |
+| `CourseGraph` | 교육과정 선수관계 그래프. 학과 하나 또는 `ALL_DEPARTMENTS`(전체 — 학과를 가로 레인으로). 이수 상태를 넘기지 않으면 구조만 그립니다. 과목을 누르면 그 과목과 직접 이어진 것만 남고 나머지는 흐려집니다 |
 | `LinkStudentModal` | 계정에 본인 학번을 등록하는 안내창 (`onLinked`, `onDismiss`). 학번·이름을 함께 받아 서버가 대조하며, 안 맞으면 창 안에 오류를 띄웁니다 |
 | `Sidebar` | 좌측 고정 사이드바 메뉴 |
 | `FilterSection` | 학년 선택 필터 + 새로고침 |
@@ -47,9 +48,9 @@
 | `SearchPage` | `/` | 통합 검색 + 결과 표시 |
 | `RoomsPage` | `/emptyroomfinder` | 형설관 빈 교실 탐색 |
 | `AnalysisPage` | `/analysis` | 학사 데이터 통계 대시보드 |
-| `BrowsePage` | `/browse` | 학생/교사 목록 탐색 (모드 토글, 학년 필터) |
+| `BrowsePage` | `/browse` | 학생·교사 목록 + 교육과정 그래프 (Students / Teachers / Courses 토글) |
 | `TradePage` | `/trade` | 수강 변경 탐색 (2026-2 한정, features 플래그) |
-| `PlanPage` | `/plan` | 교육과정 이수 현황 — 졸업 요건 진척도 + 평어·평점 + 학과별 선수관계 그래프 |
+| `ZamongPage` | `/zamong` | 교육과정 이수 현황 — 졸업 요건 진척도 + 평어·평점 + 선수관계 그래프 (학번 등록 필요) |
 | `SettingsPage` | `/about` | 기능 가이드북 + About |
 
 ## 상세 가이드
