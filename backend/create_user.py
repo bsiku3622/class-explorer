@@ -1,7 +1,9 @@
 """Admin CLI: 사용자 계정 생성
 
+가입 창구가 없어서 계정은 여기서만 만들어집니다.
+
 사용법:
-    python -m backend.create_user <username> <password> [--admin]
+    python -m backend.create_user <username> <password> [--manager | --admin]
 """
 import sys
 
@@ -12,7 +14,10 @@ from backend.auth import hash_password
 init_schema()
 
 
-def create_user(username: str, password: str, is_admin: bool = False):
+def create_user(username: str, password: str, role: str = "user"):
+    if role not in models.ROLES:
+        print(f"Error: unknown role '{role}'. Use one of {', '.join(models.ROLES)}.")
+        sys.exit(1)
     db = SessionLocal()
     try:
         existing = db.query(models.User).filter(models.User.username == username).first()
@@ -22,11 +27,10 @@ def create_user(username: str, password: str, is_admin: bool = False):
         user = models.User(
             username=username,
             hashed_password=hash_password(password),
-            is_admin=is_admin,
+            role=role,
         )
         db.add(user)
         db.commit()
-        role = "admin" if is_admin else "user"
         print(f"User '{username}' created successfully (id={user.id}, role={role}).")
     finally:
         db.close()
@@ -34,7 +38,7 @@ def create_user(username: str, password: str, is_admin: bool = False):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Usage: python -m backend.create_user <username> <password> [--admin]")
+        print("Usage: python -m backend.create_user <username> <password> [--manager | --admin]")
         sys.exit(1)
-    _is_admin = "--admin" in sys.argv
-    create_user(sys.argv[1], sys.argv[2], is_admin=_is_admin)
+    _role = "admin" if "--admin" in sys.argv else "manager" if "--manager" in sys.argv else "user"
+    create_user(sys.argv[1], sys.argv[2], role=_role)

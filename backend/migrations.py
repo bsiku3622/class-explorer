@@ -435,10 +435,38 @@ def _split_into_subject_tables(conn) -> None:
         print(f"[migration]   옮기지 못한 선수관계 {dropped_edges}개")
 
 
+def _migrate_admin_flag_to_role(conn) -> None:
+    """
+    `users.is_admin` 불리언을 `users.role` 한 컬럼으로 옮깁니다.
+
+    권한이 셋(user·manager·admin)이 되면서 불리언을 하나 더 붙이면 "둘 다 켜진 계정"의
+    뜻이 애매해집니다. 위계라서 값 하나면 충분합니다.
+
+    옛 컬럼은 옮긴 뒤 지웁니다. 남겨 두면 모델에 없는 컬럼이라 아무도 안 채우는데
+    스키마에는 보여서, 다음에 읽는 사람이 둘 중 뭐가 진짜인지 헷갈립니다.
+    """
+    if not _has_column(conn, "users", "role"):
+        conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR DEFAULT 'user' NOT NULL"))
+        conn.commit()
+
+    if _has_column(conn, "users", "is_admin"):
+        moved = conn.execute(
+            text("UPDATE users SET role='admin' WHERE is_admin=1 AND role<>'admin'")
+        ).rowcount
+        conn.commit()
+        try:
+            conn.execute(text("ALTER TABLE users DROP COLUMN is_admin"))
+            conn.commit()
+        except Exception:
+            # 옛 SQLite 는 DROP COLUMN 을 모릅니다. 값은 이미 옮겼으니 그냥 둡니다
+            conn.rollback()
+        if moved:
+            print(f"[migration] 권한을 role 로 이관 — 관리자 {moved}명")
+
+
 def run_migrations(engine: Engine) -> None:
     # 단순 컬럼 추가 — 이미 있으면 무시
     simple = [
-        "ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0 NOT NULL",
         "ALTER TABLE users ADD COLUMN stu_id VARCHAR REFERENCES students(stuId)",
         "CREATE INDEX IF NOT EXISTS ix_users_stu_id ON users (stu_id)",
         "ALTER TABLE users ADD COLUMN email VARCHAR",
@@ -463,3 +491,4 @@ def run_migrations(engine: Engine) -> None:
         _drop_grade_student_column(conn)
         _unique_student_link(conn)
         _split_into_subject_tables(conn)
+        _migrate_admin_flag_to_role(conn)

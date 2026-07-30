@@ -1,0 +1,2179 @@
+{
+ "events": [
+  {
+   "title": "교직원 건강검진(~11.30)",
+   "start_date": "2026-02-02",
+   "end_date": "2026-11-30",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "추가 수강신청(~2.6)",
+   "start_date": "2026-02-05",
+   "end_date": "2026-02-06",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업식",
+   "start_date": "2026-02-12",
+   "end_date": "2026-02-12",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "생활관 2차 폐 쇄기간(~2.21)",
+   "start_date": "2026-02-13",
+   "end_date": "2026-02-21",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "설날연휴",
+   "start_date": "2026-02-16",
+   "end_date": "2026-02-16",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "설날",
+   "start_date": "2026-02-17",
+   "end_date": "2026-02-17",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "설날연휴",
+   "start_date": "2026-02-18",
+   "end_date": "2026-02-18",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "26학번 외국인 신입생 입국",
+   "start_date": "2026-02-18",
+   "end_date": "2026-02-18",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "26학번 외국인 신입생",
+   "start_date": "2026-02-19",
+   "end_date": "2026-02-19",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "오리엔테이션(~2.22)",
+   "start_date": "2026-02-19",
+   "end_date": "2026-02-22",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "귀교(재학생)",
+   "start_date": "2026-02-22",
+   "end_date": "2026-02-22",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "개학/입학식",
+   "start_date": "2026-02-23",
+   "end_date": "2026-02-23",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "수강신청 정정(~3.6)",
+   "start_date": "2026-02-23",
+   "end_date": "2026-03-06",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "전교생 건강조사(~2.27)",
+   "start_date": "2026-02-24",
+   "end_date": "2026-02-27",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(1)",
+   "start_date": "2026-02-25",
+   "end_date": "2026-02-25",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(1)",
+   "start_date": "2026-02-25",
+   "end_date": "2026-02-25",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "학년별 성폭력 예방교육",
+   "start_date": "2026-02-25",
+   "end_date": "2026-02-25",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "장애인식개선 교육(2학년)",
+   "start_date": "2026-02-25",
+   "end_date": "2026-02-25",
+   "category": "event",
+   "target_grades": [
+    2
+   ]
+  },
+  {
+   "title": "창의설계활동(1)OT",
+   "start_date": "2026-02-26",
+   "end_date": "2026-02-26",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "3학년 진학 OT",
+   "start_date": "2026-02-27",
+   "end_date": "2026-02-27",
+   "category": "academic",
+   "target_grades": [
+    3
+   ]
+  },
+  {
+   "title": "R&E(1) OT",
+   "start_date": "2026-02-28",
+   "end_date": "2026-02-28",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "삼일절",
+   "start_date": "2026-03-01",
+   "end_date": "2026-03-01",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "1주차 종료",
+   "start_date": "2026-03-01",
+   "end_date": "2026-03-01",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "대체휴일",
+   "start_date": "2026-03-02",
+   "end_date": "2026-03-02",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "2026-1학기 전교생 마음건강검사 및 생활상담(~5.31)",
+   "start_date": "2026-03-03",
+   "end_date": "2026-05-31",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "영국 CSIA 초청 교환학생 방문(~3.9)",
+   "start_date": "2026-03-03",
+   "end_date": "2026-03-09",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "2학년 폭력예방교육",
+   "start_date": "2026-03-04",
+   "end_date": "2026-03-04",
+   "category": "event",
+   "target_grades": [
+    2
+   ]
+  },
+  {
+   "title": "교무회의(2)",
+   "start_date": "2026-03-04",
+   "end_date": "2026-03-04",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(2)",
+   "start_date": "2026-03-04",
+   "end_date": "2026-03-04",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "창의설계활동(2)",
+   "start_date": "2026-03-05",
+   "end_date": "2026-03-05",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "2학년 진학 OT",
+   "start_date": "2026-03-06",
+   "end_date": "2026-03-06",
+   "category": "academic",
+   "target_grades": [
+    2
+   ]
+  },
+  {
+   "title": "귀가(1학년)",
+   "start_date": "2026-03-06",
+   "end_date": "2026-03-06",
+   "category": "dorm",
+   "target_grades": [
+    1
+   ]
+  },
+  {
+   "title": "R&E(2)",
+   "start_date": "2026-03-07",
+   "end_date": "2026-03-07",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "2027학년도 신입생선발 입학설명회(서울)",
+   "start_date": "2026-03-07",
+   "end_date": "2026-03-07",
+   "category": "event",
+   "target_grades": [
+    2
+   ]
+  },
+  {
+   "title": "2주차 종료",
+   "start_date": "2026-03-08",
+   "end_date": "2026-03-08",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "귀교(1학년)",
+   "start_date": "2026-03-08",
+   "end_date": "2026-03-08",
+   "category": "dorm",
+   "target_grades": [
+    1
+   ]
+  },
+  {
+   "title": "소변검사(2,3학년)",
+   "start_date": "2026-03-10",
+   "end_date": "2026-03-10",
+   "category": "event",
+   "target_grades": [
+    2,
+    3
+   ]
+  },
+  {
+   "title": "담임협의회(1)",
+   "start_date": "2026-03-11",
+   "end_date": "2026-03-11",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(3)",
+   "start_date": "2026-03-11",
+   "end_date": "2026-03-11",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "1분기 생활관 화재대피훈련",
+   "start_date": "2026-03-12",
+   "end_date": "2026-03-12",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "창의설계활동(3)",
+   "start_date": "2026-03-12",
+   "end_date": "2026-03-12",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "교직원 동호회의 날",
+   "start_date": "2026-03-13",
+   "end_date": "2026-03-13",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "R&E(3)",
+   "start_date": "2026-03-14",
+   "end_date": "2026-03-14",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "미국 SAT 시험",
+   "start_date": "2026-03-14",
+   "end_date": "2026-03-14",
+   "category": "exam",
+   "target_grades": []
+  },
+  {
+   "title": "2027학년도 신입생선발 입학설명회(광주)",
+   "start_date": "2026-03-14",
+   "end_date": "2026-03-14",
+   "category": "event",
+   "target_grades": [
+    2
+   ]
+  },
+  {
+   "title": "3주차 종료",
+   "start_date": "2026-03-15",
+   "end_date": "2026-03-15",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "2027학년도 신입생선발 입학설명회(대전)",
+   "start_date": "2026-03-15",
+   "end_date": "2026-03-15",
+   "category": "event",
+   "target_grades": [
+    2
+   ]
+  },
+  {
+   "title": "장영실전형 원서접수(~3.27)",
+   "start_date": "2026-03-16",
+   "end_date": "2026-03-27",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(3)",
+   "start_date": "2026-03-18",
+   "end_date": "2026-03-18",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(4)",
+   "start_date": "2026-03-18",
+   "end_date": "2026-03-18",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "결핵검진(2,3학년)",
+   "start_date": "2026-03-18",
+   "end_date": "2026-03-18",
+   "category": "event",
+   "target_grades": [
+    2,
+    3
+   ]
+  },
+  {
+   "title": "국외진로 설명회",
+   "start_date": "2026-03-18",
+   "end_date": "2026-03-18",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "창의설계활동(4)",
+   "start_date": "2026-03-19",
+   "end_date": "2026-03-19",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "수강철회 및 재수강 취소 마감",
+   "start_date": "2026-03-20",
+   "end_date": "2026-03-20",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "홍콩 GTC초청 교환학생 방문(~3.26)",
+   "start_date": "2026-03-20",
+   "end_date": "2026-03-26",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "일반인 대상 과학체험교실 및 학교견학",
+   "start_date": "2026-03-20",
+   "end_date": "2026-03-20",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "1학기 학부모연수",
+   "start_date": "2026-03-21",
+   "end_date": "2026-03-21",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "R&E(4)",
+   "start_date": "2026-03-21",
+   "end_date": "2026-03-21",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "4주차 종료",
+   "start_date": "2026-03-22",
+   "end_date": "2026-03-22",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "KNN 환경마라톤",
+   "start_date": "2026-03-22",
+   "end_date": "2026-03-22",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "외국인전형 2단계 전형 원서접수(~4.3)",
+   "start_date": "2026-03-23",
+   "end_date": "2026-04-03",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(4)",
+   "start_date": "2026-03-25",
+   "end_date": "2026-03-25",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(5)",
+   "start_date": "2026-03-25",
+   "end_date": "2026-03-25",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "창의설계활동(5)",
+   "start_date": "2026-03-26",
+   "end_date": "2026-03-26",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "귀가(전학년)",
+   "start_date": "2026-03-27",
+   "end_date": "2026-03-27",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "5주차 종료",
+   "start_date": "2026-03-29",
+   "end_date": "2026-03-29",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "귀교(전학년)",
+   "start_date": "2026-03-29",
+   "end_date": "2026-03-29",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "일본 Rits 초청 교환학생 방문(~4.3)",
+   "start_date": "2026-03-30",
+   "end_date": "2026-04-03",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "담임협의회(2)",
+   "start_date": "2026-04-01",
+   "end_date": "2026-04-01",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(6)",
+   "start_date": "2026-04-01",
+   "end_date": "2026-04-01",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "신체발달,시력검사(~4.30, 2,3학년)",
+   "start_date": "2026-04-02",
+   "end_date": "2026-04-30",
+   "category": "event",
+   "target_grades": [
+    2,
+    3
+   ]
+  },
+  {
+   "title": "창의설계활동(6)",
+   "start_date": "2026-04-02",
+   "end_date": "2026-04-02",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "R&E(5)",
+   "start_date": "2026-04-04",
+   "end_date": "2026-04-04",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "3학년 폭력예방교육",
+   "start_date": "2026-04-04",
+   "end_date": "2026-04-04",
+   "category": "event",
+   "target_grades": [
+    3
+   ]
+  },
+  {
+   "title": "3학년 단체심리검사 해석워크숍",
+   "start_date": "2026-04-04",
+   "end_date": "2026-04-04",
+   "category": "event",
+   "target_grades": [
+    3
+   ]
+  },
+  {
+   "title": "6주차 종료",
+   "start_date": "2026-04-05",
+   "end_date": "2026-04-05",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "2026-1학기 친구사랑 표현하기 주간(~4.10)",
+   "start_date": "2026-04-06",
+   "end_date": "2026-04-10",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(5)",
+   "start_date": "2026-04-08",
+   "end_date": "2026-04-08",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "7주차 종료",
+   "start_date": "2026-04-12",
+   "end_date": "2026-04-12",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "중간고사(~4.17)",
+   "start_date": "2026-04-14",
+   "end_date": "2026-04-17",
+   "category": "exam",
+   "target_grades": []
+  },
+  {
+   "title": "귀가(전학년)",
+   "start_date": "2026-04-17",
+   "end_date": "2026-04-17",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "8주차 종료",
+   "start_date": "2026-04-19",
+   "end_date": "2026-04-19",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "귀교(전학년)",
+   "start_date": "2026-04-19",
+   "end_date": "2026-04-19",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "생활관 담임방문 주간(~4.24)",
+   "start_date": "2026-04-20",
+   "end_date": "2026-04-24",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "담임 집중상담주간(~4.24)",
+   "start_date": "2026-04-20",
+   "end_date": "2026-04-24",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(6) 졸업연구(7)",
+   "start_date": "2026-04-22",
+   "end_date": "2026-04-22",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "유해약물 오남용 예방교육(1,2학년, 대강당)",
+   "start_date": "2026-04-22",
+   "end_date": "2026-04-22",
+   "category": "event",
+   "target_grades": [
+    1,
+    2
+   ]
+  },
+  {
+   "title": "창의설계활동(7)",
+   "start_date": "2026-04-23",
+   "end_date": "2026-04-23",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "상반기 학생회 리더십 캠프(~4.25)",
+   "start_date": "2026-04-24",
+   "end_date": "2026-04-25",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "일반인 대상 과학체험교실 및 학교견학",
+   "start_date": "2026-04-24",
+   "end_date": "2026-04-24",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "제15회 KSA 토론대회 예선(16:30, 시청각실)",
+   "start_date": "2026-04-24",
+   "end_date": "2026-04-24",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "R&E(6)",
+   "start_date": "2026-04-25",
+   "end_date": "2026-04-25",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "9주차 종료",
+   "start_date": "2026-04-26",
+   "end_date": "2026-04-26",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "감사의 마음 전하기 이벤트(~5/17)",
+   "start_date": "2026-04-27",
+   "end_date": "2026-04-27",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "1차 수강신청(~4.29)",
+   "start_date": "2026-04-28",
+   "end_date": "2026-04-29",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "인문예술학부 컬로퀴엄 시리즈",
+   "start_date": "2026-04-28",
+   "end_date": "2026-04-28",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "담임혐의회(3) 졸업연구(8)",
+   "start_date": "2026-04-29",
+   "end_date": "2026-04-29",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "외국인학생 MBTI 단체 실시 및 해석",
+   "start_date": "2026-04-29",
+   "end_date": "2026-04-29",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "창의설계활동(8)",
+   "start_date": "2026-04-30",
+   "end_date": "2026-04-30",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "1학년 귀가(4/30 OR 5/1)",
+   "start_date": "2026-04-30",
+   "end_date": "2026-04-30",
+   "category": "dorm",
+   "target_grades": [
+    1
+   ]
+  },
+  {
+   "title": "노동절",
+   "start_date": "2026-05-01",
+   "end_date": "2026-05-01",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "1학년 귀가(4/30 OR 5/1)",
+   "start_date": "2026-05-01",
+   "end_date": "2026-05-01",
+   "category": "dorm",
+   "target_grades": [
+    1
+   ]
+  },
+  {
+   "title": "R&E(7)",
+   "start_date": "2026-05-02",
+   "end_date": "2026-05-02",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "미국 SAT 시험",
+   "start_date": "2026-05-02",
+   "end_date": "2026-05-02",
+   "category": "exam",
+   "target_grades": []
+  },
+  {
+   "title": "10주차 종료",
+   "start_date": "2026-05-03",
+   "end_date": "2026-05-03",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "귀교(1학년)",
+   "start_date": "2026-05-03",
+   "end_date": "2026-05-03",
+   "category": "dorm",
+   "target_grades": [
+    1
+   ]
+  },
+  {
+   "title": "미국 AP 시험(~5.22)",
+   "start_date": "2026-05-04",
+   "end_date": "2026-05-22",
+   "category": "exam",
+   "target_grades": []
+  },
+  {
+   "title": "어린이날",
+   "start_date": "2026-05-05",
+   "end_date": "2026-05-05",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(7)",
+   "start_date": "2026-05-06",
+   "end_date": "2026-05-06",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "태국 MWIT 초청 교환학생 방문(~5.12)",
+   "start_date": "2026-05-06",
+   "end_date": "2026-05-12",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(9)",
+   "start_date": "2026-05-06",
+   "end_date": "2026-05-06",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "창의설계활동(9)",
+   "start_date": "2026-05-07",
+   "end_date": "2026-05-07",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "SAF(~5.9)",
+   "start_date": "2026-05-08",
+   "end_date": "2026-05-09",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "교직원 동호회의 날",
+   "start_date": "2026-05-08",
+   "end_date": "2026-05-08",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "일반인 대상 과학체험교실 및 학교견학",
+   "start_date": "2026-05-08",
+   "end_date": "2026-05-08",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "일반인 대상 과학체험교실 및 학교견학",
+   "start_date": "2026-05-09",
+   "end_date": "2026-05-09",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "11주차 종료",
+   "start_date": "2026-05-10",
+   "end_date": "2026-05-10",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "1학기 공개수업(~5/15)",
+   "start_date": "2026-05-11",
+   "end_date": "2026-05-11",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "1학기 학부모 상담주간(~5/15)",
+   "start_date": "2026-05-11",
+   "end_date": "2026-05-11",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(8)",
+   "start_date": "2026-05-13",
+   "end_date": "2026-05-13",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(10)",
+   "start_date": "2026-05-13",
+   "end_date": "2026-05-13",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "건강검진(1학년)",
+   "start_date": "2026-05-13",
+   "end_date": "2026-05-13",
+   "category": "event",
+   "target_grades": [
+    1
+   ]
+  },
+  {
+   "title": "물리지구과학부 제2회 콜로퀴움",
+   "start_date": "2026-05-13",
+   "end_date": "2026-05-13",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "2분기 생활관 화재대피훈련",
+   "start_date": "2026-05-14",
+   "end_date": "2026-05-14",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "창의설계활동(10)",
+   "start_date": "2026-05-14",
+   "end_date": "2026-05-14",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "2차 수강신청",
+   "start_date": "2026-05-14",
+   "end_date": "2026-05-14",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "귀가(전학년)",
+   "start_date": "2026-05-15",
+   "end_date": "2026-05-15",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "12주차 종료",
+   "start_date": "2026-05-17",
+   "end_date": "2026-05-17",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "귀교(전학년)",
+   "start_date": "2026-05-17",
+   "end_date": "2026-05-17",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "담임협의회(4)",
+   "start_date": "2026-05-20",
+   "end_date": "2026-05-20",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(11)",
+   "start_date": "2026-05-20",
+   "end_date": "2026-05-20",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "단체헌혈",
+   "start_date": "2026-05-20",
+   "end_date": "2026-05-20",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "창의설계활동(11)",
+   "start_date": "2026-05-21",
+   "end_date": "2026-05-21",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "KSA-KMLA 스포츠문화교류전(예정)",
+   "start_date": "2026-05-22",
+   "end_date": "2026-05-22",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "R&E(8)",
+   "start_date": "2026-05-23",
+   "end_date": "2026-05-23",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "부처님오신날",
+   "start_date": "2026-05-24",
+   "end_date": "2026-05-24",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "13주차 종료",
+   "start_date": "2026-05-24",
+   "end_date": "2026-05-24",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "대체휴일",
+   "start_date": "2026-05-25",
+   "end_date": "2026-05-25",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "2026-1학기 학교생활만족도 조사(~6.12)",
+   "start_date": "2026-05-26",
+   "end_date": "2026-06-12",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "인문예술학부 컬로퀴엄 시리즈",
+   "start_date": "2026-05-26",
+   "end_date": "2026-05-26",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(9)",
+   "start_date": "2026-05-27",
+   "end_date": "2026-05-27",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(12)",
+   "start_date": "2026-05-27",
+   "end_date": "2026-05-27",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "흡연예방교육(1학년)",
+   "start_date": "2026-05-27",
+   "end_date": "2026-05-27",
+   "category": "event",
+   "target_grades": [
+    1
+   ]
+  },
+  {
+   "title": "창의설계활동(12)",
+   "start_date": "2026-05-28",
+   "end_date": "2026-05-28",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "교직원 동호회의 날",
+   "start_date": "2026-05-29",
+   "end_date": "2026-05-29",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "제15회 KSA 토론대회",
+   "start_date": "2026-05-29",
+   "end_date": "2026-05-29",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "R&E(9)",
+   "start_date": "2026-05-30",
+   "end_date": "2026-05-30",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "14주차 종료",
+   "start_date": "2026-05-31",
+   "end_date": "2026-05-31",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "2026 지방선거",
+   "start_date": "2026-06-03",
+   "end_date": "2026-06-03",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "창의설계활동(13)",
+   "start_date": "2026-06-04",
+   "end_date": "2026-06-04",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "현충일",
+   "start_date": "2026-06-06",
+   "end_date": "2026-06-06",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "15주차 종료",
+   "start_date": "2026-06-07",
+   "end_date": "2026-06-07",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "1학기 보강 주간(~6.12)",
+   "start_date": "2026-06-08",
+   "end_date": "2026-06-12",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(10)",
+   "start_date": "2026-06-10",
+   "end_date": "2026-06-10",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "16주차 종료",
+   "start_date": "2026-06-14",
+   "end_date": "2026-06-14",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "기말고사(~6.19)",
+   "start_date": "2026-06-15",
+   "end_date": "2026-06-19",
+   "category": "exam",
+   "target_grades": []
+  },
+  {
+   "title": "종업",
+   "start_date": "2026-06-19",
+   "end_date": "2026-06-19",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "귀가(2학년)",
+   "start_date": "2026-06-19",
+   "end_date": "2026-06-19",
+   "category": "dorm",
+   "target_grades": [
+    2
+   ]
+  },
+  {
+   "title": "17주차 종료",
+   "start_date": "2026-06-21",
+   "end_date": "2026-06-21",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "글로벌 리더십 프로그램(~6.23, 1학년)",
+   "start_date": "2026-06-21",
+   "end_date": "2026-06-23",
+   "category": "event",
+   "target_grades": [
+    1,
+    2,
+    3
+   ]
+  },
+  {
+   "title": "3학년 단체리더십활동(~6.23)",
+   "start_date": "2026-06-22",
+   "end_date": "2026-06-23",
+   "category": "event",
+   "target_grades": [
+    3
+   ]
+  },
+  {
+   "title": "귀가(3학년)",
+   "start_date": "2026-06-23",
+   "end_date": "2026-06-23",
+   "category": "dorm",
+   "target_grades": [
+    3
+   ]
+  },
+  {
+   "title": "숲길체험프로그램(~6.25, 1학년)",
+   "start_date": "2026-06-24",
+   "end_date": "2026-06-25",
+   "category": "event",
+   "target_grades": [
+    1,
+    2
+   ]
+  },
+  {
+   "title": "귀가(1학년)",
+   "start_date": "2026-06-25",
+   "end_date": "2026-06-25",
+   "category": "dorm",
+   "target_grades": [
+    1
+   ]
+  },
+  {
+   "title": "생활관 2학기 방배정 작업(~7.31)",
+   "start_date": "2026-07-01",
+   "end_date": "2026-07-31",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "싱가포르 NUSHS 교환학생 파견(~7.13)",
+   "start_date": "2026-07-07",
+   "end_date": "2026-07-13",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "태국 MWIT 교환학생 파견(~7.20)",
+   "start_date": "2026-07-14",
+   "end_date": "2026-07-20",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "하계과학캠프(~7.30)",
+   "start_date": "2026-07-29",
+   "end_date": "2026-07-30",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "추가 수강신청(~8.4)",
+   "start_date": "2026-08-03",
+   "end_date": "2026-08-04",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "2026 KSA 과학축전(~8.6)",
+   "start_date": "2026-08-04",
+   "end_date": "2026-08-06",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "생활관 2차 폐쇄기간(~8.17)",
+   "start_date": "2026-08-10",
+   "end_date": "2026-08-17",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "오케스트라 여름 음악캠프(~8.16)",
+   "start_date": "2026-08-14",
+   "end_date": "2026-08-16",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "광복절",
+   "start_date": "2026-08-15",
+   "end_date": "2026-08-15",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "대체휴일",
+   "start_date": "2026-08-17",
+   "end_date": "2026-08-17",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "귀교(전학년)",
+   "start_date": "2026-08-17",
+   "end_date": "2026-08-17",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "개학",
+   "start_date": "2026-08-18",
+   "end_date": "2026-08-18",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "수강신청 정정(~8.28)",
+   "start_date": "2026-08-18",
+   "end_date": "2026-08-28",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(1)",
+   "start_date": "2026-08-19",
+   "end_date": "2026-08-19",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(1)",
+   "start_date": "2026-08-19",
+   "end_date": "2026-08-19",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "학년별 성폭력예방 교육",
+   "start_date": "2026-08-19",
+   "end_date": "2026-08-19",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "장애인식개선 교육(1학년)",
+   "start_date": "2026-08-19",
+   "end_date": "2026-08-19",
+   "category": "event",
+   "target_grades": [
+    1
+   ]
+  },
+  {
+   "title": "연구방법기초세미나(1)",
+   "start_date": "2026-08-20",
+   "end_date": "2026-08-20",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "3학년 진학 OT",
+   "start_date": "2026-08-21",
+   "end_date": "2026-08-21",
+   "category": "academic",
+   "target_grades": [
+    3
+   ]
+  },
+  {
+   "title": "R&E(1) 중간발표회",
+   "start_date": "2026-08-22",
+   "end_date": "2026-08-22",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "1주차 종료",
+   "start_date": "2026-08-23",
+   "end_date": "2026-08-23",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "2026-2학기 전교생 마음건강검사 및 상담(~10.31)",
+   "start_date": "2026-08-24",
+   "end_date": "2026-10-31",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(2)",
+   "start_date": "2026-08-26",
+   "end_date": "2026-08-26",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "2학년 폭력예방교육",
+   "start_date": "2026-08-26",
+   "end_date": "2026-08-26",
+   "category": "event",
+   "target_grades": [
+    2
+   ]
+  },
+  {
+   "title": "2학년 심리검사(STRONG)",
+   "start_date": "2026-08-26",
+   "end_date": "2026-08-26",
+   "category": "event",
+   "target_grades": [
+    2
+   ]
+  },
+  {
+   "title": "졸업연구(2)",
+   "start_date": "2026-08-26",
+   "end_date": "2026-08-26",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "연구방법기초세미나(2)",
+   "start_date": "2026-08-27",
+   "end_date": "2026-08-27",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "2학기 학부모 연수",
+   "start_date": "2026-08-29",
+   "end_date": "2026-08-29",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "R&E(2)",
+   "start_date": "2026-08-29",
+   "end_date": "2026-08-29",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "2주차 종료",
+   "start_date": "2026-08-30",
+   "end_date": "2026-08-30",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "담임협의회(1)",
+   "start_date": "2026-09-02",
+   "end_date": "2026-09-02",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "학부모상담주간(~9.8): 3학년",
+   "start_date": "2026-09-02",
+   "end_date": "2026-09-08",
+   "category": "academic",
+   "target_grades": [
+    3
+   ]
+  },
+  {
+   "title": "졸업연구(3)",
+   "start_date": "2026-09-02",
+   "end_date": "2026-09-02",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "연구방법기초세미나(3)",
+   "start_date": "2026-09-03",
+   "end_date": "2026-09-03",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "교직원 동호회의 날",
+   "start_date": "2026-09-04",
+   "end_date": "2026-09-04",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "1,3, 외국인학생 폭력예방 교육",
+   "start_date": "2026-09-05",
+   "end_date": "2026-09-05",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "1, 외국인학생 단체심리검사",
+   "start_date": "2026-09-05",
+   "end_date": "2026-09-05",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "R&E(3)",
+   "start_date": "2026-09-05",
+   "end_date": "2026-09-05",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "3주차 종료",
+   "start_date": "2026-09-06",
+   "end_date": "2026-09-06",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "개교기념일",
+   "start_date": "2026-09-07",
+   "end_date": "2026-09-07",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(3)",
+   "start_date": "2026-09-09",
+   "end_date": "2026-09-09",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "2학년 STRONG 검사 해석워크샵",
+   "start_date": "2026-09-09",
+   "end_date": "2026-09-09",
+   "category": "event",
+   "target_grades": [
+    2
+   ]
+  },
+  {
+   "title": "졸업연구(4)",
+   "start_date": "2026-09-09",
+   "end_date": "2026-09-09",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "연구방법기초세미나(4)",
+   "start_date": "2026-09-10",
+   "end_date": "2026-09-10",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "수강철회 및 재수강 취소 마감",
+   "start_date": "2026-09-11",
+   "end_date": "2026-09-11",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "R&E(4)",
+   "start_date": "2026-09-12",
+   "end_date": "2026-09-12",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "4주차 종료",
+   "start_date": "2026-09-13",
+   "end_date": "2026-09-13",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "2학기 공개수업(~9/18)",
+   "start_date": "2026-09-14",
+   "end_date": "2026-09-14",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "학부모상담주간(~9.18):1,2학년",
+   "start_date": "2026-09-14",
+   "end_date": "2026-09-18",
+   "category": "academic",
+   "target_grades": [
+    1,
+    2
+   ]
+  },
+  {
+   "title": "졸업연구(5)",
+   "start_date": "2026-09-16",
+   "end_date": "2026-09-16",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "심폐소생술교육(교직원,2학년)",
+   "start_date": "2026-09-16",
+   "end_date": "2026-09-16",
+   "category": "event",
+   "target_grades": [
+    2
+   ]
+  },
+  {
+   "title": "3분기 생활관 화재대피훈련",
+   "start_date": "2026-09-17",
+   "end_date": "2026-09-17",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "연구방법기초세미나(5)",
+   "start_date": "2026-09-17",
+   "end_date": "2026-09-17",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "R&E(5)",
+   "start_date": "2026-09-19",
+   "end_date": "2026-09-19",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "5주차 종료",
+   "start_date": "2026-09-20",
+   "end_date": "2026-09-20",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "귀가(전학년)",
+   "start_date": "2026-09-22",
+   "end_date": "2026-09-22",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "개교기념 휴업",
+   "start_date": "2026-09-23",
+   "end_date": "2026-09-23",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "추석연휴",
+   "start_date": "2026-09-24",
+   "end_date": "2026-09-24",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "추석",
+   "start_date": "2026-09-25",
+   "end_date": "2026-09-25",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "추석연휴",
+   "start_date": "2026-09-26",
+   "end_date": "2026-09-26",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "6주차 종료",
+   "start_date": "2026-09-27",
+   "end_date": "2026-09-27",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "귀교(전학년)",
+   "start_date": "2026-09-27",
+   "end_date": "2026-09-27",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "담임협의회(2)",
+   "start_date": "2026-09-30",
+   "end_date": "2026-09-30",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(6)",
+   "start_date": "2026-09-30",
+   "end_date": "2026-09-30",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "연구방법기초세미나(6)",
+   "start_date": "2026-10-01",
+   "end_date": "2026-10-01",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "교직원 동호회의 날",
+   "start_date": "2026-10-02",
+   "end_date": "2026-10-02",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "개천절",
+   "start_date": "2026-10-03",
+   "end_date": "2026-10-03",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "7주차 종료",
+   "start_date": "2026-10-04",
+   "end_date": "2026-10-04",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "대체 휴일",
+   "start_date": "2026-10-05",
+   "end_date": "2026-10-05",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "2학기 보강주간(~10.8)",
+   "start_date": "2026-10-06",
+   "end_date": "2026-10-08",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "2026학년도 언어문화개선 교육주간(~10.9)",
+   "start_date": "2026-10-06",
+   "end_date": "2026-10-09",
+   "category": "event",
+   "target_grades": [
+    2
+   ]
+  },
+  {
+   "title": "교무회의(4)",
+   "start_date": "2026-10-07",
+   "end_date": "2026-10-07",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "한글날",
+   "start_date": "2026-10-09",
+   "end_date": "2026-10-09",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "8주차 종료",
+   "start_date": "2026-10-11",
+   "end_date": "2026-10-11",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "중간고사(~10.15)",
+   "start_date": "2026-10-12",
+   "end_date": "2026-10-15",
+   "category": "exam",
+   "target_grades": []
+  },
+  {
+   "title": "귀가(전학년)",
+   "start_date": "2026-10-16",
+   "end_date": "2026-10-16",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "9주차 종료",
+   "start_date": "2026-10-18",
+   "end_date": "2026-10-18",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "귀교(전학년)",
+   "start_date": "2026-10-18",
+   "end_date": "2026-10-18",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "생활관 담임방문 주간(~10.23)",
+   "start_date": "2026-10-19",
+   "end_date": "2026-10-23",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "담임집중 상담주간(~10.23.)",
+   "start_date": "2026-10-19",
+   "end_date": "2026-10-23",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(5)",
+   "start_date": "2026-10-21",
+   "end_date": "2026-10-21",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(7)",
+   "start_date": "2026-10-21",
+   "end_date": "2026-10-21",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "유해약물 예방교육(2학년)",
+   "start_date": "2026-10-21",
+   "end_date": "2026-10-21",
+   "category": "event",
+   "target_grades": [
+    2
+   ]
+  },
+  {
+   "title": "연구방법기초세미나(7)",
+   "start_date": "2026-10-22",
+   "end_date": "2026-10-22",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "R&E(6)",
+   "start_date": "2026-10-24",
+   "end_date": "2026-10-24",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "10주차 종료",
+   "start_date": "2026-10-25",
+   "end_date": "2026-10-25",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "담입협의회(3)",
+   "start_date": "2026-10-28",
+   "end_date": "2026-10-28",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(8)",
+   "start_date": "2026-10-28",
+   "end_date": "2026-10-28",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "KSA 한마당체육대회",
+   "start_date": "2026-10-29",
+   "end_date": "2026-10-29",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "SAC(~11.1)",
+   "start_date": "2026-10-30",
+   "end_date": "2026-11-01",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "교직원 동호희의 날",
+   "start_date": "2026-10-30",
+   "end_date": "2026-10-30",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "11주차 종료",
+   "start_date": "2026-11-01",
+   "end_date": "2026-11-01",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "2026-2학기 친구사랑 표현하기 주간(~11.6)",
+   "start_date": "2026-11-02",
+   "end_date": "2026-11-06",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(6)",
+   "start_date": "2026-11-04",
+   "end_date": "2026-11-04",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(9)",
+   "start_date": "2026-11-04",
+   "end_date": "2026-11-04",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "연구방법기초세미나(8)",
+   "start_date": "2026-11-05",
+   "end_date": "2026-11-05",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "R&E(7)",
+   "start_date": "2026-11-07",
+   "end_date": "2026-11-07",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "12주차 종료",
+   "start_date": "2026-11-08",
+   "end_date": "2026-11-08",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(7)",
+   "start_date": "2026-11-11",
+   "end_date": "2026-11-11",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(10)",
+   "start_date": "2026-11-11",
+   "end_date": "2026-11-11",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "연구방법기초세미나(9)",
+   "start_date": "2026-11-12",
+   "end_date": "2026-11-12",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "귀가(전학년)",
+   "start_date": "2026-11-13",
+   "end_date": "2026-11-13",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "싱가포르 NUSHS 초청 교환학생",
+   "start_date": "2026-11-14",
+   "end_date": "2026-11-14",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "방문(~11.20)",
+   "start_date": "2026-11-14",
+   "end_date": "2026-11-20",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "13주차 종료",
+   "start_date": "2026-11-15",
+   "end_date": "2026-11-15",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "귀교(전학년)",
+   "start_date": "2026-11-15",
+   "end_date": "2026-11-15",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "2026-2학기 학교생활만족도 조사(~12.04)",
+   "start_date": "2026-11-16",
+   "end_date": "2026-12-04",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "담임협의회(4)",
+   "start_date": "2026-11-18",
+   "end_date": "2026-11-18",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(11)",
+   "start_date": "2026-11-18",
+   "end_date": "2026-11-18",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "4분기 생활관 화재대피훈련",
+   "start_date": "2026-11-19",
+   "end_date": "2026-11-19",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "연구방법기초세미나(10)",
+   "start_date": "2026-11-19",
+   "end_date": "2026-11-19",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "교직원 동호회의 날",
+   "start_date": "2026-11-20",
+   "end_date": "2026-11-20",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "R&E(8) 최종발표회",
+   "start_date": "2026-11-21",
+   "end_date": "2026-11-21",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "14주차 종료",
+   "start_date": "2026-11-22",
+   "end_date": "2026-11-22",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(8)",
+   "start_date": "2026-11-25",
+   "end_date": "2026-11-25",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "졸업연구(12)",
+   "start_date": "2026-11-25",
+   "end_date": "2026-11-25",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "연구방법기초세미나(11)",
+   "start_date": "2026-11-26",
+   "end_date": "2026-11-26",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "오케스트라 정기연주회",
+   "start_date": "2026-11-27",
+   "end_date": "2026-11-27",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "15주차 종료",
+   "start_date": "2026-11-29",
+   "end_date": "2026-11-29",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "교무회의(9)",
+   "start_date": "2026-12-02",
+   "end_date": "2026-12-02",
+   "category": "academic",
+   "target_grades": []
+  },
+  {
+   "title": "심폐소생술교육(3학년)",
+   "start_date": "2026-12-02",
+   "end_date": "2026-12-02",
+   "category": "event",
+   "target_grades": [
+    3
+   ]
+  },
+  {
+   "title": "16주차 종료",
+   "start_date": "2026-12-06",
+   "end_date": "2026-12-06",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "기말고사(~12.11)",
+   "start_date": "2026-12-07",
+   "end_date": "2026-12-11",
+   "category": "exam",
+   "target_grades": []
+  },
+  {
+   "title": "종업",
+   "start_date": "2026-12-11",
+   "end_date": "2026-12-11",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "귀가(전학년)",
+   "start_date": "2026-12-11",
+   "end_date": "2026-12-11",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "하반기 학생회 리더십캠프(~12.12)",
+   "start_date": "2026-12-11",
+   "end_date": "2026-12-12",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "생활관 1차 폐쇄기간(~12.20)",
+   "start_date": "2026-12-12",
+   "end_date": "2026-12-20",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "17주차 종료",
+   "start_date": "2026-12-13",
+   "end_date": "2026-12-13",
+   "category": "term",
+   "target_grades": []
+  },
+  {
+   "title": "성탄절",
+   "start_date": "2026-12-25",
+   "end_date": "2026-12-25",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "생활관 1학기 방배정 작업(~1.31)",
+   "start_date": "2026-12-30",
+   "end_date": "2027-01-31",
+   "category": "dorm",
+   "target_grades": []
+  },
+  {
+   "title": "신정",
+   "start_date": "2027-01-01",
+   "end_date": "2027-01-01",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "KSA Dream Camp(~1.14)",
+   "start_date": "2027-01-13",
+   "end_date": "2027-01-14",
+   "category": "event",
+   "target_grades": []
+  },
+  {
+   "title": "설날",
+   "start_date": "2027-02-07",
+   "end_date": "2027-02-07",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "대체휴일",
+   "start_date": "2027-02-09",
+   "end_date": "2027-02-09",
+   "category": "holiday",
+   "target_grades": []
+  },
+  {
+   "title": "졸업식",
+   "start_date": "2027-02-11",
+   "end_date": "2027-02-11",
+   "category": "term",
+   "target_grades": []
+  }
+ ]
+}
