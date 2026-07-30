@@ -76,6 +76,10 @@ src/
 | 변수 | 설명 |
 |------|------|
 | `VITE_API_BASE_URL` | 백엔드 서버 주소. 비워두면 Vite 프록시 사용 (로컬 개발) |
+| `VITE_GOOGLE_CLIENT_ID` | 학교 구글 계정 로그인용. 없으면 버튼을 아예 그리지 않습니다 |
+
+**dev 서버는 `https://localhost:5188`입니다.** 구글 OAuth 허용 origin 에 이 주소가
+등록돼 있어서, 포트를 바꾸면 구글 로그인이 막힙니다.
 
 배포 시 Netlify 대시보드 → Environment variables에서 설정.
 

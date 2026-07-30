@@ -78,3 +78,4 @@
 - [x] 22~26학번 전체 명단 확보 (외국인 포함 677명) + 2024~2025 과거 학기 수집
 - [x] 과목 구조를 departments/courses/subjects/classes 4층으로 분리 (EC/KC 구분, 영문명 분리, 별칭 폐기)
 - [x] 교육과정 그래프를 Browse로 이동 (전체 보기 + 선택 강조), Plan → Zamong 개명
+- [ ] 학교 구글 계정 로그인 (@ksa.hs.kr) — Client ID 발급 후 배포
