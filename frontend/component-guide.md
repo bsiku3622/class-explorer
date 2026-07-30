@@ -7,7 +7,6 @@
 |----------|-----------|------|
 | `RetroButton` | `variant`, `size`, `isSelected`, `icon`, `onClick` | 물리 피드백 버튼 |
 | `RetroCard` | `shadow` (none/sm/md/lg), `className` | 테두리+쉐도우 컨테이너. `none`은 바깥에서 그림자를 걸 때 (탭처럼 카드와 붙는 요소가 있는 경우) |
-| `RetroFeatureTag` | `feature: string` | 우상단 절대위치 Feature 태그 |
 | `RetroStatItem` | `label`, `value`, `unit`, `size` (sm/lg) | 숫자 통계 아이템 |
 | `RetroSubTitle` | `title`, `icon` | 섹션 소제목 (표준 스타일 고정) |
 | `StudentBadge` | `studentId`, `studentName`, `size`, `onClick` | 학번색 뱃지 |
