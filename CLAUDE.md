@@ -11,7 +11,7 @@ KSA 학생/교사/강의실 기반 수업 탐색 웹 앱.
 
 ```bash
 # Frontend (frontend/)
-npm run dev       # Vite dev server — /api → localhost:8000 프록시
+npm run dev       # Vite dev server (https://localhost:5188) — /api → localhost:8000 프록시
 npm run build     # TypeScript check + Vite build
 npm run lint      # ESLint
 
