@@ -8,7 +8,8 @@ import {
     Route,
     Navigate,
 } from "react-router-dom";
-import type { SubjectData, Stats, SearchResultStats, Term } from "./types";
+import type { SubjectData, Stats, SearchResultStats, Term, Role } from "./types";
+import { hasRole } from "./lib/utils";
 import { searchInClient } from "./lib/searchEngine";
 import { isTradeAvailable } from "./lib/features";
 import { useModifierKey } from "./hooks/useModifierKey";
@@ -27,6 +28,7 @@ const LoginPage = React.lazy(() => import("./pages/LoginPage"));
 const AdminPage = React.lazy(() => import("./pages/AdminPage"));
 const TradePage = React.lazy(() => import("./pages/TradePage"));
 const ZamongPage = React.lazy(() => import("./pages/ZamongPage"));
+const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
 const CACHE_PREFIX = "ksa_class_finder_cache";
@@ -71,7 +73,8 @@ const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<{
         id: number;
         username: string;
-        is_admin: boolean;
+        /** user < manager < admin — 위계라서 admin 은 manager 가 하는 일도 다 합니다 */
+        role: Role;
         /** 계정에 등록된 본인 학번 — 등록 전에는 null */
         stu_id: string | null;
         student_name: string | null;
@@ -478,7 +481,7 @@ const App: React.FC = () => {
                     navigate("/");
                 }}
                 onLogout={handleLogout}
-                isAdmin={currentUser?.is_admin ?? false}
+                isAdmin={hasRole(currentUser?.role, "admin")}
                 username={currentUser?.username ?? ""}
                 terms={availableTerms}
                 currentTerm={term}
@@ -494,7 +497,7 @@ const App: React.FC = () => {
                     setActivePage={(id) =>
                         navigate(id === "home" ? "/" : `/${id}`)
                     }
-                    isAdmin={currentUser?.is_admin ?? false}
+                    isAdmin={hasRole(currentUser?.role, "admin")}
                     showTrade={tradeAvailable}
                 />
                 <main className="flex-1 p-4 md:p-10 transition-all duration-300 md:ml-64 min-w-0 pb-20 md:pb-10">
@@ -588,10 +591,19 @@ const App: React.FC = () => {
                                 }
                             />
                             <Route
+                                path="/calendar"
+                                element={
+                                    <CalendarPage
+                                        role={currentUser?.role ?? "user"}
+                                        stuId={currentUser?.stu_id ?? null}
+                                    />
+                                }
+                            />
+                            <Route
                                 path="/about"
                                 element={<SettingsPage />}
                             />
-                            {currentUser?.is_admin && (
+                            {hasRole(currentUser?.role, "admin") && (
                                 <Route path="/admin" element={<AdminPage />} />
                             )}
                             <Route

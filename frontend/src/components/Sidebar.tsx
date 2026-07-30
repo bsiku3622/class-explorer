@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Map, BarChart3, Library, Info, ShieldCheck, ArrowLeftRight, GraduationCap } from "lucide-react";
+import { Search, Map, BarChart3, Library, Info, ShieldCheck, ArrowLeftRight, GraduationCap , CalendarDays } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface SidebarItemProps {
@@ -39,6 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, isAdmin = 
         { id: "emptyroomfinder", label: "Rooms", icon: Map },
         { id: "analysis", label: "Analysis", icon: BarChart3 },
         { id: "browse", label: "Browse", icon: Library },
+        { id: "calendar", label: "Calendar", icon: CalendarDays },
         { id: "zamong", label: "Zamong", icon: GraduationCap },
         ...(showTrade ? [{ id: "trade", label: "Trade", icon: ArrowLeftRight }] : []),
         { id: "about", label: "About", icon: Info },

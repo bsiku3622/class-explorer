@@ -1,5 +1,22 @@
 # Logs
 
+## 2026-07-31 — 학사일정 달력 + 권한 3단계
+
+- 변경 파일: `backend/models.py`, `backend/migrations.py`, `backend/auth.py`, `backend/admin_router.py`, `backend/auth_router.py`, `backend/create_user.py`, `backend/calendar_router.py` (신규), `backend/parse_calendar_pdf.py` (신규), `backend/import_calendar.py` (신규), `backend/calendar_seed.json` (신규), `backend/main.py`, `frontend/src/pages/CalendarPage.tsx` (신규), `frontend/src/components/{CalendarGrid,EventFormModal,RequestSidebar}.tsx` (신규), `frontend/src/lib/calendar.ts` (신규), `frontend/src/lib/utils.ts`, `frontend/src/types/index.ts`, `frontend/src/App.tsx`, `frontend/src/components/Sidebar.tsx`, `frontend/src/pages/AdminPage.tsx`, 가이드 문서 일습
+- 요약: 연간 학사일정 PDF를 읽어 DB에 넣고 달력으로 보여 줍니다. 개인 일정을 얹을 수 있고, 일반 계정은 공용 일정을 제안하면 매니저가 허용합니다.
+
+**권한** — `is_admin` 불리언을 `role`(`user < manager < admin`) 한 컬럼으로 옮겼습니다. 불리언을 하나 더 붙이면 "둘 다 켜진 계정"의 뜻이 애매해집니다. 옛 컬럼은 값을 옮긴 뒤 지웠습니다 — 모델에 없는 컬럼이 스키마에 남으면 다음에 읽는 사람이 뭐가 진짜인지 헷갈립니다.
+
+**PDF 파싱** — `extract_tables()`는 한 칸에 여러 줄이 들어가면 행이 쪼개지고 글자가 잘려서 좌표로 직접 읽었습니다. 세 가지가 함정이었습니다: ① 칸 경계를 `+30pt`로 어림했더니 낱말이 통째로 빠져 제목이 잘렸습니다(표의 세로선을 쓰니 해결) ② 4월 칸이 우상단 개정일 `2026. 4. 1.` 과 세로로 겹쳐 크롭 텍스트가 `2026. 4. 1. 4월` 이 되는 바람에 **4월 한 달이 통째로 누락**됐습니다(맨 뒤 `N월`을 쓰도록 수정) ③ 칸 폭에 안 맞아 접힌 제목이 두 일정으로 갈렸습니다(줄 끝이 `및`·`,` 이거나 괄호가 안 닫혔거나, 다음 줄이 `(` 로 시작하면 이어 붙임).
+- **분류는 색이 아니라 글자로 합니다.** 색은 검증용으로만 뽑아, 분류와 어긋나는 건을 보고하게 했습니다. 서식이 조금만 바뀌어도 조용히 어긋나는 걸 막으려는 것입니다.
+- 년도는 문서에 없어서 진행 순서로 정하고(12월 → 1월이면 해가 바뀜), **PDF에 적힌 요일과 계산한 요일을 대조**해 검증합니다 — 13개월 299건 전부 일치했습니다.
+
+**일정 모델** — `owner_id` 가 비면 공용, 차 있으면 개인입니다. 공개 범위 컬럼을 따로 두지 않은 이유는 지금 경우의 수가 둘뿐이어서입니다. 남의 개인 일정을 건드리려 하면 403이 아니라 **404**를 돌려줍니다 — 403이면 그런 일정이 있다는 사실이 새어 나갑니다.
+- **반복은 규칙이 아니라 실제 행으로 펼칩니다**(`series_id` 로 묶음). 규칙으로 두면 조회할 때마다 펼쳐야 하고 한 회차만 빼기가 어려운데, 행이면 그냥 삭제입니다.
+- `source='pdf'` 만 재적재 때 갈아끼웁니다. 개정판이 나와도 사람이 넣은 일정과 개인 일정은 남습니다.
+
+**달력 화면** — 격자에는 **그날 시작하는** 일정만 적고 걸쳐 있는 건 `⋯ N` 으로 접습니다. 처음엔 걸치는 날마다 다 적었는데 `교직원 건강검진(~11.30)` 하나가 열 달을 도배해 못 쓸 지경이었습니다. 주차는 `N주차 종료` 표지에서 거꾸로 세워 매주 일요일 칸에 표시합니다.
+
 ## 2026-07-30 — 4층 구조 정리에 문서·프론트 맞추기
 
 - 변경 파일: `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/CLAUDE.md`, `frontend/component-guide*.md`, `frontend/src/components/molecules/PageHeader.guide.md`, `frontend/src/pages/StudentsPage.tsx` (삭제), `frontend/src/pages/TeachersPage.tsx` (삭제), `frontend/src/components/atoms/RetroFeatureTag.tsx` (삭제)

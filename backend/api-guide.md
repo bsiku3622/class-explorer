@@ -347,3 +347,75 @@ const data = await api.get('/', {
 - 프론트엔드 localStorage에 1시간 캐싱 — 키는 학기별로 분리 (`ksa_class_finder_cache_{year}_{semester}`)
 - 선택 학기는 `ksa_selected_term`에 보존 (새로고침 시 유지)
 - 강제 갱신: `fetchInitialData(true)`
+
+---
+
+## 학사일정 엔드포인트 (`/calendar/*`)
+
+일정은 두 갈래입니다 — **공용**(모두에게 보임, 매니저만 수정)과 **개인**(본인만).
+일반 계정이 공용 일정을 넣고 싶으면 제안하고, 매니저가 허용하면 그때 만들어집니다.
+
+### `GET /calendar?start=&end=` *(인증 필요)*
+기간에 걸치는 일정 — 공용 전부 + **내** 개인 일정. 남의 개인 일정은 절대 나오지 않습니다.
+
+```json
+{ "events": [{
+  "id": 12, "title": "중간고사(~4.17)",
+  "start_date": "2026-04-14", "end_date": "2026-04-17",
+  "time_mode": "allday", "start_minute": null, "end_minute": null,
+  "start_period": null, "end_period": null,
+  "category": "exam", "target_grades": [], "source": "pdf",
+  "is_personal": false, "series_id": null, "note": null
+}] }
+```
+
+`category`: `holiday` · `dorm` · `exam` · `term` · `academic` · `event`
+`time_mode`: `allday` · `clock`(`start_minute`, 자정 기준 분) · `period`(`start_period`, 1~11교시)
+
+---
+
+### `POST /calendar/personal` *(인증 필요)* / `POST /calendar/events` *(매니저)*
+내 일정 / 공용 일정을 만듭니다. 본문은 같습니다.
+
+```json
+{ "title": "R&E 미팅", "start_date": "2026-04-14", "end_date": null,
+  "time_mode": "period", "start_period": 7, "end_period": 8,
+  "category": "event", "target_grades": [1], "note": null,
+  "repeat": "weekly", "repeat_until": "2026-05-12" }
+```
+
+`repeat`: `none` · `daily` · `weekly` · `monthly`. 반복은 **회차마다 한 행**으로 저장되고
+같은 `series_id` 로 묶입니다 (한 번에 최대 200 회차).
+
+| 응답 | 경우 |
+|------|------|
+| `201` | `{ "created": 5, "events": [...] }` |
+| `403` | 공용 일정인데 매니저가 아님 |
+| `422` | 끝이 시작보다 앞섬 / 시각·교시를 골랐는데 값이 없음 / 반복인데 끝날짜 없음 |
+
+---
+
+### `PUT /calendar/events/{id}` · `DELETE /calendar/events/{id}?series=` *(인증 필요)*
+한 회차를 고치거나 지웁니다. `series=true` 면 같은 반복 묶음을 통째로 지웁니다.
+
+| 응답 | 경우 |
+|------|------|
+| `200` | 성공 |
+| `403` | 공용 일정인데 매니저가 아님 |
+| `404` | 없는 일정 **또는 남의 개인 일정** (있다는 사실을 숨깁니다) |
+
+---
+
+### `POST /calendar/requests` · `GET /calendar/requests` *(인증 필요)*
+공용 일정 제안. 조회는 매니저면 **처리 대기 전부**, 아니면 **내가 낸 것**만 나옵니다.
+`repeat` 은 받지 않습니다 — 반복 여부는 매니저가 정합니다.
+
+### `POST /calendar/requests/{id}/decide` *(매니저)*
+```json
+{ "approve": true, "reason": null }
+```
+허용하면 그 자리에서 공용 일정이 만들어지고 `event_id` 로 이어집니다.
+`409` 는 이미 처리된 제안입니다.
+
+### `GET /calendar/requests/pending-count` *(인증 필요)*
+사이드바 빨간 표시용. 매니저가 아니면 항상 `0` 입니다.
