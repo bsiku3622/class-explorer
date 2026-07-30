@@ -13,6 +13,7 @@ from backend.auth_router import router as auth_router
 from backend.admin_router import router as admin_router
 from backend.curriculum_router import router as curriculum_router
 from backend.state_router import router as state_router
+from backend.calendar_router import router as calendar_router
 from backend.terms import list_terms, resolve_term
 
 # ───────────── DB 초기화 ─────────────
@@ -83,6 +84,7 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(curriculum_router)
 app.include_router(state_router)
+app.include_router(calendar_router)
 
 # ───────────── 유틸 ─────────────
 def get_section_num(section_str):

@@ -16,7 +16,7 @@ SQLAlchemy ORM 모델.
 합니다. 옛 이름과 새 이름을 같은 과목으로 묶는 자리도 여기입니다.
 """
 
-from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, UniqueConstraint, DateTime, Text, JSON
+from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, UniqueConstraint, DateTime, Date, Text, JSON
 from sqlalchemy.orm import relationship
 from backend.database import Base
 import datetime
@@ -159,12 +159,24 @@ class CoursePrereq(Base):
 
 # ─── 계정 ────────────────────────────────────────────────────────────────────
 
+# 권한은 위계입니다 — 위 단계는 아래 단계가 할 수 있는 일을 전부 할 수 있습니다.
+#
+#   user     내 일정을 관리하고, 공용 일정은 추가를 "요청"만 합니다
+#   manager  학사일정(공용)을 직접 고치고, 올라온 요청을 허용·거절합니다
+#   admin    manager 가 하는 일 전부 + 계정 관리
+#
+# 불리언 두 개(is_admin·is_manager) 대신 컬럼 하나로 둡니다 — 둘 다 켜진 계정이
+# 무슨 뜻인지 아무도 모르게 되는 걸 막기 위해서입니다.
+ROLES = ("user", "manager", "admin")
+_ROLE_RANK = {name: i for i, name in enumerate(ROLES)}
+
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    is_admin = Column(Boolean, default=False, nullable=False)
+    role = Column(String, default="user", nullable=False)
     # 학교 구글 계정. 로그인할 때마다 여기로 사람을 찾습니다.
     # 관리자가 만들어 준 옛 계정은 비어 있고, 구글로 처음 들어올 때 학번으로 이어붙입니다.
     email = Column(String, unique=True, nullable=True, index=True)
@@ -178,6 +190,18 @@ class User(Base):
         String, ForeignKey("students.stuId"), nullable=True, index=True, unique=True
     )
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+
+    def has_role(self, minimum: str) -> bool:
+        """`minimum` 이상인지. 위계라서 admin 은 manager 검사도 통과합니다."""
+        return _ROLE_RANK.get(self.role, 0) >= _ROLE_RANK[minimum]
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role == "admin"
+
+    @property
+    def is_manager(self) -> bool:
+        return self.has_role("manager")
 
 
 class UserState(Base):
@@ -216,6 +240,95 @@ class CourseGrade(Base):
     grade = Column(String, nullable=True)  # "A+", "A0" ... 미입력이면 None
 
     __table_args__ = (UniqueConstraint('user_id', 'course_id', name='_course_grade_uc'),)
+
+
+# ─── 학사일정 ────────────────────────────────────────────────────────────────
+
+# 일정의 성격. 화면에서 색과 아이콘을 고르는 기준이고, PDF 파서가 글자에서 알아냅니다.
+EVENT_CATEGORIES = (
+    "holiday",   # 공휴일 — 삼일절 · 추석 · 대체휴일
+    "dorm",      # 귀가 · 귀교 · 생활관 폐쇄
+    "exam",      # 중간고사 · 기말고사
+    "term",      # 개학 · 종업 · 주차 종료
+    "academic",  # 수강신청 · 교무회의 · 졸업연구 같은 학사 행사
+    "event",     # 그 밖의 행사 (기본값)
+)
+
+# 시간을 어떻게 적었는지. 학사일정은 전부 종일이고, 개인 일정만 시각·교시를 씁니다.
+TIME_MODES = ("allday", "clock", "period")
+
+
+class CalendarEvent(Base):
+    """
+    달력에 찍히는 일정 하나.
+
+    `owner_id`가 비어 있으면 **학교 공용 일정**이라 모두에게 보이고 매니저만 고칩니다.
+    차 있으면 그 계정의 **개인 일정**이라 본인만 보고 본인만 고칩니다. 공개 범위를
+    따로 두지 않은 이유는 지금 경우의 수가 이 둘뿐이기 때문입니다 — 나중에 공유가
+    생기면 그때 컬럼을 하나 붙이면 됩니다.
+
+    `end_date`는 하루짜리여도 `start_date`와 같은 값을 채웁니다. 비워 두면 달력이
+    한 달치를 물어볼 때마다 "끝이 없으면 시작일로 친다"를 매번 따져야 해서입니다.
+
+    **반복은 규칙이 아니라 실제 행으로 펼쳐 둡니다.** 같은 묶음은 `series_id`가
+    같습니다. 규칙으로 두면 조회할 때마다 펼쳐야 하고 "이번 주만 빼기"가 어려워지는데,
+    행으로 두면 한 회차만 지우는 게 그냥 삭제입니다. 학교 규모에서 행이 늘어나는
+    비용은 무시할 만합니다.
+    """
+    __tablename__ = "calendar_events"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    start_date = Column(Date, nullable=False, index=True)
+    end_date = Column(Date, nullable=False, index=True)
+
+    time_mode = Column(String, default="allday", nullable=False)
+    start_minute = Column(Integer, nullable=True)   # clock — 자정 기준 분 (13:30 → 810)
+    end_minute = Column(Integer, nullable=True)
+    start_period = Column(Integer, nullable=True)   # period — 1~11 교시
+    end_period = Column(Integer, nullable=True)
+
+    category = Column(String, default="event", nullable=False)
+    # 대상 학년. "1,2" 처럼 적고 비어 있으면 전학년입니다.
+    target_grades = Column(String, nullable=True)
+    # pdf = 학사일정 문서에서 온 것. 개정판을 다시 파싱할 때 이것만 갈아끼웁니다
+    source = Column(String, default="manual", nullable=False)
+
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    series_id = Column(String, nullable=True, index=True)
+    note = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class EventRequest(Base):
+    """
+    일반 계정이 "이건 다들 알아야 할 것 같은데요" 하고 올리는 공용 일정 제안.
+
+    이벤트와 컬럼이 겹치지만 테이블을 따로 둡니다 — 거절한 제안이 일정 목록에 계속
+    끼어 있으면 곤란하고, 매니저가 내용을 고쳐서 허용했을 때 원문이 남아야 합니다.
+    """
+    __tablename__ = "event_requests"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    title = Column(String, nullable=False)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    time_mode = Column(String, default="allday", nullable=False)
+    start_minute = Column(Integer, nullable=True)
+    end_minute = Column(Integer, nullable=True)
+    start_period = Column(Integer, nullable=True)
+    end_period = Column(Integer, nullable=True)
+    category = Column(String, default="event", nullable=False)
+    target_grades = Column(String, nullable=True)
+    note = Column(Text, nullable=True)
+
+    status = Column(String, default="pending", nullable=False, index=True)  # pending | approved | rejected
+    reason = Column(String, nullable=True)          # 거절 사유
+    decided_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    decided_at = Column(DateTime, nullable=True)
+    # 허용해서 만들어진 일정. 매니저가 내용을 고쳤다면 원문과 다를 수 있습니다
+    event_id = Column(Integer, ForeignKey("calendar_events.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
 class Session(Base):
