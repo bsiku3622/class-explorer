@@ -3,6 +3,7 @@ import axios from "axios";
 import api from "../lib/api";
 import RetroCard from "../components/atoms/RetroCard";
 import RetroButton from "../components/atoms/RetroButton";
+import GoogleLoginButton from "../components/GoogleLoginButton";
 
 interface LoginPageProps {
     onLogin: (token: string) => void;
@@ -33,6 +34,22 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         }
     };
 
+    const handleGoogle = async (credential: string) => {
+        setError("");
+        setLoading(true);
+        try {
+            const res = await api.post("/auth/google", { credential });
+            onLogin(res.data.session_token);
+        } catch (err: unknown) {
+            const detail = axios.isAxiosError(err)
+                ? (err.response?.data as { detail?: string } | undefined)?.detail
+                : undefined;
+            setError(detail ?? "로그인 중 오류가 발생했습니다.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const inputClass =
         "w-full border-2 border-black px-4 py-3 text-sm font-bold bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] focus:shadow-none outline-none transition-all duration-100";
 
@@ -48,7 +65,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     </p>
                 </div>
 
-                <RetroCard shadow="lg" className="bg-white p-8">
+                <RetroCard shadow="lg" className="bg-white p-8 space-y-6">
+                    <GoogleLoginButton onCredential={handleGoogle} onError={setError} />
+
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="space-y-1.5">
                             <label className="text-[10px] font-black text-black/40 uppercase tracking-widest block">
@@ -96,6 +115,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                         </RetroButton>
                     </form>
                 </RetroCard>
+
+                <p className="mt-4 text-center text-[10px] font-bold leading-relaxed text-black/40">
+                    아이디·비밀번호로 쓰던 계정은 학교 구글 계정으로 한 번 들어오시면
+                    그대로 이어집니다.
+                </p>
             </div>
         </div>
     );
