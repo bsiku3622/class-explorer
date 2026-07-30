@@ -28,9 +28,9 @@ src/
 │   ├── SearchPage.tsx        → 통합 검색
 │   ├── RoomsPage.tsx         → 빈 강의실 탐색
 │   ├── AnalysisPage.tsx      → 학사 통계 대시보드
-│   ├── BrowsePage.tsx        → 학생/교사 목록 탐색 (모드 토글 + 학년 필터)
+│   ├── BrowsePage.tsx        → 학생·교사 목록 + 교육과정 그래프
 │   ├── TradePage.tsx         → 수강 변경 탐색 (2026-2 한정, features 플래그)
-│   ├── PlanPage.tsx          → 교육과정 이수 현황 + 선수관계 그래프
+│   ├── ZamongPage.tsx        → 교육과정 이수 현황 + 평점 (학번 등록 필요)
 │   └── SettingsPage.tsx      → 기능 가이드북 + About
 └── components/
     ├── atoms/                → 재사용 원자 컴포넌트 9종
@@ -98,9 +98,9 @@ src/
 
 | 화면 | 대상 학생 |
 |------|-----------|
-| Plan | **본인 고정** — 성적은 본인 것만 기록합니다 |
+| Zamong | **본인 고정** — 성적은 본인 것만 기록합니다 |
 | Trade | 본인이 기본값, 다른 학생도 선택 가능 (친구 계획을 봐주는 쓰임) |
-| Search·Browse | 제한 없음 — 탐색 도구입니다 |
+| Search·Browse | 제한 없음 — 탐색 도구입니다. 교육과정 그래프도 학번 없이 봅니다 |
 
 ## 계정별 화면 상태
 

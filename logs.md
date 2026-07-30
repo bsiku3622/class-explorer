@@ -1,5 +1,13 @@
 # Logs
 
+## 2026-07-30 — 교육과정 그래프를 Browse로, Plan을 Zamong으로
+
+- 변경 파일: `frontend/src/components/CourseGraph.tsx` (신규), `frontend/src/lib/curriculum.ts`, `frontend/src/pages/BrowsePage.tsx`, `frontend/src/pages/ZamongPage.tsx` (PlanPage 개명), `frontend/src/App.tsx`, `frontend/src/components/Sidebar.tsx`, `frontend/src/components/BottomNav.tsx`, 가이드 문서
+- 요약: Plan 안에 인라인으로 있던 선수관계 그래프를 `CourseGraph` 컴포넌트로 빼고 Browse에 Courses 탭으로 얹었습니다. Plan은 Zamong으로 이름을 바꿨고 라우트도 `/zamong`입니다.
+- **전체 보기 추가**: 학과를 가로 레인으로 늘어놓고 가로축을 선수 깊이로 잡았습니다. 왼쪽이 선수 없는 과목, 오른쪽으로 갈수록 쌓아 올린 과목이고, 학과를 가로지르는 선이 융합 과목의 타 학과 선수를 드러냅니다. 학과별 그래프에서는 볼 수 없던 흐름입니다.
+- **선택 강조**: 과목을 누르면 그 과목과 직접 이어진 것만 남고 나머지는 흐려집니다. 선택한 과목과 연결선은 핑크입니다. 빈 곳을 누르면 풀립니다.
+- Browse의 그래프는 **학번 없이도** 보입니다 — 교육과정 구조를 훑는 건 개인 이수 현황과 별개니까요. 이수 상태를 넘기지 않으면 `CourseGraph`가 색을 칠하지 않습니다.
+
 ## 2026-07-30 — 과목 4층 구조 분리
 
 - 변경 파일: `backend/models.py`, `backend/migrations.py`, `backend/subject_names.py` (신규), `backend/parser_run.py`, `backend/import_curriculum.py`, `backend/main.py`, `backend/curriculum_router.py`, `backend/admin_router.py`, `backend/import_credits.py` (삭제), `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/src/types/index.ts`, `frontend/src/lib/curriculum.ts`, `frontend/src/lib/searchEngine.ts`, `frontend/src/pages/PlanPage.tsx`, `frontend/src/pages/TradePage.tsx`, `frontend/src/pages/AdminPage.tsx`, `frontend/src/App.tsx`, 가이드 문서

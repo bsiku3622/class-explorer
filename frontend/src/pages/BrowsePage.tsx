@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Library, GraduationCap, BookOpen } from "lucide-react";
+import { Library, GraduationCap, BookOpen, Network } from "lucide-react";
+import api from "../lib/api";
 import type { SubjectData } from "../types";
 import { getKoreanName, getStudentColor } from "../lib/utils";
 import SearchInput from "../components/atoms/SearchInput";
@@ -8,8 +9,23 @@ import StudentCard from "../components/atoms/StudentCard";
 import TeacherCard from "../components/atoms/TeacherCard";
 import RetroButton from "../components/atoms/RetroButton";
 import { Filter, RotateCcw } from "lucide-react";
+import CourseGraph from "../components/CourseGraph";
+import RetroCard from "../components/atoms/RetroCard";
+import {
+    ALL_DEPARTMENTS,
+    CATEGORY_LABEL,
+    type Category,
+    type Curriculum,
+} from "../lib/curriculum";
 
-type BrowseMode = "students" | "teachers";
+type BrowseMode = "students" | "teachers" | "courses";
+
+const SESSION_TOKEN_KEY = "ksa_session_token";
+
+const authHeader = () => {
+    const token = localStorage.getItem(SESSION_TOKEN_KEY);
+    return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 interface BrowsePageProps {
     allClassesData: SubjectData[];
@@ -27,6 +43,9 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
     handleSearch,
 }) => {
     const [mode, setMode] = useState<BrowseMode>("students");
+    const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
+    const [department, setDepartment] = useState<string>(ALL_DEPARTMENTS);
+    const [focused, setFocused] = useState<string | null>(null);
     const [searchInput, setSearchInput] = useState("");
     const [selectedYears, setSelectedYears] = useState<string[]>(() => Object.keys(studentCounts));
 
@@ -34,6 +53,13 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
         const years = Object.keys(studentCounts);
         if (years.length > 0 && selectedYears.length === 0) setSelectedYears(years);
     }, [studentCounts]);
+
+    useEffect(() => {
+        if (mode !== "courses" || curriculum) return;
+        api.get("/curriculum", { headers: authHeader() })
+            .then((res) => setCurriculum(res.data))
+            .catch(() => {});
+    }, [mode, curriculum]);
 
     // ── Students ────────────────────────────────────────────────────────────
     const allStudents = useMemo(() => {
@@ -103,13 +129,27 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
         setSearchInput("");
     };
 
-    const subtitle = mode === "students"
-        ? `${allStudents.length} Students`
-        : `${allTeachers.length} Teachers`;
+    const departments = useMemo(
+        () => (curriculum?.departments ?? []).map((d) => d.name),
+        [curriculum],
+    );
 
-    const placeholder = mode === "students"
-        ? "Search by name or student ID..."
-        : "Search by teacher name...";
+    const focusedCourse = useMemo(
+        () => (curriculum?.courses ?? []).find((c) => c.name === focused) ?? null,
+        [curriculum, focused],
+    );
+
+    const subtitle =
+        mode === "students"
+            ? `${allStudents.length} Students`
+            : mode === "teachers"
+              ? `${allTeachers.length} Teachers`
+              : `${curriculum?.courses.length ?? 0} Courses`;
+
+    const placeholder =
+        mode === "students"
+            ? "Search by name or student ID..."
+            : "Search by teacher name...";
 
     return (
         <div className="flex flex-col gap-4 md:gap-6 pb-20">
@@ -133,10 +173,20 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 >
                     Teachers
                 </RetroButton>
+                <RetroButton
+                    size="sm"
+                    isSelected={mode === "courses"}
+                    icon={<Network size={14} strokeWidth={2.5} />}
+                    onClick={() => handleModeChange("courses")}
+                >
+                    Courses
+                </RetroButton>
             </div>
 
             {/* Search */}
-            <SearchInput value={searchInput} onChange={setSearchInput} placeholder={placeholder} />
+            {mode !== "courses" && (
+                <SearchInput value={searchInput} onChange={setSearchInput} placeholder={placeholder} />
+            )}
 
             {/* Year filter — students only */}
             {mode === "students" && (
@@ -212,13 +262,84 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
             )}
 
             {/* Count */}
-            <p className="text-xs font-bold text-black/30 -mt-2">
-                {mode === "students" ? filteredStudents.length : filteredTeachers.length}
-                {mode === "students" ? "명" : "명"} 표시 중
-            </p>
+            {mode !== "courses" && (
+                <p className="text-xs font-bold text-black/30 -mt-2">
+                    {mode === "students" ? filteredStudents.length : filteredTeachers.length}명 표시 중
+                </p>
+            )}
+
+            {/* Courses — 교육과정 선수관계 그래프 */}
+            {mode === "courses" && (
+                <RetroCard className="bg-white p-6 space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                        <RetroButton
+                            size="sm"
+                            isSelected={department === ALL_DEPARTMENTS}
+                            onClick={() => setDepartment(ALL_DEPARTMENTS)}
+                        >
+                            전체
+                        </RetroButton>
+                        {departments.map((name) => (
+                            <RetroButton
+                                key={name}
+                                size="sm"
+                                isSelected={department === name}
+                                onClick={() => setDepartment(name)}
+                            >
+                                {name}
+                            </RetroButton>
+                        ))}
+                    </div>
+
+                    {curriculum ? (
+                        <CourseGraph
+                            courses={curriculum.courses}
+                            prerequisites={curriculum.prerequisites}
+                            departments={departments}
+                            department={department}
+                            focused={focused}
+                            onFocus={setFocused}
+                        />
+                    ) : (
+                        <p className="py-16 text-center font-black uppercase tracking-widest text-black/30 animate-pulse">
+                            Loading curriculum...
+                        </p>
+                    )}
+
+                    {focusedCourse ? (
+                        <div className="border-2 border-black bg-retro-accent-light p-3 space-y-1">
+                            <div className="flex flex-wrap items-baseline gap-2">
+                                <span className="text-sm font-black">{focusedCourse.name}</span>
+                                {focusedCourse.english_name && (
+                                    <span className="text-[10px] font-bold text-black/40">
+                                        {focusedCourse.english_name}
+                                    </span>
+                                )}
+                                <span className="text-[10px] font-bold text-black/60">
+                                    {focusedCourse.credits}학점 · {focusedCourse.department} ·{" "}
+                                    {CATEGORY_LABEL[focusedCourse.category as Category]}
+                                    {focusedCourse.recommended_semester &&
+                                        ` · 권장 ${focusedCourse.recommended_semester}학기`}
+                                </span>
+                            </div>
+                            {focusedCourse.description && (
+                                <p className="text-[11px] font-medium leading-relaxed text-black/70 pt-1">
+                                    {focusedCourse.description}
+                                </p>
+                            )}
+                        </div>
+                    ) : (
+                        <p className="text-[10px] font-bold text-black/40">
+                            가로는 선수 깊이입니다 — 왼쪽이 선수 없는 과목, 오른쪽으로 갈수록
+                            쌓아 올린 과목입니다. 점선은 택일 관계이고, 학과를 가로지르는 선은
+                            융합 과목이 다른 학과 과목을 선수로 받는 경우입니다.
+                        </p>
+                    )}
+                </RetroCard>
+            )}
 
             {/* Grid */}
-            {mode === "students" ? (
+            {mode === "courses" ? null : mode === "students" ? (
                 <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 -mt-4">
                         {filteredStudents.map((s) => (
