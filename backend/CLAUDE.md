@@ -6,7 +6,7 @@
 ```
 backend/
 ├── main.py          → FastAPI 앱 + API 엔드포인트 (인증 포함)
-├── models.py        → SQLAlchemy ORM 모델 (6개 테이블)
+├── models.py        → SQLAlchemy ORM 모델 (12개 테이블)
 ├── migrations.py    → 앱 시작 시 실행되는 SQLite 스키마 마이그레이션 (멱등)
 ├── terms.py         → 학년도/학기 해석 유틸 (current_term, list_terms, resolve_term)
 ├── database.py      → DB 연결 설정 (SQLite)
@@ -34,7 +34,7 @@ backend/
 - 조회 기준 학기는 `terms.resolve_term(db, year, semester)`로 결정 — 둘 다 주어졌을 때만 그대로, 아니면 최신 학기
 - 수집은 `parser_run.py`가 학기 단위로 원자적 교체 — 다른 학기 데이터는 건드리지 않음
 - `Student`는 학기 공통 마스터. 학기별 재적 여부는 `Enrollment → Class` 조인으로 판단
-- `SubjectAlias`는 학기 무관 전역 (과목명이 같으면 재사용)
+- `Department`/`Course`/`Subject`는 학기 무관 전역 — 학기를 타는 건 `Class`뿐입니다
 - 스키마 변경은 `migrations.py`에서 처리 — `main.py` import 시 자동 실행
 
 ## 과목 4층 구조
@@ -74,16 +74,16 @@ name                 subject_id (FK→Subject) day (MON~FRI)
                      teacher                room
                      room                   class_id (FK→Class)
 
-Enrollment           User                   Session
-─────────────        ─────────────          ──────────────────────
-id (PK)              id (PK)                id (PK)
-stuId (FK→Student)   username (unique)      user_id (FK→User)
-classId (FK→Class)   hashed_password        session_token (unique)
-UniqueConstraint     is_admin (bool)        device_type (web|mobile)
-(stuId, classId)                            ip_address
-                                            created_at
-                                            last_used_at
-                                            expires_at
+Enrollment           User                        Session
+─────────────        ──────────────────────      ──────────────────────
+id (PK)              id (PK)                     id (PK)
+stuId (FK→Student)   username (unique)           user_id (FK→User)
+classId (FK→Class)   hashed_password             session_token (unique)
+UniqueConstraint     is_admin (bool)             device_type (web|mobile)
+(stuId, classId)     email (unique, NULL 허용)     ip_address
+                     stu_id (FK→Student,         created_at
+                            unique, NULL 허용)     last_used_at
+                                                 expires_at
 
 Department                     Subject
 ─────────────────────────────  ─────────────────────────────
@@ -110,9 +110,9 @@ UserState                      CourseGrade
 ─────────────────────────────  ─────────────────────────────
 id (PK)                        id (PK)
 user_id (FK→User)              user_id (FK→User)
-key ("plan" | "trade")         course (FK→Course.name)
+key ("plan" | "trade")         course_id (FK→Course)
 data (JSON, 서버는 해석 안 함)   grade ("A+"... | None)
-updated_at                     UniqueConstraint (user_id, course)
+updated_at                     UniqueConstraint (user_id, course_id)
 UniqueConstraint (user_id,key)
 ```
 
@@ -134,7 +134,8 @@ UniqueConstraint (user_id,key)
 작업 중인 계획과 이수 기록은 기기가 아니라 **계정**에 붙습니다.
 
 - `UserState` — 화면이 쓰던 JSON을 그대로 맡아 둡니다. 구조가 화면마다 달라 컬럼으로
-  펼치지 않았고, 서버는 내용을 해석하지 않습니다
+  펼치지 않았고, 서버는 내용을 해석하지 않습니다. 지금 쓰는 키는 `trade`뿐이고
+  `plan`은 Zamong이 옛 값을 한 번 읽어 지우려고만 남겨 뒀습니다
 - `CourseGrade` — 평어는 서버가 검증해야 해서(교육과정에 있는 과목인지, 아는 평어인지)
   구조화했습니다. 행이 있으면 이수한 것으로 보고 `grade`는 선택입니다. 누구의 기록인지는
   `User.stu_id`가 정하므로 학번 컬럼을 두지 않습니다
@@ -217,8 +218,7 @@ python -m backend.create_user <username> <password>
 | `PATCH` | `/admin/students/{stuId}` | 학생 이름 수정 (`{"name": "..."}`) |
 | `GET` | `/admin/teachers?year=&semester=` | 교사 목록 + 담당 분반 수 (학기 기본값=최신) |
 | `PATCH` | `/admin/teachers/{teacher_name}` | 교사 이름 일괄 변경 (`{"new_name": "..."}`, 전 학기 적용) |
-| `GET` | `/admin/subjects?year=&semester=` | 해당 학기 과목 + 별칭 목록 (학기 기본값=최신) |
-| `PUT` | `/admin/subjects/{subject}/aliases` | 과목 별칭 전체 교체 (`{"aliases": [...]}`, 학기 무관) |
+| `GET` | `/admin/subjects?year=&semester=` | 해당 학기 과목 목록 (학기 기본값=최신) |
 | `GET` | `/admin/terms` | 데이터가 존재하는 학기 목록 |
 | `POST` | `/admin/sync` | 데이터 재수집 (`{"year": 2026, "semester": 2}` 선택, 생략 시 DB 최신 학기) |
 

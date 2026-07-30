@@ -1,5 +1,13 @@
 # Logs
 
+## 2026-07-30 — 4층 구조 정리에 문서·프론트 맞추기
+
+- 변경 파일: `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/CLAUDE.md`, `frontend/component-guide*.md`, `frontend/src/components/molecules/PageHeader.guide.md`, `frontend/src/pages/StudentsPage.tsx` (삭제), `frontend/src/pages/TeachersPage.tsx` (삭제), `frontend/src/components/atoms/RetroFeatureTag.tsx` (삭제)
+- 요약: DB를 4층으로 쪼개고 인증을 줄이는 동안 문서와 프론트가 옛 구조를 그대로 설명하고 있었습니다. 실제 코드와 대조해 맞췄습니다.
+- 문서가 틀렸던 곳: `models.py` "6개 테이블"(실제 12), 없는 `SubjectAlias` 서술, 없는 `PUT /admin/subjects/{subject}/aliases`, `CourseGrade`가 `course (FK→Course.name)`(실제 `course_id`), `User` 박스에 `email`·`stu_id` 누락, `GET /` 응답 예시가 `aliases`를 반환하는 옛 모양.
+- 어디서도 import되지 않는 파일 3개를 지웠습니다 — `StudentsPage`·`TeachersPage`는 Browse로 합쳐진 뒤 남았고, `RetroFeatureTag`는 `PageHeader`가 우상단 태그를 그리지 않게 바뀌면서 죽었습니다. `PageHeader.guide.md`도 없는 `tag` prop을 설명하고 있어 다시 썼습니다.
+- lint 에러는 61 → 58로만 줄었습니다. 남은 53개 중 40개가 `searchEngine.ts`의 `any`라, 고아 파일과는 별개 부채입니다.
+
 ## 2026-07-30 — 배포 가이드를 실제 서버에 맞춤
 
 - 변경 파일: `deploy-guide.md`
