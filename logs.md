@@ -1,5 +1,14 @@
 # Logs
 
+## 2026-07-30 — 학교 구글 계정 로그인
+
+- 변경 파일: `backend/models.py`, `backend/migrations.py`, `backend/auth_router.py`, `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/src/components/GoogleLoginButton.tsx` (신규), `frontend/src/components/GoogleLinkModal.tsx` (신규), `frontend/src/components/LinkStudentModal.tsx` (삭제), `frontend/src/pages/LoginPage.tsx`, `frontend/src/pages/ZamongPage.tsx`, `frontend/src/App.tsx`, `frontend/vite.config.ts`, `frontend/.env`
+- 요약: 학교 계정 이메일이 곧 학번이라(`25-059@ksa.hs.kr`) 구글 로그인 한 번으로 신원과 학번이 함께 정해집니다. 학번·이름을 손으로 받던 창은 없앴습니다.
+- 토큰 검증은 구글의 `tokeninfo`로 합니다. JWT 라이브러리를 하나 더 들이는 대신 왕복 한 번을 택했고 — 로그인은 드문 일이라 — `aud`와 이메일 인증 여부는 직접 확인합니다. 둘 중 하나라도 빠뜨리면 다른 앱용 토큰으로 들어올 수 있습니다.
+- 옛 계정(`email`이 빈 계정)은 로그인 후 **닫을 수 없는 연결 창**을 만납니다. 누구 계정인지 모르면 이수 기록을 남길 수 없어서, 연결 전에는 앱 화면을 아예 렌더링하지 않습니다. 학번이 이미 정해진 계정은 구글 계정의 학번과 같아야 연결됩니다.
+- 로그인 화면을 탭 두 개(학교 계정 / 아이디)로 나눴습니다. 고른 탭이 아래 카드와 한 덩어리로 보이게 경계선을 지웠습니다.
+- dev 서버 포트를 **5188**로 고정했습니다. 구글 OAuth 허용 origin 에 등록된 주소라 바꾸면 로그인이 막힙니다.
+
 ## 2026-07-30 — 교육과정 그래프를 Browse로, Plan을 Zamong으로
 
 - 변경 파일: `frontend/src/components/CourseGraph.tsx` (신규), `frontend/src/lib/curriculum.ts`, `frontend/src/pages/BrowsePage.tsx`, `frontend/src/pages/ZamongPage.tsx` (PlanPage 개명), `frontend/src/App.tsx`, `frontend/src/components/Sidebar.tsx`, `frontend/src/components/BottomNav.tsx`, 가이드 문서

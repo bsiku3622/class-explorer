@@ -98,19 +98,12 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({ onCredential, onE
 
     return (
         <div className="space-y-2">
-            <div className="flex items-center gap-3">
-                <span className="h-0.5 flex-1 bg-black/10" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-black/30">
-                    한국과학영재학교 계정
-                </span>
-                <span className="h-0.5 flex-1 bg-black/10" />
-            </div>
             <div className="flex justify-center border-2 border-black bg-white p-2">
                 <div ref={holder} />
             </div>
             {failed && (
                 <p className="text-[10px] font-bold text-black/40">
-                    구글 로그인을 불러오지 못했습니다. 아래 계정으로 들어와주세요.
+                    구글 로그인을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
                 </p>
             )}
         </div>

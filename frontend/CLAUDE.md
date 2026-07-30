@@ -95,6 +95,16 @@ src/
 - localStorage 키: `ksa_session_token`
 - 로그아웃 시 캐시(`ksa_class_finder_cache`)도 함께 삭제
 
+## 로그인
+
+로그인 화면은 탭 두 개입니다 — **학교 계정**(구글)과 **아이디**(옛 계정).
+
+구글로 들어오면 이메일이 곧 학번이라(`25-059@ksa.hs.kr`) `stu_id`가 자동으로 정해집니다.
+아이디로 들어온 계정은 `email`이 비어 있고, `App.tsx`가 `<GoogleLinkModal />`을 띄워
+연결하기 전까지 앱 화면을 아예 렌더링하지 않습니다.
+
+그래서 앱 안에서는 **`stu_id`가 항상 있다고 봐도 됩니다.**
+
 ## 계정과 학번
 
 `currentUser.stu_id`가 이 계정이 누구인지 정합니다. 없으면 Plan 화면이
