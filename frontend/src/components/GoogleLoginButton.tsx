@@ -73,13 +73,19 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({ onCredential, onE
                     // 학교 계정 목록만 보여 줍니다. 서버에서도 다시 확인합니다
                     hd: "ksa.hs.kr",
                 });
+                // 구글 버튼은 iframe 이라 생김새를 우리가 손댈 수 없습니다. 대신 검은
+                // 버튼을 골라 감싼 테두리와 이어 붙여, 테두리가 두 겹으로 보이지 않게 합니다.
+                // 폭도 부모에 맞춰야 안쪽에 빈 띠가 남지 않습니다
+                const width = Math.round(
+                    holder.current.parentElement?.clientWidth ?? holder.current.clientWidth,
+                );
                 google.accounts.id.renderButton(holder.current, {
-                    theme: "outline",
+                    theme: "filled_black",
                     size: "large",
                     text: "signin_with",
                     shape: "rectangular",
                     locale: "ko",
-                    width: 280,
+                    width: Math.min(Math.max(width, 200), 400),
                 });
             })
             .catch(() => {
@@ -98,7 +104,7 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({ onCredential, onE
 
     return (
         <div className="space-y-2">
-            <div className="flex justify-center border-2 border-black bg-white p-2">
+            <div className="flex justify-center overflow-hidden border-2 border-black bg-black">
                 <div ref={holder} />
             </div>
             {failed && (
