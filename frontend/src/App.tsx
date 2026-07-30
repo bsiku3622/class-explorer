@@ -25,7 +25,7 @@ const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
 const LoginPage = React.lazy(() => import("./pages/LoginPage"));
 const AdminPage = React.lazy(() => import("./pages/AdminPage"));
 const TradePage = React.lazy(() => import("./pages/TradePage"));
-const PlanPage = React.lazy(() => import("./pages/PlanPage"));
+const ZamongPage = React.lazy(() => import("./pages/ZamongPage"));
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
 const CACHE_PREFIX = "ksa_class_finder_cache";
@@ -553,9 +553,9 @@ const App: React.FC = () => {
                                 />
                             )}
                             <Route
-                                path="/plan"
+                                path="/zamong"
                                 element={
-                                    <PlanPage
+                                    <ZamongPage
                                         stuId={currentUser?.stu_id ?? null}
                                         studentName={currentUser?.student_name ?? null}
                                         onLinked={(info) =>

@@ -114,9 +114,9 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | `/`                 | SearchPage      | 통합 검색                         |
 | `/emptyroomfinder`  | RoomsPage       | 빈 강의실 탐색                    |
 | `/analysis`         | AnalysisPage    | 학사 통계 대시보드                |
-| `/browse`           | BrowsePage      | 학생/교사 목록 탐색 (모드 토글)   |
+| `/browse`           | BrowsePage      | 학생·교사 목록 + 교육과정 그래프  |
 | `/trade`            | TradePage       | 수강 변경 탐색 (2026-2 한정, 플래그) |
-| `/plan`             | PlanPage        | 교육과정 이수 현황 + 선수관계 그래프 |
+| `/zamong`           | ZamongPage      | 교육과정 이수 현황 + 평점 (학번 등록 필요) |
 | `/about`            | SettingsPage    | 기능 가이드북 + About             |
 | `/admin`            | AdminPage       | 관리자 전용 (is_admin=true만)     |
 

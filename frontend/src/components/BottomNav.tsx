@@ -40,7 +40,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activePage, setActivePage, showTr
         ...(showTrade
             ? [{ id: "trade", label: "Trade", icon: ArrowLeftRight }]
             : [{ id: "browse", label: "Browse", icon: Library }]),
-        { id: "plan", label: "Plan", icon: GraduationCap },
+        { id: "zamong", label: "Zamong", icon: GraduationCap },
         { id: "about", label: "About", icon: Info },
     ];
 
