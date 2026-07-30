@@ -32,6 +32,8 @@ export default defineConfig(({ command }) => {
         server: isDev
             ? {
                   host: "0.0.0.0",
+                  // 구글 OAuth 허용 origin 에 등록된 포트입니다 — 바꾸면 로그인이 막힙니다
+                  port: 5188,
                   https: {
                       key: fs.readFileSync(
                           path.resolve(__dirname, "localhost+1-key.pem"),
