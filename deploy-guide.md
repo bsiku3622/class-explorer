@@ -112,12 +112,16 @@ ID 토큰만 받는 방식이라 리디렉션을 쓰지 않습니다.
 
 ## 데이터·계정 (서버에서)
 
+서버의 `python3`는 3.10이라 의존성이 없습니다. **`python3.14`로 실행하세요** —
+systemd 가 쓰는 uvicorn(`/home/baeks/.local/bin/uvicorn`)도 그 인터프리터입니다.
+
 ```bash
 cd /srv/ksa-class-finder
-python3 -m backend.parser_run                    # 오늘 기준 학기 수집
-python3 -m backend.parser_run -y 2026 -s 2       # 학기 지정
-python3 -m backend.import_curriculum             # 교육과정 적재
-python3 -m backend.create_user <username> <password>   # 계정 생성 (가입 창구가 없습니다)
+python3.14 -m backend.parser_run                    # 오늘 기준 학기 수집
+python3.14 -m backend.parser_run -y 2026 -s 2       # 학기 지정
+python3.14 -m backend.import_curriculum             # 교육과정 적재
+python3.14 -m backend.import_calendar               # 학사일정 적재 (source='pdf' 만 교체)
+python3.14 -m backend.create_user <username> <password> [--manager|--admin]
 ```
 
 **DB는 서버에만 있습니다.** `backend/ksa_timetable.db`는 git에 올라가지 않으니, 스키마를
