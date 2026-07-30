@@ -118,8 +118,8 @@ UniqueConstraint (user_id,key)
 
 ### 계정과 학번
 
-`User.stu_id`가 이 계정이 누구인지 정합니다. 본인이 `POST /auth/link-student`에서
-**학번과 이름을 함께** 대조해 등록하며, 둘 중 하나만 맞아도 반려합니다 — 아무 학번이나
+`User.stu_id`가 이 계정이 누구인지 정합니다. 본인이 `POST /auth/link-google`에서 학교
+구글 계정으로 확인하며, 이메일이 곧 학번이라 손으로 입력받지 않습니다 — 아무 학번이나
 골라 남의 이름으로 성적을 기록해 두는 걸 막기 위해서입니다.
 
 **한 학번은 한 계정만** 가질 수 있습니다. 라우터에서 먼저 검사하지만, 두 요청이 동시에
@@ -224,13 +224,13 @@ python -m backend.create_user <username> <password>
 
 ## 인증 시스템
 
-로그인은 두 갈래입니다.
+로그인은 **아이디·비밀번호** (`POST /auth/login`) 하나뿐입니다. 계정은 관리자가
+만들어 줍니다 — 아는 사람만 쓰는 서비스라 스스로 만드는 길을 두지 않았습니다.
 
-- **학교 구글 계정** (`POST /auth/google`) — 주된 방법. 이메일이 곧 학번이라
-  (`25-059@ksa.hs.kr`) 신원 확인이 한 번에 끝납니다. 교사 계정처럼 학번 형식이
-  아니면 거절합니다
-- **아이디·비밀번호** (`POST /auth/login`) — 관리자가 만들어 주던 옛 방식.
-  구글 로그인이 자리 잡을 때까지 남겨 둡니다
+**구글 계정은 로그인이 아니라 학번 확인에만 씁니다** (`POST /auth/link-google`).
+이메일이 곧 학번이라(`25-059@ksa.hs.kr`) 한 번 거치면 신원이 정해집니다. 교사 계정처럼
+학번 형식이 아니면 거절합니다.
+
 - **방식**: Session Token (랜덤 48바이트, DB 저장) — 매 요청마다 DB 조회
 - **최대 세션**: 계정당 1개 (로그인 시 기존 세션 즉시 전부 삭제)
 - **만료**: 30일 (`expires_at` 컬럼, 만료 시 자동 삭제)
@@ -242,7 +242,7 @@ python -m backend.create_user <username> <password>
 |------|--------|------|
 | `CORS_ORIGINS` | `http://localhost:5173` | 허용 도메인 (콤마 구분) |
 | `FORCE_HTTPS` | (없음) | 설정 시 HSTS 헤더 활성화 |
-| `GOOGLE_CLIENT_ID` | (없음) | 학교 구글 계정 로그인용. 없으면 `/auth/google`이 503 |
+| `GOOGLE_CLIENT_ID` | (없음) | 학번 확인용. 없으면 `/auth/link-google`이 503 |
 
 배포 시 예시: `CORS_ORIGINS=https://your-app.com FORCE_HTTPS=1`
 
