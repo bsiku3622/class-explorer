@@ -1,10 +1,13 @@
 """인증 관련 API 엔드포인트"""
 import datetime
+import os
+import re
 import threading
 import time
 from collections import defaultdict
 from typing import Literal
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
@@ -22,6 +25,15 @@ from backend.auth import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+# ─── 학교 구글 계정 ───────────────────────────────────────────────────────────
+# 학번이 곧 이메일 아이디입니다: 25-059@ksa.hs.kr
+SCHOOL_DOMAIN = "ksa.hs.kr"
+_STUDENT_ID_PATTERN = re.compile(r"\d{2}-\d{3}")
+
+# 없으면 구글 로그인이 꺼진 상태로 동작합니다 (503)
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+
 
 # ─── 타이밍 공격 방지: 서버 시작 시 더미 해시 1회 생성 ─────────────────────────
 # username이 없을 때도 bcrypt를 동일하게 실행해 응답 시간을 균등화
@@ -130,6 +142,142 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     return SessionResponse(session_token=token)
 
 
+class GoogleLoginRequest(BaseModel):
+    credential: str = Field(min_length=1, max_length=4096)
+    device_type: Literal["web", "mobile"] = "web"
+
+
+def _student_id_from_email(email: str) -> str | None:
+    """
+    `25-059@ksa.hs.kr` → `25-059`
+
+    학교 계정은 학번이 그대로 아이디라 이메일만으로 누구인지 알 수 있습니다.
+    교사 계정처럼 학번 형식이 아니면 None을 돌려주고, 호출하는 쪽이 거절합니다.
+    """
+    local, _, domain = email.partition("@")
+    if domain.lower() != SCHOOL_DOMAIN:
+        return None
+    return local if _STUDENT_ID_PATTERN.fullmatch(local) else None
+
+
+async def _verify_google_credential(credential: str) -> dict:
+    """
+    구글이 발급한 ID 토큰을 구글에게 되물어 확인합니다.
+
+    서명을 직접 검증하려면 라이브러리가 하나 더 필요한데, 로그인은 자주 일어나는 일이
+    아니라 왕복 한 번이 더 낫다고 봤습니다. 대신 `aud`(우리 앱인지)와 이메일 인증
+    여부는 여기서 반드시 확인합니다 — 확인을 빠뜨리면 남의 앱 토큰으로 들어올 수 있습니다.
+    """
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="구글 로그인이 설정되지 않았습니다.",
+        )
+
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.get(
+                "https://oauth2.googleapis.com/tokeninfo",
+                params={"id_token": credential},
+                timeout=10,
+            )
+    except (httpx.TimeoutException, httpx.TransportError):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="구글에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.",
+        )
+
+    if res.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="로그인 정보를 확인하지 못했습니다."
+        )
+
+    claims = res.json()
+    if claims.get("aud") != GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="로그인 정보를 확인하지 못했습니다."
+        )
+    if str(claims.get("email_verified", "")).lower() not in ("true", "1"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="확인되지 않은 계정입니다."
+        )
+    return claims
+
+
+@router.post("/google", response_model=SessionResponse)
+async def google_login(
+    body: GoogleLoginRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """
+    학교 구글 계정으로 로그인합니다.
+
+    이메일이 곧 학번이라 따로 대조할 필요가 없습니다. 처음 들어오는 사람은 계정이
+    자동으로 만들어지고, 관리자가 예전에 만들어 준 계정이 있으면 학번으로 찾아
+    이어붙입니다 — 그래야 그동안 기록해 둔 이수 내역이 남습니다.
+    """
+    client_ip = _get_client_ip(request)
+    _check_login_rate_limit(client_ip)
+
+    claims = await _verify_google_credential(body.credential)
+    email = (claims.get("email") or "").lower()
+    stu_id = _student_id_from_email(email)
+    if stu_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"{SCHOOL_DOMAIN} 학생 계정으로만 들어올 수 있습니다.",
+        )
+
+    student = db.query(models.Student).filter(models.Student.stuId == stu_id).first()
+    if student is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"명단에서 {stu_id} 학번을 찾지 못했습니다.",
+        )
+
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user is None:
+        # 관리자가 만들어 둔 계정이 이미 이 학번을 쓰고 있으면 그 계정에 붙입니다
+        user = db.query(models.User).filter(models.User.stu_id == stu_id).first()
+        if user is not None:
+            user.email = email
+        else:
+            user = models.User(
+                username=stu_id,
+                hashed_password=hash_password(generate_session_token()),  # 쓰지 않는 값
+                stu_id=stu_id,
+                email=email,
+                is_admin=False,
+            )
+            db.add(user)
+        db.flush()
+
+    _reset_login_rate_limit(client_ip)
+    clear_user_sessions(db, user)
+
+    token = generate_session_token()
+    db.add(
+        models.Session(
+            user_id=user.id,
+            session_token=token,
+            device_type=body.device_type,
+            ip_address=client_ip,
+            expires_at=datetime.datetime.utcnow() + datetime.timedelta(days=SESSION_EXPIRE_DAYS),
+        )
+    )
+    try:
+        db.commit()
+    except IntegrityError:
+        # 같은 사람이 동시에 두 번 눌렀을 때
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="다시 시도해주세요."
+        )
+
+    return SessionResponse(session_token=token)
+
+
 @router.post("/logout")
 def logout(
     db: Session = Depends(get_db),
@@ -156,6 +304,7 @@ def me(
         "is_admin": current_user.is_admin,
         "stu_id": current_user.stu_id,
         "student_name": student.name if student else None,
+        "email": current_user.email,
     }
 
 

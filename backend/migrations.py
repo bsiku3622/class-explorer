@@ -441,6 +441,8 @@ def run_migrations(engine: Engine) -> None:
         "ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0 NOT NULL",
         "ALTER TABLE users ADD COLUMN stu_id VARCHAR REFERENCES students(stuId)",
         "CREATE INDEX IF NOT EXISTS ix_users_stu_id ON users (stu_id)",
+        "ALTER TABLE users ADD COLUMN email VARCHAR",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)",
         "ALTER TABLE sessions ADD COLUMN ip_address VARCHAR",
         (
             "CREATE TABLE IF NOT EXISTS subject_aliases ("
