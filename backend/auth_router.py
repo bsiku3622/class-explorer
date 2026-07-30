@@ -288,7 +288,7 @@ def me(
     return {
         "id": current_user.id,
         "username": current_user.username,
-        "is_admin": current_user.is_admin,
+        "role": current_user.role,
         "stu_id": current_user.stu_id,
         "student_name": student.name if student else None,
         "email": current_user.email,
