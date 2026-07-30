@@ -1,3 +1,5 @@
+import type { Role } from "../types";
+
 export const DAY_MAP: Record<string, string> = {
     MON: "월",
     TUE: "화",
@@ -149,3 +151,13 @@ export const formatSectionTimes = (
         })
         .join(", ");
 };
+
+/**
+ * 권한 검사. 권한은 위계라서 admin 은 manager 검사도 통과합니다.
+ *
+ * `role === "admin"` 처럼 직접 비교하면 매니저를 빠뜨리기 쉬워서 여기로 모읍니다.
+ */
+const ROLE_RANK: Record<Role, number> = { user: 0, manager: 1, admin: 2 };
+
+export const hasRole = (role: Role | undefined | null, minimum: Role): boolean =>
+    ROLE_RANK[role ?? "user"] >= ROLE_RANK[minimum];

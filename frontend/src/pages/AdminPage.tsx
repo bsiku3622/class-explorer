@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap } from "lucide-react";
 import api from "../lib/api";
 import axios from "axios";
+import type { Role } from "../types";
 import RetroButton from "../components/atoms/RetroButton";
 import RetroSubTitle from "../components/atoms/RetroSubTitle";
 import AccordionSection from "../components/molecules/AccordionSection";
@@ -17,9 +18,16 @@ function authHeader() {
 interface UserRow {
     id: number;
     username: string;
-    is_admin: boolean;
+    role: Role;
     session_count: number;
 }
+
+/** 권한은 위계라서 한 줄에 하나만 고릅니다 — 위 단계가 아래 것을 다 포함합니다 */
+const ROLE_OPTIONS: { value: Role; label: string }[] = [
+    { value: "user", label: "User" },
+    { value: "manager", label: "Manager" },
+    { value: "admin", label: "Admin" },
+];
 
 interface SessionRow {
     id: number;
@@ -111,7 +119,7 @@ const AdminPage: React.FC = () => {
     const [users, setUsers] = useState<UserRow[]>([]);
     const [newUsername, setNewUsername] = useState("");
     const [newPassword, setNewPassword] = useState("");
-    const [newIsAdmin, setNewIsAdmin] = useState(false);
+    const [newRole, setNewRole] = useState<Role>("user");
     const [createError, setCreateError] = useState("");
     const [createLoading, setCreateLoading] = useState(false);
 
@@ -222,8 +230,8 @@ const AdminPage: React.FC = () => {
         setCreateError("");
         setCreateLoading(true);
         try {
-            await api.post("/admin/users", { username: newUsername, password: newPassword, is_admin: newIsAdmin }, { headers: authHeader() });
-            setNewUsername(""); setNewPassword(""); setNewIsAdmin(false);
+            await api.post("/admin/users", { username: newUsername, password: newPassword, role: newRole }, { headers: authHeader() });
+            setNewUsername(""); setNewPassword(""); setNewRole("user");
             fetchUsers();
         } catch (e) {
             if (axios.isAxiosError(e)) setCreateError(e.response?.data?.detail || "Failed to create user");
@@ -240,9 +248,9 @@ const AdminPage: React.FC = () => {
         }
     };
 
-    const handleToggleAdmin = async (id: number, current: boolean) => {
+    const handleSetRole = async (id: number, role: Role) => {
         try {
-            await api.patch(`/admin/users/${id}/admin`, { is_admin: !current }, { headers: authHeader() });
+            await api.patch(`/admin/users/${id}/role`, { role }, { headers: authHeader() });
             fetchUsers();
         } catch (e) {
             if (axios.isAxiosError(e)) setError(e.response?.data?.detail || "Failed to update role");
@@ -388,14 +396,21 @@ const AdminPage: React.FC = () => {
                                     <span className="text-[10px] font-black text-black/40 uppercase">
                                         {u.session_count > 0 ? "● ONLINE" : "○ OFFLINE"}
                                     </span>
-                                    <button
-                                        onClick={() => handleToggleAdmin(u.id, u.is_admin)}
-                                        className={`text-[10px] font-black uppercase px-2 py-1 border-2 transition-all duration-100 ${
-                                            u.is_admin ? "bg-black text-white border-black" : "bg-white text-black/40 border-black/30 hover:border-black hover:text-black"
-                                        }`}
-                                    >
-                                        Admin
-                                    </button>
+                                    <div className="flex">
+                                        {ROLE_OPTIONS.map((opt) => (
+                                            <button
+                                                key={opt.value}
+                                                onClick={() => handleSetRole(u.id, opt.value)}
+                                                className={`text-[10px] font-black uppercase px-2 py-1 border-2 -ml-0.5 first:ml-0 transition-all duration-100 ${
+                                                    u.role === opt.value
+                                                        ? "bg-black text-white border-black relative z-10"
+                                                        : "bg-white text-black/40 border-black/30 hover:border-black hover:text-black"
+                                                }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
                                     <button onClick={() => handleDeleteUser(u.id)} className="text-red-500 hover:text-red-700 transition-colors">
                                         <Trash2 size={15} strokeWidth={2.5} />
                                     </button>
@@ -436,10 +451,22 @@ const AdminPage: React.FC = () => {
                                 </div>
                             </div>
                             <div className="flex items-center justify-between">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" checked={newIsAdmin} onChange={(e) => setNewIsAdmin(e.target.checked)} className="w-4 h-4 border-2 border-black" />
-                                    <span className="text-xs font-black uppercase tracking-widest text-black/60">Admin</span>
-                                </label>
+                                <div className="flex">
+                                    {ROLE_OPTIONS.map((opt) => (
+                                        <button
+                                            key={opt.value}
+                                            type="button"
+                                            onClick={() => setNewRole(opt.value)}
+                                            className={`text-[10px] font-black uppercase px-2.5 py-1.5 border-2 -ml-0.5 first:ml-0 transition-all duration-100 ${
+                                                newRole === opt.value
+                                                    ? "bg-black text-white border-black relative z-10"
+                                                    : "bg-white text-black/40 border-black/30 hover:border-black hover:text-black"
+                                            }`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
                                 <RetroButton type="submit" variant="black" size="sm" disabled={createLoading}>
                                     {createLoading ? "..." : "Create"}
                                 </RetroButton>

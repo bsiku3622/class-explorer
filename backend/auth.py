@@ -68,10 +68,19 @@ def get_current_user(
     return session.user
 
 
-# ─── 관리자 의존성 ───────────────────────────────────────────────────────────
+# ─── 권한 의존성 ─────────────────────────────────────────────────────────────
+#
+# 위계라서 admin 은 manager 검사도 통과합니다 (models.User.has_role).
 def get_current_admin(current_user: models.User = Depends(get_current_user)) -> models.User:
-    if not current_user.is_admin:
+    if not current_user.has_role("admin"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return current_user
+
+
+def get_current_manager(current_user: models.User = Depends(get_current_user)) -> models.User:
+    """학사일정을 직접 고칠 수 있는 사람 — 매니저와 관리자."""
+    if not current_user.has_role("manager"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager access required")
     return current_user
 
 

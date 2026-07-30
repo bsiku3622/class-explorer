@@ -4,7 +4,7 @@ import subprocess
 import datetime
 import logging
 import re
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -23,11 +23,11 @@ _USERNAME_PATTERN = re.compile(r'^[a-zA-Z0-9_.\-]+$')
 class CreateUserRequest(BaseModel):
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=5, max_length=128)
-    is_admin: bool = False
+    role: Literal["user", "manager", "admin"] = "user"
 
 
-class SetAdminRequest(BaseModel):
-    is_admin: bool
+class SetRoleRequest(BaseModel):
+    role: Literal["user", "manager", "admin"]
 
 
 # ─── 사용자 관리 ──────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ def list_users(
         {
             "id": u.id,
             "username": u.username,
-            "is_admin": u.is_admin,
+            "role": u.role,
             "session_count": len(u.sessions),
         }
         for u in users
@@ -61,28 +61,28 @@ def create_user(
     user = models.User(
         username=body.username,
         hashed_password=hash_password(body.password),
-        is_admin=body.is_admin,
+        role=body.role,
     )
     db.add(user)
     db.commit()
-    return {"id": user.id, "username": user.username, "is_admin": user.is_admin}
+    return {"id": user.id, "username": user.username, "role": user.role}
 
 
-@router.patch("/users/{user_id}/admin")
-def set_admin(
+@router.patch("/users/{user_id}/role")
+def set_role(
     user_id: int,
-    body: SetAdminRequest,
+    body: SetRoleRequest,
     db: Session = Depends(get_db),
     current: models.User = Depends(get_current_admin),
 ):
     if user_id == current.id:
-        raise HTTPException(status_code=400, detail="Cannot change your own admin status")
+        raise HTTPException(status_code=400, detail="Cannot change your own role")
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    user.is_admin = body.is_admin
+    user.role = body.role
     db.commit()
-    return {"id": user.id, "username": user.username, "is_admin": user.is_admin}
+    return {"id": user.id, "username": user.username, "role": user.role}
 
 
 @router.delete("/users/{user_id}")
