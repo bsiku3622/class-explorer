@@ -165,6 +165,9 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     is_admin = Column(Boolean, default=False, nullable=False)
+    # 학교 구글 계정. 로그인할 때마다 여기로 사람을 찾습니다.
+    # 관리자가 만들어 준 옛 계정은 비어 있고, 구글로 처음 들어올 때 학번으로 이어붙입니다.
+    email = Column(String, unique=True, nullable=True, index=True)
     # 이 계정이 누구인지. 본인이 학번과 이름을 대조해 등록합니다.
     # 등록 전에는 비어 있고, 그동안 이수 기록 같은 개인 데이터를 쓸 수 없습니다.
     #

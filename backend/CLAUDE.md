@@ -223,6 +223,14 @@ python -m backend.create_user <username> <password>
 | `POST` | `/admin/sync` | 데이터 재수집 (`{"year": 2026, "semester": 2}` 선택, 생략 시 DB 최신 학기) |
 
 ## 인증 시스템
+
+로그인은 두 갈래입니다.
+
+- **학교 구글 계정** (`POST /auth/google`) — 주된 방법. 이메일이 곧 학번이라
+  (`25-059@ksa.hs.kr`) 신원 확인이 한 번에 끝납니다. 교사 계정처럼 학번 형식이
+  아니면 거절합니다
+- **아이디·비밀번호** (`POST /auth/login`) — 관리자가 만들어 주던 옛 방식.
+  구글 로그인이 자리 잡을 때까지 남겨 둡니다
 - **방식**: Session Token (랜덤 48바이트, DB 저장) — 매 요청마다 DB 조회
 - **최대 세션**: 계정당 1개 (로그인 시 기존 세션 즉시 전부 삭제)
 - **만료**: 30일 (`expires_at` 컬럼, 만료 시 자동 삭제)
@@ -234,6 +242,7 @@ python -m backend.create_user <username> <password>
 |------|--------|------|
 | `CORS_ORIGINS` | `http://localhost:5173` | 허용 도메인 (콤마 구분) |
 | `FORCE_HTTPS` | (없음) | 설정 시 HSTS 헤더 활성화 |
+| `GOOGLE_CLIENT_ID` | (없음) | 학교 구글 계정 로그인용. 없으면 `/auth/google`이 503 |
 
 배포 시 예시: `CORS_ORIGINS=https://your-app.com FORCE_HTTPS=1`
 
