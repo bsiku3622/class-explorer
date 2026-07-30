@@ -278,6 +278,71 @@ async def google_login(
     return SessionResponse(session_token=token)
 
 
+class LinkGoogleRequest(BaseModel):
+    credential: str = Field(min_length=1, max_length=4096)
+
+
+@router.post("/link-google")
+async def link_google(
+    body: LinkGoogleRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    아이디·비밀번호로 들어온 계정에 학교 구글 계정을 붙입니다.
+
+    옛 계정은 이 계정이 누구 것인지 알 방법이 없었습니다. 구글을 한 번 거치면
+    학번까지 함께 확정돼서, 이수 기록을 남길 수 있게 됩니다.
+
+    이미 학번이 정해진 계정이라면 구글 계정의 학번과 같아야 합니다 — 다르면 남의
+    계정에 붙이려는 것이므로 막습니다.
+    """
+    claims = await _verify_google_credential(body.credential)
+    email = (claims.get("email") or "").lower()
+    stu_id = _student_id_from_email(email)
+    if stu_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"{SCHOOL_DOMAIN} 학생 계정으로만 연동할 수 있습니다.",
+        )
+
+    student = db.query(models.Student).filter(models.Student.stuId == stu_id).first()
+    if student is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"명단에서 {stu_id} 학번을 찾지 못했습니다.",
+        )
+
+    taken = (
+        db.query(models.User)
+        .filter(models.User.email == email, models.User.id != current_user.id)
+        .first()
+    )
+    if taken is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="이미 다른 계정이 쓰고 있는 구글 계정입니다.",
+        )
+
+    if current_user.stu_id and current_user.stu_id != stu_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"이 계정은 {current_user.stu_id} 학번으로 등록되어 있습니다.",
+        )
+
+    current_user.email = email
+    current_user.stu_id = stu_id
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="이미 쓰이고 있는 학번입니다."
+        )
+
+    return {"email": email, "stu_id": stu_id, "student_name": student.name}
+
+
 @router.post("/logout")
 def logout(
     db: Session = Depends(get_db),

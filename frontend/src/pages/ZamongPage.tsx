@@ -4,7 +4,6 @@ import {
     BookOpen,
     CircleAlert,
     Award,
-    IdCard,
 } from "lucide-react";
 import api from "../lib/api";
 import {
@@ -28,7 +27,6 @@ import RetroCard from "../components/atoms/RetroCard";
 import RetroButton from "../components/atoms/RetroButton";
 import RetroSubTitle from "../components/atoms/RetroSubTitle";
 import PageHeader from "../components/molecules/PageHeader";
-import LinkStudentModal from "../components/LinkStudentModal";
 import CourseGraph, { CourseGraphLegend } from "../components/CourseGraph";
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
@@ -44,7 +42,6 @@ interface ZamongPageProps {
     /** 계정에 등록된 본인 학번 — 없으면 등록 안내를 띄웁니다 */
     stuId: string | null;
     studentName: string | null;
-    onLinked: (info: { stu_id: string; student_name: string }) => void;
 }
 
 /** 옛 localStorage 형식 — 학번별로 직접 체크한 과목을 담고 있었습니다 */
@@ -59,7 +56,7 @@ const persistGrades = (grades: GradeMap) => {
     api.put("/curriculum/grades", { entries }, { headers: authHeader() }).catch(() => {});
 };
 
-const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName, onLinked }) => {
+const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
     const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     /** 어느 학생의 응답인지 함께 들고 있어야 학번이 바뀔 때 섞이지 않습니다 */
@@ -71,7 +68,6 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName, onLinked })
     const [gradeData, setGradeData] = useState<{ stuId: string; grades: GradeMap } | null>(null);
     const [department, setDepartment] = useState<string>("수학");
     const [focused, setFocused] = useState<string | null>(null);
-    const [dismissedLink, setDismissedLink] = useState(false);
 
     useEffect(() => {
         api.get("/curriculum", { headers: authHeader() })
@@ -291,13 +287,6 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName, onLinked })
 
     return (
         <div className="flex flex-col gap-4 md:gap-6 pb-20">
-            {!stuId && !dismissedLink && (
-                <LinkStudentModal
-                    onLinked={onLinked}
-                    onDismiss={() => setDismissedLink(true)}
-                />
-            )}
-
             <PageHeader title="Zamong" subtitle="교육과정 이수 현황" icon={GraduationCap}>
                 {stuId && (
                     <div className="flex flex-wrap items-center gap-2">
@@ -346,21 +335,12 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName, onLinked })
             ) : !stuId ? (
                 <RetroCard className="bg-white p-8 text-center space-y-3">
                     <p className="font-black uppercase tracking-widest text-black/40">
-                        학번을 등록하면 이수 현황이 표시됩니다
+                        학번을 확인하지 못했습니다
                     </p>
                     <p className="text-xs font-bold text-black/40">
-                        이수 기록과 성적은 계정에 저장되므로 누구의 기록인지 정해야 합니다.
+                        학교 구글 계정으로 다시 들어와주세요. 로그아웃 후 다시 로그인하면
+                        학번이 자동으로 확인됩니다.
                     </p>
-                    <div className="flex justify-center pt-1">
-                        <RetroButton
-                            size="sm"
-                            isSelected
-                            onClick={() => setDismissedLink(false)}
-                            icon={<IdCard size={14} strokeWidth={2.5} />}
-                        >
-                            학번 등록
-                        </RetroButton>
-                    </div>
                 </RetroCard>
             ) : (
                 <>
