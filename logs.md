@@ -1,15 +1,27 @@
 # Logs
 
-## 2026-07-30 — 학교 구글 계정 로그인
+## 2026-07-30 — 학기 선택을 드롭다운으로
+
+- 변경 파일: `frontend/src/components/TermSwitcher.tsx`, `frontend/component-guide.md`
+- 요약: 학기 버튼을 나란히 늘어놓던 걸 접었습니다. 학기가 쌓일수록(지금 6개) 네비게이션을 다 잡아먹었고, 모바일에서는 로고와 부딪혔습니다.
+- 바깥 클릭·Esc로 닫습니다. 고른 항목은 `bg-black text-white` — 디자인 가이드의 "선택됨" 규칙 그대로입니다.
+
+## 2026-07-30 — 구글 계정은 학번 확인 전용, 로그인은 아이디·비밀번호만
+
+- 변경 파일: `backend/auth_router.py`, `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/src/pages/LoginPage.tsx`, `frontend/CLAUDE.md`, `frontend/component-guide.md`
+- 요약: 아는 사람만 쓰는 서비스라 스스로 계정을 만드는 길을 닫았습니다. `POST /auth/google`을 지웠습니다 — 학교 구글 계정만 있으면 누구나 계정이 생기던 자리라 그대로 두면 초대제가 아니게 됩니다. 로그인 화면도 탭을 걷어내고 아이디·비밀번호 하나로 되돌렸습니다.
+- `POST /auth/link-student`도 함께 지웠습니다. 구글이 대체한 옛 학번 인증인데, 남겨 두면 이름만 맞히면 학번을 가져갈 수 있어 구글 확인을 우회하는 길이 됩니다.
+- 구글은 이제 `POST /auth/link-google` 한 곳에서만 씁니다. 이메일이 곧 학번이라(`25-059@ksa.hs.kr`) 한 번 거치면 신원이 정해지고, `email`이 빈 계정은 **닫을 수 없는 확인 창**을 만납니다.
+
+## 2026-07-30 — 학교 구글 계정으로 학번 확인
 
 - 변경 파일: `backend/models.py`, `backend/migrations.py`, `backend/auth_router.py`, `backend/CLAUDE.md`, `backend/api-guide.md`, `frontend/src/components/GoogleLoginButton.tsx` (신규), `frontend/src/components/GoogleLinkModal.tsx` (신규), `frontend/src/components/LinkStudentModal.tsx` (삭제), `frontend/src/pages/LoginPage.tsx`, `frontend/src/pages/ZamongPage.tsx`, `frontend/src/App.tsx`, `frontend/vite.config.ts`, `frontend/.env`
-- 요약: 학교 계정 이메일이 곧 학번이라(`25-059@ksa.hs.kr`) 구글 로그인 한 번으로 신원과 학번이 함께 정해집니다. 학번·이름을 손으로 받던 창은 없앴습니다.
-- 토큰 검증은 구글의 `tokeninfo`로 합니다. JWT 라이브러리를 하나 더 들이는 대신 왕복 한 번을 택했고 — 로그인은 드문 일이라 — `aud`와 이메일 인증 여부는 직접 확인합니다. 둘 중 하나라도 빠뜨리면 다른 앱용 토큰으로 들어올 수 있습니다.
-- 옛 계정(`email`이 빈 계정)은 로그인 후 **닫을 수 없는 연결 창**을 만납니다. 누구 계정인지 모르면 이수 기록을 남길 수 없어서, 연결 전에는 앱 화면을 아예 렌더링하지 않습니다. 학번이 이미 정해진 계정은 구글 계정의 학번과 같아야 연결됩니다.
-- 로그인 화면을 탭 두 개(Google / ID & PW)로 나눴습니다. 그림자는 탭과 카드를 함께 감싼 쪽이 갖고(`RetroCard shadow="none"`), 고른 탭은 아래 테두리를·카드는 윗 테두리를 지워 한 덩어리로 보이게 했습니다. 흰 선으로 덮어 가리는 방식은 모서리에서 두 테두리가 대각선으로 물려 2px 자국이 남았습니다.
+- 요약: 학교 계정 이메일이 곧 학번이라(`25-059@ksa.hs.kr`) 구글을 한 번 거치면 신원과 학번이 함께 정해집니다. 학번·이름을 손으로 받던 창은 없앴습니다.
+- 토큰 검증은 구글의 `tokeninfo`로 합니다. JWT 라이브러리를 하나 더 들이는 대신 왕복 한 번을 택했고 — 계정마다 한 번뿐이라 — `aud`와 이메일 인증 여부는 직접 확인합니다. 둘 중 하나라도 빠뜨리면 다른 앱용 토큰으로 남의 학번을 가져갈 수 있습니다.
+- `email`이 빈 계정은 로그인 후 **닫을 수 없는 확인 창**을 만납니다. 누구 계정인지 모르면 이수 기록을 남길 수 없어서, 확인 전에는 앱 화면을 아예 렌더링하지 않습니다. 학번이 이미 정해진 계정은 구글 계정의 학번과 같아야 합니다.
 - 구글 버튼은 iframe이라 안쪽을 손댈 수 없어, **생김새는 인풋과 같게 우리가 그리고 구글 버튼은 투명하게 그 위에 겹쳤습니다.** 눌리는 건 구글의 진짜 버튼이라 ID 토큰 흐름과 서버 검증은 그대로입니다. 구글 버튼이 박스를 다 덮지 못해서(높이 44px 고정, `margin: -2px`, 폭 400px 상한) `transform`으로 넉넉히 늘린 뒤 박스 경계로 잘라냅니다 — `transform`은 클릭 판정도 같이 늘려 주니 박스 안 어디를 눌러도 들어갑니다.
 - 이 버튼만 hover 때 그림자를 숨기지 않습니다. 포인터가 iframe 위에 있으면 부모 문서에 `:hover`가 아예 잡히지 않아서, 인풋처럼 focus 때만 눌립니다. 커서 모양은 구글 버튼이 직접 바꿔 줍니다.
-- dev 서버 포트를 **5188**로 고정했습니다. 구글 OAuth 허용 origin 에 등록된 주소라 바꾸면 로그인이 막힙니다.
+- dev 서버 포트를 **5188**로 고정했습니다. 구글 OAuth 허용 origin 에 등록된 주소라 바꾸면 확인이 막힙니다.
 
 ## 2026-07-30 — 교육과정 그래프를 Browse로, Plan을 Zamong으로
 
