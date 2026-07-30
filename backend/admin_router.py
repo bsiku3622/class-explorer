@@ -229,11 +229,7 @@ def rename_teacher(
     return {"old_name": teacher_name, "new_name": new_name, "updated_sections": updated}
 
 
-# ─── 과목 별칭 관리 ──────────────────────────────────────────────────────────
-class SetAliasesRequest(BaseModel):
-    aliases: list[Annotated[str, Field(min_length=1, max_length=64)]] = Field(max_length=30)
-
-
+# ─── 과목 ────────────────────────────────────────────────────────────────────
 @router.get("/subjects")
 def list_subjects(
     year: int | None = Query(default=None, ge=2000, le=2100),
@@ -241,45 +237,32 @@ def list_subjects(
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_admin),
 ):
-    """해당 학기 과목 + 각 과목의 별칭 목록 반환 (별칭은 학기 무관 전역)"""
+    """
+    해당 학기에 열린 과목 목록. 교육과정에 이어지지 않은 과목을 찾는 데 씁니다.
+
+    `course`가 비어 있으면 학점·계열을 알 수 없는 과목입니다 — 외국인 전형 과목이나
+    개편 전 이름이 여기 해당합니다.
+    """
     from backend import models as m
     target_year, target_semester = resolve_term(db, year, semester)
-    subjects = [
-        row[0]
-        for row in db.query(m.Class.subject)
+    rows = (
+        db.query(m.Subject.name, m.Subject.is_ec, m.Subject.name_english, m.Course.name)
+        .join(m.Class, m.Class.subject_id == m.Subject.id)
+        .outerjoin(m.Course, m.Course.id == m.Subject.course_id)
         .filter(m.Class.year == target_year, m.Class.semester == target_semester)
         .distinct()
-        .order_by(m.Class.subject)
+        .order_by(m.Subject.name, m.Subject.is_ec)
         .all()
-    ]
-    all_aliases = db.query(m.SubjectAlias).all()
-    alias_map: dict[str, list[str]] = {}
-    for a in all_aliases:
-        alias_map.setdefault(a.subject, []).append(a.alias)
+    )
     return [
-        {"subject": s, "aliases": sorted(alias_map.get(s, []))}
-        for s in subjects
+        {
+            "subject": f"{name}(EC)" if is_ec else name,
+            "is_ec": is_ec,
+            "english": english,
+            "course": course,
+        }
+        for name, is_ec, english, course in rows
     ]
-
-
-@router.put("/subjects/{subject}/aliases", status_code=200)
-def set_subject_aliases(
-    subject: str,
-    body: SetAliasesRequest,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_admin),
-):
-    """특정 과목의 별칭을 전체 교체 (빈 리스트로 전달 시 모두 삭제)"""
-    from backend import models as m
-    db.query(m.SubjectAlias).filter(m.SubjectAlias.subject == subject).delete()
-    seen = set()
-    for alias in body.aliases:
-        alias = alias.strip()
-        if alias and alias not in seen:
-            seen.add(alias)
-            db.add(m.SubjectAlias(subject=subject, alias=alias))
-    db.commit()
-    return {"subject": subject, "aliases": sorted(seen)}
 
 
 # ─── 학기 목록 ───────────────────────────────────────────────────────────────

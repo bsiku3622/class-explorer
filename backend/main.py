@@ -120,20 +120,25 @@ async def get_all_data(
     ).options(
         selectinload(models.Class.enrollments).joinedload(models.Enrollment.student),
         selectinload(models.Class.times),
+        joinedload(models.Class.subject).joinedload(models.Subject.course)
+        .joinedload(models.Course.department),
     ).all()
 
-    grouped = {}
+    # 과목 단위로 묶습니다. 영어강의와 한국어강의는 이름이 같아도 별개 과목이라
+    # subject_id 로 나눠야 합니다 — 이름으로 묶으면 두 과목이 한 덩어리가 됩니다
+    grouped: dict[int, list] = {}
+    subjects: dict[int, models.Subject] = {}
     total_active_students = set()
 
     for cls in all_classes:
         students = [{"stuId": e.student.stuId, "name": e.student.name} for e in cls.enrollments]
-        if cls.subject not in grouped:
-            grouped[cls.subject] = []
+        subjects.setdefault(cls.subject_id, cls.subject)
+        grouped.setdefault(cls.subject_id, [])
 
         for s in students:
             total_active_students.add(s["stuId"])
 
-        grouped[cls.subject].append({
+        grouped[cls.subject_id].append({
             "id": cls.id,
             "section": cls.section,
             "teacher": cls.teacher,
@@ -152,35 +157,31 @@ async def get_all_data(
         yr = s_id.split("-")[0] if "-" in s_id else "Unknown"
         student_counts[yr] = student_counts.get(yr, 0) + 1
 
-    # 3. 과목 별칭 맵
-    all_aliases = db.query(models.SubjectAlias).all()
-    alias_map: dict[str, list[str]] = {}
-    for a in all_aliases:
-        alias_map.setdefault(a.subject, []).append(a.alias)
-
-    # 3-1. 과목 학점 (SweetZamong 교육과정 기준, 미매칭 과목은 빠집니다)
-    credit_map = {
-        c.subject: {"credits": c.credits, "is_ec": c.is_ec, "is_pf": c.is_pf}
-        for c in db.query(models.SubjectCredit).all()
-    }
-
-    # 4. final_data 구성
+    # 3. final_data 구성
+    #
+    # `subject` 는 화면에 그대로 쓰는 이름입니다. 영어강의는 뒤에 (EC)를 붙여
+    # 한국어강의와 구분합니다 — 둘은 별개 과목이라 이름이 같으면 안 됩니다.
     final_data = []
-    for subject in sorted(grouped.keys()):
-        sections = grouped[subject]
+    for subject_id, sections in grouped.items():
+        subject = subjects[subject_id]
+        course = subject.course
         sections.sort(key=lambda s: get_section_num(s["section"]))
         sub_students = set(stu["stuId"] for s in sections for stu in s["students"])
-        credit = credit_map.get(subject)
+        display = f"{subject.name}(EC)" if subject.is_ec else subject.name
         final_data.append({
-            "subject": subject,
+            "subject": display,
+            "subject_id": subject_id,
+            "subject_english": subject.name_english,
+            "is_ec": subject.is_ec,
             "subject_student_count": len(sub_students),
             "section_count": len(sections),
             "sections": sections,
-            "aliases": alias_map.get(subject, []),
-            "credits": credit["credits"] if credit else None,
-            "is_ec": credit["is_ec"] if credit else False,
-            "is_pf": credit["is_pf"] if credit else False,
+            "credits": course.credits if course else None,
+            "is_pf": course.is_pf if course else False,
+            "department": course.department.name if course else None,
+            "category": course.department.category if course else None,
         })
+    final_data.sort(key=lambda item: item["subject"])
 
     return {
         "term": {"year": target_year, "semester": target_semester},

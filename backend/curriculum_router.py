@@ -31,12 +31,11 @@ def _course_summary(course: models.Course) -> dict:
     """목록용 — 긴 설명 본문(`description_sections`)은 뺍니다."""
     return {
         "name": course.name,
-        "english_name": course.english_name,
-        "department": course.department,
-        "category": course.category,
+        "english_name": course.name_english,
+        "department": course.department.name,
+        "category": course.department.category,
         "credits": course.credits,
         "ap_credits": course.ap_credits,
-        "is_ec": course.is_ec,
         "is_pf": course.is_pf,
         "recommended_semester": course.recommended_semester,
         "description": course.description,
@@ -52,24 +51,41 @@ def get_curriculum(
     카탈로그 전체와 선수관계 그래프를 한 번에 돌려줍니다. 학기와 무관한 데이터라
     프론트에서 오래 캐시해도 됩니다.
 
-    `subject_map`은 KEIS 과목명(`Class.subject`)을 카탈로그 이름으로 옮기는 표입니다.
+    `subject_map`은 화면에 보이는 개설 과목명을 교육과정 과목으로 옮기는 표입니다.
     이게 있어야 프론트가 이미 들고 있는 수강 데이터를 교육과정에 붙일 수 있습니다.
+    영어강의는 이름 뒤에 (EC)가 붙어 한국어강의와 구분됩니다.
     """
-    courses = db.query(models.Course).order_by(models.Course.department, models.Course.name).all()
+    courses = (
+        db.query(models.Course)
+        .join(models.Department)
+        .order_by(models.Department.display_order, models.Course.name)
+        .all()
+    )
     prerequisites = db.query(models.CoursePrereq).all()
+    departments = (
+        db.query(models.Department).order_by(models.Department.display_order).all()
+    )
 
-    known = {course.name for course in courses}
+    course_name = {course.id: course.name for course in courses}
     subject_map = {
-        credit.subject: credit.matched_name
-        for credit in db.query(models.SubjectCredit).all()
-        if credit.matched_name in known
+        (f"{subject.name}(EC)" if subject.is_ec else subject.name): course_name[subject.course_id]
+        for subject in db.query(models.Subject).filter(models.Subject.course_id.isnot(None)).all()
+        if subject.course_id in course_name
     }
 
     return {
+        "departments": [
+            {"name": d.name, "category": d.category} for d in departments
+        ],
         "courses": [_course_summary(course) for course in courses],
         "prerequisites": [
-            {"before": edge.before, "after": edge.after, "alternative": edge.alternative}
+            {
+                "before": course_name[edge.before_id],
+                "after": course_name[edge.after_id],
+                "alternative": edge.alternative,
+            }
             for edge in prerequisites
+            if edge.before_id in course_name and edge.after_id in course_name
         ],
         "subject_map": subject_map,
         "requirements": REQUIREMENTS,
@@ -96,23 +112,24 @@ def get_progress(
         db.query(
             models.Class.year,
             models.Class.semester,
-            models.Class.subject,
-            models.SubjectCredit.matched_name,
+            models.Subject.name,
+            models.Subject.is_ec,
+            models.Course.name,
         )
         .join(models.Enrollment, models.Enrollment.classId == models.Class.id)
-        .outerjoin(models.SubjectCredit, models.SubjectCredit.subject == models.Class.subject)
+        .join(models.Subject, models.Subject.id == models.Class.subject_id)
+        .outerjoin(models.Course, models.Course.id == models.Subject.course_id)
         .filter(models.Enrollment.stuId == stu_id)
         .order_by(models.Class.year, models.Class.semester)
         .all()
     )
 
-    known = {name for (name,) in db.query(models.Course.name).all()}
     terms: dict[tuple[int, int], list[dict]] = {}
-    for year, semester, subject, matched in rows:
+    for year, semester, name, is_ec, course in rows:
         terms.setdefault((year, semester), []).append(
             {
-                "subject": subject,
-                "course": matched if matched in known else None,
+                "subject": f"{name}(EC)" if is_ec else name,
+                "course": course,
             }
         )
 
@@ -156,14 +173,15 @@ def get_grades(
     """로그인한 계정 본인의 이수·성적"""
     stu_id = _require_linked(user)
     rows = (
-        db.query(models.CourseGrade)
+        db.query(models.Course.name, models.CourseGrade.grade)
+        .join(models.CourseGrade, models.CourseGrade.course_id == models.Course.id)
         .filter(models.CourseGrade.user_id == user.id)
-        .order_by(models.CourseGrade.course)
+        .order_by(models.Course.name)
         .all()
     )
     return {
         "stu_id": stu_id,
-        "entries": [{"course": row.course, "grade": row.grade} for row in rows],
+        "entries": [{"course": name, "grade": grade} for name, grade in rows],
     }
 
 
@@ -180,8 +198,8 @@ def put_grades(
     편집해도 마지막 저장이 이깁니다.
     """
     stu_id = _require_linked(user)
-    known = {name for (name,) in db.query(models.Course.name).all()}
-    unknown = sorted({entry.course for entry in payload.entries} - known)
+    known = {name: cid for name, cid in db.query(models.Course.name, models.Course.id).all()}
+    unknown = sorted({entry.course for entry in payload.entries} - set(known))
     if unknown:
         raise HTTPException(
             status_code=400,
@@ -202,7 +220,7 @@ def put_grades(
     # 같은 과목이 두 번 오면 뒤엣것을 씁니다 — UNIQUE 위반을 막습니다
     deduped = {entry.course: entry.grade for entry in payload.entries}
     for course, grade in deduped.items():
-        db.add(models.CourseGrade(user_id=user.id, course=course, grade=grade))
+        db.add(models.CourseGrade(user_id=user.id, course_id=known[course], grade=grade))
     db.commit()
     return {"stu_id": stu_id, "saved": len(deduped)}
 
@@ -220,18 +238,39 @@ def get_course(
 
     edges = (
         db.query(models.CoursePrereq)
-        .filter((models.CoursePrereq.after == name) | (models.CoursePrereq.before == name))
+        .filter(
+            (models.CoursePrereq.after_id == course.id)
+            | (models.CoursePrereq.before_id == course.id)
+        )
         .all()
     )
+    course_name = {cid: cname for cid, cname in db.query(models.Course.id, models.Course.name).all()}
+
+    # 이 과목이 영어강의로도 열리는지 — 개설 이력을 함께 보여줍니다
+    openings = (
+        db.query(models.Subject.name, models.Subject.is_ec)
+        .filter(models.Subject.course_id == course.id)
+        .order_by(models.Subject.is_ec)
+        .all()
+    )
+
     return {
         **_course_summary(course),
         "description_sections": course.description_sections or {},
         "description_source": course.description_source,
         "description_page": course.description_page,
-        "prerequisites": [
-            {"name": edge.before, "alternative": edge.alternative}
-            for edge in edges
-            if edge.after == name
+        "openings": [
+            {"subject": f"{sname}(EC)" if is_ec else sname, "is_ec": is_ec}
+            for sname, is_ec in openings
         ],
-        "unlocks": [edge.after for edge in edges if edge.before == name],
+        "prerequisites": [
+            {"name": course_name[edge.before_id], "alternative": edge.alternative}
+            for edge in edges
+            if edge.after_id == course.id and edge.before_id in course_name
+        ],
+        "unlocks": [
+            course_name[edge.after_id]
+            for edge in edges
+            if edge.before_id == course.id and edge.after_id in course_name
+        ],
     }

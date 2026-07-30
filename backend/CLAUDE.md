@@ -16,9 +16,10 @@ backend/
 ├── curriculum_router.py → 교육과정 엔드포인트 (/curriculum/*)
 ├── state_router.py  → 계정별 화면 상태 (/state/*)
 ├── create_user.py   → 관리자 계정 생성 CLI 스크립트
-├── import_credits.py→ SweetZamong 교육과정 DB → 과목 학점 임포트
+├── subject_names.py → 과목명 분해·정규화 (한글명/영문명/EC 태그)
 ├── build_curriculum_seed.py → Zamong 워크북 → curriculum_seed.json (로컬 전용)
-├── import_curriculum.py → curriculum_seed.json → Course/CoursePrereq 적재
+├── import_curriculum.py → curriculum_seed.json → Department/Course/CoursePrereq 적재
+│                          + Subject.course_id 재연결
 ├── curriculum_seed.json → 교육과정 카탈로그 145과목 + 선수관계 117개
 ├── parser.py        → KEIS API 응답 파싱 로직
 ├── parser_run.py    → 학기별 데이터 동기화 실행 스크립트
@@ -36,13 +37,39 @@ backend/
 - `SubjectAlias`는 학기 무관 전역 (과목명이 같으면 재사용)
 - 스키마 변경은 `migrations.py`에서 처리 — `main.py` import 시 자동 실행
 
+## 과목 4층 구조
+
+과목은 네 층으로 나뉩니다. 층마다 출처와 바뀌는 속도가 다릅니다.
+
+```
+Department  학과            수학 · 물리학 · 융합 …          (거의 안 바뀜)
+    ↑
+Course      교육과정 과목    "미적분학2" + 학점·선수관계      (교육과정 개편 때)
+    ↑
+Subject     KEIS 개설명      "미적분학2" / "미적분학2(EC)"    (표기가 바뀜)
+    ↑
+Class       실제 분반        3분반 · 김효진 · 2026-2         (학기마다)
+```
+
+**`Course`가 따로 있는 이유**는 언어와 표기를 벗겨낸 과목 정체성이 필요해서입니다.
+영어강의(EC)와 한국어강의는 별개로 개설되지만 — 실제로 19쌍이 함께 열립니다 —
+학점·선수관계·졸업 요건은 하나여야 합니다. `Subject` 사이에 선수관계를 걸면 언어
+조합마다 중복돼 117개가 186개로 불어납니다.
+
+`Subject.course_id`가 비어 있으면 교육과정에 없는 과목입니다 (외국인 전형 과목,
+개편 전 이름). 지금 26개가 여기 해당합니다.
+
+**(EC)는 English Class입니다.** 표기 없는 쪽이 한국어강의(KC)이고 둘은 다른 과목입니다.
+`물리학및실험Ⅰ`처럼 로마숫자를 쓴 과목도 외국인 전형 과목이라 `물리학및실험1`과
+합치면 안 됩니다 — 수강생이 100% 외국인 학번입니다.
+
 ## DB 스키마 (models.py)
 
 ```
 Student              Class                  ClassTime
 ─────────────        ──────────────────     ─────────────
 stuId (PK)           id (PK)                id (PK)
-name                 subject                day (MON~FRI)
+name                 subject_id (FK→Subject) day (MON~FRI)
                      section                period (1-11)
                      teacher                room
                      room                   class_id (FK→Class)
@@ -58,20 +85,23 @@ UniqueConstraint     is_admin (bool)        device_type (web|mobile)
                                             last_used_at
                                             expires_at
 
-SubjectAlias                  SubjectCredit
+Department                     Subject
 ─────────────────────────────  ─────────────────────────────
-id (PK)                        subject (PK, Class.subject와 일치)
-subject  (Class.subject 과 일치) credits (float)
-alias    (검색 키워드)           ap_credits / is_ec / is_pf
-UniqueConstraint (subject,alias) matched_name (→ Course.name)
+id (PK)                        id (PK)
+name (수학, 물리학 …)            course_id (FK→Course, NULL 허용)
+category (natural|humanities|  name          "미적분학2"
+          convergence)         name_english  "Calculus2"
+display_order                  name_raw      KEIS 원문
+                               is_ec         영어강의 여부
+                               UniqueConstraint (name, is_ec)
 
 Course                         CoursePrereq
 ─────────────────────────────  ─────────────────────────────
-name (PK)                      id (PK)
-english_name                   before (FK→Course.name)
-department / category          after  (FK→Course.name)
-credits / ap_credits           alternative (bool, 택일 여부)
-is_ec / is_pf                  UniqueConstraint (before, after)
+id (PK)                        id (PK)
+department_id (FK→Department)  before_id (FK→Course)
+name (unique, 언어 태그 없음)    after_id  (FK→Course)
+name_english                   alternative (bool, 택일 여부)
+credits / ap_credits / is_pf   UniqueConstraint (before_id, after_id)
 recommended_semester
 description / description_sections
 description_source / description_page
@@ -118,15 +148,13 @@ UniqueConstraint (user_id,key)
 
 ### 수업과 교육과정의 연결
 
-`Class`는 특정 학기에 열린 분반이고, `Course`는 학교가 개설할 수 있는 과목의 정의입니다.
-둘은 `SubjectCredit`을 다리 삼아 이어집니다.
+전부 외래키로 이어집니다. 예전에는 과목명 문자열이 다리 역할을 해서 표기가 조금만
+바뀌어도 조용히 끊겼습니다.
 
 ```
-Class.subject ─→ SubjectCredit.subject
-                 SubjectCredit.matched_name ─→ Course.name ─→ CoursePrereq
+Class.subject_id ─→ Subject.course_id ─→ Course.department_id ─→ Department
+                                     └─→ CoursePrereq
 ```
-
-이 체인 덕분에 "이 학생이 듣는 분반"에서 "계열·학점·선수관계"까지 바로 갑니다.
 
 ## 데이터 수집 흐름 (parser_run.py)
 ```
@@ -154,15 +182,6 @@ uvicorn backend.main:app --reload
 python -m backend.parser_run                       # 오늘 날짜 기준 학기
 python -m backend.parser_run --year 2026 --semester 2
 ```
-
-### 과목 학점 임포트
-```bash
-python -m backend.import_credits --dry-run   # 매칭 결과만 확인
-python -m backend.import_credits             # 저장
-```
-KEIS에는 학점 정보가 없어 SweetZamong `courses` 테이블을 정본으로 씁니다.
-과목명 표기가 달라(`미적분학2(EC)(Calculus2(EC))` vs `미적분학2(EC)`) 뒤쪽 영문 괄호를
-균형 맞춰 떼고 EC 태그를 붙였다 뗐다 하며 매칭합니다.
 
 ### 교육과정 적재
 ```bash

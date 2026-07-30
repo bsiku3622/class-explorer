@@ -14,7 +14,6 @@ export interface Course {
     category: Category;
     credits: number;
     ap_credits: number;
-    is_ec: boolean;
     is_pf: boolean;
     recommended_semester: string | null;
     description: string | null;
@@ -179,11 +178,17 @@ const REQUIREMENT_LABEL: Record<string, string> = {
     ec: "EC",
 };
 
-/** 이수한 과목들로 졸업 요건 진척도를 계산합니다 */
+/**
+ * 이수한 과목들로 졸업 요건 진척도를 계산합니다.
+ *
+ * `englishTaken`은 **영어강의로 들은** 과목들입니다. EC 요건은 과목의 성질이 아니라
+ * 어느 분반을 들었느냐로 정해지므로, 교육과정 정의가 아니라 수강 이력에서 옵니다.
+ */
 export const computeProgress = (
     taken: Set<string>,
     byName: Map<string, Course>,
     requirements: Record<string, number>,
+    englishTaken: Set<string> = new Set(),
 ): Progress => {
     const byCategory: Record<string, number> = {};
     let totalCredits = 0;
@@ -196,7 +201,7 @@ export const computeProgress = (
         totalCredits += course.credits;
         apCredits += course.ap_credits;
         byCategory[course.category] = (byCategory[course.category] ?? 0) + course.credits;
-        if (course.is_ec) ecCredits += course.credits;
+        if (englishTaken.has(name)) ecCredits += course.credits;
     });
 
     const progress: RequirementProgress[] = Object.entries(requirements).map(
