@@ -1,5 +1,11 @@
 # Logs
 
+## 2026-07-30 — 배포 가이드를 실제 서버에 맞춤
+
+- 변경 파일: `deploy-guide.md`
+- 요약: 문서가 옛 프로젝트(`visualfailfinder`) 기준으로 남아 있었습니다. 적힌 API 도메인 `classes_api.bsiku.dev`는 **호스트명에 밑줄을 못 써서 아예 존재하지 않는 주소**였고(실제는 `classesapi.bsiku.dev`), 프론트도 rsync가 아니라 Netlify 자동 배포입니다.
+- 실제 값으로 맞췄습니다 — 경로 `/srv/ksa-class-finder`, 서비스 `class-explorer.service`, HTTPS는 Cloudflare가 앞단에서 처리하고 nginx는 80으로만 받습니다. 평소 배포 절차를 맨 위로 올렸습니다.
+
 ## 2026-07-30 — 학기 선택을 드롭다운으로
 
 - 변경 파일: `frontend/src/components/TermSwitcher.tsx`, `frontend/component-guide.md`
