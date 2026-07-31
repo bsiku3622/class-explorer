@@ -7,18 +7,20 @@ import {
     Clock,
     Plus,
     Minus,
-    Calendar,
     BookOpen,
 } from "lucide-react";
-import { Spinner, Tooltip } from "@heroui/react";
-import type { SubjectData } from "../types";
-import { getStudentColor, getKoreanName } from "../lib/utils";
-import { tooltipMotionProps } from "../constants/motion";
+import { Spinner } from "@heroui/react";
+import type {
+    EnrollmentStats,
+    Histogram,
+    SubjectData,
+    Term,
+} from "../types";
+import { fetchEnrollmentStats } from "../lib/benchApi";
+import { getKoreanName } from "../lib/utils";
 import RetroButton from "../components/atoms/RetroButton";
 import RetroCard from "../components/atoms/RetroCard";
 import FilterSection from "../components/FilterSection";
-import RetroSubTitle from "../components/atoms/RetroSubTitle";
-import StudentBadge from "../components/atoms/StudentBadge";
 import PageHeader from "../components/molecules/PageHeader";
 import AccordionSection from "../components/molecules/AccordionSection";
 import BarChartRow from "../components/molecules/BarChartRow";
@@ -34,6 +36,8 @@ interface AnalysisPageProps {
         isTeacher?: boolean,
         isRoom?: boolean,
     ) => void;
+    /** 수강 분포를 서버에서 받을 때 씁니다 */
+    term: Term | null;
 }
 
 
@@ -99,14 +103,33 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
     fetchInitialData,
     loading = false,
     handleSearch,
+    term,
 }) => {
     const navigate = useNavigate();
     const [selectedYears, setSelectedYears] = useState<string[]>(() => Object.keys(studentCounts));
+    const [enrollmentStats, setEnrollmentStats] = useState<EnrollmentStats | null>(
+        null,
+    );
 
     useEffect(() => {
         const years = Object.keys(studentCounts);
         if (years.length > 0 && selectedYears.length === 0) setSelectedYears(years);
     }, [studentCounts]);
+
+    // 수강 분포는 명단이 있어야 셀 수 있어서 서버가 세어 줍니다
+    useEffect(() => {
+        let cancelled = false;
+        fetchEnrollmentStats(term)
+            .then((result) => {
+                if (!cancelled) setEnrollmentStats(result);
+            })
+            .catch(() => {
+                if (!cancelled) setEnrollmentStats(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [term]);
 
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({
         compare: false,
@@ -122,114 +145,22 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
         teachers: false,
         rooms: false,
     });
-    const [compareSearch, setCompareSearch] = useState("");
-    const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-    const [focusedSuggestionIndex, setFocusedSuggestionIndex] = useState(-1);
-    const [activeCellKey, setActiveCellKey] = useState<string | null>(null);
-
-    useEffect(() => {
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape") setActiveCellKey(null);
-        };
-        window.addEventListener("keydown", handleEsc);
-        return () => window.removeEventListener("keydown", handleEsc);
-    }, []);
-
     const toggleSection = (section: string) =>
         setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
     const toggleExpand = (listId: string) =>
         setExpandLists((prev) => ({ ...prev, [listId]: !prev[listId] }));
 
-    // --- Data Processing ---
-    const studentInfoMap = useMemo(() => {
-        const map: Record<
-            string,
-            { name: string; schedule: Record<string, string> }
-        > = {};
-        if (!allClassesData) return map;
-        allClassesData.forEach((sub) =>
-            sub.sections.forEach((sec) =>
-                sec.students.forEach((stu) => {
-                    if (!map[stu.stuId])
-                        map[stu.stuId] = { name: stu.name, schedule: {} };
-                    (sec.times || []).forEach((t) => {
-                        map[stu.stuId].schedule[`${t.day}-${t.period}`] =
-                            getKoreanName(sub.subject);
-                    });
-                }),
-            ),
-        );
-        return map;
-    }, [allClassesData]);
-
-    const studentSuggestions = useMemo(() => {
-        if (compareSearch.length < 2) return [];
-        return Object.entries(studentInfoMap)
-            .filter(
-                ([id, data]) =>
-                    data.name.includes(compareSearch) ||
-                    id.includes(compareSearch),
-            )
-            .filter(([id]) => !selectedStudentIds.includes(id))
-            .slice(0, 5);
-    }, [compareSearch, studentInfoMap, selectedStudentIds]);
-
-    const commonFreePeriods = useMemo(() => {
-        if (selectedStudentIds.length < 2) return [];
-        const DAYS = ["MON", "TUE", "WED", "THU", "FRI"],
-            PERIODS = Array.from({ length: 11 }, (_, i) => i + 1),
-            free: string[] = [];
-        DAYS.forEach((day) =>
-            PERIODS.forEach((period) => {
-                const key = `${day}-${period}`;
-                if (
-                    selectedStudentIds.every(
-                        (id) => !studentInfoMap[id]?.schedule[key],
-                    )
-                )
-                    free.push(key);
-            }),
-        );
-        return free;
-    }, [selectedStudentIds, studentInfoMap]);
-
-    const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-        if (e.nativeEvent.isComposing || studentSuggestions.length === 0)
-            return;
-        if (e.key === "ArrowDown") {
-            e.preventDefault();
-            setFocusedSuggestionIndex((p) =>
-                p < studentSuggestions.length - 1 ? p + 1 : p,
-            );
-        } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setFocusedSuggestionIndex((p) => (p > 0 ? p - 1 : 0));
-        } else if (e.key === "Enter") {
-            e.preventDefault();
-            const targetId =
-                focusedSuggestionIndex >= 0
-                    ? studentSuggestions[focusedSuggestionIndex][0]
-                    : studentSuggestions[0][0];
-            setSelectedStudentIds((prev) => [...prev, targetId]);
-            setCompareSearch("");
-        }
-    };
-
+    // 예전에는 명단을 직접 세면서 학년까지 걸렀습니다. 명단이 없으니 서버가 세어 준
+    // 과목 전체 인원을 씁니다 — 대신 학년 필터가 이 목록에는 걸리지 않습니다.
     const allSubjectStats = useMemo(() => {
         return allClassesData
-            .map((sub) => {
-                const uniqueStudents = new Set<string>();
-                sub.sections.forEach((sec) =>
-                    sec.students.forEach((stu) => {
-                        if (selectedYears.includes(stu.stuId.split("-")[0]))
-                            uniqueStudents.add(stu.stuId);
-                    }),
-                );
-                return { name: sub.subject, studentCount: uniqueStudents.size };
-            })
+            .map((sub) => ({
+                name: sub.subject,
+                studentCount: sub.subject_student_count,
+            }))
             .filter((s) => s.studentCount > 0)
             .sort((a, b) => b.studentCount - a.studentCount);
-    }, [allClassesData, selectedYears]);
+    }, [allClassesData]);
     const allTeacherStats = useMemo(() => {
         const stats: Record<string, { sections: number; periods: number }> = {};
         allClassesData.forEach((sub) =>
@@ -269,93 +200,37 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
             .sort((a, b) => b.periods - a.periods);
     }, [allClassesData]);
 
-    // weeklyPeriodsStats + periodsYearStats 통합 (단일 순회)
+    // 예전에는 명단을 프론트가 통째로 들고 직접 셌습니다. 명단이 없으니 세는 일을
+    // 서버가 대신합니다 (`GET /stats/enrollment`) — 분포만 오고 누가 어디 있는지는
+    // 오지 않습니다. 학년별로 쪼갠 값은 전교 집계라 그대로 받습니다.
+    //
+    // **과목별 학번 분포는 사라졌습니다.** 1학년 필수 과목에서 혼자 다른 학번이면
+    // 그게 곧 재수강 표시라, 이름이 없어도 그 사실만으로 드러납니다.
     const periodStats = useMemo(() => {
-        const byStudent: Record<string, { year: string; periods: Set<string> }> = {};
-        allClassesData.forEach((sub) =>
-            sub.sections.forEach((sec) =>
-                sec.students.forEach((stu) => {
-                    const year = stu.stuId.split("-")[0];
-                    if (!selectedYears.includes(year)) return;
-                    if (!byStudent[stu.stuId]) byStudent[stu.stuId] = { year, periods: new Set() };
-                    (sec.times || []).forEach((t) =>
-                        byStudent[stu.stuId].periods.add(`${t.day}-${t.period}`),
-                    );
-                }),
-            ),
-        );
-        const countMap: Record<number, number> = {};
-        const yearMap: Record<number, Record<string, number>> = {};
-        Object.values(byStudent).forEach(({ year, periods }) => {
-            const count = periods.size;
-            countMap[count] = (countMap[count] || 0) + 1;
-            if (!yearMap[count]) yearMap[count] = {};
-            yearMap[count][year] = (yearMap[count][year] || 0) + 1;
-        });
+        const histogram: Histogram | undefined = enrollmentStats?.weekly_periods;
         return {
-            weeklyPeriodsStats: Object.entries(countMap)
-                .map(([periods, students]) => ({ periods: Number(periods), students }))
+            weeklyPeriodsStats: Object.entries(histogram?.total ?? {})
+                .map(([periods, students]) => ({
+                    periods: Number(periods),
+                    students,
+                }))
                 .sort((a, b) => a.periods - b.periods),
-            periodsYearStats: yearMap,
+            periodsYearStats: histogram?.by_year ?? {},
         };
-    }, [allClassesData, selectedYears]);
+    }, [enrollmentStats]);
 
-    // subjectCountStats + subjectCountYearStats + subjectYearStats 통합 (단일 순회)
     const subjectStats = useMemo(() => {
-        const byStudent: Record<string, { year: string; subjects: Set<string> }> = {};
-        const subjectYearSets: Record<string, Record<string, Set<string>>> = {};
-        allClassesData.forEach((sub) => {
-            sub.sections.forEach((sec) =>
-                sec.students.forEach((stu) => {
-                    const year = stu.stuId.split("-")[0];
-                    if (!selectedYears.includes(year)) return;
-                    if (!byStudent[stu.stuId]) byStudent[stu.stuId] = { year, subjects: new Set() };
-                    byStudent[stu.stuId].subjects.add(sub.subject);
-                    if (!subjectYearSets[sub.subject]) subjectYearSets[sub.subject] = {};
-                    if (!subjectYearSets[sub.subject][year]) subjectYearSets[sub.subject][year] = new Set();
-                    subjectYearSets[sub.subject][year].add(stu.stuId);
-                }),
-            );
-        });
-        const countMap: Record<number, number> = {};
-        const yearMap: Record<number, Record<string, number>> = {};
-        Object.values(byStudent).forEach(({ year, subjects }) => {
-            const count = subjects.size;
-            countMap[count] = (countMap[count] || 0) + 1;
-            if (!yearMap[count]) yearMap[count] = {};
-            yearMap[count][year] = (yearMap[count][year] || 0) + 1;
-        });
-        const subjectYearStats: Record<string, Record<string, number>> = {};
-        Object.entries(subjectYearSets).forEach(([sub, years]) => {
-            subjectYearStats[sub] = {};
-            Object.entries(years).forEach(([year, ids]) => {
-                subjectYearStats[sub][year] = ids.size;
-            });
-        });
+        const histogram: Histogram | undefined = enrollmentStats?.subject_count;
         return {
-            subjectCountStats: Object.entries(countMap)
-                .map(([subjectCount, students]) => ({ subjectCount: Number(subjectCount), students }))
+            subjectCountStats: Object.entries(histogram?.total ?? {})
+                .map(([subjectCount, students]) => ({
+                    subjectCount: Number(subjectCount),
+                    students,
+                }))
                 .sort((a, b) => a.subjectCount - b.subjectCount),
-            subjectCountYearStats: yearMap,
-            subjectYearStats,
+            subjectCountYearStats: histogram?.by_year ?? {},
         };
-    }, [allClassesData, selectedYears]);
-
-    const conflictCount = useMemo(() => {
-        if (selectedStudentIds.length < 2) return 0;
-        const DAYS_LIST = ["MON", "TUE", "WED", "THU", "FRI"];
-        const PERIODS_LIST = Array.from({ length: 11 }, (_, i) => i + 1);
-        let count = 0;
-        DAYS_LIST.forEach((day) =>
-            PERIODS_LIST.forEach((period) => {
-                const key = `${day}-${period}`;
-                if (!selectedStudentIds.every((id) => !!studentInfoMap[id]?.schedule[key])) return;
-                const first = studentInfoMap[selectedStudentIds[0]]?.schedule[key];
-                if (!selectedStudentIds.every((id) => studentInfoMap[id]?.schedule[key] === first)) count++;
-            }),
-        );
-        return count;
-    }, [selectedStudentIds, studentInfoMap]);
+    }, [enrollmentStats]);
 
     const teacherLoadDistribution = useMemo(() => {
         const countMap: Record<number, number> = {};
@@ -432,242 +307,9 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                     </RetroCard>
                 ))}
             </div>
-            <AccordionSection
-                title="Timetable Compare"
-                icon={Calendar}
-                isOpen={openSections.compare}
-                onToggle={() => toggleSection("compare")}
-            >
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                    <div className="space-y-6">
-                        <div className="relative">
-                            <RetroSubTitle
-                                title="Search & Add Students"
-                                icon={Users}
-                            />
-                            <div className="mt-3" />
-                            <input
-                                type="text"
-                                placeholder="Name or ID..."
-                                value={compareSearch}
-                                onChange={(e) =>
-                                    setCompareSearch(e.target.value)
-                                }
-                                onKeyDown={handleSearchKeyDown}
-                                className="w-full bg-white border-2 border-black p-3 text-sm font-bold focus:outline-none shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]"
-                            />
-                            {studentSuggestions.length > 0 && (
-                                <div className="absolute top-full left-0 right-0 z-50 bg-white border-2 border-black mt-1 shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]">
-                                    {studentSuggestions.map(
-                                        ([id, data], index) => (
-                                            <button
-                                                key={id}
-                                                onClick={() => {
-                                                    setSelectedStudentIds(
-                                                        (prev) => [...prev, id],
-                                                    );
-                                                    setCompareSearch("");
-                                                }}
-                                                className={`w-full text-left p-3 border-b last:border-b-0 border-black/5 flex items-center ${index === focusedSuggestionIndex ? "bg-retro-accent-light" : "hover:bg-retro-accent-light"}`}
-                                            >
-                                                <StudentBadge
-                                                    studentId={id}
-                                                    studentName={data.name}
-                                                />
-                                            </button>
-                                        ),
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                        <div className="space-y-3">
-                            <RetroSubTitle
-                                title="Comparing Students"
-                                icon={Users}
-                            />
-                            <div className="flex flex-wrap gap-2">
-                                {selectedStudentIds.map((id) => (
-                                    <StudentBadge
-                                        key={id}
-                                        studentId={id}
-                                        studentName={studentInfoMap[id]?.name}
-                                        onClick={() =>
-                                            setSelectedStudentIds((prev) =>
-                                                prev.filter(
-                                                    (sid) => sid !== id,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                ))}
-                                {selectedStudentIds.length === 0 && (
-                                    <p className="text-sm font-bold text-black/20">
-                                        No selection.
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="w-full">
-                        <div className="flex items-center gap-3">
-                            <RetroSubTitle
-                                title="Common Empty Slots"
-                                icon={Clock}
-                            />
-                            {conflictCount > 0 && (
-                                <span className="text-[10px] font-black uppercase bg-orange-100 border-2 border-orange-300 text-orange-600 px-2 py-0.5">
-                                    {conflictCount} Conflict{conflictCount > 1 ? "s" : ""}
-                                </span>
-                            )}
-                        </div>
-                        <div className="mt-3" />
-                        <div className="overflow-x-auto">
-                        <div className="bg-white border-2 border-black overflow-hidden shadow-[6px_6px_0_0_rgba(0,0,0,0.1)] min-w-[280px]">
-                            <div className="grid grid-cols-[40px_repeat(5,1fr)] divide-x divide-black/10 border-b border-black bg-black text-white">
-                                <div className="p-2 text-[10px] font-black text-center">
-                                    PD
-                                </div>
-                                {["MON", "TUE", "WED", "THU", "FRI"].map(
-                                    (day) => (
-                                        <div
-                                            key={day}
-                                            className="p-2 text-[10px] font-black text-center"
-                                        >
-                                            {day}
-                                        </div>
-                                    ),
-                                )}
-                            </div>
-                            {Array.from({ length: 11 }, (_, i) => i + 1).map(
-                                (period) => (
-                                    <div
-                                        key={period}
-                                        className="grid grid-cols-[40px_repeat(5,1fr)] divide-x divide-black/10 border-b last:border-b-0 border-black/5"
-                                    >
-                                        <div className="bg-black/5 flex items-center justify-center text-[10px] font-black">
-                                            {period}
-                                        </div>
-                                        {[
-                                            "MON",
-                                            "TUE",
-                                            "WED",
-                                            "THU",
-                                            "FRI",
-                                        ].map((day) => {
-                                            const key = `${day}-${period}`,
-                                                isFree =
-                                                    selectedStudentIds.length >=
-                                                        2 &&
-                                                    commonFreePeriods.includes(
-                                                        key,
-                                                    ),
-                                                first =
-                                                    selectedStudentIds.length >
-                                                    0
-                                                        ? studentInfoMap[
-                                                              selectedStudentIds[0]
-                                                          ]?.schedule[key]
-                                                        : null,
-                                                isCommonClass =
-                                                    selectedStudentIds.length >=
-                                                        2 &&
-                                                    first &&
-                                                    selectedStudentIds.every(
-                                                        (id) =>
-                                                            studentInfoMap[id]
-                                                                ?.schedule[
-                                                                key
-                                                            ] === first,
-                                                    ),
-                                                isConflict =
-                                                    selectedStudentIds.length >=
-                                                        2 &&
-                                                    !isCommonClass &&
-                                                    !isFree &&
-                                                    selectedStudentIds.every(
-                                                        (id) =>
-                                                            !!studentInfoMap[id]
-                                                                ?.schedule[key],
-                                                    );
-                                            return (
-                                                <Tooltip
-                                                    key={day}
-                                                    isOpen={
-                                                        activeCellKey === key
-                                                    }
-                                                    content={
-                                                        <div className="p-3 min-w-[180px] space-y-1.5">
-                                                            <p className="text-[10px] font-black border-b border-black/10 pb-1 mb-2 uppercase">
-                                                                {day} Pd{" "}
-                                                                {period}
-                                                            </p>
-                                                            {selectedStudentIds.map(
-                                                                (id) => (
-                                                                    <div
-                                                                        key={id}
-                                                                        className="flex justify-between gap-4"
-                                                                    >
-                                                                        <span
-                                                                            className="text-[10px] font-black"
-                                                                            style={{
-                                                                                color: getStudentColor(
-                                                                                    id,
-                                                                                ),
-                                                                            }}
-                                                                        >
-                                                                            {
-                                                                                studentInfoMap[
-                                                                                    id
-                                                                                ]
-                                                                                    ?.name
-                                                                            }
-                                                                        </span>
-                                                                        <span
-                                                                            className={`text-[9px] font-bold px-1.5 py-0.5 border ${studentInfoMap[id]?.schedule[key] ? "bg-black/5 text-black/60" : "bg-retro-green/10 text-retro-green"}`}
-                                                                        >
-                                                                            {studentInfoMap[
-                                                                                id
-                                                                            ]
-                                                                                ?.schedule[
-                                                                                key
-                                                                            ] ||
-                                                                                "Free"}
-                                                                        </span>
-                                                                    </div>
-                                                                ),
-                                                            )}
-                                                        </div>
-                                                    }
-                                                    classNames={{
-                                                        content:
-                                                            "p-0 rounded-none border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]",
-                                                    }}
-                                                    motionProps={
-                                                        tooltipMotionProps
-                                                    }
-                                                >
-                                                    <div
-                                                        onClick={() =>
-                                                            setActiveCellKey(
-                                                                activeCellKey ===
-                                                                    key
-                                                                    ? null
-                                                                    : key,
-                                                            )
-                                                        }
-                                                        className={`h-10 transition-all duration-300 relative cursor-pointer ${activeCellKey === key ? "ring-2 ring-inset ring-black z-10" : "hover:bg-black/[0.03]"} ${isConflict ? "bg-orange-100" : isCommonClass ? "bg-retro-primary/20" : isFree ? "bg-retro-green/20" : "bg-white"}`}
-                                                    />
-                                                </Tooltip>
-                                            );
-                                        })}
-                                    </div>
-                                ),
-                            )}
-                        </div>
-                        </div>
-                    </div>
-                </div>
-            </AccordionSection>
+            {/* "Timetable Compare" 가 여기 있었습니다 — 학생 여럿을 골라 시간표를
+                겹쳐 보고 공강을 찾는 기능이었는데, 명단도 다중 조회도 없는 ksa-bench 에서는
+                성립하지 않아 뺐습니다. 되살린다면 서로 동의한 사이에서만 되는 형태여야 합니다 */}
             <AccordionSection
                 title="Subjects by Enrollment"
                 icon={BookOpen}
@@ -686,11 +328,8 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                 caption={`${s.studentCount} Students`}
                                 captionClassName="text-retro-primary"
                                 onLabelClick={() => handleSearch(getKoreanName(s.name))}
-                                tooltipContent={
-                                    subjectStats.subjectYearStats[s.name]
-                                        ? <YearBreakdown yearData={subjectStats.subjectYearStats[s.name]} />
-                                        : undefined
-                                }
+                                /* 과목별 학번 분포는 뺐습니다 — 1학년 필수 과목에서
+                                   혼자 다른 학번이면 그게 곧 재수강 표시입니다 */
                             />
                         ))}
                     <ShowMoreButton

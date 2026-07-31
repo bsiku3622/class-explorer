@@ -1,647 +1,199 @@
-import {
-    formatSubjectWithSection,
-    DAY_MAP as dayMap,
-    replaceRomanNumerals,
-    getKoreanName,
-} from "./utils";
-
-const _CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
-const _chosungCache = new Map<string, string>();
-
 /**
- * 한글 문자열에서 초성을 추출합니다. (결과 캐싱으로 중복 연산 방지)
- */
-export const getChosung = (str: string): string => {
-    const cached = _chosungCache.get(str);
-    if (cached !== undefined) return cached;
-    let result = "";
-    for (let i = 0; i < str.length; i++) {
-        const code = str.charCodeAt(i) - 44032;
-        result += (code > -1 && code < 11172) ? _CHO[Math.floor(code / 588)] : str.charAt(i);
-    }
-    _chosungCache.set(str, result);
-    return result;
-};
-
-const _normalizeCache = new Map<string, string>();
-
-/**
- * 비교용 정규화: 소문자 · 로마숫자 → 아라비아 · 구분 기호 제거
- * 예) "영어Ⅲ(English III)" → "영어3english3"
- */
-const normalize = (str: string): string => {
-    const cached = _normalizeCache.get(str);
-    if (cached !== undefined) return cached;
-    // 로마숫자 치환이 먼저입니다 — toLowerCase가 "Ⅲ"를 "ⅲ"로 바꿔버리면 매칭에 실패합니다
-    const result = replaceRomanNumerals(str)
-        .toLowerCase()
-        .replace(/[\s,./\-_()[\]]/g, "");
-    _normalizeCache.set(str, result);
-    return result;
-};
-
-/**
- * needle의 문자들이 haystack에 순서대로 나타나는 구간 중 가장 짧은 길이.
- * 매칭되지 않으면 Infinity.
- */
-const minMatchSpan = (haystack: string, needle: string): number => {
-    let best = Infinity;
-    for (let start = 0; start <= haystack.length - needle.length; start++) {
-        if (haystack[start] !== needle[0]) continue;
-        let k = 0;
-        let i = start;
-        for (; i < haystack.length && k < needle.length; i++) {
-            if (haystack[i] === needle[k]) k++;
-        }
-        if (k === needle.length && i - start < best) best = i - start;
-    }
-    return best;
-};
-
-/**
- * 띄엄띄엄 입력한 검색어를 매칭합니다. 예) "정3" → "정보과학3"
+ * ksa-bench 검색 — **과목·교사·강의실만** 봅니다.
  *
- * 문자가 순서대로 나타나기만 하면 통과시키면 오탐이 쏟아지므로,
- * 매칭 구간이 검색어 길이에 비해 지나치게 벌어지면 탈락시킵니다.
- * "그세"가 "그림,음악,영화로보는세계사"에 걸리는 것을 막는 장치입니다.
+ * class-explorer 의 검색 엔진은 불린 연산(`+ & / ( ) !`)·초성 매칭·학생 축까지 있는
+ * 647줄짜리였습니다. 여기서는 그걸 다 걷어냈습니다. 이유는 셋입니다.
+ *
+ * 1. **학생은 클라이언트에 없습니다.** 명단이 응답에서 빠졌으니 훑을 대상이 없습니다.
+ *    사람은 `benchApi.searchStudents()` 로 서버에 한 명씩 물어봅니다
+ * 2. **다중 검색은 우회로였습니다.** 학번이 연속이라 `25-001+25-002+…` 를 허용하면
+ *    한 방에 전교생이 긁힙니다. 연산자를 없애는 게 UI 규칙이 아니라 구조가 됩니다
+ * 3. **초성은 열거 지렛대였습니다.** `ㄱㅊㅅ` 하나로 수십 명이 걸립니다
+ *
+ * 남은 문법은 두 가지뿐입니다.
+ * - `t:`(`te`·`teacher`) · `r:`(`ro`·`room`) 접두사
+ * - `체육4/2,3` — 과목 뒤에 분반 번호. 여러 개는 콤마로
  */
-export const fuzzyMatch = (item: string, term: string): boolean => {
-    if (!item || !term) return false;
-    const haystack = normalize(item);
-    const needle = normalize(term);
-    if (!needle || !haystack) return false;
 
-    if (haystack.includes(needle)) return true;
-    if (needle.length < 2) return false;
+import type { SearchEntity, SectionTime, SubjectData } from "../types";
+import { getKoreanName, replaceRomanNumerals } from "./utils";
 
-    const limit = needle.length * 3 + 2;
-    if (minMatchSpan(haystack, needle) <= limit) return true;
-
-    // 초성이 섞인 검색어도 같은 방식으로 처리 — "ㅈㅂ3" → "정보과학3"
-    return minMatchSpan(getChosung(haystack), needle) <= limit;
-};
-
-/**
- * 초성·유사도 검색을 포함한 문자열 매칭 함수
- */
-const matchesItem = (item: string, term: string, strictIDMatch: boolean = false) => {
-    const lowerItem = item.toLowerCase();
-    const lowerTerm = term.toLowerCase();
-
-    // 1. 학번 검색 (strictIDMatch인 경우)
-    if (strictIDMatch && item.includes("-") && term.includes("-")) {
-        if (term.length <= 3) return lowerItem.startsWith(lowerTerm);
-        return lowerItem === lowerTerm;
-    }
-
-    // 2. 일반 포함 검색
-    if (lowerItem.includes(lowerTerm)) return true;
-
-    // 3. 초성 검색 지원
-    const isChosungOnly = /^[ㄱ-ㅎ]+$/.test(lowerTerm);
-    if (isChosungOnly) {
-        const itemChosung = getChosung(lowerItem);
-        return itemChosung.includes(lowerTerm);
-    }
-
-    // 4. 유사도 검색 — 별칭 등록 없이도 줄여 쓴 검색어를 받아냅니다
-    return fuzzyMatch(item, term);
-};
-
-/**
- * 논리식 평가 함수: +, &, &&, (), ! 연산자를 지원합니다.
- */
-export const evaluateBoolExpression = (
-    expression: string,
-    pool: string[],
-    strictIDMatch: boolean = false,
-): boolean => {
-    const trimmedExpr = expression.trim();
-    if (!trimmedExpr) return true;
-
-    const tokens =
-        trimmedExpr
-            .match(/\(|\)|&&|&|\+|!|[^\(\)+&!]+/g)
-            ?.map((t) => t.trim())
-            .filter((t) => t) || [];
-
-    if (
-        tokens.length === 1 &&
-        !["(", ")", "+", "&", "&&", "!"].includes(tokens[0])
-    ) {
-        const term = tokens[0];
-        return pool.some((item) => matchesItem(item, term, strictIDMatch));
-    }
-
-    let current = 0;
-
-    const parseExpression = (): boolean => {
-        let result = parseAndTerm();
-        while (current < tokens.length && tokens[current] === "+") {
-            current++;
-            const next = parseAndTerm();
-            result = result || next;
-        }
-        return result;
-    };
-
-    const parseAndTerm = (): boolean => {
-        let result = parseUnary();
-        while (
-            current < tokens.length &&
-            (tokens[current] === "&" || tokens[current] === "&&")
-        ) {
-            current++;
-            const next = parseUnary();
-            result = result && next;
-        }
-        return result;
-    };
-
-    const parseUnary = (): boolean => {
-        if (current < tokens.length && tokens[current] === "!") {
-            current++;
-            return !parseFactor();
-        }
-        return parseFactor();
-    };
-
-    const parseFactor = (): boolean => {
-        if (current >= tokens.length) return false;
-        const token = tokens[current++];
-        if (token === "(") {
-            const result = parseExpression();
-            if (current < tokens.length && tokens[current] === ")") current++;
-            return result;
-        }
-        const term = token;
-        return pool.some((item) => matchesItem(item, term, strictIDMatch));
-    };
-
-    try {
-        return parseExpression();
-    } catch (e) {
-        return false;
-    }
-};
+export type SearchMode = "general" | "teacher" | "room";
 
 export interface SearchResult {
-    data: any[];
-    entities: any[];
-    mode: "general" | "student" | "teacher" | "room";
-    warning?: string;
+    data: SubjectData[];
+    entities: SearchEntity[];
+    mode: SearchMode;
     stats: {
         keyword: string;
         total_subjects: number;
         total_sections: number;
-        total_matched_students: number;
     };
 }
 
-const parseQuery = (searchTerm: string, _allData: any[]) => {
-    let cleanKeyword = searchTerm.trim();
-    let mode: "general" | "student" | "teacher" | "room" = "general";
-    let effectiveQuery = cleanKeyword;
-    let warning: string | undefined = undefined;
+/** 로마숫자를 아라비아로 바꾸고 공백·대소문자를 지웁니다 (`영어Ⅲ` → `영어3`) */
+const normalize = (value: string): string =>
+    replaceRomanNumerals(value ?? "")
+        .toLowerCase()
+        .replace(/\s+/g, "");
 
-    // '국어1/1' 같은 과목/분반 패턴 확인. '체육4/2,3'처럼 분반 여러 개도 받습니다
-    const isDividerSearch = /.+\/\d+(?:\s*,\s*\d+)*$/.test(cleanKeyword);
+const contains = (haystack: string, needle: string): boolean =>
+    normalize(haystack).includes(normalize(needle));
 
-    if (cleanKeyword.includes(":")) {
-        const [prefix, ...rest] = cleanKeyword.split(":");
-        const query = rest.join(":").trim();
-        const p = prefix.toLowerCase();
-
-        if (["t", "te", "teacher"].includes(p)) {
-            mode = "teacher";
-            effectiveQuery = query;
-        } else if (["s", "st", "student"].includes(p)) {
-            mode = "student";
-            effectiveQuery = query;
-        } else if (["r", "ro", "room"].includes(p)) {
-            mode = "room";
-            effectiveQuery = query;
-        }
-
-        if (mode !== "general") {
-            const hasLogic =
-                effectiveQuery.includes("&") ||
-                effectiveQuery.includes("+") ||
-                effectiveQuery.includes("(") ||
-                effectiveQuery.includes(")");
-            if (hasLogic) {
-                warning =
-                    "인물/강의실 전용 검색 모드(:)에서는 복합 논리 연산이 제한될 수 있습니다. 전체 검색을 권장합니다.";
-            }
-        }
-    }
-
-    const matchBase = effectiveQuery;
-    let flatTerms: string[] = [];
-    if (warning) {
-        flatTerms = [matchBase.toLowerCase()];
-    } else {
-        flatTerms = matchBase
-            .split(/[+&()!]+/)
-            .map((t) => t.trim().toLowerCase())
-            .filter((t) => t);
-    }
-
-    return {
-        mode,
-        effectiveQuery,
-        flatTerms,
-        warning,
-        isStrictMode: searchTerm.includes("&&") || mode === "room" || isDividerSearch,
-        isDividerSearch,
-    };
+const sectionNumber = (section: string): number => {
+    const match = section.match(/\d+/);
+    return match ? Number(match[0]) : 0;
 };
 
-const filterMatchingClasses = (
-    allData: any[],
-    queryParams: ReturnType<typeof parseQuery>,
-    selectedYears: string[],
-) => {
-    const {
-        mode,
-        effectiveQuery,
-        flatTerms: _flatTerms,
-        warning,
-        isDividerSearch,
-    } = queryParams;
-    const matchingClasses: any[] = [];
+interface ParsedQuery {
+    mode: SearchMode;
+    query: string;
+    /** `체육4/2,3` 의 `[2, 3]`. 비어 있으면 분반을 안 가립니다 */
+    sections: number[];
+}
 
-    // '국어1/1' 패턴에서 과목과 분반 분리 (분반은 콤마로 여러 개 가능)
-    let targetSubject = "";
-    const targetSections = new Set<string>();
-    if (isDividerSearch) {
-        const lastSlashIndex = effectiveQuery.lastIndexOf("/");
-        targetSubject = effectiveQuery.substring(0, lastSlashIndex).toLowerCase();
-        effectiveQuery
-            .substring(lastSlashIndex + 1)
+const PREFIX: Record<string, SearchMode> = {
+    t: "teacher",
+    te: "teacher",
+    teacher: "teacher",
+    r: "room",
+    ro: "room",
+    room: "room",
+};
+
+export const parseQuery = (searchTerm: string): ParsedQuery => {
+    let query = searchTerm.trim();
+    let mode: SearchMode = "general";
+
+    if (query.includes(":")) {
+        const [prefix, ...rest] = query.split(":");
+        const resolved = PREFIX[prefix.trim().toLowerCase()];
+        if (resolved) {
+            mode = resolved;
+            query = rest.join(":").trim();
+        }
+    }
+
+    // `체육4/2,3` — 뒤에 붙은 분반 번호를 떼어 냅니다
+    let sections: number[] = [];
+    const divider = query.match(/^(.*?)\/(\d+(?:\s*,\s*\d+)*)$/);
+    if (divider) {
+        query = divider[1].trim();
+        sections = divider[2]
             .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-            .forEach((s) => targetSections.add(s));
+            .map((n) => Number(n.trim()))
+            .filter((n) => !Number.isNaN(n));
     }
 
-    allData.forEach((subject) => {
-        const subjectName = subject.subject;
-        subject.sections.forEach((sec: any) => {
-            const activeStudents = sec.students.filter((s: any) =>
-                selectedYears.includes(s.stuId.split("-")[0]),
-            );
-
-            const sectionPool = [
-                subjectName,
-                replaceRomanNumerals(subjectName),
-                // 영문 병기를 뗀 한글명 — 유사도 매칭의 정확도를 높입니다
-                getKoreanName(subjectName),
-                // 영문명으로도 찾을 수 있게 (Calculus, Physics ...)
-                subject.subject_english,
-                sec.section,
-                sec.teacher,
-                sec.room,
-                ...(sec.times || []).flatMap((t: any) => [
-                    t.room,
-                    `${t.day}${t.period}`,
-                    `${dayMap[t.day]}${t.period}`,
-                ]),
-                ...activeStudents.map((s: any) => s.stuId),
-                ...activeStudents.map((s: any) => s.name),
-            ].filter(Boolean);
-
-            const evaluate = (expr: string, pool: string[]) => {
-                if (warning && expr === effectiveQuery) {
-                    return pool.some((item) =>
-                        item.toLowerCase().includes(expr.toLowerCase()),
-                    );
-                }
-                return evaluateBoolExpression(expr, pool, mode === "student");
-            };
-
-            let isSectionMatch = false;
-
-            if (isDividerSearch) {
-                // 과목명과 분반 번호가 모두 일치해야 함 (분반은 숫자만 추출해서 비교)
-                // 과목명은 유사도까지 허용 — "체4/5" → 체육4 5분반
-                const sectionNum = sec.section.replace(/[^0-9]/g, "");
-                const subjectMatches =
-                    subjectName.toLowerCase().includes(targetSubject) ||
-                    fuzzyMatch(subjectName, targetSubject) ||
-                    fuzzyMatch(getKoreanName(subjectName), targetSubject) ||
-                    (!!subject.subject_english &&
-                        fuzzyMatch(subject.subject_english, targetSubject));
-                isSectionMatch = subjectMatches && targetSections.has(sectionNum);
-            } else if (mode === "student") {
-                isSectionMatch = evaluate(effectiveQuery, [
-                    ...activeStudents.map((s: any) => s.stuId),
-                    ...activeStudents.map((s: any) => s.name),
-                ]);
-            } else if (mode === "teacher") {
-                isSectionMatch = evaluate(effectiveQuery, [sec.teacher]);
-            } else if (mode === "room") {
-                const searchRoom = effectiveQuery.toLowerCase();
-                isSectionMatch = [sec.room, ...(sec.times || []).map((t: any) => t.room)]
-                    .filter(Boolean)
-                    .some(r => matchesItem(r, searchRoom));
-            } else {
-                isSectionMatch = evaluate(effectiveQuery, sectionPool);
-            }
-
-            if (isSectionMatch) {
-                if (activeStudents.length === 0 && mode !== "teacher") return;
-                
-                matchingClasses.push({
-                    ...sec,
-                    subject: subjectName,
-                    students: activeStudents,
-                    student_count: activeStudents.length,
-                });
-            }
-        });
-    });
-
-    return matchingClasses;
+    return { mode, query, sections };
 };
 
-const extractEntities = (
-    matchingClasses: any[],
-    flatTerms: string[],
-    mode: "general" | "student" | "teacher" | "room",
-    effectiveQuery: string,
-) => {
-    const entityMap = new Map<string, any>();
+/** 분반 번호 필터를 적용해 과목을 다시 만듭니다. 남는 분반이 없으면 null */
+const applySectionFilter = (
+    subject: SubjectData,
+    sections: number[],
+): SubjectData | null => {
+    if (sections.length === 0) return subject;
+    const kept = subject.sections.filter((s) =>
+        sections.includes(sectionNumber(s.section)),
+    );
+    return kept.length ? { ...subject, sections: kept } : null;
+};
 
-    matchingClasses.forEach((cls) => {
-        const searchRoom = effectiveQuery.toLowerCase();
-        const matchingRooms = new Set<string>();
-        
-        if (matchesItem(cls.room, searchRoom)) {
-            matchingRooms.add(cls.room);
-        }
-        (cls.times || []).forEach((t: any) => {
-            if (matchesItem(t.room, searchRoom)) {
-                matchingRooms.add(t.room);
-            }
-        });
+/** 교사·강의실을 검색 결과 카드로 묶습니다 */
+const buildEntities = (
+    type: "teacher" | "room",
+    data: SubjectData[],
+): SearchEntity[] => {
+    const byName = new Map<string, { subjects: Set<string>; times: SectionTime[] }>();
 
-        if (mode === "room" || (mode === "general" && matchingRooms.size > 0)) {
-            matchingRooms.forEach(roomName => {
-                const key = `room_${roomName}`;
-                if (!entityMap.has(key)) {
-                    entityMap.set(key, {
-                        type: "room",
-                        name: roomName,
-                        id: "Classroom",
-                        subjectsRaw: new Map<string, Set<string>>(),
-                        times: [],
-                    });
-                }
-                const roomEntity = entityMap.get(key);
-                const subKey = `${cls.teacher}|${cls.subject}`;
-                if (!roomEntity.subjectsRaw.has(subKey)) {
-                    roomEntity.subjectsRaw.set(subKey, new Set());
-                }
-                roomEntity.subjectsRaw.get(subKey).add(cls.section);
+    data.forEach((subject) => {
+        subject.sections.forEach((section) => {
+            const names =
+                type === "teacher"
+                    ? [section.teacher]
+                    : Array.from(
+                          new Set([
+                              section.room,
+                              ...section.times.map((t) => t.room),
+                          ]),
+                      );
 
-                if (cls.times) {
-                    cls.times.forEach((t: any) => {
-                        if (matchesItem(t.room, searchRoom)) {
-                            if (!roomEntity.times.some((et: any) => et.day === t.day && et.period === t.period)) {
-                                roomEntity.times.push({ 
-                                    ...t, 
-                                    subject: cls.subject,
-                                    section: cls.section,
-                                    teacher: cls.teacher
-                                });
-                            }
-                        }
-                    });
-                }
+            names.filter(Boolean).forEach((name) => {
+                if (!byName.has(name)) byName.set(name, { subjects: new Set(), times: [] });
+                const entry = byName.get(name)!;
+                entry.subjects.add(
+                    `${getKoreanName(subject.subject)}(${sectionNumber(section.section)})`,
+                );
+                section.times
+                    .filter((t) => type === "teacher" || t.room === name)
+                    .forEach((t) =>
+                        entry.times.push({
+                            ...t,
+                            subject: subject.subject,
+                            section: section.section,
+                            teacher: section.teacher,
+                        }),
+                    );
             });
-        }
-
-        const classTimeStrings = (cls.times || []).flatMap((t: any) => [
-            `${t.day}${t.period}`.toLowerCase(),
-            `${dayMap[t.day]}${t.period}`.toLowerCase(),
-        ]);
-
-        const isTeacherMatch = flatTerms.some(
-            (t) =>
-                matchesItem(cls.teacher, t) ||
-                classTimeStrings.includes(t.toLowerCase()),
-        );
-
-        if (isTeacherMatch) {
-            const key = `t_${cls.teacher}`;
-            if (!entityMap.has(key)) {
-                entityMap.set(key, {
-                    type: "teacher",
-                    name: cls.teacher,
-                    id: "Teacher",
-                    subjectsRaw: new Map<string, Set<string>>(),
-                    times: [],
-                });
-            }
-            const entity = entityMap.get(key);
-            const subKey = `${cls.room}|${cls.subject}`;
-            if (!entity.subjectsRaw.has(subKey)) {
-                entity.subjectsRaw.set(subKey, new Set());
-            }
-            entity.subjectsRaw.get(subKey).add(cls.section);
-
-            if (cls.times) {
-                cls.times.forEach((t: any) => {
-                    if (
-                        !entity.times.some(
-                            (et: any) =>
-                                et.day === t.day && et.period === t.period,
-                        )
-                    ) {
-                        entity.times.push({ 
-                            ...t, 
-                            subject: cls.subject,
-                            section: cls.section,
-                            teacher: cls.teacher
-                        });
-                    }
-                });
-            }
-        }
-
-        cls.students.forEach((s: any) => {
-            const isStudentMatch = flatTerms.some(
-                (t) =>
-                    matchesItem(s.stuId, t) ||
-                    matchesItem(s.name, t) ||
-                    classTimeStrings.includes(t.toLowerCase()),
-            );
-
-            if (isStudentMatch) {
-                if (!entityMap.has(s.stuId)) {
-                    entityMap.set(s.stuId, {
-                        type: "student",
-                        name: s.name,
-                        id: s.stuId,
-                        subjectsRaw: new Map<string, Set<string>>(),
-                        times: [],
-                    });
-                }
-                const entity = entityMap.get(s.stuId);
-                const subKey = `${cls.teacher}|${cls.subject}`;
-                if (!entity.subjectsRaw.has(subKey)) {
-                    entity.subjectsRaw.set(subKey, new Set());
-                }
-                entity.subjectsRaw.get(subKey).add(cls.section);
-
-                if (cls.times) {
-                    cls.times.forEach((t: any) => {
-                        if (
-                            !entity.times.some(
-                                (et: any) =>
-                                    et.day === t.day && et.period === t.period,
-                            )
-                        ) {
-                            entity.times.push({ 
-                                ...t, 
-                                subject: cls.subject,
-                                section: cls.section,
-                                teacher: cls.teacher
-                            });
-                        }
-                    });
-                }
-            }
         });
     });
 
-    return Array.from(entityMap.values()).map((e) => {
-        const formattedSubjects: string[] = [];
-        e.subjectsRaw.forEach((sections: Set<string>, key: string) => {
-            const [extra, subject] = key.split("|");
-            const position = e.type === "room" ? "prefix" : "suffix";
-            formattedSubjects.push(
-                formatSubjectWithSection(subject, Array.from(sections), extra, position)
-            );
-        });
-
-        return {
-            ...e,
-            subject_count: formattedSubjects.length,
-            subjects: formattedSubjects.sort(),
-        };
-    }).sort((a, b) => {
-        const priority: Record<string, number> = { teacher: 1, student: 2, room: 3 };
-        if (priority[a.type] !== priority[b.type]) {
-            return priority[a.type] - priority[b.type];
-        }
-        if (a.type === "teacher" || a.type === "room") {
-            return a.name.localeCompare(b.name, "ko");
-        } else {
-            return a.id.localeCompare(b.id);
-        }
-    });
+    return Array.from(byName.entries())
+        .map(([name, entry]) => ({
+            type,
+            name,
+            id: name,
+            subject_count: entry.subjects.size,
+            subjects: Array.from(entry.subjects).sort(),
+            times: entry.times,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
 };
 
 export const searchInClient = (
-    allData: any[],
+    allData: SubjectData[],
     searchTerm: string,
-    selectedYears: string[],
 ): SearchResult => {
-    if (!searchTerm.trim()) {
-        const filteredData = allData
-            .map((subject) => ({
-                ...subject,
-                sections: subject.sections
-                    .filter((sec: any) =>
-                        sec.students.some((s: any) =>
-                            selectedYears.includes(s.stuId.split("-")[0]),
-                        ),
-                    )
-                    .map((sec: any) => ({
-                        ...sec,
-                        students: sec.students.filter((s: any) =>
-                            selectedYears.includes(s.stuId.split("-")[0]),
-                        ),
-                    })),
-            }))
-            .filter((subject) => subject.sections.length > 0);
+    const { mode, query, sections } = parseQuery(searchTerm);
 
-        const totalMatchedStudents = new Set(
-            filteredData.flatMap((sub) =>
-                sub.sections.flatMap((sec: any) => sec.students.map((s: any) => s.stuId)),
-            ),
-        ).size;
-
-        return {
-            data: filteredData,
-            entities: [],
-            mode: "general",
-            stats: {
-                keyword: "",
-                total_subjects: filteredData.length,
-                total_sections: filteredData.reduce(
-                    (acc, s) => acc + s.sections.length,
-                    0,
-                ),
-                total_matched_students: totalMatchedStudents,
-            },
-        };
-    }
-
-    const queryParams = parseQuery(searchTerm, allData);
-    const matchingClasses = filterMatchingClasses(
-        allData,
-        queryParams,
-        selectedYears,
-    );
-    const entities = extractEntities(
-        matchingClasses,
-        queryParams.flatTerms,
-        queryParams.mode,
-        queryParams.effectiveQuery,
-    );
-
-    const grouped: Record<string, any[]> = {};
-    matchingClasses.forEach((cls) => {
-        if (!grouped[cls.subject]) grouped[cls.subject] = [];
-        grouped[cls.subject].push(cls);
-    });
-
-    const finalData = Object.keys(grouped)
-        .sort()
-        .map((sub) => {
-            const secs = grouped[sub].sort((a, b) => {
-                const aNum = parseInt(a.section.match(/\d+/)?.[0] || "0");
-                const bNum = parseInt(b.section.match(/\d+/)?.[0] || "0");
-                return aNum - bNum;
-            });
-            const subStus = new Set(
-                secs.flatMap((s) => s.students.map((st: any) => st.stuId)),
+    const matched: SubjectData[] = [];
+    allData.forEach((subject) => {
+        const keepSections = subject.sections.filter((section) => {
+            if (!query) return true;
+            if (mode === "teacher") return contains(section.teacher, query);
+            if (mode === "room")
+                return (
+                    contains(section.room, query) ||
+                    section.times.some((t) => contains(t.room, query))
+                );
+            // general — 과목명이 걸리면 분반 전부, 아니면 교사·강의실이 걸린 분반만
+            return (
+                contains(subject.subject, query) ||
+                contains(subject.subject_english ?? "", query) ||
+                contains(section.teacher, query) ||
+                contains(section.room, query)
             );
-            return {
-                subject: sub,
-                subject_student_count: subStus.size,
-                section_count: secs.length,
-                sections: secs,
-            };
         });
 
-    const totalMatchedStudents = new Set(
-        matchingClasses.flatMap((cls) => cls.students.map((s: any) => s.stuId))
-    ).size;
+        if (keepSections.length === 0) return;
+        const withSections = applySectionFilter(
+            { ...subject, sections: keepSections },
+            sections,
+        );
+        if (withSections) matched.push(withSections);
+    });
+
+    matched.sort((a, b) => a.subject.localeCompare(b.subject));
 
     return {
-        data: finalData,
-        entities,
-        mode: queryParams.mode,
-        warning: queryParams.warning,
+        data: matched,
+        entities: mode === "general" ? [] : buildEntities(mode, matched),
+        mode,
         stats: {
-            keyword: queryParams.effectiveQuery,
-            total_subjects: finalData.length,
-            total_sections: matchingClasses.length,
-            total_matched_students: totalMatchedStudents,
+            keyword: query,
+            total_subjects: matched.length,
+            total_sections: matched.reduce((sum, s) => sum + s.sections.length, 0),
         },
     };
 };

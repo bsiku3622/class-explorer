@@ -26,12 +26,8 @@ const EntityCard: React.FC<EntityCardProps> = ({
                 style={{ backgroundColor: `${entityColor}15` }}
             >
                 <span
-                    className={`absolute top-3 left-3 px-3 py-1 text-[10px] font-black uppercase border border-black/20 ${
-                        entity.type === "student"
-                            ? "bg-white text-black"
-                            : "text-white border-none"
-                    }`}
-                    style={entity.type !== "student" ? { backgroundColor: entityColor } : {}}
+                    className="absolute top-3 left-3 px-3 py-1 text-[10px] font-black uppercase border-none text-white"
+                    style={{ backgroundColor: entityColor }}
                 >
                     {entity.type}
                 </span>
@@ -51,11 +47,7 @@ const EntityCard: React.FC<EntityCardProps> = ({
                 <div className="text-sm font-bold text-black/40 uppercase tracking-widest flex items-center gap-2 mb-4">
                     <BookOpen size={18} className="text-black/40" />
                     <span>
-                        {entity.type === "student"
-                            ? "Enrollment"
-                            : entity.type === "teacher"
-                            ? "Teaching"
-                            : "Scheduled"}{" "}
+                        {entity.type === "teacher" ? "Teaching" : "Scheduled"}{" "}
                         ({entity.subject_count})
                     </span>
                 </div>

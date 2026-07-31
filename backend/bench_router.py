@@ -175,6 +175,70 @@ async def get_term_data(
     }
 
 
+# ─── 통계 (집계만) ───────────────────────────────────────────────────────────
+@router.get("/stats/enrollment")
+async def get_enrollment_stats(
+    year: int | None = Query(default=None, ge=2000, le=2100),
+    semester: int | None = Query(default=None, ge=1, le=2),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """"한 학생이 주당 몇 교시를 듣는가", "몇 과목을 듣는가" 의 분포.
+
+    분석 화면이 쓰던 값인데, 원래는 프론트가 명단을 통째로 들고 직접 셌습니다.
+    명단을 안 보내기로 했으니 세는 일을 서버가 대신합니다 — **분포만 나가고 누가
+    어디 있는지는 나가지 않습니다.**
+
+    학번(입학연도)별로 쪼갠 값도 같이 줍니다. 이건 "3학년 중 18교시를 듣는 사람이
+    몇 명" 같은 전교 집계라 개인을 가리키지 않습니다. **과목별 학번 분포는 주지
+    않습니다** — 1학년 필수 과목에서 혼자 다른 학번이면 그게 곧 재수강 표시입니다.
+    """
+    target_year, target_semester = resolve_term(db, year, semester)
+
+    rows = (
+        db.query(
+            models.Enrollment.stuId,
+            models.Class.subject_id,
+            models.ClassTime.day,
+            models.ClassTime.period,
+        )
+        .join(models.Class, models.Class.id == models.Enrollment.classId)
+        .outerjoin(models.ClassTime, models.ClassTime.class_id == models.Class.id)
+        .filter(
+            models.Class.year == target_year,
+            models.Class.semester == target_semester,
+        )
+        .all()
+    )
+
+    periods_by_student: dict[str, set[tuple[str, int]]] = {}
+    subjects_by_student: dict[str, set[int]] = {}
+    for stu_id, subject_id, day, period in rows:
+        subjects_by_student.setdefault(stu_id, set()).add(subject_id)
+        if day is not None:
+            periods_by_student.setdefault(stu_id, set()).add((day, period))
+
+    def histogram(sizes: dict[str, int]) -> dict:
+        """값 → 인원수, 그리고 값 → 학번 → 인원수"""
+        total: dict[int, int] = {}
+        by_year: dict[int, dict[str, int]] = {}
+        for stu_id, size in sizes.items():
+            yr = stu_id.split("-")[0] if "-" in stu_id else "Unknown"
+            total[size] = total.get(size, 0) + 1
+            by_year.setdefault(size, {})
+            by_year[size][yr] = by_year[size].get(yr, 0) + 1
+        return {"total": total, "by_year": by_year}
+
+    period_sizes = {s: len(v) for s, v in periods_by_student.items()}
+    subject_sizes = {s: len(v) for s, v in subjects_by_student.items()}
+
+    return {
+        "term": {"year": target_year, "semester": target_semester},
+        "weekly_periods": histogram(period_sizes),
+        "subject_count": histogram(subject_sizes),
+    }
+
+
 # ─── 사람 찾기 ───────────────────────────────────────────────────────────────
 SEARCH_MIN_LENGTH = 2
 SEARCH_LIMIT = 20

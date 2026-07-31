@@ -8,10 +8,21 @@ import {
     Route,
     Navigate,
 } from "react-router-dom";
-import type { SubjectData, Stats, SearchResultStats, Term, Role } from "./types";
+import type {
+    SubjectData,
+    Stats,
+    SearchResultStats,
+    StudentTimetable,
+    Term,
+    Role,
+} from "./types";
 import { hasRole } from "./lib/utils";
 import { searchInClient } from "./lib/searchEngine";
-import { isTradeAvailable } from "./lib/features";
+import {
+    searchStudents,
+    fetchStudentTimetable,
+    type StudentSearchResponse,
+} from "./lib/benchApi";
 import { useModifierKey } from "./hooks/useModifierKey";
 import Navigation from "./components/Navigation";
 import Sidebar from "./components/Sidebar";
@@ -25,8 +36,6 @@ const AnalysisPage = React.lazy(() => import("./pages/AnalysisPage"));
 const BrowsePage = React.lazy(() => import("./pages/BrowsePage"));
 const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
 const LoginPage = React.lazy(() => import("./pages/LoginPage"));
-const AdminPage = React.lazy(() => import("./pages/AdminPage"));
-const TradePage = React.lazy(() => import("./pages/TradePage"));
 const ZamongPage = React.lazy(() => import("./pages/ZamongPage"));
 const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
 
@@ -36,8 +45,11 @@ const CACHE_PREFIX = "ksa_class_finder_cache";
  * 캐시된 응답의 스키마 버전. API 응답에 필드가 늘면 올려야 합니다.
  * 안 올리면 예전 응답을 든 브라우저가 최대 1시간 동안 새 필드를 못 받아
  * 학점이 0으로 보이는 식의 문제가 생깁니다.
+ *
+ * **4 = 분반 명단(`students`)이 빠진 응답.** 여기서 올리지 않으면 class-explorer 를
+ * 쓰던 브라우저에 명단이 든 옛 캐시가 최대 1시간 남습니다.
  */
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4;
 const TERM_KEY = "ksa_selected_term";
 const CACHE_EXPIRY = 60 * 60 * 1000;
 
@@ -97,7 +109,8 @@ const App: React.FC = () => {
     const [studentCounts, setStudentCounts] = useState<Record<string, number>>(
         {},
     );
-    const [selectedYears, setSelectedYears] = useState<string[]>([]);
+    /** 서버가 세어 준 학기 집계. 명단이 없으니 프론트에서 다시 셀 수 없습니다 */
+    const [termStats, setTermStats] = useState<Stats | null>(null);
     const [searchInput, setSearchInput] = useState(initialSearch);
     const [searchTerm, setSearchTerm] = useState(initialSearch);
     const [loading, setLoading] = useState(true);
@@ -106,15 +119,28 @@ const App: React.FC = () => {
     const [searchResult, setSearchResult] = useState<SearchResultStats | null>(
         null,
     );
-    const [searchMode, setSearchMode] = useState<
-        "general" | "student" | "teacher" | "room"
-    >("general");
+    const [searchMode, setSearchMode] = useState<"general" | "teacher" | "room">(
+        "general",
+    );
     const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
     const [term, setTerm] = useState<Term | null>(loadSavedTerm);
     const [availableTerms, setAvailableTerms] = useState<Term[]>([]);
 
+    // ─── 사람 찾기 ───────────────────────────────────────────────────────────
+    // 학생은 클라이언트가 훑지 않고 서버에 물어봅니다. 두 단계인 이유는, 한 번의
+    // 질의로 여러 명의 시간표가 한꺼번에 나오면 다중 검색을 없앤 의미가 없어서입니다.
+    //   1단계 `student:김민` → 후보 목록 (이름·학번만)
+    //   2단계 후보를 고르면  → 그 한 명의 시간표
+    const [studentSearch, setStudentSearch] = useState<StudentSearchResponse | null>(
+        null,
+    );
+    const [studentTimetable, setStudentTimetable] = useState<StudentTimetable | null>(
+        null,
+    );
+    const [studentLoading, setStudentLoading] = useState(false);
+    const [studentError, setStudentError] = useState<string | null>(null);
+
     const isModifierPressed = useModifierKey();
-    const tradeAvailable = isTradeAvailable(term);
 
     const handleLogout = useCallback(async () => {
         const token = localStorage.getItem(SESSION_TOKEN_KEY);
@@ -153,38 +179,16 @@ const App: React.FC = () => {
         }
     }, [location.pathname]);
 
-    const hasStudentInSearch = useMemo(() => {
-        if (!searchResult) return false;
-        return searchResult.entities.some((e) => e.type === "student");
-    }, [searchResult]);
-
-    const isLogicalSearch = useMemo(
-        () =>
-            searchTerm.includes("+") ||
-            searchTerm.includes("&") ||
-            searchTerm.includes("/") ||
-            searchTerm.includes("("),
-        [searchTerm],
-    );
+    /** `student:김민` 이면 `"김민"`, 아니면 null — 사람 찾기 화면으로 갈지 정합니다 */
+    const studentQuery = useMemo(() => {
+        const matched = searchTerm.trim().match(/^(?:s|st|student)\s*:\s*(.*)$/i);
+        return matched ? matched[1].trim() : null;
+    }, [searchTerm]);
 
     const isConsolidatedView = useMemo(
-        () => searchMode !== "general" || isLogicalSearch,
-        [searchMode, isLogicalSearch],
+        () => searchMode !== "general",
+        [searchMode],
     );
-
-    const studentSubjectMap = useMemo(() => {
-        const map: Record<string, string[]> = {};
-        allClassesData.forEach((item) => {
-            item.sections.forEach((section) => {
-                section.students.forEach((student) => {
-                    if (!map[student.stuId]) map[student.stuId] = [];
-                    if (!map[student.stuId].includes(item.subject))
-                        map[student.stuId].push(item.subject);
-                });
-            });
-        });
-        return map;
-    }, [allClassesData]);
 
     const teacherSubjectMap = useMemo(() => {
         const map: Record<string, Record<string, string[]>> = {};
@@ -217,11 +221,11 @@ const App: React.FC = () => {
                     ? localStorage.getItem(cacheKeyFor(requestedTerm))
                     : null;
             if (cached) {
-                const { v, timestamp, student_counts, data, available_terms } =
+                const { v, timestamp, student_counts, stats, data, available_terms } =
                     JSON.parse(cached);
                 if (v === CACHE_VERSION && Date.now() - timestamp < CACHE_EXPIRY) {
                     setStudentCounts(student_counts);
-                    setSelectedYears(Object.keys(student_counts));
+                    setTermStats(stats ?? null);
                     setAllClassesData(data);
                     if (available_terms) setAvailableTerms(available_terms);
                     setLastUpdated(timestamp);
@@ -237,6 +241,7 @@ const App: React.FC = () => {
             });
             const {
                 student_counts,
+                stats: apiStats,
                 data,
                 term: resolvedTerm,
                 available_terms,
@@ -249,6 +254,7 @@ const App: React.FC = () => {
                         v: CACHE_VERSION,
                         timestamp: now,
                         student_counts,
+                        stats: apiStats,
                         data,
                         available_terms,
                     }),
@@ -258,7 +264,7 @@ const App: React.FC = () => {
             }
             if (available_terms) setAvailableTerms(available_terms);
             setStudentCounts(student_counts);
-            setSelectedYears(Object.keys(student_counts));
+            setTermStats(apiStats ?? null);
             setAllClassesData(data);
             setLastUpdated(now);
         } catch (error: unknown) {
@@ -285,30 +291,19 @@ const App: React.FC = () => {
 
     const handleSearch = useCallback(() => {
         if (allClassesData.length === 0 || location.pathname !== "/") return;
-        if (selectedYears.length === 0) {
+
+        // 사람 찾기는 서버가 합니다 — 아래 effect 가 맡고, 여기서는 비워 둡니다
+        if (studentQuery !== null) {
             setDisplayData([]);
             setStats(null);
             setSearchResult(null);
             setSearchMode("general");
             return;
         }
+
         if (searchTerm.trim()) {
-            const result = searchInClient(
-                allClassesData,
-                searchTerm,
-                selectedYears,
-            );
-            const filteredByYear = result.data
-                .map((subject) => ({
-                    ...subject,
-                    sections: subject.sections.filter((sec: any) =>
-                        sec.students.some((s: any) =>
-                            selectedYears.includes(s.stuId.split("-")[0]),
-                        ),
-                    ),
-                }))
-                .filter((subject) => subject.sections.length > 0);
-            setDisplayData(filteredByYear);
+            const result = searchInClient(allClassesData, searchTerm);
+            setDisplayData(result.data);
             setSearchMode(result.mode);
             setSearchResult({
                 keyword: result.stats.keyword || searchTerm,
@@ -316,46 +311,81 @@ const App: React.FC = () => {
                 entities: result.entities,
                 total_subjects: result.stats.total_subjects,
                 total_sections: result.stats.total_sections,
-                total_matched_students: result.stats.total_matched_students,
-                warning: result.warning,
             });
             setStats(null);
         } else {
             setSearchMode("general");
-            const filteredData = allClassesData
-                .map((subject) => ({
-                    ...subject,
-                    sections: subject.sections.filter((sec: any) =>
-                        sec.students.some((s: any) =>
-                            selectedYears.includes(s.stuId.split("-")[0]),
-                        ),
-                    ),
-                }))
-                .filter((subject) => subject.sections.length > 0);
-            setDisplayData(filteredData);
-            const totalSecs = filteredData.reduce(
-                (acc, sub) => acc + sub.sections.length,
-                0,
-            );
-            const activeStus = new Set(
-                filteredData.flatMap((sub) =>
-                    sub.sections.flatMap((sec) =>
-                        sec.students.map((s: any) => s.stuId),
-                    ),
-                ),
-            );
-            setStats({
-                total_subjects: filteredData.length,
-                total_sections: totalSecs,
-                total_active_students: activeStus.size,
-            });
+            setDisplayData(allClassesData);
+            // 수강 인원은 서버가 세어 준 값을 씁니다 — 명단이 없으니 여기서 셀 수 없습니다
+            setStats(termStats);
             setSearchResult(null);
         }
-    }, [searchTerm, selectedYears, allClassesData, location.pathname]);
+    }, [searchTerm, studentQuery, allClassesData, termStats, location.pathname]);
 
     useEffect(() => {
         handleSearch();
     }, [handleSearch]);
+
+    const loadStudentTimetable = useCallback(
+        async (stuId: string) => {
+            setStudentLoading(true);
+            setStudentError(null);
+            try {
+                setStudentTimetable(await fetchStudentTimetable(stuId, term));
+            } catch (error: unknown) {
+                setStudentTimetable(null);
+                setStudentError(
+                    axios.isAxiosError(error) && error.response?.status === 429
+                        ? "조회가 너무 잦습니다. 잠시 후 다시 시도해 주세요."
+                        : "시간표를 불러오지 못했습니다.",
+                );
+            } finally {
+                setStudentLoading(false);
+            }
+        },
+        [term],
+    );
+
+    // `student:` 질의가 바뀔 때마다 후보 목록을 서버에서 받아 옵니다.
+    // 후보만 옵니다 — 시간표는 하나를 고른 뒤에 따로 받습니다.
+    useEffect(() => {
+        if (studentQuery === null) {
+            setStudentSearch(null);
+            setStudentTimetable(null);
+            setStudentError(null);
+            return;
+        }
+        let cancelled = false;
+        setStudentLoading(true);
+        setStudentError(null);
+        searchStudents(studentQuery)
+            .then((result) => {
+                if (cancelled) return;
+                setStudentSearch(result);
+                // 후보가 딱 한 명이면 한 단계를 건너뜁니다
+                if (result.students.length === 1) {
+                    void loadStudentTimetable(result.students[0].stuId);
+                } else {
+                    setStudentTimetable(null);
+                }
+            })
+            .catch((error: unknown) => {
+                if (cancelled) return;
+                setStudentSearch(null);
+                setStudentError(
+                    axios.isAxiosError(error) && error.response?.status === 429
+                        ? "조회가 너무 잦습니다. 잠시 후 다시 시도해 주세요."
+                        : "검색에 실패했습니다.",
+                );
+            })
+            .finally(() => {
+                if (!cancelled) setStudentLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [studentQuery, term]);
 
     useEffect(() => {
         if (location.pathname !== "/") return;
@@ -497,8 +527,6 @@ const App: React.FC = () => {
                     setActivePage={(id) =>
                         navigate(id === "home" ? "/" : `/${id}`)
                     }
-                    isAdmin={hasRole(currentUser?.role, "admin")}
-                    showTrade={tradeAvailable}
                 />
                 <main className="flex-1 p-4 md:p-10 transition-all duration-300 md:ml-64 min-w-0 pb-20 md:pb-10">
                     <div className="max-w-6xl mx-auto">
@@ -511,14 +539,10 @@ const App: React.FC = () => {
                                         searchInput={searchInput}
                                         setSearchInput={setSearchInput}
                                         searchTerm={searchTerm}
-                                        studentCounts={studentCounts}
-                                        selectedYears={selectedYears}
-                                        setSelectedYears={setSelectedYears}
                                         lastUpdated={lastUpdated}
                                         fetchInitialData={fetchInitialData}
                                         searchResult={searchResult}
                                         searchMode={searchMode}
-                                        isLogicalSearch={isLogicalSearch}
                                         isConsolidatedView={isConsolidatedView}
                                         isModifierPressed={isModifierPressed}
                                         hoveredEntityId={hoveredEntityId}
@@ -528,11 +552,15 @@ const App: React.FC = () => {
                                         stats={stats}
                                         loading={loading}
                                         displayData={displayData}
-                                        studentSubjectMap={studentSubjectMap}
                                         teacherSubjectMap={teacherSubjectMap}
-                                        hasStudentInSearch={hasStudentInSearch}
                                         expandedSubjects={expandedSubjects}
                                         toggleSubject={toggleSubject}
+                                        studentQuery={studentQuery}
+                                        studentSearch={studentSearch}
+                                        studentTimetable={studentTimetable}
+                                        studentLoading={studentLoading}
+                                        studentError={studentError}
+                                        onSelectStudent={loadStudentTimetable}
                                     />
                                 }
                             />
@@ -554,6 +582,7 @@ const App: React.FC = () => {
                                         lastUpdated={lastUpdated}
                                         fetchInitialData={fetchInitialData}
                                         handleSearch={handleSearchToggle}
+                                        term={term}
                                     />
                                 }
                             />
@@ -562,25 +591,13 @@ const App: React.FC = () => {
                                 element={
                                     <BrowsePage
                                         allClassesData={allClassesData}
-                                        studentCounts={studentCounts}
-                                        lastUpdated={lastUpdated}
-                                        fetchInitialData={fetchInitialData}
                                         handleSearch={handleSearchSelect}
                                     />
                                 }
                             />
-                            {tradeAvailable && (
-                                <Route
-                                    path="/trade"
-                                    element={
-                                        <TradePage
-                                            allClassesData={allClassesData}
-                                            term={term}
-                                            myStuId={currentUser?.stu_id ?? null}
-                                        />
-                                    }
-                                />
-                            )}
+                            {/* Trade 는 ksa-bench 에 아직 없습니다 — 명단으로 상대를 찾는
+                                방식이라 그대로 못 옮깁니다. 양쪽이 "원한다"고 등록했을 때만
+                                맞춰 주는 형태로 새로 만들 예정입니다 */}
                             <Route
                                 path="/zamong"
                                 element={
@@ -603,9 +620,9 @@ const App: React.FC = () => {
                                 path="/about"
                                 element={<SettingsPage />}
                             />
-                            {hasRole(currentUser?.role, "admin") && (
-                                <Route path="/admin" element={<AdminPage />} />
-                            )}
+                            {/* Admin 도 아직 없습니다 — bench 백엔드에 `/admin/*` 을 등록하지
+                                않았습니다. `/admin/students` 가 전교생 명단을 그대로 돌려주기
+                                때문입니다. 관리 화면이 필요해지면 안전한 것만 골라 새로 만듭니다 */}
                             <Route
                                 path="*"
                                 element={<Navigate to="/" replace />}
@@ -624,7 +641,6 @@ const App: React.FC = () => {
                 setActivePage={(id) =>
                     navigate(id === "home" ? "/" : `/${id}`)
                 }
-                showTrade={tradeAvailable}
             />
         </div>
     );

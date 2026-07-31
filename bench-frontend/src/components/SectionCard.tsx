@@ -1,33 +1,26 @@
 import React, { useState, useMemo } from "react";
 import { Tooltip } from "@heroui/react";
 import { User, MapPin, Users, Clock } from "lucide-react";
-import { getStudentColor, getKoreanName, DAY_MAP, DAYS_ORDER, extractSearchTerms } from "../lib/utils";
+import { getKoreanName, DAY_MAP, DAYS_ORDER, extractSearchTerms } from "../lib/utils";
 import type { Section } from "../types";
 import { tooltipMotionProps } from "../constants/motion";
-import StudentCard from "./atoms/StudentCard";
 import TeacherCard from "./atoms/TeacherCard";
 
 interface SectionCardProps {
     section: Section;
     searchTerm: string;
     handleSearchToggle: (v: string, isT?: boolean, isR?: boolean) => void;
-    studentSubjectMap: Record<string, string[]>;
     teacherSubjectMap: Record<string, Record<string, string[]>>;
     isModifierPressed: boolean;
-    hasStudentInSearch: boolean;
-    selectedYears: string[];
-    searchMode: "general" | "student" | "teacher" | "room";
+    searchMode: "general" | "teacher" | "room";
 }
 
 const SectionCard: React.FC<SectionCardProps> = ({
     section,
     searchTerm,
     handleSearchToggle,
-    studentSubjectMap,
     teacherSubjectMap,
     isModifierPressed,
-    hasStudentInSearch,
-    selectedYears,
     searchMode,
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
@@ -67,13 +60,12 @@ const SectionCard: React.FC<SectionCardProps> = ({
         },
     );
 
-    const filteredStudents = section.students.filter((s) =>
-        selectedYears.includes(s.stuId.split("-")[0]),
-    );
-
     return (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
-            <div className="md:col-span-4 space-y-2.5">
+        // 원래는 12칸 격자였고 오른쪽 8칸이 통째로 수강생 배지였습니다.
+        // ksa-bench 는 명단을 받지 않으므로 그 칸이 사라졌습니다 — 사람을 찾으려면
+        // `student:` 검색으로 한 명씩 물어봅니다.
+        <div>
+            <div className="space-y-2.5">
                 <h3 className="text-base font-black bg-retro-accent1 border-2 border-black px-3 py-1 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] inline-block uppercase">
                     {section.section}
                 </h3>
@@ -202,82 +194,6 @@ const SectionCard: React.FC<SectionCardProps> = ({
                             </div>
                         </div>
                     )}
-                </div>
-            </div>
-            <div className="md:col-span-8">
-                <div className="flex flex-wrap gap-2.5">
-                    {filteredStudents.map((student) => {
-                        const color = getStudentColor(student.stuId);
-
-                        // 하이라이트는 일치하는 검색어가 있으면 항상 표시 (일반 검색 포함)
-                        const isMatch = effectiveSearchTerms.some(
-                            (term) =>
-                                student.stuId.toLowerCase().includes(term) ||
-                                student.name.toLowerCase().includes(term),
-                        );
-
-                        const shouldGrayOut = hasStudentInSearch && !isMatch;
-
-                        const mySubjects =
-                            studentSubjectMap[student.stuId] || [];
-
-                        return (
-                            <Tooltip
-                                key={student.stuId}
-                                isOpen={
-                                    isModifierPressed &&
-                                    hoveredItemId === student.stuId
-                                }
-                                placement="top"
-                                offset={15}
-                                delay={0}
-                                closeDelay={0}
-                                motionProps={tooltipMotionProps}
-                                classNames={{
-                                    base: "!transition-none",
-                                    content:
-                                        "p-0 rounded-none border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
-                                }}
-                                content={
-                                    <StudentCard
-                                        stuId={student.stuId}
-                                        name={student.name}
-                                        subjects={mySubjects}
-                                    />
-                                }
-                            >
-                                <div
-                                    className={`student-badge cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200 ${
-                                        shouldGrayOut
-                                            ? "grayscale opacity-30 scale-100 border-black/10 shadow-none"
-                                            : isMatch
-                                              ? "z-10 shadow-[3px_3px_0_0_rgba(0,0,0,0.1)]"
-                                              : ""
-                                    }`}
-                                    style={{
-                                        borderColor: shouldGrayOut
-                                            ? "#00000020"
-                                            : color,
-                                        backgroundColor: shouldGrayOut
-                                            ? "transparent"
-                                            : `${color}20`,
-                                        color: shouldGrayOut
-                                            ? "rgba(0,0,0,0.6)"
-                                            : color,
-                                    }}
-                                    onMouseEnter={() =>
-                                        setHoveredItemId(student.stuId)
-                                    }
-                                    onMouseLeave={() => setHoveredItemId(null)}
-                                    onClick={() =>
-                                        handleSearchToggle(student.stuId)
-                                    }
-                                >
-                                    {student.stuId.split("-")[0]} {student.name}
-                                </div>
-                            </Tooltip>
-                        );
-                    })}
                 </div>
             </div>
         </div>
