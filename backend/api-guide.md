@@ -2,6 +2,19 @@
 
 > [← Backend Guide](CLAUDE.md)
 
+## 앱이 둘이라 API 표면도 둘입니다
+
+아래 명세는 **class-explorer**(`backend.main:app`) 기준입니다. 전교생에게 여는
+**ksa-bench**(`backend.bench_main:app`)에는 다음이 **없습니다**.
+
+| 없는 것 | ksa-bench 의 대안 |
+| --- | --- |
+| `GET /` (분반 명단 포함) | `GET /` — 같은 모양이되 명단 없음 ([bench_router.guide.md](bench_router.guide.md)) |
+| `GET /curriculum/progress/{stuId}` | `GET /me/progress` — 본인만 |
+| `/admin/*` 전부 | 없음 |
+
+ksa-bench 에만 있는 것: `GET /students/search`, `GET /students/{stu_id}`, `GET /me/progress`.
+
 ## 인증
 
 모든 보호된 엔드포인트는 `Authorization: Bearer <session_token>` 헤더가 필요합니다.
