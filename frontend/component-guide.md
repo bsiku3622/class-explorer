@@ -11,7 +11,7 @@
 | `RetroSubTitle` | `title`, `icon` | 섹션 소제목 (표준 스타일 고정) |
 | `StudentBadge` | `studentId`, `studentName`, `size`, `onClick` | 학번색 뱃지 |
 | `CopyButton` | `text`, `label`, `title` | 클립보드 복사 + 1.5초간 "복사됨" 표시. https가 아닌 환경은 execCommand로 폴백 |
-| `SearchInput` | `value`, `onChange`, `placeholder`, `className` | 검색 입력 필드 |
+| `SearchInput` | `value`, `onChange`, `placeholder`, `size` (lg/sm), `autoFocus`, `className` | 검색 입력 필드. `sm`은 모달·패널 안에서 — 주인공이 아닌 자리에 `lg`를 두면 검색창이 화면을 다 차지합니다 |
 | `StudentCard` | `stuId`, `name`, `subjects`, `onClick` | 학생 프로필 카드 (툴팁용) |
 | `TeacherCard` | `name`, `subjects`, `onClick` | 교사 프로필 카드 (툴팁용) |
 
@@ -34,6 +34,7 @@
 | `EventFormModal` | 일정 입력 창. `purpose`(personal/shared/request)에 따라 칸이 달라집니다. 시간은 종일·시각·교시 중 선택 |
 | `RequestSidebar` | 접었다 펴는 제안 서랍. 매니저면 허용·거절, 아니면 내가 낸 제안 상태만. 빨간 배지는 매니저에게만 |
 | `GoogleLinkModal` | 학번을 확인하라고 요구하는 창. **닫을 수 없고** 로그아웃만 가능합니다 |
+| `FriendsModal` | 친구 목록·추가·삭제. **검색창 하나**가 등록한 사람을 거르고, 거기 없으면 전교생에서 찾아 "추가"를 내밉니다 (두 글자부터·8명까지). 등록은 단방향 |
 | `Sidebar` | 좌측 고정 사이드바 메뉴 |
 | `FilterSection` | 학년 선택 필터 + 새로고침 |
 | `SearchResultDisplay` | 검색 결과 표시 (통합/그리드 뷰) |
@@ -48,7 +49,8 @@
 |--------|------|------|
 | `LoginPage` | (전체 앱 대체) | 로그인 폼, `onLogin(token)` 콜백 |
 | `AdminPage` | `/admin` | 사용자/세션/데이터 관리 (admin 전용) |
-| `SearchPage` | `/` | 통합 검색 + 결과 표시 |
+| `HomePage` | `/` | 홈 — 지금 교시·가야 할 교실·오늘 시간표·급식·Trade 배너·공강인 친구 |
+| `SearchPage` | `/search` | 통합 검색 + 결과 표시 |
 | `RoomsPage` | `/emptyroomfinder` | 형설관 빈 교실 탐색 |
 | `AnalysisPage` | `/analysis` | 학사 데이터 통계 대시보드 |
 | `BrowsePage` | `/browse` | 학생·교사 목록 + 교육과정 그래프 (Students / Teachers / Courses 토글) |

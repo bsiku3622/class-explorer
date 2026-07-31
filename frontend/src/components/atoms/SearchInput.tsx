@@ -21,14 +21,35 @@ function removeFromHistory(term: string) {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
 }
 
+/**
+ * `sm`은 모달·패널 안에서 씁니다 — 페이지의 주인공이 아닌 자리에 `lg`를 두면
+ * 검색창이 화면을 다 차지합니다.
+ */
+const SIZES = {
+    lg: {
+        wrapper: "h-14 md:h-16 shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]",
+        input: "text-sm md:text-xl font-semibold outline-none px-2",
+        icon: 24,
+        clear: { size: 20, position: "right-4 top-7 md:top-8" },
+    },
+    sm: {
+        wrapper: "h-11",
+        input: "text-sm font-bold outline-none px-1",
+        icon: 16,
+        clear: { size: 15, position: "right-3 top-[22px]" },
+    },
+} as const;
+
 interface SearchInputProps {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
     className?: string;
+    size?: keyof typeof SIZES;
     enableHistory?: boolean;
     /** 외부에서 searchTerm이 확정됐을 때 히스토리 저장 트리거 */
     committedTerm?: string;
+    autoFocus?: boolean;
 }
 
 const SearchInput: React.FC<SearchInputProps> = ({
@@ -36,9 +57,12 @@ const SearchInput: React.FC<SearchInputProps> = ({
     onChange,
     placeholder = "Search...",
     className = "",
+    size = "lg",
     enableHistory = false,
     committedTerm,
+    autoFocus = false,
 }) => {
+    const style = SIZES[size];
     const [focused, setFocused] = useState(false);
     const [history, setHistory] = useState<string[]>([]);
     const wrapperRef = useRef<HTMLDivElement>(null);
@@ -81,22 +105,25 @@ const SearchInput: React.FC<SearchInputProps> = ({
                 classNames={{
                     base: "w-full",
                     innerWrapper: "flex flex-row items-center gap-2",
-                    input: "text-sm md:text-xl font-semibold outline-none px-2",
-                    inputWrapper:
-                        "h-14 md:h-16 bg-white border-2 border-black rounded-none shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] data-[hover=true]:border-black group-data-[focus=true]:border-black",
+                    input: style.input,
+                    inputWrapper: `${style.wrapper} bg-white border-2 border-black rounded-none data-[hover=true]:border-black group-data-[focus=true]:border-black`,
                 }}
                 placeholder={placeholder}
-                startContent={<Search className="text-black/40 ml-2" size={24} />}
+                startContent={
+                    <Search className="text-black/40 ml-2" size={style.icon} />
+                }
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 onFocus={handleFocus}
+                autoFocus={autoFocus}
             />
             {value && (
                 <button
                     onClick={() => onChange("")}
-                    className="absolute right-4 top-7 md:top-8 -translate-y-1/2 text-black/20 hover:text-black transition-colors"
+                    aria-label="검색어 지우기"
+                    className={`absolute ${style.clear.position} -translate-y-1/2 text-black/20 hover:text-black transition-colors`}
                 >
-                    <X size={20} strokeWidth={3} />
+                    <X size={style.clear.size} strokeWidth={3} />
                 </button>
             )}
 

@@ -48,6 +48,8 @@ export interface FriendsNowResponse {
 }
 
 // ─── 홈 ──────────────────────────────────────────────────────────────────────
+export type MealSlot = "breakfast" | "lunch" | "dinner";
+
 export interface TodayClass {
     period: number;
     subject: string;
@@ -87,8 +89,10 @@ export interface HomeData {
         counted: boolean;
     };
     meal: {
-        slot: "breakfast" | "lunch" | "dinner" | null;
-        menu: { breakfast: string; lunch: string; dinner: string } | null;
+        /** 지금 시간대의 끼니. 식사 시간이 지나면 null */
+        slot: MealSlot | null;
+        /** 아직 안 올라온 날은 null — 메뉴는 줄 단위로 옵니다 */
+        menu: Record<MealSlot, string[]> | null;
     };
 }
 

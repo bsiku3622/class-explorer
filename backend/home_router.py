@@ -9,6 +9,7 @@
 
 import datetime
 import os
+import re
 
 import httpx
 from fastapi import APIRouter, Depends, Query
@@ -27,36 +28,84 @@ router = APIRouter(tags=["home"])
 KSAIN_API_KEY = os.environ.get("KSAIN_API_KEY", "")
 KSAIN_MEAL_URL = "https://api.ksain.net/v1/meal.php"
 
-# 날짜별로 한 번만 받아 둡니다. 급식은 하루 안에 안 바뀝니다.
-_meal_cache: dict[str, dict | None] = {}
+SLOTS = ("breakfast", "lunch", "dinner")
 
 
-async def fetch_meal(day: datetime.date) -> dict | None:
-    """그날의 조·중·석식. 키가 없거나 실패하면 None."""
+def _lines(raw: str | None) -> list[str]:
+    """API 가 주는 한 덩어리 문자열을 메뉴 줄로 쪼갭니다.
+
+    앞뒤로 빈 줄이 붙어 오고, 급식이 아직 안 올라온 날은 `"\\n"` 하나만 옵니다 —
+    그래서 빈 줄을 걷어낸 결과가 곧 "그날 급식이 있느냐"입니다.
+
+    원문에 섞여 있는 두 가지를 여기서 정리합니다.
+
+    - **축산물 이력번호** — `찹스테이크(호주산801000310667)`. 원산지는 남기고 번호만
+      지웁니다. 화면에서 읽을 일이 없는 12자리입니다
+    - **`&` 로 시작하는 줄** — `단호박카레라이스` / `&소시지` 처럼 한 메뉴가 급식표
+      칸 너비 때문에 두 줄로 갈린 것이라 앞 줄에 붙입니다
+    """
+    if not raw:
+        return []
+
+    items: list[str] = []
+    for line in raw.splitlines():
+        text = re.sub(r"\d{8,}", "", line).strip()
+        if not text:
+            continue
+        if text.startswith("&") and items:
+            items[-1] += text
+        else:
+            items.append(text)
+    return items
+
+
+async def fetch_meal(db: Session, day: datetime.date) -> dict[str, list[str]] | None:
+    """그날의 조·중·석식.
+
+    **DB 를 먼저 봅니다.** 한 번 받은 날짜는 다시 묻지 않습니다 — 지난 급식은 바뀌지
+    않고, 학교 API 를 사람 수만큼 두드릴 이유도 없습니다.
+
+    키가 없거나 API 가 실패하면 `None`. 아직 급식이 안 올라온 날도 `None` 이고, 이때는
+    **저장하지 않아** 다음 요청이 다시 물어봅니다.
+    """
+    row = db.get(models.MealMenu, day)
+    if row:
+        return {slot: _lines(getattr(row, slot)) for slot in SLOTS}
+
     if not KSAIN_API_KEY:
         return None
-    key = day.isoformat()
-    if key in _meal_cache:
-        return _meal_cache[key]
+
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             res = await client.post(
                 KSAIN_MEAL_URL,
-                data={"key": KSAIN_API_KEY, "date": key},
+                data={"key": KSAIN_API_KEY, "date": day.isoformat()},
             )
         body = res.json()
-        meal = body.get("data") if isinstance(body, dict) else None
-        if meal:
-            meal = {
-                "breakfast": meal.get("breakfast"),
-                "lunch": meal.get("lunch"),
-                "dinner": meal.get("dinner"),
-            }
     except Exception:
-        # 급식이 안 나온다고 홈이 죽으면 안 됩니다. 캐시에 넣지 않아 다음에 다시 시도합니다
+        # 급식이 안 나온다고 홈이 죽으면 안 됩니다. 저장하지 않아 다음에 다시 시도합니다
         return None
-    _meal_cache[key] = meal
-    return meal
+
+    data = body.get("data") if isinstance(body, dict) else None
+    if not isinstance(data, dict):
+        return None
+
+    menu = {slot: _lines(data.get(slot)) for slot in SLOTS}
+    if not any(menu.values()):
+        return None  # 아직 안 올라온 날 — 빈 값으로 굳히지 않습니다
+
+    db.add(
+        models.MealMenu(
+            date=day,
+            **{slot: "\n".join(menu[slot]) for slot in SLOTS},
+        )
+    )
+    try:
+        db.commit()
+    except Exception:
+        # 같은 날짜를 동시에 받아 왔을 뿐입니다. 내용은 같으니 그냥 넘어갑니다
+        db.rollback()
+    return menu
 
 
 def current_meal_slot(minute: int) -> str | None:
@@ -208,6 +257,6 @@ async def get_home(
         },
         "meal": {
             "slot": current_meal_slot(minute),
-            "menu": await fetch_meal(today),
+            "menu": await fetch_meal(db, today),
         },
     }
