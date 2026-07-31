@@ -342,3 +342,25 @@ class Session(Base):
     last_used_at = Column(DateTime, default=datetime.datetime.utcnow)
     expires_at = Column(DateTime, nullable=False)
     user = relationship("User", back_populates="sessions")
+
+
+class Friend(Base):
+    """
+    친구 등록. **단방향입니다** — 내가 추가하면 끝이고 상대의 수락이 필요 없습니다.
+
+    상호 승인을 두지 않은 이유는, 이 앱에서 남의 시간표는 이미 `GET /students/{stu_id}`
+    로 한 명씩 볼 수 있기 때문입니다. 그러니 이 표는 **새로 뭘 열어 주는 게 아니라
+    자주 보는 사람을 북마크해 두는 것**에 가깝습니다. 승인 절차를 붙이면 마찰만 늘고
+    막아 주는 건 없습니다.
+
+    한쪽 방향이라 A가 B를 추가해도 B의 목록에는 A가 없습니다.
+    """
+    __tablename__ = "friends"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    friend_stu_id = Column(String, ForeignKey("students.stuId"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "friend_stu_id", name="_friend_uc"),
+    )

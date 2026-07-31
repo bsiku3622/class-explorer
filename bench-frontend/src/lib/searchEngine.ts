@@ -40,6 +40,15 @@ const normalize = (value: string): string =>
 const contains = (haystack: string, needle: string): boolean =>
     normalize(haystack).includes(normalize(needle));
 
+/**
+ * 화면 안에서 이미 받아 둔 목록을 좁힐 때 쓰는 부분 일치.
+ *
+ * class-explorer 의 같은 이름 함수는 초성·유사도까지 봤지만 여기서는 **부분 일치만**
+ * 합니다. Trade 처럼 이미 손에 있는 목록을 거르는 용도라, 느슨하게 만들 이유가 없습니다.
+ */
+export const fuzzyMatch = (item: string, term: string): boolean =>
+    Boolean(item) && Boolean(term) && contains(item, term);
+
 const sectionNumber = (section: string): number => {
     const match = section.match(/\d+/);
     return match ? Number(match[0]) : 0;

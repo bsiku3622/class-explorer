@@ -18,6 +18,7 @@ import type {
 } from "./types";
 import { hasRole } from "./lib/utils";
 import { searchInClient } from "./lib/searchEngine";
+import { isTradeAvailable } from "./lib/features";
 import {
     searchStudents,
     fetchStudentTimetable,
@@ -36,6 +37,8 @@ const AnalysisPage = React.lazy(() => import("./pages/AnalysisPage"));
 const BrowsePage = React.lazy(() => import("./pages/BrowsePage"));
 const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
 const LoginPage = React.lazy(() => import("./pages/LoginPage"));
+const TradePage = React.lazy(() => import("./pages/TradePage"));
+const FriendsPage = React.lazy(() => import("./pages/FriendsPage"));
 const ZamongPage = React.lazy(() => import("./pages/ZamongPage"));
 const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
 
@@ -49,8 +52,9 @@ const CACHE_PREFIX = "ksa_class_finder_cache";
  * **4 = 분반 명단(`students`)이 빠진 응답.** 여기서 올리지 않으면 class-explorer 를
  * 쓰던 브라우저에 명단이 든 옛 캐시가 최대 1시간 남습니다.
  * **5 = 학번 분포(`year_counts` / `subject_year_counts`) 추가.**
+ * **6 = 분반 명단(`students`) 복구** — Trade 가 명단 없이는 안 됩니다.
  */
-const CACHE_VERSION = 5;
+const CACHE_VERSION = 6;
 const TERM_KEY = "ksa_selected_term";
 const CACHE_EXPIRY = 60 * 60 * 1000;
 
@@ -143,6 +147,7 @@ const App: React.FC = () => {
     const [studentError, setStudentError] = useState<string | null>(null);
 
     const isModifierPressed = useModifierKey();
+    const tradeAvailable = isTradeAvailable(term);
 
     const handleLogout = useCallback(async () => {
         const token = localStorage.getItem(SESSION_TOKEN_KEY);
@@ -564,6 +569,7 @@ const App: React.FC = () => {
                     setActivePage={(id) =>
                         navigate(id === "home" ? "/" : `/${id}`)
                     }
+                    showTrade={tradeAvailable}
                 />
                 <main className="flex-1 p-4 md:p-10 transition-all duration-300 md:ml-64 min-w-0 pb-20 md:pb-10">
                     <div className="max-w-6xl mx-auto">
@@ -635,9 +641,27 @@ const App: React.FC = () => {
                                     />
                                 }
                             />
-                            {/* Trade 는 ksa-bench 에 아직 없습니다 — 명단으로 상대를 찾는
-                                방식이라 그대로 못 옮깁니다. 양쪽이 "원한다"고 등록했을 때만
-                                맞춰 주는 형태로 새로 만들 예정입니다 */}
+                            {tradeAvailable && (
+                                <Route
+                                    path="/trade"
+                                    element={
+                                        <TradePage
+                                            allClassesData={allClassesData}
+                                            term={term}
+                                            myStuId={currentUser?.stu_id ?? null}
+                                        />
+                                    }
+                                />
+                            )}
+                            <Route
+                                path="/friends"
+                                element={
+                                    <FriendsPage
+                                        term={term}
+                                        myStuId={currentUser?.stu_id ?? null}
+                                    />
+                                }
+                            />
                             <Route
                                 path="/zamong"
                                 element={
@@ -681,6 +705,7 @@ const App: React.FC = () => {
                 setActivePage={(id) =>
                     navigate(id === "home" ? "/" : `/${id}`)
                 }
+                showTrade={tradeAvailable}
             />
         </div>
     );

@@ -1,5 +1,23 @@
 # Logs
 
+## 2026-07-31 — ksa-bench: Trade 복원 + 친구(단방향)
+
+- 변경 파일: `backend/models.py`·`bench_router.py`, `bench-frontend/src/pages/FriendsPage.tsx` (신규), `bench-frontend/src/{App.tsx,types/index.ts,lib/benchApi.ts,lib/searchEngine.ts}`, `bench-frontend/src/pages/TradePage.tsx`·`lib/tradeEngine.ts` (복원), 가이드 문서 일습
+- 요약: 선을 "명단이 안 내려간다"에서 **"훑는 화면이 없다"**로 옮겼습니다. Trade 를 되살리려면 명단이 필요해서입니다.
+
+**Trade 를 되살리며 분반 명단을 응답에 되돌렸습니다.** `findTradePartners` 가 "내가 원하는 분반의 수강생 전원을 훑어 내 분반을 받을 수 있는 사람을 찾는" 함수라, 명단이 입력이고 이름 목록이 출력입니다. 섹션 단위로 좁히려면 TradePage(1500줄)가 전체 학생 인덱스를 미리 만드는 구조부터 갈아야 해서, 이번엔 그대로 복원했습니다. **가이드에 이 사실을 명시**해 뒀습니다 — 문서가 "명단이 안 나간다"고 계속 주장하면 다음에 읽는 사람이 틀린 전제로 기능을 붙입니다.
+
+그래서 지금 ksa-bench 가 class-explorer 보다 좁은 지점은 셋입니다: 검색이 한 번에 한 명(다중·불린·초성 없음), 전교생을 늘어놓는 화면 없음, `/admin/*`·남의 누적 이수 라우터가 등록되지 않음.
+
+**친구는 단방향입니다.** 수락 절차를 두지 않은 이유는, 남의 시간표가 어차피 `GET /students/{stu_id}` 로 한 명씩 열리기 때문입니다 — 승인은 마찰만 늘고 막아 주는 게 없습니다. 그래서 이 표는 새로 뭘 여는 게 아니라 북마크에 가깝습니다.
+
+**친구 격자는 과목명을 안 받습니다.** `GET /friends/busy` 가 `["MON-3", …]` 슬롯만 돌려줍니다. 공강을 맞추는 데 과목이 필요 없고, 주면 "누가 뭘 듣는지" 훑는 화면이 됩니다. Analysis 의 Timetable Compare 를 이걸로 대체했습니다.
+
+**검증 스크립트가 거짓 통과하고 있었습니다.** venv 의 FastAPI 가 최신이라 `include_router` 한 것을 `_IncludedRouter` 래퍼로 들고 있는데, `app.routes` 를 그대로 세면 기본 4개만 보입니다. 그 상태로는 "bench 에 금지 라우터 없음" 이 항상 통과합니다 — 래퍼를 재귀로 펼치고, 펼치기 실패 시 단언으로 죽게 고쳤습니다(explorer 42 / bench 36).
+
+미결: **교시별 시각표가 앱 어디에도 없습니다.** "지금 공강인 친구"는 그게 있어야 만들 수 있어 주간 격자까지만 했습니다.
+
+
 ## 2026-07-31 — ksa-bench: 명단 없이 도는 앱 만들기
 
 - 변경 파일: `backend/app_factory.py`·`bench_main.py`·`bench_router.py`·`classes_router.py` (신규), `backend/main.py`·`curriculum_router.py`, `bench-frontend/src/lib/{benchApi.ts,searchEngine.ts}`, `bench-frontend/src/components/StudentLookup.tsx` (신규), `bench-frontend/src/{App.tsx,types/index.ts}`, `bench-frontend/src/pages/{SearchPage,BrowsePage,AnalysisPage,ZamongPage}.tsx`, 가이드 문서 일습

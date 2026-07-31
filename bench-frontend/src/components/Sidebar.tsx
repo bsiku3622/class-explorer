@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Map, BarChart3, Library, Info, ShieldCheck, ArrowLeftRight, GraduationCap , CalendarDays } from "lucide-react";
+import { Search, Map, BarChart3, Library, Info, ShieldCheck, ArrowLeftRight, GraduationCap, Users, CalendarDays } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface SidebarItemProps {
@@ -41,6 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, isAdmin = 
         { id: "browse", label: "Browse", icon: Library },
         { id: "calendar", label: "Calendar", icon: CalendarDays },
         { id: "zamong", label: "Zamong", icon: GraduationCap },
+        { id: "friends", label: "Friends", icon: Users },
         ...(showTrade ? [{ id: "trade", label: "Trade", icon: ArrowLeftRight }] : []),
         { id: "about", label: "About", icon: Info },
     ];
