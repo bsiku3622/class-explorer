@@ -47,6 +47,60 @@ export interface FriendsNowResponse {
     people: FriendNow[];
 }
 
+// ─── 홈 ──────────────────────────────────────────────────────────────────────
+export interface TodayClass {
+    period: number;
+    subject: string;
+    section: string;
+    teacher: string;
+    room: string;
+}
+
+export interface HomeData {
+    term: Term;
+    now: {
+        time: string;
+        date: string;
+        /** 주말이면 null */
+        day: string | null;
+        /** 쉬는시간이면 null */
+        period: number | null;
+        /** "점심"·"저녁"·"자습" 등. 교시와 겹칠 수 있습니다 */
+        break_name: string | null;
+        next_period: { period: number; start: string } | null;
+    };
+    session: {
+        in_session: boolean;
+        /** 방학이면 "여름방학" 같은 이름 */
+        label: string | null;
+        resumes_on: string | null;
+        days_left: number | null;
+    };
+    today: TodayClass[];
+    /** 지금 있어야 할 수업. null 이면 공강입니다 */
+    current: TodayClass | null;
+    next: TodayClass | null;
+    friends: {
+        free: Friend[];
+        total: number;
+        /** 수업 시간이 아니면 false — "공강" 을 따질 게 없습니다 */
+        counted: boolean;
+    };
+    meal: {
+        slot: "breakfast" | "lunch" | "dinner" | null;
+        menu: { breakfast: string; lunch: string; dinner: string } | null;
+    };
+}
+
+/** 홈 화면이 쓰는 것 전부. 켜자마자 보이는 자리라 한 요청으로 받습니다. */
+export const fetchHome = async (term?: Term | null): Promise<HomeData> => {
+    const { data } = await api.get("/home", {
+        headers: authHeader(),
+        params: term ? { year: term.year, semester: term.semester } : undefined,
+    });
+    return data;
+};
+
 export interface PeriodTime {
     period: number;
     start: string;

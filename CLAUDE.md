@@ -158,14 +158,14 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 
 | 경로                | 페이지          | 설명                              |
 | ------------------- | --------------- | --------------------------------- |
-| `/`                 | SearchPage      | 통합 검색                         |
+| `/`                 | HomePage        | **홈** — 지금 교시·가야 할 교실·오늘 시간표·급식·공강인 친구 |
+| `/search`           | SearchPage      | 통합 검색 (예전엔 `/` 였습니다) |
 | `/emptyroomfinder`  | RoomsPage       | 빈 강의실 탐색                    |
 | `/analysis`         | AnalysisPage    | 학사 통계 대시보드                |
 | `/browse`           | BrowsePage      | 학생·교사 목록 + 교육과정 그래프  |
 | `/trade`            | TradePage       | 수강 변경 탐색 (2026-2 한정, 플래그) |
 | `/zamong`           | ZamongPage      | 교육과정 이수 현황 + 평점 (학번 등록 필요) |
 | `/calendar`         | CalendarPage    | 학사일정 달력 + 개인 일정 + 일정 제안 |
-| `/friends`          | FriendsPage     | 친구(단방향 등록) + 공강 격자 + 지금 공강 |
 | `/about`            | SettingsPage    | 기능 가이드북 + About             |
 | `/admin`            | AdminPage       | 계정 관리 (role=admin만)          |
 

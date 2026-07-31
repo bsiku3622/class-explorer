@@ -8,6 +8,7 @@ backend/
 ├── app_factory.py   → 두 앱이 공유하는 뼈대 (init_schema + CORS + 보안 헤더)
 ├── bench_router.py  → ksa-bench 전용 API (사람 1명 조회, 집계)
 ├── friends_router.py→ 친구(단방향) + 교시 시각표 — **두 앱 공통**
+├── home_router.py   → 홈 대시보드 (`GET /home` 한 번에) + 급식(ksain API)
 ├── periods.py       → 교시별 시각표 **원본** (프론트는 GET /periods 로 받아 씁니다)
 ├── main.py          → 진입점 (하나) — 두 프론트가 같이 씁니다
 ├── classes_router.py→ GET / (학기 전체 + 분반 명단) + GET /terms
@@ -181,6 +182,19 @@ A가 B를 추가해도 B의 목록에는 A가 없습니다.
 `/friends/busy`·`/friends/now` 는 **슬롯(`"MON-3"`)만** 돌려줍니다 — 과목·교실은
 보내지 않습니다. 공강을 맞추는 데 필요 없고, 주면 "누가 뭘 듣는지" 훑는 화면이 됩니다.
 
+### 홈 (`home_router.py`)
+
+`GET /home` 하나가 홈 화면에 필요한 걸 다 돌려줍니다 — 지금 교시·오늘 내 시간표·지금
+있어야 할 교실·다음 수업·지금 공강인 친구·급식·학기/방학. 켜자마자 보이는 자리라
+왕복이 늘면 바로 티가 나서 한 요청으로 묶었습니다.
+
+**방학 판단**은 학사일정의 `개학`·`종업` 표지로 합니다 — "방학" 이라는 일정이 따로 없어서
+마지막 종업이 마지막 개학보다 뒤면 방학입니다.
+
+**급식**은 `https://api.ksain.net/v1/meal.php` 에서 받습니다. 환경변수
+`KSAIN_API_KEY` 가 필요하고, **없으면 급식 칸만 비고 나머지는 그대로 돕니다** — 홈 전체가
+죽으면 안 됩니다. 날짜별로 메모리에 캐시합니다.
+
 ### 교시 시각표 (`periods.py`)
 
 출처는 생활관에 붙은 **「생활관 일과 운영」** 표입니다. 50분 수업 + 10분 쉬는시간으로
@@ -343,6 +357,7 @@ python -m backend.create_user <username> <password>
 | `CORS_ORIGINS` | `http://localhost:5173` | 허용 도메인 (콤마 구분) |
 | `FORCE_HTTPS` | (없음) | 설정 시 HSTS 헤더 활성화 |
 | `GOOGLE_CLIENT_ID` | (없음) | 학번 확인용. 없으면 `/auth/link-google`이 503 |
+| `KSAIN_API_KEY` | (없음) | 급식(ksain.net). 없으면 홈의 급식 칸만 비웁니다 |
 
 배포 시 예시: `CORS_ORIGINS=https://your-app.com FORCE_HTTPS=1`
 

@@ -27,7 +27,7 @@ const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
 const LoginPage = React.lazy(() => import("./pages/LoginPage"));
 const AdminPage = React.lazy(() => import("./pages/AdminPage"));
 const TradePage = React.lazy(() => import("./pages/TradePage"));
-const FriendsPage = React.lazy(() => import("./pages/FriendsPage"));
+const HomePage = React.lazy(() => import("./pages/HomePage"));
 const ZamongPage = React.lazy(() => import("./pages/ZamongPage"));
 const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
 
@@ -85,7 +85,7 @@ const App: React.FC = () => {
 
     const initialSearch = useMemo(
         () =>
-            location.pathname === "/"
+            location.pathname === "/search"
                 ? new URLSearchParams(location.search).get("q") || ""
                 : "",
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -144,8 +144,16 @@ const App: React.FC = () => {
         setSessionToken(token);
     }, []);
 
+    // 검색이 "/" 에서 "/search" 로 옮겨졌습니다. 예전에 공유된 `/?q=…` 링크가 죽지
+    // 않도록 홈에 `?q=` 가 붙어 오면 검색으로 넘깁니다.
     useEffect(() => {
-        if (location.pathname === "/") {
+        if (location.pathname === "/" && location.search.includes("q=")) {
+            navigate(`/search${location.search}`, { replace: true });
+        }
+    }, [location.pathname, location.search, navigate]);
+
+    useEffect(() => {
+        if (location.pathname === "/search") {
             const q = new URLSearchParams(location.search).get("q") || "";
             if (q !== searchInput) {
                 setSearchInput(q);
@@ -285,7 +293,7 @@ const App: React.FC = () => {
     );
 
     const handleSearch = useCallback(() => {
-        if (allClassesData.length === 0 || location.pathname !== "/") return;
+        if (allClassesData.length === 0 || location.pathname !== "/search") return;
         if (selectedYears.length === 0) {
             setDisplayData([]);
             setStats(null);
@@ -359,14 +367,14 @@ const App: React.FC = () => {
     }, [handleSearch]);
 
     useEffect(() => {
-        if (location.pathname !== "/") return;
+        if (location.pathname !== "/search") return;
         const handler = setTimeout(() => {
             const currentParams = new URLSearchParams(location.search);
             if (searchTerm !== currentParams.get("q")) {
                 if (searchTerm) currentParams.set("q", searchTerm);
                 else currentParams.delete("q");
                 const qs = currentParams.toString();
-                navigate(qs ? `/?${qs}` : "/", { replace: true });
+                navigate(qs ? `/search?${qs}` : "/search", { replace: true });
             }
         }, 300);
         return () => clearTimeout(handler);
@@ -413,8 +421,8 @@ const App: React.FC = () => {
         const newValue = searchTerm === finalValue ? "" : finalValue;
         setSearchInput(newValue);
         setSearchTerm(newValue);
-        if (location.pathname !== "/")
-            navigate(newValue ? `/?q=${encodeURIComponent(newValue)}` : "/");
+        if (location.pathname !== "/search")
+            navigate(newValue ? `/search?q=${encodeURIComponent(newValue)}` : "/search");
     };
 
     const handleSearchSelect = (
@@ -425,8 +433,8 @@ const App: React.FC = () => {
         const finalValue = buildSearchValue(value, isTeacher, isRoom);
         setSearchInput(finalValue);
         setSearchTerm(finalValue);
-        if (location.pathname !== "/")
-            navigate(`/?q=${encodeURIComponent(finalValue)}`);
+        if (location.pathname !== "/search")
+            navigate(`/search?q=${encodeURIComponent(finalValue)}`);
     };
 
     const toggleSubject = (name: string) => {
@@ -477,10 +485,7 @@ const App: React.FC = () => {
     return (
         <div className="min-h-screen bg-retro-bg text-retro-fg font-sans">
             <Navigation
-                onLogoClick={() => {
-                    setSearchInput("");
-                    navigate("/");
-                }}
+                onLogoClick={() => navigate("/")}
                 onLogout={handleLogout}
                 isAdmin={hasRole(currentUser?.role, "admin")}
                 username={currentUser?.username ?? ""}
@@ -507,6 +512,17 @@ const App: React.FC = () => {
                         <Routes>
                             <Route
                                 path="/"
+                                element={
+                                    <HomePage
+                                        term={term}
+                                        myStuId={currentUser?.stu_id ?? null}
+                                        studentName={currentUser?.student_name ?? null}
+                                        allClassesData={allClassesData}
+                                    />
+                                }
+                            />
+                            <Route
+                                path="/search"
                                 element={
                                     <SearchPage
                                         searchInput={searchInput}
@@ -582,16 +598,6 @@ const App: React.FC = () => {
                                     }
                                 />
                             )}
-                            <Route
-                                path="/friends"
-                                element={
-                                    <FriendsPage
-                                        term={term}
-                                        myStuId={currentUser?.stu_id ?? null}
-                                        allClassesData={allClassesData}
-                                    />
-                                }
-                            />
                             <Route
                                 path="/zamong"
                                 element={
