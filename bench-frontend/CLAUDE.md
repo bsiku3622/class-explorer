@@ -2,26 +2,56 @@
 
 > [← 프로젝트 전체 가이드](../CLAUDE.md) · class-explorer 쪽은 [`frontend/CLAUDE.md`](../frontend/CLAUDE.md)
 
-**여기는 `bench-frontend/` 입니다.** 전교생에게 열 ksa-bench 를 만드는 자리고,
-`frontend/`(class-explorer)를 통째로 복사해 온 직후 상태입니다. 그래서 아래 설명은
-**아직 class-explorer 의 것**입니다 — 화면을 갈아엎으면서 한 절씩 고쳐 나갑니다.
+**여기는 `bench-frontend/` 입니다.** 전교생에게 열 ksa-bench 이고, 백엔드도
+`backend.bench_main:app` 을 봅니다 (`backend.main:app` 이 아닙니다).
 
 dev 서버는 `https://localhost:5189` 입니다. class-explorer(5188)와 나란히 띄울 수 있습니다.
 
-### 여기서 없앨 것 (합의된 범위)
+### class-explorer 와 다른 점
 
-| | |
-| --- | --- |
-| 분반 → 학생 명단 | 제거. 인원수는 남기고 학번 분포는 뺍니다 |
-| 다중 검색 | 제거. 검색은 **한 번에 한 명** |
-| 검색 결과 격자 | 여러 명이 걸리면 이름 목록만. 시간표는 한 명을 고른 뒤에 |
-| `/browse` 학생 목록 | 제거. 교사 목록만 남깁니다 |
-| 교사·강의실 검색 | 남깁니다 — 담당 분반·시간·교실만, 명단 없이 |
+| | class-explorer | 여기 |
+| --- | --- | --- |
+| 분반 → 학생 명단 | 있음 | **없음** — 인원수만, 학번 분포도 없음 |
+| 사람 검색 | 클라이언트가 통째로 훑음 | 서버에 질의, **한 번에 한 명** |
+| 검색 결과 | 여러 명의 시간표가 한 화면에 | 후보 목록 → 하나 고르면 그 사람 시간표 |
+| 불린 연산·초성 | 있음 | 없음 |
+| `/browse` | 학생·교사·교육과정 | 교사·교육과정 |
+| `/trade`, `/admin` | 있음 | 없음 (아래 참고) |
 
-이유는 하나입니다. **명단을 얻는 비용을 가온누리와 같게 만드는 것** — 한 명씩 물어봐야
-하게. 지금 구조는 `GET /` 하나로 학기 전체가 브라우저에 내려와 localStorage 에까지
-남으므로, 화면에서 가리는 것만으로는 아무 의미가 없습니다. **학생 매핑을 벌크 응답에서
-빼고 서버 질의로 돌리는 것**이 이 작업의 실체입니다.
+이유는 하나입니다. **명단을 얻는 비용을 학교 공식 앱(가온누리)과 같게 만드는 것** —
+한 명씩 물어봐야 하게. 화면에서 가리는 걸로는 부족합니다. `GET /` 응답이 그대로
+localStorage 캐시에 남기 때문에, **명단은 응답 자체에서 빠져 있어야** 합니다.
+
+### 사람 찾기 흐름
+
+`student:김민` 처럼 치면 `App.tsx` 가 `studentQuery` 를 뽑아 서버에 물어봅니다.
+
+```
+student:김민  →  GET /students/search?q=김민   →  후보 목록 (이름·학번만)
+                 ↓ 후보를 고르면
+                 GET /students/{stuId}          →  그 한 명의 시간표
+```
+
+후보가 딱 한 명이면 2단계를 자동으로 건너뜁니다. 화면은 `components/StudentLookup.tsx`.
+
+서버에 **최소 2글자·결과 20명 상한·계정 단위 rate limit** 이 걸려 있습니다.
+자세한 값은 [`backend/bench_router.guide.md`](../backend/bench_router.guide.md).
+
+### 아직 없는 것
+
+- **`/trade`** — 명단으로 상대를 찾는 방식이라 그대로 못 옮깁니다. 양쪽이 "원한다"고
+  등록했을 때만 맞춰 주는 형태로 새로 만들어야 합니다
+- **`/admin`** — bench 백엔드에 `/admin/*` 을 등록하지 않았습니다 (`/admin/students` 가
+  전교생 명단을 그대로 돌려줍니다). 필요해지면 안전한 것만 골라 새로 만드세요
+- **Analysis 의 Timetable Compare** — 학생 여럿을 골라 겹쳐 보던 기능이라 뺐습니다
+
+### 고칠 때 주의
+
+- **여러 명을 한 번에 조회하는 길을 다시 만들지 마세요.** 학번이 연속이라 그 순간
+  전교생이 한 방에 긁힙니다. 이 앱의 전제가 거기 걸려 있습니다
+- 분반에 `students` 를 되살리지 마세요. 화면에서 안 써도 응답에 있으면 캐시에 남습니다
+- **과목·분반별 학번 분포**도 안 됩니다. 1학년 필수 과목(P/F)에서 혼자 다른 학번이면
+  그게 곧 재수강 표시라, 이름이 없어도 그 사실만으로 드러납니다
 
 ## 디렉토리 구조
 ```
@@ -34,24 +64,21 @@ src/
 ├── lib/
 │   ├── api.ts                → axios 인스턴스 (VITE_API_BASE_URL 기반 baseURL)
 │   ├── utils.ts              → 공통 상수 + 유틸 함수
-│   ├── searchEngine.ts       → 클라이언트 검색 엔진 (논리 연산 + 유사도 매칭)
-│   ├── tradeEngine.ts        → 수강 변경 조합 탐색 (슬롯 충돌 기반)
+│   ├── benchApi.ts           → 사람 관련 서버 질의 (검색·시간표·통계·본인 이수)
+│   ├── searchEngine.ts       → 과목·교사·강의실 검색 (논리 연산·초성 없음)
 │   ├── curriculum.ts         → 졸업 요건 진척도 + 평점 + 선수관계 그래프 배치
-│   ├── userState.ts          → 계정별 화면 상태 저장/복원 (localStorage 이관 포함)
-│   └── features.ts           → 한시 기능 노출 플래그 (TRADE_FEATURE)
+│   └── userState.ts          → 계정별 화면 상태 저장/복원 (localStorage 이관 포함)
 ├── constants/
 │   └── motion.ts             → Framer Motion 설정값
 ├── hooks/
 │   └── useModifierKey.ts     → Cmd/Ctrl 키 감지 훅
 ├── pages/
 │   ├── LoginPage.tsx         → 로그인 폼 (미인증 시 전체 화면 대체)
-│   ├── AdminPage.tsx         → 관리자 대시보드 (사용자/세션/데이터 관리, admin 전용)
-│   ├── SearchPage.tsx        → 통합 검색
+│   ├── SearchPage.tsx        → 과목 검색 + 사람 찾기(student:)
 │   ├── RoomsPage.tsx         → 빈 강의실 탐색
 │   ├── AnalysisPage.tsx      → 학사 통계 대시보드
-│   ├── BrowsePage.tsx        → 학생·교사 목록 + 교육과정 그래프
-│   ├── TradePage.tsx         → 수강 변경 탐색 (2026-2 한정, features 플래그)
-│   ├── ZamongPage.tsx        → 교육과정 이수 현황 + 평점 (학번 등록 필요)
+│   ├── BrowsePage.tsx        → 교사 목록 + 교육과정 그래프 (학생 목록 없음)
+│   ├── ZamongPage.tsx        → 교육과정 이수 현황 + 평점 (본인 것만)
 │   ├── CalendarPage.tsx      → 학사일정 달력 + 개인 일정 + 일정 제안
 │   └── SettingsPage.tsx      → 기능 가이드북 + About
 └── components/
@@ -71,9 +98,12 @@ src/
 | `displayData` | `SubjectData[]` | 검색/필터 적용된 표시 데이터 |
 | `searchInput` | `string` | 입력 필드 값 (300ms debounce) |
 | `searchTerm` | `string` | 실제 검색 실행 값 |
-| `selectedYears` | `string[]` | 선택된 학년 필터 |
 | `searchResult` | `SearchResultStats \| null` | 검색 결과 메타 정보 |
-| `searchMode` | `'general' \| 'student' \| 'teacher' \| 'room'` | 현재 검색 모드 |
+| `searchMode` | `'general' \| 'teacher' \| 'room'` | 현재 검색 모드 (학생은 별도 흐름) |
+| `studentQuery` | `string \| null` | `student:` 질의. null 이 아니면 사람 찾기 화면 |
+| `studentSearch` | `StudentSearchResponse \| null` | 후보 목록 (이름·학번만) |
+| `studentTimetable` | `StudentTimetable \| null` | 고른 **한 명**의 시간표 |
+| `termStats` | `Stats \| null` | 서버가 세어 준 학기 집계 (명단이 없어 직접 못 셈) |
 | `term` | `Term \| null` | 현재 조회 중인 학기 (localStorage 동기화) |
 | `availableTerms` | `Term[]` | 데이터가 존재하는 학기 목록 (API 응답 기반) |
 
@@ -91,6 +121,8 @@ src/
 
 ## API 호출
 - **항상 `src/lib/api.ts`의 인스턴스 사용** — `axios` 직접 import 금지
+- **사람 관련 조회는 `src/lib/benchApi.ts` 를 거칩니다** — 서버 질의를 한곳에 모아
+  두어야 "여러 명을 한 번에 받는 길"이 슬쩍 생기는 걸 막을 수 있습니다
 - `baseURL`: `VITE_API_BASE_URL` 환경변수 값, 없으면 `"/api"` (Vite 프록시)
 - 경로는 `/api` prefix 없이 작성: `api.get("/")`, `api.post("/auth/login")`
 
@@ -170,7 +202,7 @@ src/
 - 키: `ksa_class_finder_cache_{year}_{semester}` — **학기별로 분리**
 - 만료: 1시간 (3,600,000ms)
 - 저장 내용: `{ v, timestamp, student_counts, data, available_terms }`
-- `v`는 스키마 버전(`CACHE_VERSION`, 현재 **3**). **API 응답에 필드를 추가하면 반드시
+- `v`는 스키마 버전(`CACHE_VERSION`, 현재 **4** — 분반 명단이 빠진 응답). **API 응답에 필드를 추가하면 반드시
   올리세요** — 안 올리면 예전 응답을 든 브라우저가 최대 1시간 동안 새 필드를 못 받습니다
 - 강제 갱신: `fetchInitialData(true)` 호출
 - 로그아웃 시 `ksa_class_finder_cache` prefix가 붙은 키를 모두 삭제
@@ -187,9 +219,6 @@ src/
 | [component-guide.md](component-guide.md) | 컴포넌트 사전 |
 | [src/App.guide.md](src/App.guide.md) | App.tsx 상세 |
 | [src/lib/searchEngine.guide.md](src/lib/searchEngine.guide.md) | 검색 엔진 상세 |
-| [src/lib/tradeEngine.guide.md](src/lib/tradeEngine.guide.md) | 수강 변경 탐색 엔진 상세 |
+| [../backend/bench_router.guide.md](../backend/bench_router.guide.md) | bench 전용 API 상세 |
 | [src/lib/curriculum.guide.md](src/lib/curriculum.guide.md) | 교육과정 진척도·그래프 상세 |
 
-## 한시 기능 (features.ts)
-`TRADE_FEATURE.enabled`를 `false`로 내리면 `/trade` 라우트와 메뉴가 통째로 사라집니다.
-학기 조건(`year`/`semester`)도 함께 검사하므로 다른 학기를 보고 있으면 노출되지 않습니다.

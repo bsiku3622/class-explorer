@@ -6,6 +6,7 @@ import {
     Award,
 } from "lucide-react";
 import api from "../lib/api";
+import { fetchMyProgress } from "../lib/benchApi";
 import {
     ALL_DEPARTMENTS,
     buildPrereqIndex,
@@ -75,12 +76,15 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
             .catch(() => setLoadError("교육과정 데이터를 불러오지 못했습니다."));
     }, []);
 
+    // 이수 이력은 **본인 것만** 봅니다. class-explorer 는 학번을 주면 아무나 조회할 수
+    // 있는 `/curriculum/progress/{stuId}` 를 쓰지만, 그 라우터는 ksa-bench 에 등록되어
+    // 있지 않습니다 — 여기서는 서버가 내 계정의 학번으로 알아서 찾아 줍니다.
     useEffect(() => {
         if (!stuId) return;
         let cancelled = false;
-        api.get(`/curriculum/progress/${encodeURIComponent(stuId)}`, { headers: authHeader() })
-            .then((res) => {
-                if (!cancelled) setProgressData({ stuId, terms: res.data.terms ?? [] });
+        fetchMyProgress()
+            .then((data) => {
+                if (!cancelled) setProgressData({ stuId, terms: data.terms ?? [] });
             })
             .catch(() => {
                 if (!cancelled) setProgressData({ stuId, terms: [] });

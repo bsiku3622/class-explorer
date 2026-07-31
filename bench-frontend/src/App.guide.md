@@ -10,16 +10,20 @@
 | 상태 | 초기값 | 설명 |
 |------|--------|------|
 | `sessionToken` | localStorage | 인증 토큰. null이면 LoginPage 렌더 |
-| `currentUser` | `null` | `{ id, username, is_admin }` — `/auth/me` 응답 |
+| `currentUser` | `null` | `{ id, username, role, stu_id, email }` — `/auth/me` 응답 |
 | `allClassesData` | `[]` | API 원본 전체 데이터 (캐시 포함) |
 | `displayData` | `[]` | 현재 필터/검색 적용된 표시 데이터 |
 | `stats` | `null` | 검색 없을 때 전체 통계 (있으면 null) |
-| `studentCounts` | `{}` | 학년별 학생 수 (필터 UI용) |
-| `selectedYears` | `[]` | 체크된 학년 목록 |
+| `studentCounts` | `{}` | 학년별 학생 수 (전교 집계 — 분반별 분포가 아닙니다) |
+| `termStats` | `null` | 서버가 세어 준 학기 집계. 명단이 없어 직접 못 셉니다 |
 | `searchInput` | URL `?q=` | 입력 필드 값 |
 | `searchTerm` | URL `?q=` | 실제 검색어 (300ms debounce) |
 | `searchResult` | `null` | 검색 결과 메타 정보 |
-| `searchMode` | `'general'` | 현재 검색 모드 |
+| `searchMode` | `'general'` | `general \| teacher \| room` — 학생은 별도 흐름 |
+| `studentQuery` | `null` | `student:` 뒤의 말. null 이 아니면 사람 찾기 화면 |
+| `studentSearch` | `null` | 후보 목록 (이름·학번만) |
+| `studentTimetable` | `null` | 고른 **한 명**의 시간표 |
+| `studentLoading` / `studentError` | | 사람 조회 상태 (429 면 안내 문구) |
 | `hoveredEntityId` | `null` | 호버된 엔티티 ID (EntityCard 연동) |
 | `expandedSubjects` | `[]` | 펼쳐진 과목 이름 목록 |
 | `lastUpdated` | `null` | 마지막 데이터 fetch 타임스탬프 |
@@ -30,11 +34,20 @@
 ## useMemo 파생 상태
 | 값 | 의존 | 설명 |
 |----|------|------|
-| `isLogicalSearch` | searchTerm | `+`, `&`, `/`, `(` 포함 여부 |
-| `isConsolidatedView` | searchMode, isLogicalSearch | 통합 뷰 여부 |
-| `studentSubjectMap` | allClassesData | 학번 → 과목 목록 매핑 |
+| `studentQuery` | searchTerm | `student:` 접두사를 벗긴 말. 없으면 null |
+| `isConsolidatedView` | searchMode | `general` 이 아니면 통합 뷰 |
 | `teacherSubjectMap` | allClassesData | 교사 → 과목→분반 목록 매핑 |
-| `hasStudentInSearch` | searchResult | 검색 결과에 학생 엔티티 있음 여부 |
+
+`studentSubjectMap`(학번 → 과목)과 `isLogicalSearch` 는 없습니다 — 명단도 논리 검색도
+없어졌습니다.
+
+## 사람 찾기
+
+`studentQuery` 가 바뀌면 effect 가 `benchApi.searchStudents()` 를 부릅니다. 후보가 딱
+한 명이면 `loadStudentTimetable()` 로 2단계를 자동으로 건너뜁니다.
+
+**여러 명을 한 번에 받는 형태로 바꾸지 마세요.** 학번이 연속이라 그 순간 전교생이 한
+방에 긁힙니다.
 
 ## 인증 흐름
 ```
@@ -87,11 +100,14 @@ handleSearchSelect: 항상 해당 값으로 설정
 sessionToken=null → LoginPage (라우터 밖, 전체 화면 대체)
 /                 → SearchPage (전역 상태 대부분 props 전달)
 /emptyroomfinder  → RoomsPage (allClassesData, onRoomSearch)
-/analysis         → AnalysisPage (allClassesData, studentCounts, lastUpdated, fetchInitialData, handleSearch=handleSearchToggle)
-/browse           → BrowsePage (allClassesData, studentCounts, lastUpdated, fetchInitialData, handleSearch=handleSearchSelect)
+/analysis         → AnalysisPage (allClassesData, studentCounts, term, …)
+/browse           → BrowsePage (allClassesData, handleSearch=handleSearchSelect)
+/zamong           → ZamongPage (본인 이수 현황)
+/calendar         → CalendarPage
 /about            → SettingsPage (props 없음)
-/admin            → AdminPage (is_admin=true일 때만 라우트 등록)
 /*                → Navigate to /
+
+/trade 와 /admin 은 여기 없습니다 — 이유는 ../CLAUDE.md 의 "아직 없는 것" 참고.
 ```
 
 ## 레이아웃 구조

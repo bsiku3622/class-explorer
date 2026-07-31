@@ -11,30 +11,22 @@ interface SubjectAccordionItemProps {
     subject: SubjectData;
     searchTerm: string;
     handleSearchToggle: (v: string, isT?: boolean, isR?: boolean) => void;
-    studentSubjectMap: Record<string, string[]>;
     teacherSubjectMap: Record<string, Record<string, string[]>>;
     isModifierPressed: boolean;
-    hasStudentInSearch: boolean;
-    selectedYears: string[];
-    searchMode: "general" | "student" | "teacher" | "room";
+    searchMode: "general" | "teacher" | "room";
     isOpen: boolean;
     onToggle: () => void;
-    isSingleStudentSearch?: boolean;
 }
 
 const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
     subject,
     searchTerm,
     handleSearchToggle,
-    studentSubjectMap,
     teacherSubjectMap,
     isModifierPressed,
-    hasStudentInSearch,
-    selectedYears,
     searchMode,
     isOpen,
     onToggle,
-    isSingleStudentSearch,
 }) => {
     const [hoveredTeacher, setHoveredTeacher] = useState<string | null>(null);
 
@@ -54,21 +46,11 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
         return summary;
     }, [subject.sections]);
 
-    const visibleStudentCount = useMemo(() => {
-        const uniqueIds = new Set<string>();
-        subject.sections.forEach((section) => {
-            section.students.forEach((student) => {
-                if (selectedYears.includes(student.stuId.split("-")[0])) {
-                    uniqueIds.add(student.stuId);
-                }
-            });
-        });
-        return uniqueIds.size;
-    }, [subject.sections, selectedYears]);
+    // 예전에는 명단을 직접 세면서 학년 필터까지 걸렀습니다. 명단이 없으니 서버가
+    // 세어 준 과목 전체 인원을 그대로 씁니다 (`subject_student_count`).
+    const visibleStudentCount = subject.subject_student_count;
 
-    const sectionDisplayText = isSingleStudentSearch
-        ? `SECTION ${subject.sections.map((s) => s.section.replace(/[^0-9]/g, "")).join(",")}`
-        : `${subject.section_count} SECTIONS`;
+    const sectionDisplayText = `${subject.section_count} SECTIONS`;
 
     return (
         <div className="border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] bg-white overflow-hidden rounded-none w-full mb-6 last:mb-0">
@@ -83,7 +65,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                     <div className="flex gap-2 sm:gap-3 shrink-0">
                         <Chip
                             size="sm"
-                            className={`${isSingleStudentSearch ? "bg-retro-accent1" : "bg-retro-accent2"} border-2 border-black text-xs sm:text-sm font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-2 sm:px-3 h-auto py-1 sm:py-1.5 uppercase`}
+                            className="bg-retro-accent2 border-2 border-black text-xs sm:text-sm font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-2 sm:px-3 h-auto py-1 sm:py-1.5 uppercase"
                         >
                             {sectionDisplayText}
                         </Chip>
@@ -191,11 +173,8 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                                         section={section}
                                         searchTerm={searchTerm}
                                         handleSearchToggle={handleSearchToggle}
-                                        studentSubjectMap={studentSubjectMap}
                                         teacherSubjectMap={teacherSubjectMap}
                                         isModifierPressed={isModifierPressed}
-                                        hasStudentInSearch={hasStudentInSearch}
-                                        selectedYears={selectedYears}
                                         searchMode={searchMode}
                                     />
                                 </React.Fragment>

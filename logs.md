@@ -1,5 +1,24 @@
 # Logs
 
+## 2026-07-31 — ksa-bench: 명단 없이 도는 앱 만들기
+
+- 변경 파일: `backend/app_factory.py`·`bench_main.py`·`bench_router.py`·`classes_router.py` (신규), `backend/main.py`·`curriculum_router.py`, `bench-frontend/src/lib/{benchApi.ts,searchEngine.ts}`, `bench-frontend/src/components/StudentLookup.tsx` (신규), `bench-frontend/src/{App.tsx,types/index.ts}`, `bench-frontend/src/pages/{SearchPage,BrowsePage,AnalysisPage,ZamongPage}.tsx`, 가이드 문서 일습
+- 요약: 전교생에게 열 ksa-bench 를 만들면서, 분반 명단을 응답에서 빼고 사람은 서버에 한 명씩 물어보게 바꿨습니다.
+
+**진입점을 둘로 갈랐습니다.** `backend.main:app`(class-explorer)과 `backend.bench_main:app`(ksa-bench)이 같은 코드·같은 DB 를 쓰되 라우터가 다릅니다. 권한 검사로 가르지 않은 이유는, 한 앱에 명단 엔드포인트와 공개 서비스가 같이 살면 **나중에 기능을 붙이다 의존성 하나를 빠뜨리는 것이 곧 사고**가 되기 때문입니다. 등록이 안 되면 그 실수가 성립하지 않습니다. bench 에 안 붙인 것: `GET /`(명단 포함), `/curriculum/progress/{stu_id}`(아무 학생의 누적 이수), `/admin/*`(`/admin/students` 가 전교생 명단).
+
+**화면에서 가리는 건 아무 의미가 없습니다.** 지금 구조는 `GET /` 하나로 학기 전체가 브라우저에 내려오고 localStorage 에 1시간 남습니다. 그래서 UI 가 아니라 **응답**을 바꿨습니다 — `bench_router` 의 `GET /` 에는 분반 `students` 배열이 없고, 사람은 `GET /students/search`(이름·학번만, 2글자 이상, 20명 상한) → `GET /students/{stuId}`(한 명) 두 단계로 갑니다. 계정 단위 rate limit(검색 40/분, 상세 30/분)을 걸어 전교생을 훑는 데 20분 넘게 걸리게 했습니다.
+
+**목표는 차단이 아니라 비용입니다.** 가온누리에도 전교생 시간표 검색이 있고 학번이 연속이라 순회하면 긁힙니다. 완전히 막는 건 의미가 없으니, 명단을 얻는 비용을 거기와 같게 맞추는 게 기준입니다. 작정한 사람은 어차피 못 막고, 문제는 재미로 훑는 수백 명입니다.
+
+**학번 분포를 뺀 이유** — 1학년 필수 과목이 P/F 라 Fail 하면 재수강합니다. 그 과목 명단에서 혼자 다른 학번이면 그게 곧 재수강 표시라, **이름을 지워도 그 사실만으로 드러납니다.** 그래서 이름이 아니라 학년 대비를 없앴습니다. 학기 전체 `student_counts`(학년별 총원)는 전교 집계라 남겼습니다.
+
+**분석 화면**은 명단을 프론트가 들고 직접 세던 구조라, 세는 일을 서버로 옮겼습니다(`GET /stats/enrollment` — 주당 교시·수강 과목 수 분포). "Timetable Compare"(학생 여럿을 골라 겹쳐 보기)는 다중 조회라 뺐습니다.
+
+**옮기지 못한 것**: `/trade` 는 명단으로 상대를 찾는 방식이라 그대로는 안 됩니다 — 양쪽이 등록했을 때만 맞춰 주는 형태로 새로 만들어야 합니다. `/admin` 은 안전한 것만 골라 새로 만듭니다.
+
+검증: 두 앱의 라우트를 **핸들러 기준**으로 대조해 bench 에 금지 핸들러가 없음을 확인했습니다(explorer 42 / bench 32 — 경로가 아니라 어느 함수가 붙었는지로 봐야 합니다. bench 에도 `GET /` 은 있고, 명단 없는 자체 구현입니다). 로컬 DB 로 응답에 개인 필드가 없고 rate limit 이 실제로 429 를 내는 것까지 확인. 두 프론트 모두 빌드 통과. lint 는 53 → 10 errors (`searchEngine.ts` 의 `any` 40개가 사라짐).
+
 ## 2026-07-31 — ksa-bench 를 위한 두 번째 프론트 분리
 
 - 변경 파일: `bench-frontend/` (신규, `frontend/` 복사본), `CLAUDE.md`, `.gitignore`, `tasks.md`

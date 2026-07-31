@@ -76,14 +76,60 @@ export interface SectionTime {
     teacher?: string;
 }
 
+/**
+ * 분반. **수강생 명단이 없습니다** — 서버가 안 보냅니다.
+ *
+ * 화면에서 가리는 걸로는 부족합니다. 응답이 그대로 localStorage 캐시에 남기 때문에,
+ * 명단은 응답 자체에서 빠져 있어야 합니다. 사람을 찾으려면 `benchApi.searchStudents()`
+ * → `benchApi.fetchStudentTimetable()` 로 **한 번에 한 명씩** 물어봅니다.
+ */
 export interface Section {
     id: number;
     section: string;
     teacher: string;
     room: string;
-    students: StudentInfo[];
+    /** 인원수는 줍니다 — 개인을 가리키지 않고 수강신청에 쓸모가 있습니다 */
     student_count: number;
     times: SectionTime[];
+}
+
+/** `GET /students/search` 한 건 */
+export interface StudentCandidate {
+    stuId: string;
+    name: string;
+}
+
+/** `GET /students/{stuId}` — 한 학생의 한 학기 수업 */
+export interface StudentClass {
+    id: number;
+    subject: string;
+    subject_id: number;
+    is_ec: boolean;
+    section: string;
+    teacher: string;
+    room: string;
+    credits: number | null;
+    is_pf: boolean;
+    department: string | null;
+    times: SectionTime[];
+}
+
+export interface StudentTimetable {
+    student: StudentCandidate;
+    term: Term;
+    classes: StudentClass[];
+}
+
+/** `GET /stats/enrollment` — 값 → 인원수, 값 → 학번 → 인원수 */
+export interface Histogram {
+    total: Record<string, number>;
+    by_year: Record<string, Record<string, number>>;
+}
+
+export interface EnrollmentStats {
+    term: Term;
+    weekly_periods: Histogram;
+    subject_count: Histogram;
 }
 
 export interface SubjectData {
@@ -113,8 +159,12 @@ export interface Stats {
     total_active_students: number;
 }
 
+/**
+ * 검색 결과로 묶이는 대상. **학생은 없습니다** — 학생은 클라이언트가 훑는 게 아니라
+ * 서버에 한 명씩 물어보는 흐름(`StudentCandidate`)으로 갈라졌습니다.
+ */
 export interface SearchEntity {
-    type: "student" | "teacher" | "room";
+    type: "teacher" | "room";
     name: string;
     id: string;
     subject_count: number;
@@ -128,6 +178,4 @@ export interface SearchResultStats {
     entities: SearchEntity[];
     total_subjects: number;
     total_sections: number;
-    total_matched_students: number;
-    warning?: string;
 }

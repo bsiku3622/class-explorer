@@ -14,12 +14,16 @@ KSA 학생/교사/강의실 기반 수업 탐색 웹 앱.
 
 백엔드는 **한 벌**입니다. 파서가 두 벌이 되면 KEIS 응답이 바뀔 때마다 같은 수정을 두 번
 하게 되고, 곧 서로 달라집니다. 대신 **ASGI 진입점을 둘로** 두어 ksa-bench 쪽 프로세스에는
-전체 제공 API 라우터를 아예 등록하지 않습니다 — 권한 검사 한 줄을 빠뜨려도 명단이
-새지 않게 하려는 것입니다. (진입점 분리는 아직입니다. 지금은 `backend/main.py` 하나입니다.)
+명단이 나갈 수 있는 라우터를 아예 등록하지 않습니다 — 권한 검사 한 줄을 빠뜨려도 명단이
+새지 않게 하려는 것입니다. 배치는 [`backend/main.guide.md`](backend/main.guide.md) 참고.
 
-**ksa-bench 에서 없어지는 것**: 분반 → 학생 명단, 다중 검색, `/browse` 학생 목록.
-학생 검색은 한 번에 한 명만 되고, 교사·강의실 검색은 명단 없이 남습니다. 이렇게 하면
-명단을 얻는 비용이 학교 공식 앱(가온누리)과 같아집니다 — 한 명씩 물어봐야 합니다.
+**ksa-bench 에서 없어진 것**: 분반 → 학생 명단, 다중 검색·불린 연산·초성, `/browse`
+학생 목록, `/trade`, `/admin`, 과목별 학번 분포. 학생 검색은 **한 번에 한 명**만 되고
+(후보 목록 → 하나 선택), 교사·강의실 검색은 명단 없이 남습니다.
+
+목표는 차단이 아니라 **비용**입니다. 학교 공식 앱(가온누리)에도 전교생 시간표 검색이
+있고 학번이 연속이라 순회하면 긁힙니다. 그러니 완전히 막는 건 의미가 없고, 명단을 얻는
+비용을 거기와 같게 — 한 명씩 물어봐야 하게 — 맞춥니다.
 
 ---
 
@@ -34,8 +38,9 @@ npm run lint      # ESLint
 # Frontend — ksa-bench (bench-frontend/)
 npm run dev       # https://localhost:5189 — 같은 백엔드로 프록시. 둘을 나란히 띄울 수 있습니다
 
-# Backend (repo root)
-uvicorn backend.main:app --reload   # FastAPI (port 8000)
+# Backend (repo root) — 앱이 둘입니다. 코드·DB 는 한 벌, 라우터만 다릅니다
+uvicorn backend.main:app --reload                    # class-explorer (8000)
+uvicorn backend.bench_main:app --reload --port 8001  # ksa-bench (8001)
 python -m backend.parser_run                       # KEIS API → SQLite 동기화 (오늘 기준 학기)
 python -m backend.parser_run -y 2026 -s 2          # 학기 지정
 python -m backend.parse_calendar_pdf <학사일정.pdf>  # 연간 학사일정 PDF → calendar_seed.json

@@ -2,13 +2,12 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Tooltip, Chip } from "@heroui/react";
 import {
     BookOpen,
-    AlertCircle,
     ChevronDown,
     CalendarDays,
     LayoutList,
 } from "lucide-react";
 import type { SearchResultStats, SearchEntity } from "../types";
-import { getStudentColor, getKoreanName } from "../lib/utils";
+import { getKoreanName } from "../lib/utils";
 import { tooltipMotionProps } from "../constants/motion";
 import TimetableGrid from "./TimetableGrid";
 import EntityCard from "./EntityCard";
@@ -16,8 +15,7 @@ import RetroStatItem from "./atoms/RetroStatItem";
 
 interface SearchResultDisplayProps {
     searchResult: SearchResultStats;
-    searchMode: "general" | "student" | "teacher" | "room";
-    isLogicalSearch: boolean;
+    searchMode: "general" | "teacher" | "room";
     isConsolidatedView: boolean;
     isModifierPressed: boolean;
     hoveredEntityId: string | null;
@@ -35,7 +33,6 @@ interface SearchResultDisplayProps {
 }
 
 const getEntityColor = (entity: SearchEntity) => {
-    if (entity.type === "student") return getStudentColor(entity.id);
     if (entity.type === "teacher") return "#7828c8";
     if (entity.type === "room") return "#00B5E7";
     return "#000000";
@@ -44,7 +41,6 @@ const getEntityColor = (entity: SearchEntity) => {
 const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
     searchResult,
     searchMode,
-    isLogicalSearch,
     isConsolidatedView,
     isModifierPressed,
     hoveredEntityId,
@@ -102,34 +98,9 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
         );
     };
 
-    const conflictData = useMemo(() => {
-        if (!isLogicalSearch) return null;
-        const studentEntities = searchResult.entities.filter((e) => e.type === "student");
-        if (studentEntities.length < 2) return null;
-        const schedules = studentEntities.map((entity) => {
-            const map: Record<string, string> = {};
-            (entity.times || []).forEach((t: any) => {
-                map[`${t.day}-${t.period}`] = t.subject || "";
-            });
-            return map;
-        });
-        let count = 0;
-        ["MON", "TUE", "WED", "THU", "FRI"].forEach((day) =>
-            Array.from({ length: 11 }, (_, i) => i + 1).forEach((period) => {
-                const key = `${day}-${period}`;
-                const occupied = schedules.filter((s) => !!s[key]);
-                if (occupied.length < 2) return;
-                const first = occupied[0][key];
-                if (!occupied.every((s) => s[key] === first)) count++;
-            }),
-        );
-        return count > 0 ? { count } : null;
-    }, [searchResult.entities, isLogicalSearch]);
-
     const matchSummary = useMemo(() => {
         const entities = searchResult.entities;
         const counts = {
-            student: entities.filter((e) => e.type === "student").length,
             teacher: entities.filter((e) => e.type === "teacher").length,
             room: entities.filter((e) => e.type === "room").length,
             subject: searchResult.total_subjects,
@@ -140,10 +111,6 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
             parts.push(
                 `${counts.subject} Subject${counts.subject > 1 ? "s" : ""}`,
             );
-        if (counts.student > 0)
-            parts.push(
-                `${counts.student} Student${counts.student > 1 ? "s" : ""}`,
-            );
         if (counts.teacher > 0)
             parts.push(
                 `${counts.teacher} Teacher${counts.teacher > 1 ? "s" : ""}`,
@@ -153,26 +120,6 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
 
         return parts.length > 0 ? parts.join(" & ") + " Matched" : "No Matches";
     }, [searchResult]);
-
-    const renderWarning = () => {
-        if (!searchResult.warning) return null;
-        return (
-            <div className="bg-white border-2 border-black p-4 shadow-[4px_4px_0_0_rgba(255,165,0,0.4)] flex items-start gap-3 mb-8">
-                <AlertCircle
-                    className="text-orange-500 shrink-0 mt-0.5"
-                    size={20}
-                />
-                <div>
-                    <p className="text-xs font-black uppercase text-orange-600 tracking-widest mb-1">
-                        Search Warning
-                    </p>
-                    <p className="text-sm font-bold text-black leading-tight">
-                        {searchResult.warning}
-                    </p>
-                </div>
-            </div>
-        );
-    };
 
     const handleSubjectClick = (sub: string, mode: string) => {
         const parts = sub.split(" - ");
@@ -205,40 +152,30 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
     if (isConsolidatedView) {
         const primaryEntity = searchResult.entities[0];
         const bgColor =
-            searchMode === "student" && primaryEntity
-                ? `${getStudentColor(primaryEntity.id)}15`
-                : searchMode === "room"
-                  ? "rgba(0, 181, 231, 0.1)"
-                  : searchMode === "teacher"
-                    ? "rgba(120, 40, 200, 0.05)"
-                    : "rgba(0, 0, 0, 0.03)";
+            searchMode === "room"
+                ? "rgba(0, 181, 231, 0.1)"
+                : searchMode === "teacher"
+                  ? "rgba(120, 40, 200, 0.05)"
+                  : "rgba(0, 0, 0, 0.03)";
 
         return (
             <div className="flex flex-col">
-                {renderWarning()}
                 <div className="bg-white border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-black">
                     <div
                         className={`p-6 md:p-8 flex flex-col relative ${searchMode === "general" ? "md:w-2/3" : "md:w-1/3"}`}
                         style={{ backgroundColor: bgColor }}
                     >
                         <div className="absolute top-0 left-0 px-6 py-1.5 bg-black text-white text-xs font-black tracking-widest uppercase">
-                            {searchMode === "student"
-                                ? "Student Profile"
-                                : searchMode === "teacher"
-                                  ? "Teacher Profile"
-                                  : searchMode === "room"
-                                    ? "Classroom Profile"
-                                    : "Logical Search"}
+                            {searchMode === "teacher"
+                                ? "Teacher Profile"
+                                : searchMode === "room"
+                                  ? "Classroom Profile"
+                                  : "Search"}
                         </div>
 
                         <div className="mt-8 mb-10">
                             {searchMode !== "general" && primaryEntity ? (
                                 <>
-                                    {searchMode === "student" && (
-                                        <p className="text-xl font-black text-black/40 uppercase tracking-tighter mb-2">
-                                            &nbsp;&nbsp;{primaryEntity.id}
-                                        </p>
-                                    )}
                                     <h2
                                         className="text-4xl md:text-6xl font-black tracking-tighter"
                                         style={{
@@ -290,11 +227,9 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                                 className="text-black/40"
                                             />
                                             <span>
-                                                {searchMode === "student"
-                                                    ? "Enrollment"
-                                                    : searchMode === "teacher"
-                                                      ? "Teaching"
-                                                      : "Scheduled"}{" "}
+                                                {searchMode === "teacher"
+                                                    ? "Teaching"
+                                                    : "Scheduled"}{" "}
                                                 ({primaryEntity.subject_count})
                                             </span>
                                         </div>
@@ -324,8 +259,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                             </div>
                         )}
 
-                        {isLogicalSearch &&
-                            searchResult.entities.length > 0 && (
+                        {searchResult.entities.length > 0 && (
                                 <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-3">
                                     {searchResult.entities.map((entity, i) => {
                                         const color = getEntityColor(entity);
@@ -358,19 +292,10 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                                         >
                                                             <p className="text-[10px] font-black text-black/40 uppercase tracking-tighter mb-1">
                                                                 {entity.type ===
-                                                                "student"
-                                                                    ? "Student ID"
-                                                                    : entity.type ===
-                                                                        "teacher"
-                                                                      ? "Teacher"
-                                                                      : "Room"}
+                                                                "teacher"
+                                                                    ? "Teacher"
+                                                                    : "Room"}
                                                             </p>
-                                                            {entity.type ===
-                                                                "student" && (
-                                                                <p className="text-xs font-black text-black leading-none mb-3">
-                                                                    {entity.id}
-                                                                </p>
-                                                            )}
                                                             <p
                                                                 className="text-xl font-black tracking-tight"
                                                                 style={{
@@ -447,10 +372,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                                     }
                                                     onClick={() =>
                                                         handleSearchToggle(
-                                                            entity.type ===
-                                                                "student"
-                                                                ? entity.id
-                                                                : entity.name,
+                                                            entity.name,
                                                             entity.type ===
                                                                 "teacher",
                                                             entity.type ===
@@ -458,12 +380,9 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                                         )
                                                     }
                                                 >
-                                                    {entity.type === "student"
-                                                        ? `${entity.id.split("-")[0]} ${entity.name}`
-                                                        : entity.type ===
-                                                            "teacher"
-                                                          ? `${entity.name} T`
-                                                          : `${entity.name}`}
+                                                    {entity.type === "teacher"
+                                                        ? `${entity.name} T`
+                                                        : `${entity.name}`}
                                                 </div>
                                             </Tooltip>
                                         );
@@ -551,11 +470,9 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                             className="text-black/40"
                                         />
                                         <span>
-                                            {searchMode === "student"
-                                                ? "Enrollment"
-                                                : searchMode === "teacher"
-                                                  ? "Teaching"
-                                                  : "Scheduled"}{" "}
+                                            {searchMode === "teacher"
+                                                ? "Teaching"
+                                                : "Scheduled"}{" "}
                                             ({primaryEntity.subject_count})
                                         </span>
                                     </div>
@@ -596,24 +513,9 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                         unit="Classes"
                                     />
                                 </div>
-                                {conflictData && (
-                                    <div className="mb-6 bg-orange-50 border-2 border-orange-300 p-4 flex items-center gap-3">
-                                        <AlertCircle className="text-orange-500 shrink-0" size={16} />
-                                        <div>
-                                            <p className="text-xs font-black uppercase text-orange-600 tracking-widest">
-                                                {conflictData.count} Schedule Conflict{conflictData.count > 1 ? "s" : ""}
-                                            </p>
-                                            <p className="text-[11px] font-bold text-black/40 mt-0.5">
-                                                동일 시간대에 서로 다른 수업 수강
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
                                 <div className="bg-retro-bg/30 p-6 border border-black/10">
                                     <p className="text-xs font-bold leading-tight text-black/50 text-center">
-                                        {isLogicalSearch
-                                            ? "논리 연산이 적용된 결과입니다. 매칭되는 상세 분반 리스트는 아래 아코디언에서 확인하세요."
-                                            : "검색 결과에 대한 요약 통계입니다."}
+                                        검색 결과에 대한 요약 통계입니다.
                                     </p>
                                 </div>
                             </div>
@@ -626,7 +528,6 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
 
     return (
         <div className="flex flex-col gap-8">
-            {renderWarning()}
             <div className="bg-white border-black border-2 p-8 shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] relative overflow-hidden">
                 <div className="absolute top-0 right-0 px-6 py-1.5 bg-black text-white text-xs font-black tracking-widest uppercase">
                     Search Status
@@ -685,9 +586,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                     }
                                     onClick={() =>
                                         handleSearchSelect(
-                                            entity.type === "student"
-                                                ? entity.id
-                                                : entity.name,
+                                            entity.name,
                                             entity.type === "teacher",
                                             entity.type === "room",
                                         )
