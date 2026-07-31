@@ -89,14 +89,17 @@ export interface HomeData {
         /** 수업 시간이 아니면 false — "공강" 을 따질 게 없습니다 */
         counted: boolean;
     };
-    /** 서버에 급식 키가 없으면 통째로 null — 화면이 급식 칸을 아예 안 그립니다 */
+    /**
+     * 서버에 급식 키가 없으면 통째로 null — 화면이 급식 칸을 아예 안 그립니다.
+     *
+     * **메뉴는 여기 없습니다.** 학교 API 가 3~5초씩 걸려서 같이 기다리면 홈 전체가
+     * 늦어집니다 — `MealCard` 가 `GET /meal` 로 따로 받습니다.
+     */
     meal: {
         /** 서버 기준 오늘. 날짜를 넘길 때 여기서 셉니다 */
         date: string;
         /** 지금 시간대의 끼니. 식사 시간이 지나면 null */
         slot: MealSlot | null;
-        /** 아직 안 올라온 날은 null — 메뉴는 줄 단위로 옵니다 */
-        menu: MealMenu | null;
     } | null;
 }
 
