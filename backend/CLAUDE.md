@@ -5,7 +5,10 @@
 ## 파일 구조
 ```
 backend/
-├── main.py          → FastAPI 앱 + API 엔드포인트 (인증 포함)
+├── app_factory.py   → 두 앱이 공유하는 뼈대 (init_schema + CORS + 보안 헤더)
+├── main.py          → **class-explorer** 진입점 — 라우터 전부
+├── bench_main.py    → **ksa-bench** 진입점 — 명단 라우터를 등록하지 않음
+├── classes_router.py→ GET / (명단 포함, explorer 전용) + GET /terms (공통)
 ├── models.py        → SQLAlchemy ORM 모델 (12개 테이블)
 ├── migrations.py    → 앱 시작 시 실행되는 SQLite 스키마 마이그레이션 (멱등)
 ├── terms.py         → 학년도/학기 해석 유틸 (current_term, list_terms, resolve_term)
@@ -26,6 +29,23 @@ backend/
 ├── students.txt     → 학생 목록 (학번 + 이름)
 └── ksa_timetable.db → SQLite 데이터베이스
 ```
+
+## 앱이 둘입니다
+
+같은 코드·같은 DB 로 FastAPI 앱을 **두 개** 띄웁니다.
+
+| 진입점 | 앱 | 프론트 |
+| --- | --- | --- |
+| `backend.main:app` | class-explorer (초대제, 명단까지 전부) | `frontend/` |
+| `backend.bench_main:app` | ksa-bench (전교생 공개) | `bench-frontend/` |
+
+**ksa-bench 에는 명단이 나갈 수 있는 라우터를 등록하지 않습니다** — `GET /`,
+`/curriculum/progress/{stu_id}`, `/admin/*`. 권한 검사로 가르지 않은 이유는, 한 앱에
+명단 엔드포인트와 공개 서비스가 같이 살면 나중에 의존성 하나를 빠뜨리는 것이 곧 사고가
+되기 때문입니다. 등록이 안 되면 그 실수가 성립하지 않습니다.
+
+**bench 에 라우터를 새로 붙일 때는 그 라우터가 남의 데이터를 돌려줄 수 있는지 먼저
+확인하세요.** 자세한 배치는 [main.guide.md](main.guide.md) 에 표로 있습니다.
 
 ## 학기 모델
 
@@ -237,13 +257,13 @@ python -m backend.create_user <username> <password>
 ```
 
 ## Admin 엔드포인트 (`/admin/*`)
-모든 엔드포인트는 `is_admin=True` 유저만 접근 가능.
+모든 엔드포인트는 `role=admin` 유저만 접근 가능. **class-explorer 에만 등록됩니다.**
 
 | 메서드 | 경로 | 설명 |
 |--------|------|------|
 | `GET` | `/admin/users` | 전체 유저 목록 |
 | `POST` | `/admin/users` | 유저 생성 |
-| `PATCH` | `/admin/users/{id}/admin` | admin 권한 토글 |
+| `PATCH` | `/admin/users/{id}/role` | 권한 변경 (`user`\|`manager`\|`admin`) |
 | `DELETE` | `/admin/users/{id}` | 유저 삭제 |
 | `GET` | `/admin/sessions` | 전체 세션 목록 (IP 포함) |
 | `DELETE` | `/admin/sessions/{id}` | 세션 강제 종료 |
