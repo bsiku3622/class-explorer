@@ -1,5 +1,16 @@
 # Logs
 
+## 2026-08-01 — 배포 서버가 UTC 였습니다
+
+- 변경 파일: `backend/{periods.py,home_router.py,friends_router.py,terms.py,CLAUDE.md}`
+- 요약: "지금" 을 읽는 곳을 전부 `periods.now()` / `periods.today()` (KST) 로 돌렸습니다.
+
+급식을 붙이고 운영에서 확인하다가 서버가 **7월 31일**이라고 답하는 걸 봤습니다. 서버 타임존이 `Etc/UTC` 였고, `datetime.now()` 를 그대로 쓰던 홈은 **지금 시각이 9시간 어긋나고 날짜가 하루 밀린 상태로 배포돼 있었습니다.** 방학이라 시간표가 비어 있어서 아무도 눈치채지 못했습니다 — 개학했으면 "지금 몇 교시" 와 "오늘 시간표" 가 둘 다 틀렸을 겁니다.
+
+고친 곳은 넷입니다: 홈(지금 교시·오늘), 급식 날짜 범위, 지금 공강인 친구, 학기 판정. 세션 만료처럼 **UTC 로 저장하고 UTC 로 비교하는 값은 그대로** `utcnow()` 를 씁니다 — 섞으면 만료가 9시간 어긋납니다.
+
+**시스템 타임존이 아니라 코드를 고쳤습니다.** 서버를 옮겨도 학교 시각은 KST 여야 하고, 그 서버에 있는 다른 서비스의 타임존까지 우리가 정할 일은 아닙니다.
+
 ## 2026-08-01 — 급식 날짜 넘기기
 
 - 변경 파일: `backend/{home_router.py,CLAUDE.md,api-guide.md}`, `frontend/src/components/MealCard.tsx` (신규), `frontend/src/pages/HomePage.tsx`, `frontend/src/lib/friendsApi.ts`, `frontend/{CLAUDE.md,component-guide.md}`
