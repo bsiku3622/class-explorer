@@ -14,7 +14,7 @@ class-explorer 의 `GET /` 은 학기 전체를 분반 명단까지 한 번에 �
 
 | | class-explorer | ksa-bench |
 | --- | --- | --- |
-| 분반 → 명단 | 있음 | **없음** — 인원수만 |
+| 분반 → 명단 | 있음 | **없음** — 인원수와 학번 분포만 |
 | 사람 → 시간표 | 벌크 응답 안에 전부 | `GET /students/{stu_id}` — 한 번에 한 명 |
 | 사람 찾기 | 클라이언트가 통째로 들고 검색 | `GET /students/search` — 이름만, 상한 있음 |
 | 남의 누적 이수 | `GET /curriculum/progress/{stu_id}` | 없음. `GET /me/progress` 로 본인만 |
@@ -34,9 +34,9 @@ rate limit 으로 충분히 비쌉니다.
 `GET /?year=&semester=`. 응답은 class-explorer 의 `GET /` 과 같은 모양이되
 **분반의 `students` 배열이 없습니다.** `student_count` 는 줍니다.
 
-**분반별 학번 분포는 주지 않습니다.** 1학년 필수 과목(P/F) 명단에서 혼자 다른 학번이면
-그게 곧 재수강 표시고, 이름이 없어도 그 사실만으로 드러납니다. 반면 학기 전체
-`student_counts`(학년별 총원)는 남깁니다 — 전교 집계라 개인을 가리키지 않습니다.
+**학번 분포는 줍니다** — 분반마다 `year_counts`, 과목마다 `subject_year_counts`
+(분반 합이 아니라 중복을 뺀 값). 분포만으로는 "누군가 재수강 중"까지만 드러나고 그게
+누구인지는 여전히 한 명씩 찾아야 하므로, 이 앱이 그은 선은 **이름이 나가지 않는다**입니다.
 
 명단을 안 보내므로 `Student` 까지 조인하지 않고 `Enrollment.stuId` 만 씁니다.
 

@@ -9,6 +9,7 @@ import type {
     StudentTimetable,
 } from "../types";
 import type { StudentSearchResponse } from "../lib/benchApi";
+import FilterSection from "../components/FilterSection";
 import SearchResultDisplay from "../components/SearchResultDisplay";
 import StatsCards from "../components/StatsCards";
 import StudentLookup from "../components/StudentLookup";
@@ -19,6 +20,9 @@ interface SearchPageProps {
     searchInput: string;
     setSearchInput: (v: string) => void;
     searchTerm: string;
+    studentCounts: Record<string, number>;
+    selectedYears: string[];
+    setSelectedYears: (years: string[]) => void;
     lastUpdated: number | null;
     fetchInitialData: (force?: boolean) => void;
     searchResult: SearchResultStats | null;
@@ -49,6 +53,11 @@ const SearchPage: React.FC<SearchPageProps> = ({
     searchInput,
     setSearchInput,
     searchTerm,
+    studentCounts,
+    selectedYears,
+    setSelectedYears,
+    lastUpdated,
+    fetchInitialData,
     searchResult,
     searchMode,
     isConsolidatedView,
@@ -107,6 +116,17 @@ const SearchPage: React.FC<SearchPageProps> = ({
                 committedTerm={searchTerm}
             />
 
+            {/* 학년 필터. 이제 명단이 아니라 분반별 학번 분포(`year_counts`)로 거릅니다 */}
+            {!isStudentLookup && (
+                <FilterSection
+                    studentCounts={studentCounts}
+                    selectedYears={selectedYears}
+                    setSelectedYears={setSelectedYears}
+                    lastUpdated={lastUpdated}
+                    onRefresh={() => fetchInitialData(true)}
+                />
+            )}
+
             {isStudentLookup ? (
                 <StudentLookup
                     query={studentQuery}
@@ -155,6 +175,7 @@ const SearchPage: React.FC<SearchPageProps> = ({
                                           handleSearchToggle={handleSearchToggle}
                                           teacherSubjectMap={teacherSubjectMap}
                                           isModifierPressed={isModifierPressed}
+                                          selectedYears={selectedYears}
                                           searchMode={searchMode}
                                           isOpen={expandedSubjects.includes(
                                               subject.subject,
