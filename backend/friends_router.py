@@ -212,12 +212,8 @@ async def friends_now(
         "now": now.strftime("%H:%M"),
         "day": day,
         "period": period,
-        # 10·11교시는 자습이라 교시 번호 대신 "자습" 으로 부릅니다
-        "break_name": (
-            "자습"
-            if period in periods.STUDY_PERIODS
-            else (periods.current_break(minute) if day else None)
-        ),
+        # 저녁·자습은 교시와 겹칩니다 — 화면이 "10교시 · 자습" 처럼 같이 씁니다
+        "break_name": periods.current_break(minute) if day else None,
         "next_period": (
             {"period": upcoming[0], "start": periods.hhmm(upcoming[1])}
             if upcoming

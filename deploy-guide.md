@@ -2,7 +2,10 @@
 
 | | |
 |---|---|
-| **프론트** | Netlify — `main`에 푸시하면 자동 빌드·배포 (`https://classes.bsiku.dev`) |
+| **프론트** | Vercel — `main`에 푸시하면 자동 빌드·배포 (`https://classes.bsiku.dev`) |
+
+**배포하는 프론트는 `frontend/`(class-explorer) 하나뿐입니다.** `bench-frontend/`(ksa-bench)는
+동결 상태라 어디에도 올리지 않습니다 — 리포에만 있습니다.
 | **백엔드** | N100 Mini PC (Ubuntu) + nginx + systemd (`https://classesapi.bsiku.dev`) |
 | **HTTPS** | Cloudflare가 앞단에서 처리 — nginx는 80으로만 받습니다 |
 
@@ -13,7 +16,7 @@
 ## 평소 배포 (이것만 하면 됩니다)
 
 ```bash
-# 1. 프론트 — 푸시하면 Netlify가 알아서 빌드합니다
+# 1. 프론트 — 푸시하면 Vercel이 알아서 빌드합니다 (class-explorer 만)
 git push origin main
 
 # 2. 백엔드
@@ -97,7 +100,7 @@ server {
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-### Netlify 환경변수 (대시보드 → Environment variables)
+### Vercel 환경변수 (프로젝트 → Settings → Environment Variables)
 
 | 변수 | 값 |
 |------|-----|
