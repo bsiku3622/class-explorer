@@ -1,0 +1,633 @@
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from "react";
+import axios from "axios";
+import api from "./lib/api";
+import {
+    useLocation,
+    useNavigate,
+    Routes,
+    Route,
+    Navigate,
+} from "react-router-dom";
+import type { SubjectData, Stats, SearchResultStats, Term, Role } from "./types";
+import { hasRole } from "./lib/utils";
+import { searchInClient } from "./lib/searchEngine";
+import { isTradeAvailable } from "./lib/features";
+import { useModifierKey } from "./hooks/useModifierKey";
+import Navigation from "./components/Navigation";
+import Sidebar from "./components/Sidebar";
+import BottomNav from "./components/BottomNav";
+import GoogleLinkModal from "./components/GoogleLinkModal";
+
+// Pages (lazy loaded for code splitting)
+const SearchPage = React.lazy(() => import("./pages/SearchPage"));
+const RoomsPage = React.lazy(() => import("./pages/RoomsPage"));
+const AnalysisPage = React.lazy(() => import("./pages/AnalysisPage"));
+const BrowsePage = React.lazy(() => import("./pages/BrowsePage"));
+const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
+const LoginPage = React.lazy(() => import("./pages/LoginPage"));
+const AdminPage = React.lazy(() => import("./pages/AdminPage"));
+const TradePage = React.lazy(() => import("./pages/TradePage"));
+const ZamongPage = React.lazy(() => import("./pages/ZamongPage"));
+const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
+
+const SESSION_TOKEN_KEY = "ksa_session_token";
+const CACHE_PREFIX = "ksa_class_finder_cache";
+/**
+ * 캐시된 응답의 스키마 버전. API 응답에 필드가 늘면 올려야 합니다.
+ * 안 올리면 예전 응답을 든 브라우저가 최대 1시간 동안 새 필드를 못 받아
+ * 학점이 0으로 보이는 식의 문제가 생깁니다.
+ */
+const CACHE_VERSION = 3;
+const TERM_KEY = "ksa_selected_term";
+const CACHE_EXPIRY = 60 * 60 * 1000;
+
+/** 데이터 캐시는 학기별로 분리 보관 */
+const cacheKeyFor = (term: Term) => `${CACHE_PREFIX}_${term.year}_${term.semester}`;
+
+const clearDataCache = () => {
+    Object.keys(localStorage)
+        .filter((key) => key.startsWith(CACHE_PREFIX))
+        .forEach((key) => localStorage.removeItem(key));
+};
+
+const loadSavedTerm = (): Term | null => {
+    try {
+        const raw = localStorage.getItem(TERM_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return typeof parsed?.year === "number" && typeof parsed?.semester === "number"
+            ? { year: parsed.year, semester: parsed.semester }
+            : null;
+    } catch {
+        return null;
+    }
+};
+
+const App: React.FC = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const [sessionToken, setSessionToken] = useState<string | null>(
+        () => localStorage.getItem(SESSION_TOKEN_KEY),
+    );
+    const [currentUser, setCurrentUser] = useState<{
+        id: number;
+        username: string;
+        /** user < manager < admin — 위계라서 admin 은 manager 가 하는 일도 다 합니다 */
+        role: Role;
+        /** 계정에 등록된 본인 학번 — 등록 전에는 null */
+        stu_id: string | null;
+        student_name: string | null;
+        /** 학교 구글 계정. 옛 계정은 비어 있고, 연결하기 전에는 앱을 쓸 수 없습니다 */
+        email: string | null;
+    } | null>(null);
+
+    const initialSearch = useMemo(
+        () =>
+            location.pathname === "/"
+                ? new URLSearchParams(location.search).get("q") || ""
+                : "",
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [],
+    );
+
+    const [allClassesData, setAllClassesData] = useState<SubjectData[]>([]);
+    const [displayData, setDisplayData] = useState<SubjectData[]>([]);
+    const [stats, setStats] = useState<Stats | null>(null);
+    const [studentCounts, setStudentCounts] = useState<Record<string, number>>(
+        {},
+    );
+    const [selectedYears, setSelectedYears] = useState<string[]>([]);
+    const [searchInput, setSearchInput] = useState(initialSearch);
+    const [searchTerm, setSearchTerm] = useState(initialSearch);
+    const [loading, setLoading] = useState(true);
+    const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+    const [expandedSubjects, setExpandedSubjects] = useState<string[]>([]);
+    const [searchResult, setSearchResult] = useState<SearchResultStats | null>(
+        null,
+    );
+    const [searchMode, setSearchMode] = useState<
+        "general" | "student" | "teacher" | "room"
+    >("general");
+    const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
+    const [term, setTerm] = useState<Term | null>(loadSavedTerm);
+    const [availableTerms, setAvailableTerms] = useState<Term[]>([]);
+
+    const isModifierPressed = useModifierKey();
+    const tradeAvailable = isTradeAvailable(term);
+
+    const handleLogout = useCallback(async () => {
+        const token = localStorage.getItem(SESSION_TOKEN_KEY);
+        if (token) {
+            try {
+                await api.post(
+                    "/auth/logout",
+                    {},
+                    { headers: { Authorization: `Bearer ${token}` } },
+                );
+            } catch (_) {
+                // 서버 오류여도 로컬 세션은 정리
+            }
+        }
+        localStorage.removeItem(SESSION_TOKEN_KEY);
+        clearDataCache();
+        setSessionToken(null);
+        setCurrentUser(null);
+        setAllClassesData([]);
+        setDisplayData([]);
+        setStats(null);
+    }, []);
+
+    const handleLogin = useCallback((token: string) => {
+        localStorage.setItem(SESSION_TOKEN_KEY, token);
+        setSessionToken(token);
+    }, []);
+
+    useEffect(() => {
+        if (location.pathname === "/") {
+            const q = new URLSearchParams(location.search).get("q") || "";
+            if (q !== searchInput) {
+                setSearchInput(q);
+                setSearchTerm(q);
+            }
+        }
+    }, [location.pathname]);
+
+    const hasStudentInSearch = useMemo(() => {
+        if (!searchResult) return false;
+        return searchResult.entities.some((e) => e.type === "student");
+    }, [searchResult]);
+
+    const isLogicalSearch = useMemo(
+        () =>
+            searchTerm.includes("+") ||
+            searchTerm.includes("&") ||
+            searchTerm.includes("/") ||
+            searchTerm.includes("("),
+        [searchTerm],
+    );
+
+    const isConsolidatedView = useMemo(
+        () => searchMode !== "general" || isLogicalSearch,
+        [searchMode, isLogicalSearch],
+    );
+
+    const studentSubjectMap = useMemo(() => {
+        const map: Record<string, string[]> = {};
+        allClassesData.forEach((item) => {
+            item.sections.forEach((section) => {
+                section.students.forEach((student) => {
+                    if (!map[student.stuId]) map[student.stuId] = [];
+                    if (!map[student.stuId].includes(item.subject))
+                        map[student.stuId].push(item.subject);
+                });
+            });
+        });
+        return map;
+    }, [allClassesData]);
+
+    const teacherSubjectMap = useMemo(() => {
+        const map: Record<string, Record<string, string[]>> = {};
+        allClassesData.forEach((item) => {
+            item.sections.forEach((section) => {
+                if (!map[section.teacher]) map[section.teacher] = {};
+                if (!map[section.teacher][item.subject])
+                    map[section.teacher][item.subject] = [];
+                if (
+                    !map[section.teacher][item.subject].includes(
+                        section.section,
+                    )
+                ) {
+                    map[section.teacher][item.subject].push(section.section);
+                }
+            });
+        });
+        return map;
+    }, [allClassesData]);
+
+    const fetchInitialData = async (force: boolean = false, targetTerm?: Term) => {
+        const token = localStorage.getItem(SESSION_TOKEN_KEY);
+        if (!token) return;
+        // 학기 미지정(최초 진입)이면 서버가 최신 학기를 골라 응답합니다
+        const requestedTerm = targetTerm ?? term;
+        try {
+            setLoading(true);
+            const cached =
+                !force && requestedTerm
+                    ? localStorage.getItem(cacheKeyFor(requestedTerm))
+                    : null;
+            if (cached) {
+                const { v, timestamp, student_counts, data, available_terms } =
+                    JSON.parse(cached);
+                if (v === CACHE_VERSION && Date.now() - timestamp < CACHE_EXPIRY) {
+                    setStudentCounts(student_counts);
+                    setSelectedYears(Object.keys(student_counts));
+                    setAllClassesData(data);
+                    if (available_terms) setAvailableTerms(available_terms);
+                    setLastUpdated(timestamp);
+                    setLoading(false);
+                    return;
+                }
+            }
+            const response = await api.get("/", {
+                headers: { Authorization: `Bearer ${token}` },
+                params: requestedTerm
+                    ? { year: requestedTerm.year, semester: requestedTerm.semester }
+                    : undefined,
+            });
+            const {
+                student_counts,
+                data,
+                term: resolvedTerm,
+                available_terms,
+            } = response.data;
+            const now = Date.now();
+            if (resolvedTerm) {
+                localStorage.setItem(
+                    cacheKeyFor(resolvedTerm),
+                    JSON.stringify({
+                        v: CACHE_VERSION,
+                        timestamp: now,
+                        student_counts,
+                        data,
+                        available_terms,
+                    }),
+                );
+                localStorage.setItem(TERM_KEY, JSON.stringify(resolvedTerm));
+                setTerm(resolvedTerm);
+            }
+            if (available_terms) setAvailableTerms(available_terms);
+            setStudentCounts(student_counts);
+            setSelectedYears(Object.keys(student_counts));
+            setAllClassesData(data);
+            setLastUpdated(now);
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error) && error.response?.status === 401) {
+                handleLogout();
+                return;
+            }
+            console.error("Error fetching initial data:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleTermChange = useCallback(
+        (next: Term) => {
+            if (term?.year === next.year && term?.semester === next.semester) return;
+            setTerm(next);
+            localStorage.setItem(TERM_KEY, JSON.stringify(next));
+            fetchInitialData(false, next);
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [term],
+    );
+
+    const handleSearch = useCallback(() => {
+        if (allClassesData.length === 0 || location.pathname !== "/") return;
+        if (selectedYears.length === 0) {
+            setDisplayData([]);
+            setStats(null);
+            setSearchResult(null);
+            setSearchMode("general");
+            return;
+        }
+        if (searchTerm.trim()) {
+            const result = searchInClient(
+                allClassesData,
+                searchTerm,
+                selectedYears,
+            );
+            const filteredByYear = result.data
+                .map((subject) => ({
+                    ...subject,
+                    sections: subject.sections.filter((sec: any) =>
+                        sec.students.some((s: any) =>
+                            selectedYears.includes(s.stuId.split("-")[0]),
+                        ),
+                    ),
+                }))
+                .filter((subject) => subject.sections.length > 0);
+            setDisplayData(filteredByYear);
+            setSearchMode(result.mode);
+            setSearchResult({
+                keyword: result.stats.keyword || searchTerm,
+                prefix: result.mode !== "general" ? result.mode : "",
+                entities: result.entities,
+                total_subjects: result.stats.total_subjects,
+                total_sections: result.stats.total_sections,
+                total_matched_students: result.stats.total_matched_students,
+                warning: result.warning,
+            });
+            setStats(null);
+        } else {
+            setSearchMode("general");
+            const filteredData = allClassesData
+                .map((subject) => ({
+                    ...subject,
+                    sections: subject.sections.filter((sec: any) =>
+                        sec.students.some((s: any) =>
+                            selectedYears.includes(s.stuId.split("-")[0]),
+                        ),
+                    ),
+                }))
+                .filter((subject) => subject.sections.length > 0);
+            setDisplayData(filteredData);
+            const totalSecs = filteredData.reduce(
+                (acc, sub) => acc + sub.sections.length,
+                0,
+            );
+            const activeStus = new Set(
+                filteredData.flatMap((sub) =>
+                    sub.sections.flatMap((sec) =>
+                        sec.students.map((s: any) => s.stuId),
+                    ),
+                ),
+            );
+            setStats({
+                total_subjects: filteredData.length,
+                total_sections: totalSecs,
+                total_active_students: activeStus.size,
+            });
+            setSearchResult(null);
+        }
+    }, [searchTerm, selectedYears, allClassesData, location.pathname]);
+
+    useEffect(() => {
+        handleSearch();
+    }, [handleSearch]);
+
+    useEffect(() => {
+        if (location.pathname !== "/") return;
+        const handler = setTimeout(() => {
+            const currentParams = new URLSearchParams(location.search);
+            if (searchTerm !== currentParams.get("q")) {
+                if (searchTerm) currentParams.set("q", searchTerm);
+                else currentParams.delete("q");
+                const qs = currentParams.toString();
+                navigate(qs ? `/?${qs}` : "/", { replace: true });
+            }
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [searchTerm, location.pathname, navigate]);
+
+    useEffect(() => {
+        // 학기 분리 이전 버전이 남긴 캐시 정리
+        localStorage.removeItem(CACHE_PREFIX);
+    }, []);
+
+    useEffect(() => {
+        if (!sessionToken) { setLoading(false); return; }
+        const token = localStorage.getItem(SESSION_TOKEN_KEY);
+        api.get("/auth/me", { headers: { Authorization: `Bearer ${token}` } })
+            .then((res) => setCurrentUser(res.data))
+            .catch(() => handleLogout());
+        fetchInitialData();
+    }, [sessionToken]);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setSearchTerm(searchInput);
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [searchInput]);
+
+    const buildSearchValue = (
+        value: string,
+        isTeacher: boolean,
+        isRoom: boolean,
+    ): string => {
+        if (isRoom) return `room:${value}`;
+        if (isTeacher) return `teacher:${value}`;
+        if (value.includes("-")) return `student:${value}`;
+        return value;
+    };
+
+    const handleSearchToggle = (
+        value: string,
+        isTeacher: boolean = false,
+        isRoom: boolean = false,
+    ) => {
+        const finalValue = buildSearchValue(value, isTeacher, isRoom);
+        const newValue = searchTerm === finalValue ? "" : finalValue;
+        setSearchInput(newValue);
+        setSearchTerm(newValue);
+        if (location.pathname !== "/")
+            navigate(newValue ? `/?q=${encodeURIComponent(newValue)}` : "/");
+    };
+
+    const handleSearchSelect = (
+        value: string,
+        isTeacher: boolean = false,
+        isRoom: boolean = false,
+    ) => {
+        const finalValue = buildSearchValue(value, isTeacher, isRoom);
+        setSearchInput(finalValue);
+        setSearchTerm(finalValue);
+        if (location.pathname !== "/")
+            navigate(`/?q=${encodeURIComponent(finalValue)}`);
+    };
+
+    const toggleSubject = (name: string) => {
+        setExpandedSubjects((prev) =>
+            prev.includes(name)
+                ? prev.filter((s) => s !== name)
+                : [...prev, name],
+        );
+    };
+
+    const pageFallback = (
+        <div className="min-h-screen bg-retro-bg flex items-center justify-center">
+            <p className="font-black uppercase tracking-widest text-black/30 animate-pulse">Loading...</p>
+        </div>
+    );
+
+    if (!sessionToken) {
+        return (
+            <Suspense fallback={pageFallback}>
+                <LoginPage onLogin={handleLogin} />
+            </Suspense>
+        );
+    }
+
+    // 아이디·비밀번호로 들어온 옛 계정은 학교 구글 계정을 붙이기 전까지 막습니다 —
+    // 누구 계정인지 모르면 이수 기록을 남길 수 없습니다
+    if (currentUser && !currentUser.email) {
+        return (
+            <GoogleLinkModal
+                username={currentUser.username}
+                onLinked={(info) =>
+                    setCurrentUser((prev) =>
+                        prev
+                            ? {
+                                  ...prev,
+                                  email: info.email,
+                                  stu_id: info.stu_id,
+                                  student_name: info.student_name,
+                              }
+                            : prev,
+                    )
+                }
+                onLogout={handleLogout}
+            />
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-retro-bg text-retro-fg font-sans">
+            <Navigation
+                onLogoClick={() => {
+                    setSearchInput("");
+                    navigate("/");
+                }}
+                onLogout={handleLogout}
+                isAdmin={hasRole(currentUser?.role, "admin")}
+                username={currentUser?.username ?? ""}
+                terms={availableTerms}
+                currentTerm={term}
+                onTermChange={handleTermChange}
+            />
+            <div className="flex pt-20">
+                <Sidebar
+                    activePage={
+                        location.pathname === "/"
+                            ? "home"
+                            : location.pathname.slice(1)
+                    }
+                    setActivePage={(id) =>
+                        navigate(id === "home" ? "/" : `/${id}`)
+                    }
+                    isAdmin={hasRole(currentUser?.role, "admin")}
+                    showTrade={tradeAvailable}
+                />
+                <main className="flex-1 p-4 md:p-10 transition-all duration-300 md:ml-64 min-w-0 pb-20 md:pb-10">
+                    <div className="max-w-6xl mx-auto">
+                        <Suspense fallback={<div className="py-40 flex items-center justify-center"><p className="font-black uppercase tracking-widest text-black/30 animate-pulse">Loading...</p></div>}>
+                        <Routes>
+                            <Route
+                                path="/"
+                                element={
+                                    <SearchPage
+                                        searchInput={searchInput}
+                                        setSearchInput={setSearchInput}
+                                        searchTerm={searchTerm}
+                                        studentCounts={studentCounts}
+                                        selectedYears={selectedYears}
+                                        setSelectedYears={setSelectedYears}
+                                        lastUpdated={lastUpdated}
+                                        fetchInitialData={fetchInitialData}
+                                        searchResult={searchResult}
+                                        searchMode={searchMode}
+                                        isLogicalSearch={isLogicalSearch}
+                                        isConsolidatedView={isConsolidatedView}
+                                        isModifierPressed={isModifierPressed}
+                                        hoveredEntityId={hoveredEntityId}
+                                        setHoveredEntityId={setHoveredEntityId}
+                                        handleSearchToggle={handleSearchToggle}
+                                        handleSearchSelect={handleSearchSelect}
+                                        stats={stats}
+                                        loading={loading}
+                                        displayData={displayData}
+                                        studentSubjectMap={studentSubjectMap}
+                                        teacherSubjectMap={teacherSubjectMap}
+                                        hasStudentInSearch={hasStudentInSearch}
+                                        expandedSubjects={expandedSubjects}
+                                        toggleSubject={toggleSubject}
+                                    />
+                                }
+                            />
+                            <Route
+                                path="/emptyroomfinder"
+                                element={
+                                    <RoomsPage
+                                        allClassesData={allClassesData}
+                                        onRoomSearch={(room) => handleSearchSelect(room, false, true)}
+                                    />
+                                }
+                            />
+                            <Route
+                                path="/analysis"
+                                element={
+                                    <AnalysisPage
+                                        allClassesData={allClassesData}
+                                        studentCounts={studentCounts}
+                                        lastUpdated={lastUpdated}
+                                        fetchInitialData={fetchInitialData}
+                                        handleSearch={handleSearchToggle}
+                                    />
+                                }
+                            />
+                            <Route
+                                path="/browse"
+                                element={
+                                    <BrowsePage
+                                        allClassesData={allClassesData}
+                                        studentCounts={studentCounts}
+                                        lastUpdated={lastUpdated}
+                                        fetchInitialData={fetchInitialData}
+                                        handleSearch={handleSearchSelect}
+                                    />
+                                }
+                            />
+                            {tradeAvailable && (
+                                <Route
+                                    path="/trade"
+                                    element={
+                                        <TradePage
+                                            allClassesData={allClassesData}
+                                            term={term}
+                                            myStuId={currentUser?.stu_id ?? null}
+                                        />
+                                    }
+                                />
+                            )}
+                            <Route
+                                path="/zamong"
+                                element={
+                                    <ZamongPage
+                                        stuId={currentUser?.stu_id ?? null}
+                                        studentName={currentUser?.student_name ?? null}
+                                    />
+                                }
+                            />
+                            <Route
+                                path="/calendar"
+                                element={
+                                    <CalendarPage
+                                        role={currentUser?.role ?? "user"}
+                                        stuId={currentUser?.stu_id ?? null}
+                                    />
+                                }
+                            />
+                            <Route
+                                path="/about"
+                                element={<SettingsPage />}
+                            />
+                            {hasRole(currentUser?.role, "admin") && (
+                                <Route path="/admin" element={<AdminPage />} />
+                            )}
+                            <Route
+                                path="*"
+                                element={<Navigate to="/" replace />}
+                            />
+                        </Routes>
+                        </Suspense>
+                    </div>
+                </main>
+            </div>
+            <BottomNav
+                activePage={
+                    location.pathname === "/"
+                        ? "home"
+                        : location.pathname.slice(1)
+                }
+                setActivePage={(id) =>
+                    navigate(id === "home" ? "/" : `/${id}`)
+                }
+                showTrade={tradeAvailable}
+            />
+        </div>
+    );
+};
+
+export default App;
