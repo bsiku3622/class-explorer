@@ -2,7 +2,9 @@
 
 > [← Backend Guide](CLAUDE.md) · [← 진입점 Guide](main.guide.md)
 
-**ksa-bench 에만 등록되는 라우터입니다** (`backend/bench_main.py`).
+ksa-bench 화면이 주로 쓰는 엔드포인트 모음입니다. **서버는 하나뿐이라
+class-explorer 도 부를 수 있습니다** — 라우터 등록으로 가르던 시절의 흔적이 아니라,
+지금은 "이 화면들이 쓰는 것" 정도의 묶음입니다.
 
 ## 왜 있나
 

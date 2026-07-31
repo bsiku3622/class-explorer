@@ -1,5 +1,19 @@
 # Logs
 
+## 2026-07-31 — 백엔드를 서버 하나로 합침 + bench 는 캐시하지 않음
+
+- 변경 파일: `backend/main.py`·`classes_router.py`·`bench_router.py`, `backend/bench_main.py` (삭제), `bench-frontend/src/App.tsx`·`vite.config.ts`·`.env`, `frontend/src/App.tsx`, 가이드 문서 일습
+- 요약: 진입점을 둘로 나눠 두던 걸 접고 **서버 하나가 두 프론트를 받습니다.** 대신 ksa-bench 는 수업 데이터를 localStorage 에 캐시하지 않습니다.
+
+**왜 합쳤나** — Trade 를 되살리며 명단을 응답에 되돌리자 두 앱의 `GET /` 이 사실상 같아졌습니다(bench 판에만 학번 분포가 더 있었는데 그건 class-explorer 에도 넣으면 그만입니다). 같은 응답을 두 벌 유지하고 프로세스를 둘로 띄울 이유가 없어졌고, 배포도 systemd 유닛 하나로 끝납니다. `bench_main.py` 는 지웠습니다.
+
+**대신 잃은 것을 분명히 해 둡니다.** 접근 제어가 "라우터를 그 앱에 안 붙인다"에서 **권한 검사**로 옮겨졌습니다. 새 엔드포인트가 남의 데이터를 돌려줄 수 있으면 이제 의존성으로 막아야 합니다 — 가이드 세 곳에 적어 뒀습니다.
+
+**두 프론트의 차이는 이제 둘뿐입니다.** ① 훑는 UI 가 없다(전교생 목록·다중 검색·불린·초성 없음) ② **명단을 localStorage 에 안 남긴다.** ②가 이번에 새로 한 것입니다 — 응답에 분반 명단이 들어 있어서 캐시하면 전교생 명단이 브라우저에 파일로 남습니다. bench 는 캐시를 통째로 걷어내고 메모리에만 두며, class-explorer 를 쓰던 브라우저에 남은 옛 캐시는 시작할 때 지웁니다.
+
+localStorage 쓰기를 전수 확인했습니다 — 세션 토큰·선택 학기·검색 히스토리뿐이고 명단이 남는 경로는 없습니다.
+
+
 ## 2026-07-31 — 교시 시각표 + 친구 기능을 두 앱 공통으로
 
 - 변경 파일: `backend/periods.py`·`friends_router.py` (신규), `backend/main.py`·`bench_main.py`·`bench_router.py`, `frontend/src/pages/FriendsPage.tsx`·`lib/friendsApi.ts` (신규), `frontend/src/{App.tsx,components/Sidebar.tsx}`, `bench-frontend/` 동일 반영, 가이드 문서 일습

@@ -44,23 +44,19 @@ const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
 const CACHE_PREFIX = "ksa_class_finder_cache";
-/**
- * 캐시된 응답의 스키마 버전. API 응답에 필드가 늘면 올려야 합니다.
- * 안 올리면 예전 응답을 든 브라우저가 최대 1시간 동안 새 필드를 못 받아
- * 학점이 0으로 보이는 식의 문제가 생깁니다.
- *
- * **4 = 분반 명단(`students`)이 빠진 응답.** 여기서 올리지 않으면 class-explorer 를
- * 쓰던 브라우저에 명단이 든 옛 캐시가 최대 1시간 남습니다.
- * **5 = 학번 분포(`year_counts` / `subject_year_counts`) 추가.**
- * **6 = 분반 명단(`students`) 복구** — Trade 가 명단 없이는 안 됩니다.
- */
-const CACHE_VERSION = 6;
 const TERM_KEY = "ksa_selected_term";
-const CACHE_EXPIRY = 60 * 60 * 1000;
 
-/** 데이터 캐시는 학기별로 분리 보관 */
-const cacheKeyFor = (term: Term) => `${CACHE_PREFIX}_${term.year}_${term.semester}`;
-
+/**
+ * **이 앱은 수업 데이터를 캐시하지 않습니다.**
+ *
+ * 응답에 분반 명단이 들어 있어서(Trade 가 필요로 합니다) localStorage 에 넣는 순간
+ * 전교생 명단이 브라우저에 파일로 남습니다. class-explorer 는 아는 사람끼리 쓰는
+ * 앱이라 캐시하지만, 여기는 전교생에게 열 앱이라 메모리에만 둡니다.
+ *
+ * 대가는 새로고침할 때마다 다시 받는 것뿐입니다. 그래서 `CACHE_VERSION`·`CACHE_EXPIRY`
+ * 도 없습니다 — 이 함수는 class-explorer 를 쓰던 브라우저에 남은 **옛 캐시를 지우려고만**
+ * 남겨 뒀습니다.
+ */
 const clearDataCache = () => {
     Object.keys(localStorage)
         .filter((key) => key.startsWith(CACHE_PREFIX))
@@ -216,31 +212,19 @@ const App: React.FC = () => {
         return map;
     }, [allClassesData]);
 
-    const fetchInitialData = async (force: boolean = false, targetTerm?: Term) => {
+    // `force` 는 안 씁니다 — 캐시가 없어서 늘 새로 받습니다. 화면들이 새로고침
+    // 버튼에서 `fetchInitialData(true)` 로 부르고 있어 시그니처만 맞춰 둡니다.
+    const fetchInitialData = async (_force: boolean = false, targetTerm?: Term) => {
         const token = localStorage.getItem(SESSION_TOKEN_KEY);
         if (!token) return;
         // 학기 미지정(최초 진입)이면 서버가 최신 학기를 골라 응답합니다
         const requestedTerm = targetTerm ?? term;
         try {
             setLoading(true);
-            const cached =
-                !force && requestedTerm
-                    ? localStorage.getItem(cacheKeyFor(requestedTerm))
-                    : null;
-            if (cached) {
-                const { v, timestamp, student_counts, stats, data, available_terms } =
-                    JSON.parse(cached);
-                if (v === CACHE_VERSION && Date.now() - timestamp < CACHE_EXPIRY) {
-                    setStudentCounts(student_counts);
-                    setSelectedYears(Object.keys(student_counts));
-                    setTermStats(stats ?? null);
-                    setAllClassesData(data);
-                    if (available_terms) setAvailableTerms(available_terms);
-                    setLastUpdated(timestamp);
-                    setLoading(false);
-                    return;
-                }
-            }
+            // **캐시하지 않습니다.** 응답에 분반 명단이 들어 있어서, localStorage 에
+            // 넣는 순간 전교생 명단이 브라우저에 파일로 남습니다. class-explorer 는
+            // 아는 사람끼리 쓰는 앱이라 캐시하지만 여기는 전교생에게 열 앱입니다.
+            // 데이터는 메모리(React state)에만 둡니다 — 탭을 닫으면 사라집니다.
             const response = await api.get("/", {
                 headers: { Authorization: `Bearer ${token}` },
                 params: requestedTerm
@@ -256,17 +240,7 @@ const App: React.FC = () => {
             } = response.data;
             const now = Date.now();
             if (resolvedTerm) {
-                localStorage.setItem(
-                    cacheKeyFor(resolvedTerm),
-                    JSON.stringify({
-                        v: CACHE_VERSION,
-                        timestamp: now,
-                        student_counts,
-                        stats: apiStats,
-                        data,
-                        available_terms,
-                    }),
-                );
+                // 학기 선택은 개인 정보가 아니라 남깁니다 (새로고침 시 유지)
                 localStorage.setItem(TERM_KEY, JSON.stringify(resolvedTerm));
                 setTerm(resolvedTerm);
             }
@@ -444,8 +418,9 @@ const App: React.FC = () => {
     }, [searchTerm, location.pathname, navigate]);
 
     useEffect(() => {
-        // 학기 분리 이전 버전이 남긴 캐시 정리
-        localStorage.removeItem(CACHE_PREFIX);
+        // 이 앱은 수업 데이터를 캐시하지 않습니다. class-explorer 를 쓰던 브라우저에
+        // 명단이 든 캐시가 남아 있을 수 있어 시작할 때 지웁니다.
+        clearDataCache();
     }, []);
 
     useEffect(() => {

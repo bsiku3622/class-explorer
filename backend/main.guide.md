@@ -1,46 +1,29 @@
-# 진입점 Guide — main.py / bench_main.py / app_factory.py
+# 진입점 Guide — main.py / app_factory.py
 
 > [← Backend Guide](CLAUDE.md)
 
-## 앱이 둘입니다
-
-| 진입점 | 앱 | 프론트 | 성격 |
-| --- | --- | --- | --- |
-| `backend.main:app` | class-explorer | `frontend/` | 초대제. 분반 명단까지 전부 |
-| `backend.bench_main:app` | ksa-bench | `bench-frontend/` | 전교생 공개. 명단 라우터가 **등록되지 않음** |
+## 서버는 하나입니다
 
 ```bash
-uvicorn backend.main:app --reload                  # 8000
-uvicorn backend.bench_main:app --reload --port 8001
+uvicorn backend.main:app --reload   # 8000
 ```
 
-DB·모델·파서는 **한 벌**을 같이 씁니다. 두 벌이 되면 KEIS 응답이 바뀔 때마다 같은
-수정을 두 번 하게 되고, 곧 서로 달라집니다.
+`frontend/`(class-explorer)와 `bench-frontend/`(ksa-bench)가 **같은 서버**를 봅니다.
+CORS 에 두 도메인이 다 들어 있습니다.
 
-## 왜 권한이 아니라 진입점으로 가르나
+### 한때 둘이었습니다
 
-`role` 검사로도 막을 수는 있습니다. 하지만 한 앱에 "명단을 통째로 주는 엔드포인트"와
-"전교생이 쓰는 서비스"가 같이 살면, **나중에 기능을 붙이다 의존성 하나를 빠뜨리는 것이
-곧 사고**가 됩니다. 라우터가 아예 등록되지 않으면 그 실수가 성립하지 않습니다.
+ksa-bench 쪽에 명단 라우터를 등록하지 않는 별도 진입점(`bench_main.py`)을 뒀었습니다.
+Trade(수강 변경 탐색)가 "이 분반 수강생 중 내 분반을 받을 수 있는 사람"을 찾는 기능이라
+명단 없이는 성립하지 않아 되돌렸고, 그러자 두 앱의 API 표면이 거의 같아졌습니다.
+같은 걸 두 프로세스로 띄울 이유가 없어 합쳤습니다.
 
-값은 systemd 유닛 하나와 nginx 블록 하나입니다.
+**그래서 접근 제어가 라우터 등록에서 권한 검사로 옮겨졌습니다.** 새 엔드포인트가 남의
+데이터를 돌려줄 수 있으면 의존성으로 막으세요 — "그 앱에는 안 붙였으니까" 가 더 이상
+방패가 아닙니다.
 
-## 어느 라우터가 어디에
-
-| 라우터 | explorer | bench | |
-| --- | :-: | :-: | --- |
-| `auth_router` | ● | ● | |
-| `curriculum_router` | ● | ● | 카탈로그·본인 평어 |
-| `state_router` | ● | ● | 본인 화면 상태 |
-| `calendar_router` | ● | ● | 공용 일정 + 본인 개인 일정 |
-| `classes_router.terms_router` | ● | ● | 학기 목록 — 개인 정보 없음 |
-| `classes_router.router` | ● | ○ | **`GET /`** — 학기 전체 + 분반 명단 |
-| `curriculum_router.explorer_router` | ● | ○ | 아무 학생의 누적 이수 이력 |
-| `admin_router` | ● | ○ | `/admin/students` 가 전교생 명단을 그대로 돌려줍니다 |
-| `bench_router` | ○ | ● | 명단 없는 카탈로그 + 학생 1명 조회 |
-
-bench 에 관리 화면이 필요해지면 `admin_router` 를 붙이지 말고 **안전한 것만 골라
-새로 만드세요.** 통째로 붙이는 순간 위 표가 거짓말이 됩니다.
+두 프론트의 차이는 **UI 와 캐시**입니다. ksa-bench 에는 전교생을 늘어놓는 화면이 없고,
+학기 데이터를 localStorage 에 캐시하지 않습니다(명단이 브라우저에 파일로 남지 않도록).
 
 ## app_factory.create_app()
 
@@ -52,11 +35,11 @@ bench 에 관리 화면이 필요해지면 `admin_router` 를 붙이지 말고 *
 
 ## classes_router.py
 
-### `GET /terms` (`get_terms`) — 두 앱 공통
+### `GET /terms` (`get_terms`)
 데이터가 존재하는 학기 목록을 최신순으로 반환합니다 (`terms.list_terms`).
 
-### `GET /` (`get_all_data`) — **class-explorer 전용**
-지정 학기의 전체 데이터를 한 번에 반환합니다.
+### `GET /` (`get_all_data`)
+지정 학기의 전체 데이터를 한 번에 반환합니다. 분반 명단과 학번 분포가 들어 있습니다.
 
 **Query**: `year`, `semester` (둘 다 주어졌을 때만 적용, 아니면 최신 학기)
 
@@ -69,9 +52,9 @@ bench 에 관리 화면이 필요해지면 `admin_router` 를 붙이지 말고 *
 
 **응답 구조**: → [api-guide.md](api-guide.md) 참조
 
-**이 응답에는 분반별 `students` 배열이 들어 있습니다.** 그래서 화면에서 명단을 가리는
-것만으로는 아무 의미가 없습니다 — 응답이 그대로 브라우저 localStorage 에 남습니다.
-ksa-bench 쪽 대안은 [bench_router.guide.md](bench_router.guide.md) 를 보세요.
+**이 응답에는 분반별 `students` 배열이 들어 있습니다.** 그래서 ksa-bench 프론트는
+이걸 localStorage 에 캐시하지 않습니다 — 캐시하면 전교생 명단이 브라우저에 파일로
+남습니다. class-explorer 는 아는 사람끼리 쓰는 앱이라 그대로 캐시합니다.
 
 ### `get_section_num(section_str) -> int`
 분반 문자열에서 정렬용 숫자 추출. `"제1분반"` → `1`, `"제10분반"` → `10`
