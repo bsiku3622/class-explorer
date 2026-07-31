@@ -77,17 +77,20 @@ export interface SectionTime {
 }
 
 /**
- * 분반. **수강생 명단이 없습니다** — 서버가 안 보냅니다.
+ * 분반.
  *
- * 화면에서 가리는 걸로는 부족합니다. 응답이 그대로 localStorage 캐시에 남기 때문에,
- * 명단은 응답 자체에서 빠져 있어야 합니다. 사람을 찾으려면 `benchApi.searchStudents()`
- * → `benchApi.fetchStudentTimetable()` 로 **한 번에 한 명씩** 물어봅니다.
+ * ⚠️ `students` 가 다시 들어 있습니다. Trade 가 "이 분반 수강생 중 내 분반을 받을 수
+ * 있는 사람"을 찾는 기능이라 명단 없이는 성립하지 않아 되돌렸습니다.
+ *
+ * 그래서 이 앱이 좁은 지점은 명단 유무가 아니라 **훑는 화면이 없다**는 것입니다 —
+ * 검색은 한 번에 한 명이고(`benchApi`), 전교생을 늘어놓는 목록 화면이 없습니다.
  */
 export interface Section {
     id: number;
     section: string;
     teacher: string;
     room: string;
+    students: StudentInfo[];
     /** 인원수는 줍니다 — 개인을 가리키지 않고 수강신청에 쓸모가 있습니다 */
     student_count: number;
     /**
@@ -131,6 +134,27 @@ export interface StudentTimetable {
 export interface Histogram {
     total: Record<string, number>;
     by_year: Record<string, Record<string, number>>;
+}
+
+/**
+ * 친구 한 명. **단방향**이라 내가 추가하면 끝이고 상대의 수락이 없습니다 —
+ * 남의 시간표는 어차피 한 명씩 볼 수 있으니, 이 목록은 북마크에 가깝습니다.
+ */
+export interface Friend {
+    stuId: string;
+    name: string;
+}
+
+/** `GET /friends/busy` — 언제 수업이 있는지만. **무슨 수업인지는 오지 않습니다** */
+export interface FriendBusy extends Friend {
+    is_me: boolean;
+    /** `"MON-3"` 모양 */
+    busy: string[];
+}
+
+export interface FriendsBusyResponse {
+    term: Term;
+    people: FriendBusy[];
 }
 
 export interface EnrollmentStats {

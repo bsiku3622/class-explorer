@@ -12,6 +12,8 @@
 import api from "./api";
 import type {
     EnrollmentStats,
+    Friend,
+    FriendsBusyResponse,
     StudentCandidate,
     StudentTimetable,
     Term,
@@ -56,6 +58,42 @@ export const fetchEnrollmentStats = async (
     term?: Term | null,
 ): Promise<EnrollmentStats> => {
     const { data } = await api.get("/stats/enrollment", {
+        headers: authHeader(),
+        params: term ? { year: term.year, semester: term.semester } : undefined,
+    });
+    return data;
+};
+
+/** 내가 등록한 친구 목록. 이름·학번만 옵니다. */
+export const fetchFriends = async (): Promise<Friend[]> => {
+    const { data } = await api.get("/friends", { headers: authHeader() });
+    return data.friends;
+};
+
+/** 친구 추가. **단방향**이라 상대의 수락이 필요 없습니다. */
+export const addFriend = async (stuId: string): Promise<Friend> => {
+    const { data } = await api.post(
+        "/friends",
+        { stu_id: stuId },
+        { headers: authHeader() },
+    );
+    return data;
+};
+
+export const removeFriend = async (stuId: string): Promise<void> => {
+    await api.delete(`/friends/${encodeURIComponent(stuId)}`, {
+        headers: authHeader(),
+    });
+};
+
+/**
+ * 친구들이 **언제 수업이 있는지**만. 무슨 수업인지는 오지 않습니다 — 공강을 맞춰 보는
+ * 게 목적이라 요일·교시면 충분하고, 과목까지 주면 "누가 뭘 듣는지" 목록이 됩니다.
+ */
+export const fetchFriendsBusy = async (
+    term?: Term | null,
+): Promise<FriendsBusyResponse> => {
+    const { data } = await api.get("/friends/busy", {
         headers: authHeader(),
         params: term ? { year: term.year, semester: term.semester } : undefined,
     });

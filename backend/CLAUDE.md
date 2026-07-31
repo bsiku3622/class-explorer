@@ -6,8 +6,9 @@
 ```
 backend/
 ├── app_factory.py   → 두 앱이 공유하는 뼈대 (init_schema + CORS + 보안 헤더)
+├── bench_router.py  → ksa-bench 전용 API (사람 1명 조회, 친구, 집계)
 ├── main.py          → **class-explorer** 진입점 — 라우터 전부
-├── bench_main.py    → **ksa-bench** 진입점 — 명단 라우터를 등록하지 않음
+├── bench_main.py    → **ksa-bench** 진입점 — /admin·남의 이수 이력 라우터를 등록하지 않음
 ├── classes_router.py→ GET / (명단 포함, explorer 전용) + GET /terms (공통)
 ├── models.py        → SQLAlchemy ORM 모델 (12개 테이블)
 ├── migrations.py    → 앱 시작 시 실행되는 SQLite 스키마 마이그레이션 (멱등)
@@ -39,10 +40,13 @@ backend/
 | `backend.main:app` | class-explorer (초대제, 명단까지 전부) | `frontend/` |
 | `backend.bench_main:app` | ksa-bench (전교생 공개) | `bench-frontend/` |
 
-**ksa-bench 에는 명단이 나갈 수 있는 라우터를 등록하지 않습니다** — `GET /`,
-`/curriculum/progress/{stu_id}`, `/admin/*`. 권한 검사로 가르지 않은 이유는, 한 앱에
-명단 엔드포인트와 공개 서비스가 같이 살면 나중에 의존성 하나를 빠뜨리는 것이 곧 사고가
-되기 때문입니다. 등록이 안 되면 그 실수가 성립하지 않습니다.
+**ksa-bench 에 등록하지 않는 라우터**: `/admin/*`, `/curriculum/progress/{stu_id}`,
+그리고 class-explorer 판 `GET /`(bench 는 자체 구현을 씁니다). 권한 검사로 가르지 않은
+이유는, 한 앱에 그런 엔드포인트와 공개 서비스가 같이 살면 나중에 의존성 하나를
+빠뜨리는 것이 곧 사고가 되기 때문입니다. 등록이 안 되면 그 실수가 성립하지 않습니다.
+
+다만 **분반 명단 자체는 bench 응답에도 들어 있습니다** — Trade 가 명단 없이는 성립하지
+않아 되돌렸습니다. 지금 상태는 "데이터가 안 내려간다"가 아니라 "훑는 화면이 없다"입니다.
 
 **bench 에 라우터를 새로 붙일 때는 그 라우터가 남의 데이터를 돌려줄 수 있는지 먼저
 확인하세요.** 자세한 배치는 [main.guide.md](main.guide.md) 에 표로 있습니다.

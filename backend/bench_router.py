@@ -20,6 +20,7 @@ import time
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backend import models
@@ -87,24 +88,30 @@ async def get_term_data(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """지정 학기의 과목·분반·시간·강의실. **수강생 명단은 들어 있지 않습니다.**
+    """지정 학기의 과목·분반·시간·강의실 + **분반 명단**.
 
-    인원수(`student_count`)와 **학번 분포**(`year_counts`)는 줍니다. 분포만으로는
-    "누군가 재수강 중"까지만 드러나고 그게 누구인지는 여전히 한 명씩 찾아야 하므로,
-    이 앱이 그은 선은 **이름이 나가지 않는다**입니다.
+    ⚠️ 명단이 들어 있습니다. 원래는 뺐는데, Trade(수강 변경 탐색)가 "이 분반 수강생
+    중에 내 분반을 받을 수 있는 사람"을 찾는 기능이라 명단 없이는 성립하지 않아
+    되돌렸습니다. 그래서 **이 앱이 class-explorer 보다 좁은 지점은 명단 유무가 아니라
+    아래 셋**입니다.
+
+    - 검색이 한 번에 한 명 (다중 검색·불린 연산·초성 없음)
+    - 전교생을 늘어놓는 화면이 없음 (`/browse` 학생 목록 제거)
+    - 남의 누적 이수 이력·`/admin/*` 라우터가 등록돼 있지 않음
+
+    바꿔 말하면 **훑는 화면은 없앴지만 데이터는 내려갑니다.** 이걸 다시 좁히려면
+    Trade 를 "양쪽이 등록했을 때만 맞춰 주는" 매칭 방식으로 새로 만들어야 합니다.
     """
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     response.headers["Pragma"] = "no-cache"
 
     target_year, target_semester = resolve_term(db, year, semester)
 
-    # 명단을 안 내보내므로 Student 까지 조인할 필요가 없습니다.
-    # Enrollment.stuId 만으로 인원수와 중복 제거가 됩니다.
     all_classes = db.query(models.Class).filter(
         models.Class.year == target_year,
         models.Class.semester == target_semester,
     ).options(
-        selectinload(models.Class.enrollments),
+        selectinload(models.Class.enrollments).joinedload(models.Enrollment.student),
         selectinload(models.Class.times),
         joinedload(models.Class.subject).joinedload(models.Subject.course)
         .joinedload(models.Course.department),
@@ -119,7 +126,8 @@ async def get_term_data(
         return stu_id.split("-")[0] if "-" in stu_id else "Unknown"
 
     for cls in all_classes:
-        stu_ids = {e.stuId for e in cls.enrollments}
+        students = [{"stuId": e.student.stuId, "name": e.student.name} for e in cls.enrollments]
+        stu_ids = {s["stuId"] for s in students}
         subjects.setdefault(cls.subject_id, cls.subject)
         grouped.setdefault(cls.subject_id, [])
         subject_students.setdefault(cls.subject_id, set()).update(stu_ids)
@@ -135,6 +143,7 @@ async def get_term_data(
             "section": cls.section,
             "teacher": cls.teacher,
             "room": cls.room,
+            "students": sorted(students, key=lambda x: x["stuId"]),
             "student_count": len(stu_ids),
             "year_counts": dict(sorted(year_counts.items())),
             "times": sorted(
@@ -364,6 +373,144 @@ async def get_student_timetable(
         "student": {"stuId": student.stuId, "name": student.name},
         "term": {"year": target_year, "semester": target_semester},
         "classes": items,
+    }
+
+
+# ─── 친구 ────────────────────────────────────────────────────────────────────
+#
+# **단방향입니다.** 내가 추가하면 끝이고 상대의 수락이 없습니다. 남의 시간표는 어차피
+# `GET /students/{stu_id}` 로 한 명씩 볼 수 있으니, 이 목록은 새로 뭘 열어 주는 게
+# 아니라 자주 보는 사람을 북마크해 두는 것입니다.
+class FriendRequest(BaseModel):
+    stu_id: str = Field(min_length=1, max_length=16)
+
+
+def _friend_stu_ids(db: Session, user_id: int) -> list[str]:
+    return [
+        row[0]
+        for row in db.query(models.Friend.friend_stu_id)
+        .filter(models.Friend.user_id == user_id)
+        .order_by(models.Friend.friend_stu_id)
+        .all()
+    ]
+
+
+@router.get("/friends")
+async def list_friends(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """내가 등록한 사람들. 이름과 학번만 옵니다."""
+    stu_ids = _friend_stu_ids(db, current_user.id)
+    if not stu_ids:
+        return {"friends": []}
+    rows = (
+        db.query(models.Student)
+        .filter(models.Student.stuId.in_(stu_ids))
+        .order_by(models.Student.stuId)
+        .all()
+    )
+    return {"friends": [{"stuId": s.stuId, "name": s.name} for s in rows]}
+
+
+@router.post("/friends", status_code=status.HTTP_201_CREATED)
+async def add_friend(
+    body: FriendRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    student = db.query(models.Student).filter(models.Student.stuId == body.stu_id).first()
+    if not student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="학생을 찾을 수 없습니다.")
+    if student.stuId == current_user.stu_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="본인은 추가할 수 없습니다.")
+
+    exists = (
+        db.query(models.Friend)
+        .filter(
+            models.Friend.user_id == current_user.id,
+            models.Friend.friend_stu_id == student.stuId,
+        )
+        .first()
+    )
+    if not exists:
+        db.add(models.Friend(user_id=current_user.id, friend_stu_id=student.stuId))
+        db.commit()
+    return {"stuId": student.stuId, "name": student.name}
+
+
+@router.delete("/friends/{stu_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_friend(
+    stu_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db.query(models.Friend).filter(
+        models.Friend.user_id == current_user.id,
+        models.Friend.friend_stu_id == stu_id,
+    ).delete()
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/friends/busy")
+async def friends_busy_slots(
+    year: int | None = Query(default=None, ge=2000, le=2100),
+    semester: int | None = Query(default=None, ge=1, le=2),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """친구들이 **언제 수업이 있는지**만. 무슨 수업인지는 주지 않습니다.
+
+    공강을 맞춰 보는 게 목적이라 요일·교시면 충분하고, 과목·교실까지 주면 "누가 뭘
+    듣는지"를 목록으로 훑는 화면이 되어 버립니다. 슬롯은 `"MON-3"` 모양입니다.
+
+    본인도 함께 돌려줍니다 — 어차피 내 시간표고, 겹쳐 보려면 있어야 합니다.
+    """
+    target_year, target_semester = resolve_term(db, year, semester)
+
+    stu_ids = _friend_stu_ids(db, current_user.id)
+    if current_user.stu_id:
+        stu_ids = [current_user.stu_id] + stu_ids
+    if not stu_ids:
+        return {"term": {"year": target_year, "semester": target_semester}, "people": []}
+
+    rows = (
+        db.query(
+            models.Enrollment.stuId,
+            models.ClassTime.day,
+            models.ClassTime.period,
+        )
+        .join(models.Class, models.Class.id == models.Enrollment.classId)
+        .join(models.ClassTime, models.ClassTime.class_id == models.Class.id)
+        .filter(
+            models.Enrollment.stuId.in_(stu_ids),
+            models.Class.year == target_year,
+            models.Class.semester == target_semester,
+        )
+        .all()
+    )
+
+    busy: dict[str, set[str]] = {stu_id: set() for stu_id in stu_ids}
+    for stu_id, day, period in rows:
+        busy.setdefault(stu_id, set()).add(f"{day}-{period}")
+
+    names = {
+        s.stuId: s.name
+        for s in db.query(models.Student).filter(models.Student.stuId.in_(stu_ids)).all()
+    }
+
+    return {
+        "term": {"year": target_year, "semester": target_semester},
+        "people": [
+            {
+                "stuId": stu_id,
+                "name": names.get(stu_id, stu_id),
+                "is_me": stu_id == current_user.stu_id,
+                "busy": sorted(busy.get(stu_id, set())),
+            }
+            for stu_id in stu_ids
+        ],
     }
 
 
