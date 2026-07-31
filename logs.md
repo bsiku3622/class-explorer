@@ -1,5 +1,14 @@
 # Logs
 
+## 2026-07-31 — 저녁 시간 반영 (교시는 그대로)
+
+- 변경 파일: `backend/periods.py`, `backend/CLAUDE.md`
+- 요약: 저녁이 17:30~19:00 이고 **수업과 동시에 진행**된다는 걸 확인했습니다. 교시 시각이 밀리지 않으므로 계산해 둔 표가 그대로 맞습니다.
+
+`BREAKS` 는 이제 두 종류가 섞여 있습니다 — 점심·AA 미팅은 교시 사이의 빈 자리지만, 저녁·자습은 수업 위에 겹칩니다. 그래서 `current_period()` 와 `current_break()` 를 배타적으로 보면 안 되고, 화면은 "9교시 · 저녁" 처럼 둘을 같이 보여 줍니다.
+
+남은 미정은 자습 시간대를 학교에서 몇 교시로 부르는지 하나뿐이고, 표시 문구에만 영향을 줍니다.
+
 ## 2026-07-31 — 백엔드를 서버 하나로 합침 + bench 는 캐시하지 않음
 
 - 변경 파일: `backend/main.py`·`classes_router.py`·`bench_router.py`, `backend/bench_main.py` (삭제), `bench-frontend/src/App.tsx`·`vite.config.ts`·`.env`, `frontend/src/App.tsx`, 가이드 문서 일습
