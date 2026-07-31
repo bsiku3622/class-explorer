@@ -1,5 +1,98 @@
 # Logs
 
+## 2026-07-31 — 교시 시각표 확정 (10·11교시 = 자습)
+
+- 변경 파일: `backend/periods.py`, `backend/friends_router.py`, `backend/CLAUDE.md`
+- 요약: **정규 수업은 9교시까지**이고 10·11교시는 자습(19:30~21:30)입니다. 처음에 5교시부터 50+10 을 11교시까지 그대로 이어붙여 10교시 18:40·11교시 19:40 으로 잡았는데, 그러면 자습보다 이릅니다.
+
+자습이 안 맞는 걸 보고도 "겹치는 시간대" 로 처리하고 넘어간 게 잘못이었습니다. 10·11교시는 자습 그 자체라 **19:30~20:30 / 20:30~21:30** 이고, 앞의 50+10 규칙 밖입니다. `STUDY_PERIODS` 로 표시해 두어 화면이 "자습" 으로 부릅니다.
+
+**저녁(17:30~19:00)만 수업과 겹칩니다** — 9교시와 동시에 돌아갑니다. 자습은 교시 그 자체라 `BREAKS` 에서 뺐습니다(넣으면 이름이 두 번 나옵니다).
+
+## 2026-07-31 — 백엔드를 서버 하나로 합침 + bench 는 캐시하지 않음
+
+- 변경 파일: `backend/main.py`·`classes_router.py`·`bench_router.py`, `backend/bench_main.py` (삭제), `bench-frontend/src/App.tsx`·`vite.config.ts`·`.env`, `frontend/src/App.tsx`, 가이드 문서 일습
+- 요약: 진입점을 둘로 나눠 두던 걸 접고 **서버 하나가 두 프론트를 받습니다.** 대신 ksa-bench 는 수업 데이터를 localStorage 에 캐시하지 않습니다.
+
+**왜 합쳤나** — Trade 를 되살리며 명단을 응답에 되돌리자 두 앱의 `GET /` 이 사실상 같아졌습니다(bench 판에만 학번 분포가 더 있었는데 그건 class-explorer 에도 넣으면 그만입니다). 같은 응답을 두 벌 유지하고 프로세스를 둘로 띄울 이유가 없어졌고, 배포도 systemd 유닛 하나로 끝납니다. `bench_main.py` 는 지웠습니다.
+
+**대신 잃은 것을 분명히 해 둡니다.** 접근 제어가 "라우터를 그 앱에 안 붙인다"에서 **권한 검사**로 옮겨졌습니다. 새 엔드포인트가 남의 데이터를 돌려줄 수 있으면 이제 의존성으로 막아야 합니다 — 가이드 세 곳에 적어 뒀습니다.
+
+**두 프론트의 차이는 이제 둘뿐입니다.** ① 훑는 UI 가 없다(전교생 목록·다중 검색·불린·초성 없음) ② **명단을 localStorage 에 안 남긴다.** ②가 이번에 새로 한 것입니다 — 응답에 분반 명단이 들어 있어서 캐시하면 전교생 명단이 브라우저에 파일로 남습니다. bench 는 캐시를 통째로 걷어내고 메모리에만 두며, class-explorer 를 쓰던 브라우저에 남은 옛 캐시는 시작할 때 지웁니다.
+
+localStorage 쓰기를 전수 확인했습니다 — 세션 토큰·선택 학기·검색 히스토리뿐이고 명단이 남는 경로는 없습니다.
+
+
+## 2026-07-31 — 교시 시각표 + 친구 기능을 두 앱 공통으로
+
+- 변경 파일: `backend/periods.py`·`friends_router.py` (신규), `backend/main.py`·`bench_main.py`·`bench_router.py`, `frontend/src/pages/FriendsPage.tsx`·`lib/friendsApi.ts` (신규), `frontend/src/{App.tsx,components/Sidebar.tsx}`, `bench-frontend/` 동일 반영, 가이드 문서 일습
+- 요약: 교시별 시각표를 서버에 두고, 친구 기능을 **class-explorer 에도** 넣었습니다. 메인은 다시 class-explorer 입니다.
+
+**교시 시각표는 서버가 원본을 갖습니다** (`backend/periods.py`, `GET /periods`). 50분 수업 + 10분 쉬는시간으로 1~4교시(08:40~12:30) → 점심·AA 미팅 → 5~11교시(13:40~20:30). 프론트가 상수를 따로 들면 한쪽만 고쳤을 때 조용히 어긋나서, 화면도 서버에서 받아 씁니다.
+
+⚠️ **표에 저녁 식사 시간이 없습니다.** 9~10교시가 17:40~19:30 으로 이어지는데 실제로 그 사이에 저녁이 있다면 10·11교시가 통째로 밀립니다. 자습(19:30~21:30)도 11교시(19:40~20:30)와 겹칩니다. 둘 다 확인되면 `periods.py` 의 표만 고치면 됩니다.
+
+**"지금"은 서버 시계로 정합니다.** 클라이언트 시계는 틀어져 있거나 손댈 수 있어서, "지금 공강" 이 사람마다 다르게 보이면 안 됩니다.
+
+**친구는 두 앱 공통 라우터(`friends_router.py`)로 뺐습니다.** 처음엔 `bench_router` 안에 있었는데 class-explorer 에도 필요해졌습니다 — 복사하면 두 벌이 되니 옮겼습니다. 등록은 **단방향**이고 수락이 없습니다: 두 앱 모두 남의 시간표를 이미 볼 수 있어서 승인 절차는 마찰만 늘고 막아 주는 게 없습니다.
+
+**사람 찾기만 앱마다 다릅니다.** ksa-bench 는 명단이 없어 `GET /students/search` 로 서버에 묻고, class-explorer 는 이미 학기 전체를 들고 있어 로컬에서 찾습니다. 두 글자 이상·20명 상한은 같습니다.
+
+`/friends/busy`·`/friends/now` 응답에는 **과목명이 없습니다** — 슬롯(`"MON-3"`)만 나갑니다. 공강을 맞추는 데 필요 없고, 주면 "누가 뭘 듣는지" 훑는 화면이 됩니다.
+
+**메인은 다시 class-explorer 입니다.** ksa-bench 는 배포 여부가 안 정해져 보류로 두고, 새 기능은 class-explorer 에 먼저 넣습니다.
+
+
+## 2026-07-31 — ksa-bench: Trade 복원 + 친구(단방향)
+
+- 변경 파일: `backend/models.py`·`bench_router.py`, `bench-frontend/src/pages/FriendsPage.tsx` (신규), `bench-frontend/src/{App.tsx,types/index.ts,lib/benchApi.ts,lib/searchEngine.ts}`, `bench-frontend/src/pages/TradePage.tsx`·`lib/tradeEngine.ts` (복원), 가이드 문서 일습
+- 요약: 선을 "명단이 안 내려간다"에서 **"훑는 화면이 없다"**로 옮겼습니다. Trade 를 되살리려면 명단이 필요해서입니다.
+
+**Trade 를 되살리며 분반 명단을 응답에 되돌렸습니다.** `findTradePartners` 가 "내가 원하는 분반의 수강생 전원을 훑어 내 분반을 받을 수 있는 사람을 찾는" 함수라, 명단이 입력이고 이름 목록이 출력입니다. 섹션 단위로 좁히려면 TradePage(1500줄)가 전체 학생 인덱스를 미리 만드는 구조부터 갈아야 해서, 이번엔 그대로 복원했습니다. **가이드에 이 사실을 명시**해 뒀습니다 — 문서가 "명단이 안 나간다"고 계속 주장하면 다음에 읽는 사람이 틀린 전제로 기능을 붙입니다.
+
+그래서 지금 ksa-bench 가 class-explorer 보다 좁은 지점은 셋입니다: 검색이 한 번에 한 명(다중·불린·초성 없음), 전교생을 늘어놓는 화면 없음, `/admin/*`·남의 누적 이수 라우터가 등록되지 않음.
+
+**친구는 단방향입니다.** 수락 절차를 두지 않은 이유는, 남의 시간표가 어차피 `GET /students/{stu_id}` 로 한 명씩 열리기 때문입니다 — 승인은 마찰만 늘고 막아 주는 게 없습니다. 그래서 이 표는 새로 뭘 여는 게 아니라 북마크에 가깝습니다.
+
+**친구 격자는 과목명을 안 받습니다.** `GET /friends/busy` 가 `["MON-3", …]` 슬롯만 돌려줍니다. 공강을 맞추는 데 과목이 필요 없고, 주면 "누가 뭘 듣는지" 훑는 화면이 됩니다. Analysis 의 Timetable Compare 를 이걸로 대체했습니다.
+
+**검증 스크립트가 거짓 통과하고 있었습니다.** venv 의 FastAPI 가 최신이라 `include_router` 한 것을 `_IncludedRouter` 래퍼로 들고 있는데, `app.routes` 를 그대로 세면 기본 4개만 보입니다. 그 상태로는 "bench 에 금지 라우터 없음" 이 항상 통과합니다 — 래퍼를 재귀로 펼치고, 펼치기 실패 시 단언으로 죽게 고쳤습니다(explorer 42 / bench 36).
+
+미결: **교시별 시각표가 앱 어디에도 없습니다.** "지금 공강인 친구"는 그게 있어야 만들 수 있어 주간 격자까지만 했습니다.
+
+
+## 2026-07-31 — ksa-bench: 명단 없이 도는 앱 만들기
+
+- 변경 파일: `backend/app_factory.py`·`bench_main.py`·`bench_router.py`·`classes_router.py` (신규), `backend/main.py`·`curriculum_router.py`, `bench-frontend/src/lib/{benchApi.ts,searchEngine.ts}`, `bench-frontend/src/components/StudentLookup.tsx` (신규), `bench-frontend/src/{App.tsx,types/index.ts}`, `bench-frontend/src/pages/{SearchPage,BrowsePage,AnalysisPage,ZamongPage}.tsx`, 가이드 문서 일습
+- 요약: 전교생에게 열 ksa-bench 를 만들면서, 분반 명단을 응답에서 빼고 사람은 서버에 한 명씩 물어보게 바꿨습니다.
+
+**진입점을 둘로 갈랐습니다.** `backend.main:app`(class-explorer)과 `backend.bench_main:app`(ksa-bench)이 같은 코드·같은 DB 를 쓰되 라우터가 다릅니다. 권한 검사로 가르지 않은 이유는, 한 앱에 명단 엔드포인트와 공개 서비스가 같이 살면 **나중에 기능을 붙이다 의존성 하나를 빠뜨리는 것이 곧 사고**가 되기 때문입니다. 등록이 안 되면 그 실수가 성립하지 않습니다. bench 에 안 붙인 것: `GET /`(명단 포함), `/curriculum/progress/{stu_id}`(아무 학생의 누적 이수), `/admin/*`(`/admin/students` 가 전교생 명단).
+
+**화면에서 가리는 건 아무 의미가 없습니다.** 지금 구조는 `GET /` 하나로 학기 전체가 브라우저에 내려오고 localStorage 에 1시간 남습니다. 그래서 UI 가 아니라 **응답**을 바꿨습니다 — `bench_router` 의 `GET /` 에는 분반 `students` 배열이 없고, 사람은 `GET /students/search`(이름·학번만, 2글자 이상, 20명 상한) → `GET /students/{stuId}`(한 명) 두 단계로 갑니다. 계정 단위 rate limit(검색 40/분, 상세 30/분)을 걸어 전교생을 훑는 데 20분 넘게 걸리게 했습니다.
+
+**목표는 차단이 아니라 비용입니다.** 가온누리에도 전교생 시간표 검색이 있고 학번이 연속이라 순회하면 긁힙니다. 완전히 막는 건 의미가 없으니, 명단을 얻는 비용을 거기와 같게 맞추는 게 기준입니다. 작정한 사람은 어차피 못 막고, 문제는 재미로 훑는 수백 명입니다.
+
+**학번 분포는 남겼습니다.** 처음에는 뺐습니다 — 1학년 필수 과목이 P/F 라 Fail 하면 재수강하고, 그 과목에서 혼자 다른 학번이면 이름을 지워도 "누군가 재수강 중"이 드러나기 때문입니다. 다만 **그게 누구인지는 여전히 한 명씩 찾아야** 하므로, 선을 "이름이 나가지 않는다"에 두기로 하고 되돌렸습니다(분반 `year_counts`, 과목 `subject_year_counts`). 학년 필터도 명단 대신 이 숫자로 돕니다.
+
+**분석 화면**은 명단을 프론트가 들고 직접 세던 구조라, 세는 일을 서버로 옮겼습니다(`GET /stats/enrollment` — 주당 교시·수강 과목 수 분포). "Timetable Compare"(학생 여럿을 골라 겹쳐 보기)는 다중 조회라 뺐습니다.
+
+**옮기지 못한 것**: `/trade` 는 명단으로 상대를 찾는 방식이라 그대로는 안 됩니다 — 양쪽이 등록했을 때만 맞춰 주는 형태로 새로 만들어야 합니다. `/admin` 은 안전한 것만 골라 새로 만듭니다.
+
+검증: 두 앱의 라우트를 **핸들러 기준**으로 대조해 bench 에 금지 핸들러가 없음을 확인했습니다(explorer 42 / bench 32 — 경로가 아니라 어느 함수가 붙었는지로 봐야 합니다. bench 에도 `GET /` 은 있고, 명단 없는 자체 구현입니다). 로컬 DB 로 응답에 개인 필드가 없고 rate limit 이 실제로 429 를 내는 것까지 확인. 두 프론트 모두 빌드 통과. lint 는 53 → 10 errors (`searchEngine.ts` 의 `any` 40개가 사라짐).
+
+## 2026-07-31 — ksa-bench 를 위한 두 번째 프론트 분리
+
+- 변경 파일: `bench-frontend/` (신규, `frontend/` 복사본), `CLAUDE.md`, `.gitignore`, `tasks.md`
+- 요약: 전교생에게 열 ksa-bench 를 만들기 위해 프론트를 둘로 나눴습니다. class-explorer(`frontend/`)는 손대지 않고 그대로 둡니다.
+
+**왜 리포를 안 갈랐나** — 백엔드가 두 벌이 되면 KEIS 응답이 한 번 바뀔 때마다 같은 수정을 두 번 하게 되고, 몇 달 뒤엔 둘이 서로 달라져 "복사해서 시작한" 이득이 사라집니다. 한 리포에 두면 백엔드 공유가 지켜야 할 규율이 아니라 **구조**가 됩니다.
+
+**`frontend/` 는 이름도 안 바꿨습니다.** Netlify base directory·CI·문서가 전부 그 경로를 물고 있어서, 리네임하는 순간 "class-explorer 는 건드리지 않는다"가 깨집니다. `bench-frontend` 와 비대칭인 건 감수했습니다.
+
+**격리는 권한이 아니라 프로세스로 갑니다.** 하나의 앱에 명단을 통째로 주는 엔드포인트와 공개 서비스가 같이 살면, 새 기능을 붙이다 권한 검사 한 줄을 빠뜨리는 것이 곧 사고가 됩니다. ASGI 진입점을 둘로 두어 bench 쪽에는 그 라우터가 **아예 등록되지 않게** 할 예정입니다(아직 안 했습니다).
+
+검증: 두 프론트 모두 빌드 통과, lint 53 errors / 5 warnings 로 **동일** — 복사가 온전하고 새로 생긴 문제가 없다는 뜻입니다.
+
 ## 2026-07-31 — 학사일정 달력 + 권한 3단계
 
 - 변경 파일: `backend/models.py`, `backend/migrations.py`, `backend/auth.py`, `backend/admin_router.py`, `backend/auth_router.py`, `backend/create_user.py`, `backend/calendar_router.py` (신규), `backend/parse_calendar_pdf.py` (신규), `backend/import_calendar.py` (신규), `backend/calendar_seed.json` (신규), `backend/main.py`, `frontend/src/pages/CalendarPage.tsx` (신규), `frontend/src/components/{CalendarGrid,EventFormModal,RequestSidebar}.tsx` (신규), `frontend/src/lib/calendar.ts` (신규), `frontend/src/lib/utils.ts`, `frontend/src/types/index.ts`, `frontend/src/App.tsx`, `frontend/src/components/Sidebar.tsx`, `frontend/src/pages/AdminPage.tsx`, 가이드 문서 일습

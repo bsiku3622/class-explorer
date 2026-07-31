@@ -5,17 +5,59 @@
 KSA 학생/교사/강의실 기반 수업 탐색 웹 앱.  
 **Stack**: React 19 + TypeScript + Vite + Tailwind v4 + HeroUI / FastAPI + SQLAlchemy (SQLite)
 
+### 프론트가 둘입니다
+
+| 디렉토리 | 앱 | 성격 |
+| --- | --- | --- |
+| `frontend/` | **class-explorer** | **여기서만 개발합니다** |
+| `bench-frontend/` | **ksa-bench** | 전교생 공개용. **동결** — 배포가 정해질 때까지 손대지 않습니다 |
+
+### 작업 규칙
+
+**새 기능은 `frontend/` 에만 넣습니다.** `bench-frontend/` 는 지금 건드리지 마세요.
+
+전교생에게 열 때가 오면, 그때 class-explorer 에서 **문제가 되는 지점만 골라** bench 로
+포장합니다. 지금까지 확인된 문제 지점은 둘입니다 — ① 전교생을 늘어놓는 UI(목록 화면·
+다중 검색·불린·초성) ② 분반 명단이 든 응답을 localStorage 에 캐시하는 것. `bench-frontend/`
+에 그 둘을 걷어낸 상태가 남아 있으니, 나중에 참고 자료로 쓰면 됩니다.
+
+미리 두 벌로 만들지 않는 이유는 단순합니다 — 같은 기능을 두 번 만들게 되고, 한쪽만
+고쳐 놓고 잊습니다. 백엔드를 서버 하나로 합친 것도 같은 이유입니다.
+
+**백엔드는 서버 하나입니다** (`backend.main:app`). 한때 진입점을 둘로 나눠 ksa-bench 쪽에
+명단 라우터를 등록하지 않았지만, Trade 가 명단 없이는 성립하지 않아 되돌리면서 두 앱의
+API 표면이 거의 같아졌습니다. 프로세스를 둘로 둘 이유가 사라져 합쳤고, 배포도 유닛
+하나로 끝납니다.
+
+**두 프론트의 차이는 이제 둘뿐입니다.**
+
+1. **훑는 UI 가 없습니다** — ksa-bench 에는 `/browse` 학생 목록도, 다중 검색·불린
+   연산·초성도 없습니다. 사람은 후보 목록 → 하나 선택으로 **한 번에 한 명**만 봅니다
+2. **명단을 localStorage 에 안 남깁니다** — class-explorer 는 학기 데이터를 1시간
+   캐시하지만, ksa-bench 는 캐시하지 않고 메모리에만 둡니다. 응답에 분반 명단이 들어
+   있어서(Trade 가 필요로 합니다) 캐시하면 전교생 명단이 브라우저에 파일로 남습니다
+
+API 는 같은 것을 씁니다. 친구는 **단방향 등록**이고, 친구 화면은 과목명 없이 언제
+비는지만 보여 줍니다.
+
+목표는 차단이 아니라 **비용**입니다. 학교 공식 앱(가온누리)에도 전교생 시간표 검색이
+있고 학번이 연속이라 순회하면 긁힙니다. 그러니 완전히 막는 건 의미가 없고, 명단을 얻는
+비용을 거기와 같게 — 한 명씩 물어봐야 하게 — 맞춥니다.
+
 ---
 
 ## Commands
 
 ```bash
-# Frontend (frontend/)
+# Frontend — class-explorer (frontend/)
 npm run dev       # Vite dev server (https://localhost:5188) — /api → localhost:8000 프록시
 npm run build     # TypeScript check + Vite build
 npm run lint      # ESLint
 
-# Backend (repo root)
+# Frontend — ksa-bench (bench-frontend/)
+npm run dev       # https://localhost:5189 — 같은 백엔드(8000)를 봅니다
+
+# Backend (repo root) — 서버 하나가 두 프론트를 다 받습니다
 uvicorn backend.main:app --reload   # FastAPI (port 8000)
 python -m backend.parser_run                       # KEIS API → SQLite 동기화 (오늘 기준 학기)
 python -m backend.parser_run -y 2026 -s 2          # 학기 지정
@@ -107,6 +149,9 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 
 `/logs.md` 날짜 역순 | `/tasks.md` 최신 항목 아래에 추가
 
+**ksa-bench 작업에는 `[bench]` 를 앞에 붙입니다** (`- [ ] [bench] …`). 두 앱 기록이 한
+파일에 섞이므로, 이게 없으면 나중에 어느 앱 얘기인지 못 가립니다.
+
 ---
 
 ## Pages
@@ -120,6 +165,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | `/trade`            | TradePage       | 수강 변경 탐색 (2026-2 한정, 플래그) |
 | `/zamong`           | ZamongPage      | 교육과정 이수 현황 + 평점 (학번 등록 필요) |
 | `/calendar`         | CalendarPage    | 학사일정 달력 + 개인 일정 + 일정 제안 |
+| `/friends`          | FriendsPage     | 친구(단방향 등록) + 공강 격자 + 지금 공강 |
 | `/about`            | SettingsPage    | 기능 가이드북 + About             |
 | `/admin`            | AdminPage       | 계정 관리 (role=admin만)          |
 
@@ -132,3 +178,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | 디자인 변경   | `frontend/design-guide.md`    |
 | 컴포넌트 추가 | `frontend/component-guide.md` |
 | API 수정      | `backend/api-guide.md`        |
+| ksa-bench 작업 | `bench-frontend/CLAUDE.md` (가이드 사본이 그 안에 따로 있습니다) |
+
+**어느 프론트를 고치는지 먼저 확인하세요.** 두 디렉토리에 같은 이름의 가이드가 각각
+있어서, `frontend/design-guide.md`를 고치고 ksa-bench 를 손봤다고 생각하기 쉽습니다.

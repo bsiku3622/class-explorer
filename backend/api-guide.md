@@ -2,6 +2,26 @@
 
 > [← Backend Guide](CLAUDE.md)
 
+## 서버는 하나, 프론트가 둘
+
+`backend.main:app` 하나가 class-explorer 와 ksa-bench 를 모두 받습니다. **API 표면은
+같습니다** — 두 프론트의 차이는 어떤 화면을 그리고 무엇을 캐시하느냐에 있습니다.
+
+주로 ksa-bench 가 쓰는 것: `GET /students/search`, `GET /students/{stu_id}`(한 명씩
+조회), `GET /me/progress`(본인만), `GET /stats/enrollment`(집계). 자세한 설계 의도는
+[bench_router.guide.md](bench_router.guide.md).
+
+친구·교시 엔드포인트(`friends_router.py`) — 두 프론트 공통:
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| `GET` | `/periods` | 교시별 시각표 (화면이 상수를 따로 들지 않도록) |
+| `GET` | `/friends` | 내가 등록한 사람들 |
+| `POST` | `/friends` | 추가 — **단방향**, 상대의 수락 없음 |
+| `DELETE` | `/friends/{stuId}` | 삭제 |
+| `GET` | `/friends/busy` | 친구(+본인)의 수업 슬롯. **과목명 없음** |
+| `GET` | `/friends/now` | 지금 공강인 친구. "지금"은 **서버 시계** 기준 |
+
 ## 인증
 
 모든 보호된 엔드포인트는 `Authorization: Bearer <session_token>` 헤더가 필요합니다.

@@ -21,14 +21,20 @@ backend/students.txt
 backend/__pycache__/
 
 # Node / Frontend
+# 프론트가 둘입니다 — frontend(class-explorer) / bench-frontend(ksa-bench)
 node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
 frontend/*.local
+bench-frontend/node_modules/
+bench-frontend/dist/
+bench-frontend/dist-ssr/
+bench-frontend/*.local
 
 # Local HTTPS certificates
 frontend/*.pem
+bench-frontend/*.pem
 
 # Logs
 *.log

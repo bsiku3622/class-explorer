@@ -5,7 +5,12 @@
 ## 파일 구조
 ```
 backend/
-├── main.py          → FastAPI 앱 + API 엔드포인트 (인증 포함)
+├── app_factory.py   → 두 앱이 공유하는 뼈대 (init_schema + CORS + 보안 헤더)
+├── bench_router.py  → ksa-bench 전용 API (사람 1명 조회, 집계)
+├── friends_router.py→ 친구(단방향) + 교시 시각표 — **두 앱 공통**
+├── periods.py       → 교시별 시각표 **원본** (프론트는 GET /periods 로 받아 씁니다)
+├── main.py          → 진입점 (하나) — 두 프론트가 같이 씁니다
+├── classes_router.py→ GET / (학기 전체 + 분반 명단) + GET /terms
 ├── models.py        → SQLAlchemy ORM 모델 (12개 테이블)
 ├── migrations.py    → 앱 시작 시 실행되는 SQLite 스키마 마이그레이션 (멱등)
 ├── terms.py         → 학년도/학기 해석 유틸 (current_term, list_terms, resolve_term)
@@ -26,6 +31,26 @@ backend/
 ├── students.txt     → 학생 목록 (학번 + 이름)
 └── ksa_timetable.db → SQLite 데이터베이스
 ```
+
+## 서버는 하나, 프론트가 둘
+
+`backend.main:app` 하나가 `frontend/`(class-explorer)와 `bench-frontend/`(ksa-bench)를
+모두 받습니다. CORS 에 두 도메인이 다 들어 있습니다.
+
+한때 앱을 둘로 나눠(`bench_main.py`) ksa-bench 쪽에 명단 라우터를 등록하지 않았습니다.
+Trade 가 명단 없이는 성립하지 않아 되돌렸고, 그러자 두 앱의 API 표면이 거의 같아져
+프로세스를 둘로 둘 이유가 사라졌습니다.
+
+**그래서 접근 제어는 이제 라우터 등록이 아니라 권한 검사에 있습니다.** `/admin/*` 은
+`role=admin` 이고, 개인 데이터(state·grades·개인 일정·친구)는 전부 본인 것만 다룹니다.
+새 엔드포인트가 남의 데이터를 돌려줄 수 있으면 **의존성으로 막으세요** — "그 앱에는 안
+붙였으니까" 가 더 이상 방패가 아닙니다.
+
+두 프론트의 차이는 **UI 와 캐시**에 있습니다: ksa-bench 에는 전교생을 늘어놓는 화면이
+없고, 학기 데이터를 localStorage 에 캐시하지 않습니다.
+
+**bench 에 라우터를 새로 붙일 때는 그 라우터가 남의 데이터를 돌려줄 수 있는지 먼저
+확인하세요.** 자세한 배치는 [main.guide.md](main.guide.md) 에 표로 있습니다.
 
 ## 학기 모델
 
@@ -144,6 +169,35 @@ UniqueConstraint (user_id,key)
 
 등록 전에는 `stu_id`가 비어 있고, 그동안 이수 기록 API는 `409`를 돌려줍니다.
 
+### 친구
+
+`Friend` 는 **단방향**입니다 — `user_id` 가 `friend_stu_id` 를 추가하면 끝이고 상대의
+수락이 없습니다. 두 앱 모두 남의 시간표를 이미 볼 수 있어서(class-explorer 는 벌크
+응답으로, ksa-bench 는 한 명씩 조회로) 승인 절차를 붙여도 막아 주는 게 없고 마찰만
+늘기 때문입니다. 그래서 이 표는 **북마크**에 가깝습니다.
+
+A가 B를 추가해도 B의 목록에는 A가 없습니다.
+
+`/friends/busy`·`/friends/now` 는 **슬롯(`"MON-3"`)만** 돌려줍니다 — 과목·교실은
+보내지 않습니다. 공강을 맞추는 데 필요 없고, 주면 "누가 뭘 듣는지" 훑는 화면이 됩니다.
+
+### 교시 시각표 (`periods.py`)
+
+**정규 수업은 9교시까지**입니다. 50분 수업 + 10분 쉬는시간으로
+1~4교시(08:40~12:30) → 점심·AA 미팅 → 5~9교시(13:40~18:30).
+
+**10·11교시는 자습**이고 50+10 규칙 밖입니다 — 자습 19:30~21:30 을 반씩 나눕니다.
+이어붙여 계산하면 18:40·19:40 이 나오는데 자습보다 이릅니다. `STUDY_PERIODS` 로
+표시해 두었고 화면은 "자습" 으로 부릅니다.
+
+**여기가 유일한 원본입니다.** 화면도 `GET /periods` 로 받아 쓰므로 상수를 두 벌 두지
+않습니다.
+
+`BREAKS`(점심·AA·저녁·간식) 중 **저녁(17:30~19:00)만 수업과 겹칩니다** — 9교시와
+동시에 돌아갑니다. 그래서 `current_period()` 와 `current_break()` 가 둘 다 값을 낼 수
+있고, 화면은 "9교시 · 저녁" 처럼 같이 보여 줍니다. 자습은 교시 그 자체라 `BREAKS` 에
+넣지 않았습니다 — 넣으면 이름이 두 번 나옵니다.
+
 ### 학사일정
 
 `CalendarEvent.owner_id` 가 비어 있으면 **학교 공용**(모두에게 보이고 매니저만 수정),
@@ -237,13 +291,13 @@ python -m backend.create_user <username> <password>
 ```
 
 ## Admin 엔드포인트 (`/admin/*`)
-모든 엔드포인트는 `is_admin=True` 유저만 접근 가능.
+모든 엔드포인트는 `role=admin` 유저만 접근 가능. **class-explorer 에만 등록됩니다.**
 
 | 메서드 | 경로 | 설명 |
 |--------|------|------|
 | `GET` | `/admin/users` | 전체 유저 목록 |
 | `POST` | `/admin/users` | 유저 생성 |
-| `PATCH` | `/admin/users/{id}/admin` | admin 권한 토글 |
+| `PATCH` | `/admin/users/{id}/role` | 권한 변경 (`user`\|`manager`\|`admin`) |
 | `DELETE` | `/admin/users/{id}` | 유저 삭제 |
 | `GET` | `/admin/sessions` | 전체 세션 목록 (IP 포함) |
 | `DELETE` | `/admin/sessions/{id}` | 세션 강제 종료 |
