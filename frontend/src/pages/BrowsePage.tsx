@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Library, GraduationCap, BookOpen, Network } from "lucide-react";
+import { Library, GraduationCap, BookOpen, Network, Users } from "lucide-react";
 import api from "../lib/api";
-import type { SubjectData } from "../types";
+import type { SubjectData, Term } from "../types";
 import { getKoreanName, getStudentColor } from "../lib/utils";
 import SearchInput from "../components/atoms/SearchInput";
 import PageHeader from "../components/molecules/PageHeader";
@@ -10,6 +10,7 @@ import TeacherCard from "../components/atoms/TeacherCard";
 import RetroButton from "../components/atoms/RetroButton";
 import { Filter, RotateCcw } from "lucide-react";
 import CourseGraph from "../components/CourseGraph";
+import FriendsManager from "../components/FriendsManager";
 import RetroCard from "../components/atoms/RetroCard";
 import {
     ALL_DEPARTMENTS,
@@ -18,7 +19,7 @@ import {
     type Curriculum,
 } from "../lib/curriculum";
 
-type BrowseMode = "students" | "teachers" | "courses";
+type BrowseMode = "students" | "teachers" | "courses" | "friends";
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
 
@@ -29,6 +30,9 @@ const authHeader = () => {
 
 interface BrowsePageProps {
     allClassesData: SubjectData[];
+    /** 친구 탭이 "지금 공강" 을 물을 때 씁니다 */
+    term: Term | null;
+    myStuId: string | null;
     studentCounts: Record<string, number>;
     lastUpdated: number | null;
     fetchInitialData: (force?: boolean) => void;
@@ -37,6 +41,8 @@ interface BrowsePageProps {
 
 const BrowsePage: React.FC<BrowsePageProps> = ({
     allClassesData,
+    term,
+    myStuId,
     studentCounts,
     lastUpdated,
     fetchInitialData,
@@ -144,7 +150,9 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
             ? `${allStudents.length} Students`
             : mode === "teachers"
               ? `${allTeachers.length} Teachers`
-              : `${curriculum?.courses.length ?? 0} Courses`;
+              : mode === "courses"
+                ? `${curriculum?.courses.length ?? 0} Courses`
+                : "Friends";
 
     const placeholder =
         mode === "students"
@@ -181,10 +189,26 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 >
                     Courses
                 </RetroButton>
+                <RetroButton
+                    size="sm"
+                    isSelected={mode === "friends"}
+                    icon={<Users size={14} strokeWidth={2.5} />}
+                    onClick={() => handleModeChange("friends")}
+                >
+                    Friends
+                </RetroButton>
             </div>
 
+            {mode === "friends" && (
+                <FriendsManager
+                    term={term}
+                    myStuId={myStuId}
+                    allClassesData={allClassesData}
+                />
+            )}
+
             {/* Search */}
-            {mode !== "courses" && (
+            {(mode === "students" || mode === "teachers") && (
                 <SearchInput value={searchInput} onChange={setSearchInput} placeholder={placeholder} />
             )}
 
@@ -262,7 +286,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
             )}
 
             {/* Count */}
-            {mode !== "courses" && (
+            {(mode === "students" || mode === "teachers") && (
                 <p className="text-xs font-bold text-black/30 -mt-2">
                     {mode === "students" ? filteredStudents.length : filteredTeachers.length}명 표시 중
                 </p>
@@ -339,7 +363,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
             )}
 
             {/* Grid */}
-            {mode === "courses" ? null : mode === "students" ? (
+            {mode === "courses" || mode === "friends" ? null : mode === "students" ? (
                 <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 -mt-4">
                         {filteredStudents.map((s) => (

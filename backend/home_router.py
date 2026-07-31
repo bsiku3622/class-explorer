@@ -4,7 +4,8 @@
 자리라 왕복이 늘면 바로 티가 납니다.
 
 담는 것: 지금 몇 교시인지 · 오늘 내 시간표 · 지금 있어야 할 교실 · 다음 수업 ·
-지금 공강인 친구 · 급식 · 학기 중인지 방학인지.
+학기 중인지 방학인지. 급식은 **키가 있는지와 지금 끼니만** 담고 메뉴는 `GET /meal` 이
+따로 돌려줍니다 — 학교 API 가 3~5초씩 걸려서 같이 기다리면 홈 전체가 늦어집니다.
 """
 
 import datetime
@@ -17,7 +18,6 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backend import models, periods
 from backend.auth import get_current_user, get_db
-from backend.friends_router import _busy_by_student, _friend_stu_ids, _names
 from backend.terms import resolve_term
 
 router = APIRouter(tags=["home"])
@@ -243,17 +243,6 @@ async def get_home(
     current = by_period.get(period) if period else None
     following = next((c for c in my_classes if c["period"] > (period or 0)), None)
 
-    # ── 지금 공강인 친구
-    friend_ids = _friend_stu_ids(db, current_user.id)
-    free_friends: list[dict] = []
-    if friend_ids:
-        busy = _busy_by_student(db, friend_ids, target_year, target_semester)
-        names = _names(db, friend_ids)
-        slot = f"{day}-{period}" if day and period else None
-        for stu_id in friend_ids:
-            if slot is None or slot not in busy.get(stu_id, set()):
-                free_friends.append({"stuId": stu_id, "name": names.get(stu_id, stu_id)})
-
     return {
         "term": {"year": target_year, "semester": target_semester},
         "now": {
@@ -273,12 +262,6 @@ async def get_home(
         # 지금 있어야 할 수업. null 이면 공강입니다
         "current": current,
         "next": following,
-        "friends": {
-            "free": free_friends,
-            "total": len(friend_ids),
-            # 수업 시간이 아니면 "공강" 을 따질 게 없습니다
-            "counted": period is not None,
-        },
         # **메뉴는 여기 담지 않습니다.** 학교 API 가 3~5초씩 걸려서, 같이 기다리면 홈
         # 전체가 그만큼 늦어집니다 — 켜자마자 보이는 자리입니다. 화면이 `GET /meal` 로
         # 따로 받아 급식 칸만 기다립니다.

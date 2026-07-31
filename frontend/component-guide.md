@@ -34,8 +34,8 @@
 | `EventFormModal` | 일정 입력 창. `purpose`(personal/shared/request)에 따라 칸이 달라집니다. 시간은 종일·시각·교시 중 선택 |
 | `RequestSidebar` | 접었다 펴는 제안 서랍. 매니저면 허용·거절, 아니면 내가 낸 제안 상태만. 빨간 배지는 매니저에게만 |
 | `GoogleLinkModal` | 학번을 확인하라고 요구하는 창. **닫을 수 없고** 로그아웃만 가능합니다 |
-| `FriendsModal` | 친구 목록·추가·삭제. **검색창 하나**가 등록한 사람을 거르고, 거기 없으면 전교생에서 찾아 "추가"를 내밉니다 (두 글자부터·8명까지). 등록은 단방향 |
-| `MealCard` | 급식. 날짜를 앞뒤로 넘겨 봅니다 (±31일). 메뉴는 카드가 직접 `GET /meal` 로 받습니다 — 홈 응답에 묶으면 학교 API 대기(3~5초) 동안 홈이 통째로 빕니다 |
+| `FriendsManager` | 친구 등록·삭제 + "지금 공강". **Browse 의 Friends 탭**에 있습니다. 검색창 하나가 등록한 사람을 거르고, 거기 없으면 전교생에서 찾아 "추가"를 내밉니다 (두 글자부터·8명까지). 등록은 단방향 |
+| `MealCard` | 급식. 끼니 토글(아침·점심·저녁) + 날짜 화살표(±31일). 메뉴는 카드가 직접 `GET /meal` 로 받습니다 — 홈 응답에 묶으면 학교 API 대기(3~5초) 동안 홈이 통째로 빕니다 |
 | `Sidebar` | 좌측 고정 사이드바 메뉴 |
 | `FilterSection` | 학년 선택 필터 + 새로고침 |
 | `SearchResultDisplay` | 검색 결과 표시 (통합/그리드 뷰) |
@@ -50,11 +50,11 @@
 |--------|------|------|
 | `LoginPage` | (전체 앱 대체) | 로그인 폼, `onLogin(token)` 콜백 |
 | `AdminPage` | `/admin` | 사용자/세션/데이터 관리 (admin 전용) |
-| `HomePage` | `/` | 홈 — 지금 교시·가야 할 교실·오늘 시간표·급식·Trade 배너·공강인 친구 |
+| `HomePage` | `/` | 홈 — Trade 배너 · Now/Meal 2열 · 오늘 시간표 |
 | `SearchPage` | `/search` | 통합 검색 + 결과 표시 |
 | `RoomsPage` | `/emptyroomfinder` | 형설관 빈 교실 탐색 |
 | `AnalysisPage` | `/analysis` | 학사 데이터 통계 대시보드 |
-| `BrowsePage` | `/browse` | 학생·교사 목록 + 교육과정 그래프 (Students / Teachers / Courses 토글) |
+| `BrowsePage` | `/browse` | 학생·교사 목록 + 교육과정 그래프 + 친구 관리 (Students / Teachers / Courses / Friends 토글) |
 | `TradePage` | `/trade` | 수강 변경 탐색 (2026-2 한정, features 플래그) |
 | `ZamongPage` | `/zamong` | 교육과정 이수 현황 — 졸업 요건 진척도 + 평어·평점 + 선수관계 그래프 (학번 등록 필요) |
 | `CalendarPage` | `/calendar` | 학사일정 달력 — 월 격자 + 날짜 상세 + 개인 일정(반복 가능) + 제안 서랍 |

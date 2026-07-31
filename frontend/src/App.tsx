@@ -513,12 +513,7 @@ const App: React.FC = () => {
                             <Route
                                 path="/"
                                 element={
-                                    <HomePage
-                                        term={term}
-                                        myStuId={currentUser?.stu_id ?? null}
-                                        studentName={currentUser?.student_name ?? null}
-                                        allClassesData={allClassesData}
-                                    />
+                                    <HomePage term={term} />
                                 }
                             />
                             <Route
@@ -581,6 +576,8 @@ const App: React.FC = () => {
                                         allClassesData={allClassesData}
                                         studentCounts={studentCounts}
                                         lastUpdated={lastUpdated}
+                                        term={term}
+                                        myStuId={currentUser?.stu_id ?? null}
                                         fetchInitialData={fetchInitialData}
                                         handleSearch={handleSearchSelect}
                                     />

@@ -1,5 +1,18 @@
 # Logs
 
+## 2026-08-01 — 홈 배치를 2열로, 친구를 Browse 로
+
+- 변경 파일: `frontend/src/pages/{HomePage.tsx,BrowsePage.tsx}`, `frontend/src/components/{FriendsManager.tsx (신규),MealCard.tsx,FriendsModal.tsx (삭제)}`, `frontend/src/{App.tsx,lib/friendsApi.ts}`, `backend/home_router.py`, 가이드 문서
+- 요약: 시계 카드를 없애고 Now·급식을 가로로 놓았습니다. 급식은 끼니 토글, Trade 배너는 맨 위 핑크, 친구 관리는 Browse 탭으로 옮겼습니다.
+
+**시계 카드를 없앴습니다.** 큰 시각 하나가 맨 위를 차지하니 정작 "어디로 가야 하는가" 가 아래로 밀렸습니다. 요일과 교시는 Now 카드 오른쪽 위에 작게 붙였습니다.
+
+**Now 와 급식을 2열로 놓았습니다** (`md:grid-cols-2`). 세로로만 쌓으니 화면이 길어지기만 하고 위쪽이 비었습니다. 급식은 세 끼를 한꺼번에 늘어놓던 걸 **끼니 토글**로 바꿨습니다 — 한 끼가 예닐곱 줄이라 셋을 펼치면 카드 혼자 한 칸을 다 먹습니다. 지금 시간대의 끼니로 열립니다.
+
+**친구는 Browse 의 Friends 탭으로 옮겼습니다.** 홈에 모달로 뒀더니 홈에서 할 일은 등록뿐인데 창을 열어야 했고, 사람을 찾는 일은 어차피 Browse 가 하는 일입니다. `GET /home` 도 친구를 안 돌려줍니다 — 홈이 안 그리는 걸 계산할 이유가 없습니다. 공강 하이라이트는 시안(`accent1`)으로 맞췄습니다: 이 앱에서 시안은 "지금" 입니다.
+
+**Trade 배너를 맨 위로 올리고 핑크로 바꿨습니다.** 친구 배지가 홈에서 빠지면서 핑크가 비었고, 배너가 노랑일 때 급식의 "지금 끼니" 강조와 색이 겹쳤습니다. 이제 시안=지금, 핑크=한시 기능입니다.
+
 ## 2026-08-01 — 배포 서버가 UTC 였습니다
 
 - 변경 파일: `backend/{periods.py,home_router.py,friends_router.py,terms.py,CLAUDE.md}`
