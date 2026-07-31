@@ -27,6 +27,7 @@ const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
 const LoginPage = React.lazy(() => import("./pages/LoginPage"));
 const AdminPage = React.lazy(() => import("./pages/AdminPage"));
 const TradePage = React.lazy(() => import("./pages/TradePage"));
+const FriendsPage = React.lazy(() => import("./pages/FriendsPage"));
 const ZamongPage = React.lazy(() => import("./pages/ZamongPage"));
 const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
 
@@ -581,6 +582,16 @@ const App: React.FC = () => {
                                     }
                                 />
                             )}
+                            <Route
+                                path="/friends"
+                                element={
+                                    <FriendsPage
+                                        term={term}
+                                        myStuId={currentUser?.stu_id ?? null}
+                                        allClassesData={allClassesData}
+                                    />
+                                }
+                            />
                             <Route
                                 path="/zamong"
                                 element={

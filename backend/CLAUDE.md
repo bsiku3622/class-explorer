@@ -6,7 +6,9 @@
 ```
 backend/
 ├── app_factory.py   → 두 앱이 공유하는 뼈대 (init_schema + CORS + 보안 헤더)
-├── bench_router.py  → ksa-bench 전용 API (사람 1명 조회, 친구, 집계)
+├── bench_router.py  → ksa-bench 전용 API (사람 1명 조회, 집계)
+├── friends_router.py→ 친구(단방향) + 교시 시각표 — **두 앱 공통**
+├── periods.py       → 교시별 시각표 **원본** (프론트는 GET /periods 로 받아 씁니다)
 ├── main.py          → **class-explorer** 진입점 — 라우터 전부
 ├── bench_main.py    → **ksa-bench** 진입점 — /admin·남의 이수 이력 라우터를 등록하지 않음
 ├── classes_router.py→ GET / (명단 포함, explorer 전용) + GET /terms (공통)
@@ -167,6 +169,26 @@ UniqueConstraint (user_id,key)
 미등록 계정은 얼마든지 있어도 됩니다.
 
 등록 전에는 `stu_id`가 비어 있고, 그동안 이수 기록 API는 `409`를 돌려줍니다.
+
+### 친구
+
+`Friend` 는 **단방향**입니다 — `user_id` 가 `friend_stu_id` 를 추가하면 끝이고 상대의
+수락이 없습니다. 두 앱 모두 남의 시간표를 이미 볼 수 있어서(class-explorer 는 벌크
+응답으로, ksa-bench 는 한 명씩 조회로) 승인 절차를 붙여도 막아 주는 게 없고 마찰만
+늘기 때문입니다. 그래서 이 표는 **북마크**에 가깝습니다.
+
+A가 B를 추가해도 B의 목록에는 A가 없습니다.
+
+`/friends/busy`·`/friends/now` 는 **슬롯(`"MON-3"`)만** 돌려줍니다 — 과목·교실은
+보내지 않습니다. 공강을 맞추는 데 필요 없고, 주면 "누가 뭘 듣는지" 훑는 화면이 됩니다.
+
+### 교시 시각표 (`periods.py`)
+
+50분 수업 + 10분 쉬는시간. 1~4교시(08:40~12:30) → 점심·AA 미팅 → 5~11교시(13:40~20:30).
+
+**여기가 유일한 원본입니다.** 화면도 `GET /periods` 로 받아 쓰므로 상수를 두 벌 두지
+않습니다. ⚠️ 저녁 식사 시간이 표에 없고, 자습(19:30~21:30)이 11교시와 겹칩니다 —
+둘 다 확인되면 `periods.py` 의 표만 고치면 됩니다.
 
 ### 학사일정
 

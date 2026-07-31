@@ -22,6 +22,7 @@ from backend.auth_router import router as auth_router
 from backend.curriculum_router import router as curriculum_router
 from backend.state_router import router as state_router
 from backend.calendar_router import router as calendar_router
+from backend.friends_router import router as friends_router
 from backend.classes_router import terms_router
 from backend.bench_router import router as bench_router
 
@@ -36,6 +37,7 @@ app.include_router(auth_router)
 app.include_router(curriculum_router)
 app.include_router(state_router)
 app.include_router(calendar_router)
+app.include_router(friends_router)   # 친구 + 교시 시각표 — 두 앱 공통
 app.include_router(terms_router)
 
 # 명단 없는 학기 데이터 + 학생 1명 조회. class-explorer 에는 없습니다

@@ -13,7 +13,19 @@
 | `GET /curriculum/progress/{stuId}` | `GET /me/progress` — 본인만 |
 | `/admin/*` 전부 | 없음 |
 
-ksa-bench 에만 있는 것: `GET /students/search`, `GET /students/{stu_id}`, `GET /me/progress`.
+ksa-bench 에만 있는 것: `GET /students/search`, `GET /students/{stu_id}`,
+`GET /me/progress`, `GET /stats/enrollment`.
+
+**두 앱 공통**인 친구·교시 엔드포인트(`friends_router.py`):
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| `GET` | `/periods` | 교시별 시각표 (화면이 상수를 따로 들지 않도록) |
+| `GET` | `/friends` | 내가 등록한 사람들 |
+| `POST` | `/friends` | 추가 — **단방향**, 상대의 수락 없음 |
+| `DELETE` | `/friends/{stuId}` | 삭제 |
+| `GET` | `/friends/busy` | 친구(+본인)의 수업 슬롯. **과목명 없음** |
+| `GET` | `/friends/now` | 지금 공강인 친구. "지금"은 **서버 시계** 기준 |
 
 ## 인증
 

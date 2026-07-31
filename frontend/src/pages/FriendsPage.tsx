@@ -12,16 +12,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Spinner } from "@heroui/react";
 import { Clock, Search, UserPlus, Users, X } from "lucide-react";
-import type { Friend, FriendBusy, FriendsNowResponse, Term } from "../types";
+import type { SubjectData, Term } from "../types";
 import {
     addFriend,
     fetchFriends,
     fetchFriendsBusy,
     fetchFriendsNow,
     removeFriend,
-    searchStudents,
-    type StudentSearchResponse,
-} from "../lib/benchApi";
+    type Friend,
+    type FriendBusy,
+    type FriendsNowResponse,
+} from "../lib/friendsApi";
 import { DAY_MAP, DAYS_ORDER, PERIODS } from "../lib/utils";
 import PageHeader from "../components/molecules/PageHeader";
 import RetroCard from "../components/atoms/RetroCard";
@@ -31,9 +32,18 @@ import SearchInput from "../components/atoms/SearchInput";
 interface FriendsPageProps {
     term: Term | null;
     myStuId: string | null;
+    /** 사람 찾기는 이미 받아 둔 학기 데이터에서 합니다 — 이 앱은 명단을 들고 있습니다 */
+    allClassesData: SubjectData[];
 }
 
-const FriendsPage: React.FC<FriendsPageProps> = ({ term, myStuId }) => {
+const SEARCH_MIN_LENGTH = 2;
+const SEARCH_LIMIT = 20;
+
+const FriendsPage: React.FC<FriendsPageProps> = ({
+    term,
+    myStuId,
+    allClassesData,
+}) => {
     const [friends, setFriends] = useState<Friend[]>([]);
     const [people, setPeople] = useState<FriendBusy[]>([]);
     const [now, setNow] = useState<FriendsNowResponse | null>(null);
@@ -41,8 +51,35 @@ const FriendsPage: React.FC<FriendsPageProps> = ({ term, myStuId }) => {
     const [error, setError] = useState<string | null>(null);
 
     const [query, setQuery] = useState("");
-    const [candidates, setCandidates] = useState<StudentSearchResponse | null>(null);
-    const [searching, setSearching] = useState(false);
+
+    /** 학기 데이터에 들어 있는 전원 (중복 제거) */
+    const everyone = useMemo(() => {
+        const map = new Map<string, { stuId: string; name: string }>();
+        allClassesData.forEach((subject) =>
+            subject.sections.forEach((section) =>
+                section.students.forEach((student) => {
+                    if (!map.has(student.stuId)) map.set(student.stuId, student);
+                }),
+            ),
+        );
+        return Array.from(map.values()).sort((a, b) =>
+            a.stuId.localeCompare(b.stuId),
+        );
+    }, [allClassesData]);
+
+    const candidates = useMemo(() => {
+        const trimmed = query.trim().toLowerCase();
+        if (trimmed.length < SEARCH_MIN_LENGTH) return null;
+        const hits = everyone.filter(
+            (person) =>
+                person.name.toLowerCase().includes(trimmed) ||
+                person.stuId.toLowerCase().includes(trimmed),
+        );
+        return {
+            students: hits.slice(0, SEARCH_LIMIT),
+            has_more: hits.length > SEARCH_LIMIT,
+        };
+    }, [query, everyone]);
 
     const reload = useCallback(async () => {
         setLoading(true);
@@ -67,32 +104,10 @@ const FriendsPage: React.FC<FriendsPageProps> = ({ term, myStuId }) => {
         void reload();
     }, [reload]);
 
-    // 후보 검색은 서버가 합니다 (두 글자 이상, 20명 상한)
-    useEffect(() => {
-        const trimmed = query.trim();
-        if (trimmed.length < 2) {
-            setCandidates(null);
-            return;
-        }
-        let cancelled = false;
-        setSearching(true);
-        const timer = setTimeout(() => {
-            searchStudents(trimmed)
-                .then((result) => !cancelled && setCandidates(result))
-                .catch(() => !cancelled && setCandidates(null))
-                .finally(() => !cancelled && setSearching(false));
-        }, 300);
-        return () => {
-            cancelled = true;
-            clearTimeout(timer);
-        };
-    }, [query]);
-
     const handleAdd = async (stuId: string) => {
         try {
             await addFriend(stuId);
             setQuery("");
-            setCandidates(null);
             await reload();
         } catch {
             setError("추가하지 못했습니다.");
@@ -143,11 +158,7 @@ const FriendsPage: React.FC<FriendsPageProps> = ({ term, myStuId }) => {
                     />
                 </div>
 
-                {searching && (
-                    <p className="mt-3 text-xs font-bold text-black/30">찾는 중…</p>
-                )}
-
-                {candidates && !searching && (
+                {candidates && (
                     <div className="mt-3 border-2 border-black">
                         {candidates.has_more && (
                             <p className="flex items-center gap-2 border-b-2 border-black/10 bg-retro-accent1/20 px-4 py-2 text-xs font-bold text-black/60">
