@@ -11,6 +11,12 @@
 조회), `GET /me/progress`(본인만), `GET /stats/enrollment`(집계). 자세한 설계 의도는
 [bench_router.guide.md](bench_router.guide.md).
 
+홈 (`home_router.py`):
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| `GET` | `/home` | 홈 화면이 쓰는 것 전부 — 지금 교시·오늘 시간표·현재/다음 수업·공강인 친구·급식·학기/방학 |
+
 친구·교시 엔드포인트(`friends_router.py`) — 두 프론트 공통:
 
 | 메서드 | 경로 | 설명 |

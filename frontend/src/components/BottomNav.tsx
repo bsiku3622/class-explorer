@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Map, BarChart3, Library, Info, ArrowLeftRight, GraduationCap } from "lucide-react";
+import { House, Search, Map, BarChart3, Library, Info, ArrowLeftRight, GraduationCap } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface BottomNavItemProps {
@@ -34,7 +34,8 @@ interface BottomNavProps {
 
 const BottomNav: React.FC<BottomNavProps> = ({ activePage, setActivePage, showTrade = false }) => {
     const menuItems = [
-        { id: "home", label: "Search", icon: Search },
+        { id: "home", label: "Home", icon: House },
+        { id: "search", label: "Search", icon: Search },
         { id: "emptyroomfinder", label: "Rooms", icon: Map },
         { id: "analysis", label: "Analysis", icon: BarChart3 },
         ...(showTrade

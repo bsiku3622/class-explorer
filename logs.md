@@ -1,5 +1,21 @@
 # Logs
 
+## 2026-08-01 — 홈 화면
+
+- 변경 파일: `backend/home_router.py` (신규), `backend/main.py`, `frontend/src/pages/HomePage.tsx`·`components/FriendsModal.tsx` (신규), `frontend/src/pages/FriendsPage.tsx` (삭제), `frontend/src/{App.tsx,lib/friendsApi.ts,components/Sidebar.tsx,components/BottomNav.tsx}`, 가이드 문서 일습
+- 요약: `/` 를 홈으로 바꾸고 검색을 `/search` 로 옮겼습니다. 홈은 지금 교시·가야 할 교실·오늘 시간표·급식·지금 공강인 친구를 한 화면에 보여 줍니다.
+
+**`GET /home` 한 번에 다 받습니다.** 켜자마자 보이는 자리라 여러 번 물어보면 화면이 조각조각 채워지는 게 그대로 보입니다. 1분마다 다시 받습니다 — "지금 몇 교시" 가 떠 있는 값이라 멈춰 있으면 틀립니다.
+
+**방학은 학사일정의 `개학`·`종업` 표지로 판단합니다.** "방학" 이라는 일정이 DB 에 따로 없어서, 마지막 종업이 마지막 개학보다 뒤면 방학입니다. 방학이면 시간표 자리를 남은 날짜와 한마디로 바꿉니다 — 그대로 두면 빈 칸만 남습니다. 한마디는 날짜로 골라서 하루 안에는 안 바뀝니다.
+
+**Friends 탭을 없앴습니다.** 시간표를 겹쳐 보는 일은 Trade 의 Timetable Compare 가 이미 하고 있어서, 홈의 "지금 공강인 친구" 를 누르면 뜨는 모달에 목록·추가·삭제만 남겼습니다.
+
+**검색 경로가 바뀌었습니다.** 예전에 공유된 `/?q=…` 링크가 죽지 않도록 홈에 `?q=` 가 붙어 오면 `/search` 로 넘깁니다.
+
+**급식은 코드만 붙었습니다.** `api.ksain.net/v1/meal.php` (옛 ksalendar 서버가 쓰던 것)를 그대로 쓰는데 `KSAIN_API_KEY` 가 필요합니다. 키가 없으면 **급식 칸만 비고 나머지는 그대로 돕니다** — 홈 전체가 죽으면 안 됩니다.
+
+
 ## 2026-07-31 — 교시 시각표를 「생활관 일과 운영」 표로 확정
 
 - 변경 파일: `backend/periods.py`, `backend/friends_router.py`, `backend/CLAUDE.md`, `deploy-guide.md`

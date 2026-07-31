@@ -66,6 +66,9 @@ WantedBy=multi-user.target
 `GOOGLE_CLIENT_ID`가 없으면 학번 확인(`/auth/link-google`)이 503을 돌려주고, 계정에
 학번을 붙일 수 없습니다.
 
+**`KSAIN_API_KEY`** 를 같이 넣으면 홈에 급식이 뜹니다(`api.ksain.net`). 없으면 급식 칸만
+비고 나머지는 그대로 돕니다 — 홈 전체가 죽지는 않습니다.
+
 로그는 `journalctl -u class-explorer -f`로 봅니다.
 
 ### nginx — `/etc/nginx/sites-available/ksa-fastapi.conf`
