@@ -1,198 +1,52 @@
-import os
-import re
-from fastapi import FastAPI, Depends, Query, Response
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
-from sqlalchemy.orm import Session, selectinload, joinedload
+"""API 진입점. **서버는 하나이고 두 프론트가 같이 씁니다.**
 
-from backend import models
-from backend.database import SessionLocal, init_schema
-from backend.auth import get_current_user, get_db
+`uvicorn backend.main:app`
+
+| 프론트 | 도메인 |
+| --- | --- |
+| class-explorer (`frontend/`) | `classes.bsiku.dev` |
+| ksa-bench (`bench-frontend/`) | `ksabench.bsiku.dev` |
+
+한때 앱을 둘로 나눠(`bench_main.py`) ksa-bench 쪽에 명단 라우터를 등록하지 않았습니다.
+Trade(수강 변경 탐색)가 "이 분반 수강생 중 내 분반을 받을 수 있는 사람"을 찾는 기능이라
+명단 없이는 성립하지 않아 되돌렸고, 그러자 두 앱의 API 표면이 거의 같아져서 프로세스를
+둘로 둘 이유가 사라졌습니다. 배포도 유닛 하나로 끝납니다.
+
+**그래서 지금 접근 제어는 라우터 등록이 아니라 권한 검사에 있습니다.** `/admin/*` 은
+`role=admin` 이고, 개인 데이터(state·grades·개인 일정·친구)는 전부 본인 것만 다룹니다.
+새 엔드포인트가 남의 데이터를 돌려줄 수 있으면 **의존성으로 막으세요** — 이제 "그 앱에는
+안 붙였으니까" 가 방패가 되지 않습니다.
+"""
+
+from backend.app_factory import create_app
 from backend.auth_router import router as auth_router
 from backend.admin_router import router as admin_router
-from backend.curriculum_router import router as curriculum_router
+from backend.curriculum_router import (
+    router as curriculum_router,
+    explorer_router as curriculum_explorer_router,
+)
 from backend.state_router import router as state_router
 from backend.calendar_router import router as calendar_router
-from backend.terms import list_terms, resolve_term
+from backend.friends_router import router as friends_router
+from backend.classes_router import router as classes_router, terms_router
+from backend.bench_router import router as bench_router
 
-# ───────────── DB 초기화 ─────────────
-init_schema()
-
-# ───────────── FastAPI 앱 생성 ─────────────
-app = FastAPI()
-
-origins = [    "http://localhost",
-    "https://localhost",
-    "http://localhost:*",
-    "https://localhost:*",
-    "https://classes.bsiku.dev",
-    "https://ksa-class-finder.netlify.app",
-]
-# CORS 미들웨어를 앱에 추가합니다.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,       # 교차 출처 요청을 허용할 오리진 목록
-    allow_credentials=True,    # 교차 출처 요청에 쿠키를 포함하도록 허용
-    allow_methods=["*"],         # 모든 HTTP 메소드(GET, POST 등) 허용
-    allow_headers=["*"],         # 모든 HTTP 헤더 허용
+app = create_app(
+    title="class-explorer",
+    origins=[
+        "https://classes.bsiku.dev",
+        "https://ksabench.bsiku.dev",
+        "https://ksa-class-finder.netlify.app",
+    ],
 )
 
-# ───────────── 보안 헤더 미들웨어 ─────────────
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: StarletteRequest, call_next):
-        response = await call_next(request)
-
-        # 공통 보안 헤더
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-
-        # HSTS (환경변수 FORCE_HTTPS 활성화 시)
-        if os.environ.get("FORCE_HTTPS"):
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-
-        # Swagger / Redoc 전용 CSP 완화
-        if request.url.path.startswith("/docs") or request.url.path.startswith("/redoc"):
-            response.headers["Content-Security-Policy"] = (
-                "default-src 'self'; "
-                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-                "img-src 'self' data: https://fastapi.tiangolo.com;"
-            )
-        else:
-            # 나머지 엔드포인트 강력 CSP
-            response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
-
-        return response
-
-app.add_middleware(SecurityHeadersMiddleware)
-
-# # ───────────── CORS 설정 ─────────────
-# _origins = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=[o.strip() for o in _origins.split(",")],
-#     allow_credentials=True,
-#     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-#     allow_headers=["Authorization", "Content-Type"],
-# )
-
-# ───────────── 라우터 등록 ─────────────
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(curriculum_router)
+app.include_router(curriculum_explorer_router)
 app.include_router(state_router)
 app.include_router(calendar_router)
-
-# ───────────── 유틸 ─────────────
-def get_section_num(section_str):
-    match = re.search(r'(\d+)', section_str)
-    return int(match.group(1)) if match else 0
-
-# ───────────── 메인 엔드포인트 ─────────────
-@app.get("/terms")
-async def get_terms(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    """데이터가 존재하는 학기 목록 (최신순)"""
-    return {"terms": list_terms(db)}
-
-
-@app.get("/")
-async def get_all_data(
-    response: Response,
-    year: int | None = Query(default=None, ge=2000, le=2100),
-    semester: int | None = Query(default=None, ge=1, le=2),
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    """지정 학기의 수업/학생/별칭 데이터 반환 (인증 필요). 학기 미지정 시 최신 학기."""
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-
-    target_year, target_semester = resolve_term(db, year, semester)
-
-    # 1. 수업 및 수강 정보 조회
-    all_classes = db.query(models.Class).filter(
-        models.Class.year == target_year,
-        models.Class.semester == target_semester,
-    ).options(
-        selectinload(models.Class.enrollments).joinedload(models.Enrollment.student),
-        selectinload(models.Class.times),
-        joinedload(models.Class.subject).joinedload(models.Subject.course)
-        .joinedload(models.Course.department),
-    ).all()
-
-    # 과목 단위로 묶습니다. 영어강의와 한국어강의는 이름이 같아도 별개 과목이라
-    # subject_id 로 나눠야 합니다 — 이름으로 묶으면 두 과목이 한 덩어리가 됩니다
-    grouped: dict[int, list] = {}
-    subjects: dict[int, models.Subject] = {}
-    total_active_students = set()
-
-    for cls in all_classes:
-        students = [{"stuId": e.student.stuId, "name": e.student.name} for e in cls.enrollments]
-        subjects.setdefault(cls.subject_id, cls.subject)
-        grouped.setdefault(cls.subject_id, [])
-
-        for s in students:
-            total_active_students.add(s["stuId"])
-
-        grouped[cls.subject_id].append({
-            "id": cls.id,
-            "section": cls.section,
-            "teacher": cls.teacher,
-            "room": cls.room,
-            "students": sorted(students, key=lambda x: x["stuId"]),
-            "student_count": len(students),
-            "times": sorted(
-                [{"day": t.day, "period": t.period, "room": t.room} for t in cls.times],
-                key=lambda x: (["MON", "TUE", "WED", "THU", "FRI"].index(x["day"]), x["period"])
-            )
-        })
-
-    # 2. 학년별 학생 수 통계 (해당 학기 수강 이력이 있는 학생 기준)
-    student_counts = {}
-    for s_id in total_active_students:
-        yr = s_id.split("-")[0] if "-" in s_id else "Unknown"
-        student_counts[yr] = student_counts.get(yr, 0) + 1
-
-    # 3. final_data 구성
-    #
-    # `subject` 는 화면에 그대로 쓰는 이름입니다. 영어강의는 뒤에 (EC)를 붙여
-    # 한국어강의와 구분합니다 — 둘은 별개 과목이라 이름이 같으면 안 됩니다.
-    final_data = []
-    for subject_id, sections in grouped.items():
-        subject = subjects[subject_id]
-        course = subject.course
-        sections.sort(key=lambda s: get_section_num(s["section"]))
-        sub_students = set(stu["stuId"] for s in sections for stu in s["students"])
-        display = f"{subject.name}(EC)" if subject.is_ec else subject.name
-        final_data.append({
-            "subject": display,
-            "subject_id": subject_id,
-            "subject_english": subject.name_english,
-            "is_ec": subject.is_ec,
-            "subject_student_count": len(sub_students),
-            "section_count": len(sections),
-            "sections": sections,
-            "credits": course.credits if course else None,
-            "is_pf": course.is_pf if course else False,
-            "department": course.department.name if course else None,
-            "category": course.department.category if course else None,
-        })
-    final_data.sort(key=lambda item: item["subject"])
-
-    return {
-        "term": {"year": target_year, "semester": target_semester},
-        "available_terms": list_terms(db),
-        "stats": {
-            "total_subjects": len(final_data),
-            "total_sections": len(all_classes),
-            "total_active_students": len(total_active_students)
-        },
-        "student_counts": dict(sorted(student_counts.items())),
-        "data": final_data
-    }
+app.include_router(friends_router)      # 친구 + 교시 시각표
+app.include_router(terms_router)
+app.include_router(classes_router)      # GET / — 학기 전체 + 분반 명단
+app.include_router(bench_router)        # 사람 1명 조회 · 수강 분포 · 본인 이수

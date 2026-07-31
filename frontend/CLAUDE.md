@@ -17,7 +17,8 @@ src/
 │   ├── tradeEngine.ts        → 수강 변경 조합 탐색 (슬롯 충돌 기반)
 │   ├── curriculum.ts         → 졸업 요건 진척도 + 평점 + 선수관계 그래프 배치
 │   ├── userState.ts          → 계정별 화면 상태 저장/복원 (localStorage 이관 포함)
-│   └── features.ts           → 한시 기능 노출 플래그 (TRADE_FEATURE)
+│   ├── features.ts           → 한시 기능 노출 플래그 (TRADE_FEATURE)
+│   └── friendsApi.ts         → 친구·교시 시각표 질의 (백엔드는 두 앱 공용)
 ├── constants/
 │   └── motion.ts             → Framer Motion 설정값
 ├── hooks/
@@ -31,6 +32,7 @@ src/
 │   ├── BrowsePage.tsx        → 학생·교사 목록 + 교육과정 그래프
 │   ├── TradePage.tsx         → 수강 변경 탐색 (2026-2 한정, features 플래그)
 │   ├── ZamongPage.tsx        → 교육과정 이수 현황 + 평점 (학번 등록 필요)
+│   ├── FriendsPage.tsx       → 친구(단방향) + 공강 격자 + 지금 공강
 │   ├── CalendarPage.tsx      → 학사일정 달력 + 개인 일정 + 일정 제안
 │   └── SettingsPage.tsx      → 기능 가이드북 + About
 └── components/
@@ -168,6 +170,20 @@ src/
 | [src/lib/searchEngine.guide.md](src/lib/searchEngine.guide.md) | 검색 엔진 상세 |
 | [src/lib/tradeEngine.guide.md](src/lib/tradeEngine.guide.md) | 수강 변경 탐색 엔진 상세 |
 | [src/lib/curriculum.guide.md](src/lib/curriculum.guide.md) | 교육과정 진척도·그래프 상세 |
+
+## 친구 (`/friends`)
+
+등록은 **단방향**입니다 — 추가하면 끝이고 상대의 수락이 없습니다. 이 앱은 어차피 학기
+전체 데이터를 들고 있어서 승인 절차를 붙여도 막아 주는 게 없습니다.
+
+- **사람 찾기는 로컬**입니다. `allClassesData` 에서 찾습니다 (ksa-bench 는 명단이
+  없어서 서버에 물어보지만, 여기는 갖고 있습니다). 두 글자 이상·20명 상한은 같습니다
+- **공강 격자·지금 공강은 서버가 계산합니다** (`/friends/busy`, `/friends/now`).
+  응답에 과목명이 없습니다 — 공강을 맞추는 데 필요 없어서입니다
+- **"지금"은 서버 시계 기준**입니다. 클라이언트 시계는 틀어질 수 있어서, 사람마다
+  다르게 보이면 안 됩니다
+- 교시 시각표는 `GET /periods` 로 받습니다. **프론트에 상수를 두지 마세요** — 두 벌이
+  되면 한쪽만 고쳤을 때 조용히 어긋납니다
 
 ## 한시 기능 (features.ts)
 `TRADE_FEATURE.enabled`를 `false`로 내리면 `/trade` 라우트와 메뉴가 통째로 사라집니다.

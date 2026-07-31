@@ -27,6 +27,7 @@ const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
 const LoginPage = React.lazy(() => import("./pages/LoginPage"));
 const AdminPage = React.lazy(() => import("./pages/AdminPage"));
 const TradePage = React.lazy(() => import("./pages/TradePage"));
+const FriendsPage = React.lazy(() => import("./pages/FriendsPage"));
 const ZamongPage = React.lazy(() => import("./pages/ZamongPage"));
 const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
 
@@ -37,7 +38,7 @@ const CACHE_PREFIX = "ksa_class_finder_cache";
  * 안 올리면 예전 응답을 든 브라우저가 최대 1시간 동안 새 필드를 못 받아
  * 학점이 0으로 보이는 식의 문제가 생깁니다.
  */
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4;   // 4 = 학번 분포(year_counts / subject_year_counts) 추가
 const TERM_KEY = "ksa_selected_term";
 const CACHE_EXPIRY = 60 * 60 * 1000;
 
@@ -581,6 +582,16 @@ const App: React.FC = () => {
                                     }
                                 />
                             )}
+                            <Route
+                                path="/friends"
+                                element={
+                                    <FriendsPage
+                                        term={term}
+                                        myStuId={currentUser?.stu_id ?? null}
+                                        allClassesData={allClassesData}
+                                    />
+                                }
+                            />
                             <Route
                                 path="/zamong"
                                 element={

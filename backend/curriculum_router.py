@@ -7,7 +7,12 @@ from sqlalchemy.orm import Session
 from backend import models
 from backend.auth import get_current_user, get_db
 
+# 본인 것만 다루거나 개인 정보가 없는 엔드포인트 — 두 앱이 같이 씁니다
 router = APIRouter(prefix="/curriculum", tags=["curriculum"])
+
+# 학번만 알면 남의 이수 이력을 통째로 볼 수 있는 엔드포인트 — **class-explorer 전용**입니다.
+# ksa-bench 는 `bench_router` 의 `GET /me/progress` 로 본인 것만 봅니다.
+explorer_router = APIRouter(prefix="/curriculum", tags=["curriculum"])
 
 # 계열별 졸업 이수 학점
 REQUIREMENTS = {
@@ -93,12 +98,7 @@ def get_curriculum(
     }
 
 
-@router.get("/progress/{stu_id}")
-def get_progress(
-    stu_id: str,
-    db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_user),
-):
+def fetch_progress(db: Session, stu_id: str) -> dict:
     """
     한 학생이 **모든 학기에 걸쳐** 수강한 과목을 카탈로그 이름으로 돌려줍니다.
 
@@ -107,6 +107,9 @@ def get_progress(
 
     수집 대상이 아닌 학기(2026-1 이전)는 데이터 자체가 없습니다. 그 부분은 프론트에서
     직접 체크한 내역으로 채웁니다.
+
+    **누구를 조회할지는 부르는 쪽이 정합니다.** 그래서 이 함수 자체에는 권한 검사가
+    없습니다 — 라우터에서 정해 주세요.
     """
     rows = (
         db.query(
@@ -144,6 +147,16 @@ def get_progress(
             for (year, semester), items in sorted(terms.items())
         ],
     }
+
+
+@explorer_router.get("/progress/{stu_id}")
+def get_progress(
+    stu_id: str,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_user),
+):
+    """아무 학생의 누적 이수 현황. **class-explorer 전용**입니다."""
+    return fetch_progress(db, stu_id)
 
 
 class GradeEntry(BaseModel):

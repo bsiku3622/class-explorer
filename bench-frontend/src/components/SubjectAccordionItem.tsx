@@ -1,0 +1,198 @@
+import React, { useState, useMemo } from "react";
+import { Chip, Divider, Tooltip } from "@heroui/react";
+import { ChevronDown, Users } from "lucide-react";
+import type { SubjectData, Section } from "../types";
+import { tooltipMotionProps } from "../constants/motion";
+import { extractSearchTerms, getKoreanName } from "../lib/utils";
+import SectionCard from "./SectionCard";
+import TeacherCard from "./atoms/TeacherCard";
+
+interface SubjectAccordionItemProps {
+    subject: SubjectData;
+    searchTerm: string;
+    handleSearchToggle: (v: string, isT?: boolean, isR?: boolean) => void;
+    teacherSubjectMap: Record<string, Record<string, string[]>>;
+    isModifierPressed: boolean;
+    selectedYears: string[];
+    searchMode: "general" | "teacher" | "room";
+    isOpen: boolean;
+    onToggle: () => void;
+}
+
+const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
+    subject,
+    searchTerm,
+    handleSearchToggle,
+    teacherSubjectMap,
+    isModifierPressed,
+    selectedYears,
+    searchMode,
+    isOpen,
+    onToggle,
+}) => {
+    const [hoveredTeacher, setHoveredTeacher] = useState<string | null>(null);
+
+    const effectiveSearchTerms = useMemo(
+        () => extractSearchTerms(searchTerm),
+        [searchTerm],
+    );
+
+    const teacherSummary = useMemo(() => {
+        const summary: Record<string, string[]> = {};
+        subject.sections.forEach((s) => {
+            if (!summary[s.teacher]) summary[s.teacher] = [];
+            const num = s.section.replace(/[^0-9]/g, "");
+            if (num && !summary[s.teacher].includes(num))
+                summary[s.teacher].push(num);
+        });
+        return summary;
+    }, [subject.sections]);
+
+    // 명단은 없지만 학번 분포(`subject_year_counts`)는 있어서 선택한 학년만 셀 수
+    // 있습니다. 이름이 아니라 숫자만 다룹니다.
+    const visibleStudentCount = useMemo(() => {
+        const counts = subject.subject_year_counts ?? {};
+        const years = Object.keys(counts);
+        const picked = selectedYears.length ? selectedYears : years;
+        return picked.reduce((sum, year) => sum + (counts[year] ?? 0), 0);
+    }, [subject.subject_year_counts, selectedYears]);
+
+    const sectionDisplayText = `${subject.section_count} SECTIONS`;
+
+    return (
+        <div className="border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] bg-white overflow-hidden rounded-none w-full mb-6 last:mb-0">
+            <button
+                onClick={onToggle}
+                className="w-full px-4 py-4 sm:px-6 sm:py-6 flex items-center justify-between hover:bg-retro-accent1/10 focus:outline-none group transition-colors"
+            >
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 flex-1 mr-4 sm:mr-6 text-left overflow-hidden">
+                    <span className="text-base sm:text-xl font-black text-black tracking-tight uppercase truncate flex-1">
+                        {getKoreanName(subject.subject)}
+                    </span>
+                    <div className="flex gap-2 sm:gap-3 shrink-0">
+                        <Chip
+                            size="sm"
+                            className="bg-retro-accent2 border-2 border-black text-xs sm:text-sm font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-2 sm:px-3 h-auto py-1 sm:py-1.5 uppercase"
+                        >
+                            {sectionDisplayText}
+                        </Chip>
+                        <Chip
+                            size="sm"
+                            className="bg-retro-accent3 border-2 border-black text-xs sm:text-sm font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-2 sm:px-3 h-auto py-1 sm:py-1.5"
+                        >
+                            {visibleStudentCount} STUDENTS
+                        </Chip>
+                    </div>
+                </div>
+                <ChevronDown
+                    size={20}
+                    style={{ transition: "none" }}
+                    className={`text-black shrink-0 ${
+                        isOpen ? "rotate-180" : ""
+                    }`}
+                />
+            </button>
+
+            {isOpen && (
+                <div className="overflow-hidden border-t-2 border-black bg-retro-bg/10">
+                    <div className="px-4 pb-4 pt-4 space-y-6">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-white/50 border-2 border-black p-2.5 mb-4 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
+                            <span className="text-sm font-black uppercase text-black/50 flex items-center gap-2">
+                                <Users size={16} /> Teachers :
+                            </span>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                {Object.entries(teacherSummary).map(
+                                    ([name, nums]) => {
+                                        const isSearching =
+                                            effectiveSearchTerms.some((term) =>
+                                                name
+                                                    .toLowerCase()
+                                                    .includes(term),
+                                            );
+                                        const teacherInfo =
+                                            teacherSubjectMap[name] || {};
+                                        const teacherClasses = Object.entries(
+                                            teacherInfo,
+                                        ).map(([sub, sections]) => {
+                                            const cleanSub = getKoreanName(sub);
+                                            const secStr = sections
+                                                .map((s) =>
+                                                    s.replace(/[^0-9]/g, ""),
+                                                )
+                                                .sort()
+                                                .join(",");
+                                            return `${cleanSub}(${secStr})`;
+                                        });
+
+                                        return (
+                                            <Tooltip
+                                                key={name}
+                                                isOpen={
+                                                    isModifierPressed &&
+                                                    hoveredTeacher === name
+                                                }
+                                                placement="top"
+                                                motionProps={tooltipMotionProps}
+                                                classNames={{
+                                                    base: "!transition-none",
+                                                    content:
+                                                        "p-0 rounded-none border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
+                                                }}
+                                                content={
+                                                    <TeacherCard
+                                                        name={name}
+                                                        subjects={teacherClasses}
+                                                    />
+                                                }
+                                            >
+                                                <button
+                                                    className={`text-sm font-black transition-colors hover:text-retro-secondary cursor-pointer ${isSearching ? "text-retro-secondary underline decoration-2 underline-offset-4" : "text-black"}`}
+                                                    onMouseEnter={() =>
+                                                        setHoveredTeacher(name)
+                                                    }
+                                                    onMouseLeave={() =>
+                                                        setHoveredTeacher(null)
+                                                    }
+                                                    onClick={() =>
+                                                        handleSearchToggle(
+                                                            name,
+                                                            true,
+                                                        )
+                                                    }
+                                                >
+                                                    {name}(
+                                                    {nums.sort().join(",")})
+                                                </button>
+                                            </Tooltip>
+                                        );
+                                    },
+                                )}
+                            </div>
+                        </div>
+
+                        {subject.sections.map(
+                            (section: Section, idx: number) => (
+                                <React.Fragment key={section.id}>
+                                    {idx > 0 && (
+                                        <Divider className="mb-4 h-px bg-black opacity-20" />
+                                    )}
+                                    <SectionCard
+                                        section={section}
+                                        searchTerm={searchTerm}
+                                        handleSearchToggle={handleSearchToggle}
+                                        teacherSubjectMap={teacherSubjectMap}
+                                        isModifierPressed={isModifierPressed}
+                                        selectedYears={selectedYears}
+                                        searchMode={searchMode}
+                                    />
+                                </React.Fragment>
+                            ),
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default SubjectAccordionItem;
