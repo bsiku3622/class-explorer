@@ -15,19 +15,21 @@ KSA 학생/교사/강의실 기반 수업 탐색 웹 앱.
 새 기능은 **class-explorer 에 먼저** 넣습니다. 둘 다 필요한 것(친구·교시 시각표)은
 백엔드에서 공용 라우터(`friends_router.py`)로 두어 한 벌만 유지합니다.
 
-백엔드는 **한 벌**입니다. 파서가 두 벌이 되면 KEIS 응답이 바뀔 때마다 같은 수정을 두 번
-하게 되고, 곧 서로 달라집니다. 대신 **ASGI 진입점을 둘로** 두어 ksa-bench 쪽 프로세스에는
-명단이 나갈 수 있는 라우터를 아예 등록하지 않습니다 — 권한 검사 한 줄을 빠뜨려도 명단이
-새지 않게 하려는 것입니다. 배치는 [`backend/main.guide.md`](backend/main.guide.md) 참고.
+**백엔드는 서버 하나입니다** (`backend.main:app`). 한때 진입점을 둘로 나눠 ksa-bench 쪽에
+명단 라우터를 등록하지 않았지만, Trade 가 명단 없이는 성립하지 않아 되돌리면서 두 앱의
+API 표면이 거의 같아졌습니다. 프로세스를 둘로 둘 이유가 사라져 합쳤고, 배포도 유닛
+하나로 끝납니다.
 
-**ksa-bench 에서 없어진 것**: 다중 검색·불린 연산·초성, `/browse` 학생 목록,
-남의 누적 이수 이력, `/admin/*`. 학생 검색은 **한 번에 한 명**만 됩니다
-(후보 목록 → 하나 선택).
+**두 프론트의 차이는 이제 둘뿐입니다.**
 
-**분반 명단은 남아 있습니다.** 처음에는 응답에서 뺐지만 Trade 가 명단 없이는 성립하지
-않아 되돌렸습니다. 그래서 현재 상태는 "데이터가 안 내려간다"가 아니라
-**"훑는 화면이 없다"** 입니다. 대신 친구는 **단방향 등록**이고, 친구 화면은 과목명 없이
-언제 비는지만 보여 줍니다.
+1. **훑는 UI 가 없습니다** — ksa-bench 에는 `/browse` 학생 목록도, 다중 검색·불린
+   연산·초성도 없습니다. 사람은 후보 목록 → 하나 선택으로 **한 번에 한 명**만 봅니다
+2. **명단을 localStorage 에 안 남깁니다** — class-explorer 는 학기 데이터를 1시간
+   캐시하지만, ksa-bench 는 캐시하지 않고 메모리에만 둡니다. 응답에 분반 명단이 들어
+   있어서(Trade 가 필요로 합니다) 캐시하면 전교생 명단이 브라우저에 파일로 남습니다
+
+API 는 같은 것을 씁니다. 친구는 **단방향 등록**이고, 친구 화면은 과목명 없이 언제
+비는지만 보여 줍니다.
 
 목표는 차단이 아니라 **비용**입니다. 학교 공식 앱(가온누리)에도 전교생 시간표 검색이
 있고 학번이 연속이라 순회하면 긁힙니다. 그러니 완전히 막는 건 의미가 없고, 명단을 얻는
@@ -44,11 +46,10 @@ npm run build     # TypeScript check + Vite build
 npm run lint      # ESLint
 
 # Frontend — ksa-bench (bench-frontend/)
-npm run dev       # https://localhost:5189 — 같은 백엔드로 프록시. 둘을 나란히 띄울 수 있습니다
+npm run dev       # https://localhost:5189 — 같은 백엔드(8000)를 봅니다
 
-# Backend (repo root) — 앱이 둘입니다. 코드·DB 는 한 벌, 라우터만 다릅니다
-uvicorn backend.main:app --reload                    # class-explorer (8000)
-uvicorn backend.bench_main:app --reload --port 8001  # ksa-bench (8001)
+# Backend (repo root) — 서버 하나가 두 프론트를 다 받습니다
+uvicorn backend.main:app --reload   # FastAPI (port 8000)
 python -m backend.parser_run                       # KEIS API → SQLite 동기화 (오늘 기준 학기)
 python -m backend.parser_run -y 2026 -s 2          # 학기 지정
 python -m backend.parse_calendar_pdf <학사일정.pdf>  # 연간 학사일정 PDF → calendar_seed.json

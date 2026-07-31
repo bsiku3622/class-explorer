@@ -45,10 +45,8 @@ export default defineConfig(({ command }) => {
                   },
                   proxy: {
                       "/api": {
-                          // ksa-bench 는 **8001**(`backend.bench_main:app`)을 봅니다.
-                          // 8000 은 class-explorer 라 명단이 나오는 쪽입니다 — 여기로
-                          // 붙이면 이 앱의 전제가 로컬에서만 조용히 깨집니다
-                          target: "http://127.0.0.1:8001",
+                          // **백엔드는 하나입니다** — class-explorer 와 같은 서버를 봅니다
+                          target: "http://127.0.0.1:8000",
                           changeOrigin: true,
                           rewrite: (path) => path.replace(/^\/api/, ""),
                       },

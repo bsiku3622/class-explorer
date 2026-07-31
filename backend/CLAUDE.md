@@ -9,9 +9,8 @@ backend/
 ├── bench_router.py  → ksa-bench 전용 API (사람 1명 조회, 집계)
 ├── friends_router.py→ 친구(단방향) + 교시 시각표 — **두 앱 공통**
 ├── periods.py       → 교시별 시각표 **원본** (프론트는 GET /periods 로 받아 씁니다)
-├── main.py          → **class-explorer** 진입점 — 라우터 전부
-├── bench_main.py    → **ksa-bench** 진입점 — /admin·남의 이수 이력 라우터를 등록하지 않음
-├── classes_router.py→ GET / (명단 포함, explorer 전용) + GET /terms (공통)
+├── main.py          → 진입점 (하나) — 두 프론트가 같이 씁니다
+├── classes_router.py→ GET / (학기 전체 + 분반 명단) + GET /terms
 ├── models.py        → SQLAlchemy ORM 모델 (12개 테이블)
 ├── migrations.py    → 앱 시작 시 실행되는 SQLite 스키마 마이그레이션 (멱등)
 ├── terms.py         → 학년도/학기 해석 유틸 (current_term, list_terms, resolve_term)
@@ -33,22 +32,22 @@ backend/
 └── ksa_timetable.db → SQLite 데이터베이스
 ```
 
-## 앱이 둘입니다
+## 서버는 하나, 프론트가 둘
 
-같은 코드·같은 DB 로 FastAPI 앱을 **두 개** 띄웁니다.
+`backend.main:app` 하나가 `frontend/`(class-explorer)와 `bench-frontend/`(ksa-bench)를
+모두 받습니다. CORS 에 두 도메인이 다 들어 있습니다.
 
-| 진입점 | 앱 | 프론트 |
-| --- | --- | --- |
-| `backend.main:app` | class-explorer (초대제, 명단까지 전부) | `frontend/` |
-| `backend.bench_main:app` | ksa-bench (전교생 공개) | `bench-frontend/` |
+한때 앱을 둘로 나눠(`bench_main.py`) ksa-bench 쪽에 명단 라우터를 등록하지 않았습니다.
+Trade 가 명단 없이는 성립하지 않아 되돌렸고, 그러자 두 앱의 API 표면이 거의 같아져
+프로세스를 둘로 둘 이유가 사라졌습니다.
 
-**ksa-bench 에 등록하지 않는 라우터**: `/admin/*`, `/curriculum/progress/{stu_id}`,
-그리고 class-explorer 판 `GET /`(bench 는 자체 구현을 씁니다). 권한 검사로 가르지 않은
-이유는, 한 앱에 그런 엔드포인트와 공개 서비스가 같이 살면 나중에 의존성 하나를
-빠뜨리는 것이 곧 사고가 되기 때문입니다. 등록이 안 되면 그 실수가 성립하지 않습니다.
+**그래서 접근 제어는 이제 라우터 등록이 아니라 권한 검사에 있습니다.** `/admin/*` 은
+`role=admin` 이고, 개인 데이터(state·grades·개인 일정·친구)는 전부 본인 것만 다룹니다.
+새 엔드포인트가 남의 데이터를 돌려줄 수 있으면 **의존성으로 막으세요** — "그 앱에는 안
+붙였으니까" 가 더 이상 방패가 아닙니다.
 
-다만 **분반 명단 자체는 bench 응답에도 들어 있습니다** — Trade 가 명단 없이는 성립하지
-않아 되돌렸습니다. 지금 상태는 "데이터가 안 내려간다"가 아니라 "훑는 화면이 없다"입니다.
+두 프론트의 차이는 **UI 와 캐시**에 있습니다: ksa-bench 에는 전교생을 늘어놓는 화면이
+없고, 학기 데이터를 localStorage 에 캐시하지 않습니다.
 
 **bench 에 라우터를 새로 붙일 때는 그 라우터가 남의 데이터를 돌려줄 수 있는지 먼저
 확인하세요.** 자세한 배치는 [main.guide.md](main.guide.md) 에 표로 있습니다.

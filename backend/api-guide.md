@@ -2,21 +2,16 @@
 
 > [← Backend Guide](CLAUDE.md)
 
-## 앱이 둘이라 API 표면도 둘입니다
+## 서버는 하나, 프론트가 둘
 
-아래 명세는 **class-explorer**(`backend.main:app`) 기준입니다. 전교생에게 여는
-**ksa-bench**(`backend.bench_main:app`)에는 다음이 **없습니다**.
+`backend.main:app` 하나가 class-explorer 와 ksa-bench 를 모두 받습니다. **API 표면은
+같습니다** — 두 프론트의 차이는 어떤 화면을 그리고 무엇을 캐시하느냐에 있습니다.
 
-| 없는 것 | ksa-bench 의 대안 |
-| --- | --- |
-| `GET /` (분반 명단 포함) | `GET /` — 같은 모양이되 명단 없음 ([bench_router.guide.md](bench_router.guide.md)) |
-| `GET /curriculum/progress/{stuId}` | `GET /me/progress` — 본인만 |
-| `/admin/*` 전부 | 없음 |
+주로 ksa-bench 가 쓰는 것: `GET /students/search`, `GET /students/{stu_id}`(한 명씩
+조회), `GET /me/progress`(본인만), `GET /stats/enrollment`(집계). 자세한 설계 의도는
+[bench_router.guide.md](bench_router.guide.md).
 
-ksa-bench 에만 있는 것: `GET /students/search`, `GET /students/{stu_id}`,
-`GET /me/progress`, `GET /stats/enrollment`.
-
-**두 앱 공통**인 친구·교시 엔드포인트(`friends_router.py`):
+친구·교시 엔드포인트(`friends_router.py`) — 두 프론트 공통:
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|

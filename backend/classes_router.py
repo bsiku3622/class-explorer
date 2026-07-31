@@ -1,14 +1,10 @@
 """수업 데이터 조회.
 
-라우터가 둘입니다.
+`GET /` 하나가 학기 전체를 분반 명단까지 통째로 내려줍니다. **두 프론트가 같이 씁니다** —
+한때 ksa-bench 용으로 명단 없는 판을 따로 뒀지만, Trade 가 명단 없이는 성립하지 않아
+되돌리면서 둘이 같아졌습니다. 같은 응답을 두 벌 유지할 이유가 없어 합쳤습니다.
 
-- `terms_router` — 학기 목록. 개인 정보가 없어 두 앱이 같이 씁니다
-- `router` — `GET /`. 학기 전체를 **분반 명단까지** 통째로 내려줍니다.
-  **class-explorer 에만 등록합니다** (`backend/main.py`)
-
-`GET /` 를 ksa-bench 에 등록하면 안 되는 이유는 화면과 무관합니다. 이 응답이 그대로
-브라우저 localStorage 에 남기 때문에, 명단을 UI 에서 가리는 것은 가린 척일 뿐입니다.
-ksa-bench 쪽 대응은 `bench_router.py` 에 따로 있습니다.
+`year_counts`(분반별)·`subject_year_counts`(과목별, 중복 제외)는 학번 분포입니다.
 """
 
 import re
@@ -67,15 +63,25 @@ async def get_all_data(
     # subject_id 로 나눠야 합니다 — 이름으로 묶으면 두 과목이 한 덩어리가 됩니다
     grouped: dict[int, list] = {}
     subjects: dict[int, models.Subject] = {}
+    subject_students: dict[int, set[str]] = {}
     total_active_students = set()
+
+    def year_of(stu_id: str) -> str:
+        return stu_id.split("-")[0] if "-" in stu_id else "Unknown"
 
     for cls in all_classes:
         students = [{"stuId": e.student.stuId, "name": e.student.name} for e in cls.enrollments]
         subjects.setdefault(cls.subject_id, cls.subject)
         grouped.setdefault(cls.subject_id, [])
 
-        for s in students:
-            total_active_students.add(s["stuId"])
+        stu_ids = {s["stuId"] for s in students}
+        total_active_students.update(stu_ids)
+        subject_students.setdefault(cls.subject_id, set()).update(stu_ids)
+
+        year_counts: dict[str, int] = {}
+        for stu_id in stu_ids:
+            yr = year_of(stu_id)
+            year_counts[yr] = year_counts.get(yr, 0) + 1
 
         grouped[cls.subject_id].append({
             "id": cls.id,
@@ -84,6 +90,7 @@ async def get_all_data(
             "room": cls.room,
             "students": sorted(students, key=lambda x: x["stuId"]),
             "student_count": len(students),
+            "year_counts": dict(sorted(year_counts.items())),
             "times": sorted(
                 [{"day": t.day, "period": t.period, "room": t.room} for t in cls.times],
                 key=lambda x: (["MON", "TUE", "WED", "THU", "FRI"].index(x["day"]), x["period"])
@@ -105,14 +112,23 @@ async def get_all_data(
         subject = subjects[subject_id]
         course = subject.course
         sections.sort(key=lambda s: get_section_num(s["section"]))
-        sub_students = set(stu["stuId"] for s in sections for stu in s["students"])
+        sub_students = subject_students.get(subject_id, set())
         display = f"{subject.name}(EC)" if subject.is_ec else subject.name
+
+        # 과목 단위 분포는 분반 합이 아니라 **중복을 뺀** 값입니다 — 한 학생이 두 분반에
+        # 걸쳐 있으면 두 번 세이면 안 됩니다
+        subject_year_counts: dict[str, int] = {}
+        for stu_id in sub_students:
+            yr = year_of(stu_id)
+            subject_year_counts[yr] = subject_year_counts.get(yr, 0) + 1
+
         final_data.append({
             "subject": display,
             "subject_id": subject_id,
             "subject_english": subject.name_english,
             "is_ec": subject.is_ec,
             "subject_student_count": len(sub_students),
+            "subject_year_counts": dict(sorted(subject_year_counts.items())),
             "section_count": len(sections),
             "sections": sections,
             "credits": course.credits if course else None,
