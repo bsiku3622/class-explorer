@@ -4,7 +4,7 @@ import datetime
 
 from sqlalchemy.orm import Session
 
-from backend import models
+from backend import models, periods
 
 
 def current_term(today: datetime.date | None = None) -> tuple[int, int]:
@@ -12,7 +12,7 @@ def current_term(today: datetime.date | None = None) -> tuple[int, int]:
     오늘 날짜로 학년도/학기를 판별합니다.
     3~8월 = 1학기 · 9~12월 = 2학기 · 1~2월 = 직전 학년도 2학기
     """
-    today = today or datetime.date.today()
+    today = today or periods.today()
     if today.month <= 2:
         return today.year - 1, 2
     if today.month <= 8:

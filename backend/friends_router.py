@@ -184,7 +184,7 @@ async def friends_now(
     전원을 그대로 돌려줍니다 — 화면이 "지금은 수업 시간이 아닙니다" 를 띄우면 됩니다.
     """
     target_year, target_semester = resolve_term(db, year, semester)
-    now = datetime.datetime.now()
+    now = periods.now()
     minute = now.hour * 60 + now.minute
     weekday = now.weekday()  # 0=월
     day = periods.DAYS[weekday] if weekday < len(periods.DAYS) else None

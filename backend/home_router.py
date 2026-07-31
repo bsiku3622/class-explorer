@@ -124,7 +124,7 @@ async def get_meal(
     current_user: models.User = Depends(get_current_user),
 ):
     """하루치 급식. 홈에서 날짜를 앞뒤로 넘길 때 씁니다."""
-    today = datetime.date.today()
+    today = periods.today()
     if abs((date - today).days) > MEAL_RANGE_DAYS:
         raise HTTPException(
             status_code=400, detail=f"{MEAL_RANGE_DAYS}일 안쪽 날짜만 볼 수 있습니다"
@@ -204,7 +204,7 @@ async def get_home(
 ):
     target_year, target_semester = resolve_term(db, year, semester)
 
-    now = datetime.datetime.now()
+    now = periods.now()
     today = now.date()
     minute = now.hour * 60 + now.minute
     weekday = now.weekday()
