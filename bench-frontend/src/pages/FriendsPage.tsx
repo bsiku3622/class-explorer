@@ -11,12 +11,13 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Spinner } from "@heroui/react";
-import { Search, UserPlus, Users, X } from "lucide-react";
-import type { Friend, FriendBusy, Term } from "../types";
+import { Clock, Search, UserPlus, Users, X } from "lucide-react";
+import type { Friend, FriendBusy, FriendsNowResponse, Term } from "../types";
 import {
     addFriend,
     fetchFriends,
     fetchFriendsBusy,
+    fetchFriendsNow,
     removeFriend,
     searchStudents,
     type StudentSearchResponse,
@@ -35,6 +36,7 @@ interface FriendsPageProps {
 const FriendsPage: React.FC<FriendsPageProps> = ({ term, myStuId }) => {
     const [friends, setFriends] = useState<Friend[]>([]);
     const [people, setPeople] = useState<FriendBusy[]>([]);
+    const [now, setNow] = useState<FriendsNowResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -46,12 +48,14 @@ const FriendsPage: React.FC<FriendsPageProps> = ({ term, myStuId }) => {
         setLoading(true);
         setError(null);
         try {
-            const [list, busy] = await Promise.all([
+            const [list, busy, nowResult] = await Promise.all([
                 fetchFriends(),
                 fetchFriendsBusy(term),
+                fetchFriendsNow(term),
             ]);
             setFriends(list);
             setPeople(busy.people);
+            setNow(nowResult);
         } catch {
             setError("친구 목록을 불러오지 못했습니다.");
         } finally {
@@ -189,6 +193,62 @@ const FriendsPage: React.FC<FriendsPageProps> = ({ term, myStuId }) => {
                 <div className="border-2 border-black bg-white px-4 py-3 text-sm font-bold text-black/60">
                     {error}
                 </div>
+            )}
+
+            {/* 지금 — 서버 시계 기준입니다 */}
+            {now && !loading && (
+                <RetroCard className="bg-white p-5 md:p-6">
+                    <RetroSubTitle title="Right Now" icon={Clock} />
+                    <p className="mt-2 text-sm font-black">
+                        {now.now}
+                        {now.day === null ? (
+                            <span className="ml-2 font-bold text-black/40">
+                                주말입니다
+                            </span>
+                        ) : now.period !== null ? (
+                            <span className="ml-2 font-bold text-black/60">
+                                {now.period}교시
+                                {now.break_name && ` · ${now.break_name}`}
+                            </span>
+                        ) : (
+                            <span className="ml-2 font-bold text-black/40">
+                                {now.break_name ?? "수업 시간이 아닙니다"}
+                                {now.next_period &&
+                                    ` · 다음 ${now.next_period.period}교시 ${now.next_period.start}`}
+                            </span>
+                        )}
+                    </p>
+
+                    {now.period !== null && (
+                        <div className="mt-4">
+                            {(() => {
+                                const free = now.people.filter((p) => p.free && !p.is_me);
+                                if (friends.length === 0) return null;
+                                return free.length === 0 ? (
+                                    <p className="text-sm font-bold text-black/40">
+                                        지금은 다들 수업 중입니다.
+                                    </p>
+                                ) : (
+                                    <>
+                                        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-black/40">
+                                            지금 공강 {free.length}명
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {free.map((person) => (
+                                                <span
+                                                    key={person.stuId}
+                                                    className="border-2 border-black bg-retro-accent3 px-3 py-1.5 text-sm font-black"
+                                                >
+                                                    {person.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                        </div>
+                    )}
+                </RetroCard>
             )}
 
             {loading ? (

@@ -9,8 +9,11 @@ KSA 학생/교사/강의실 기반 수업 탐색 웹 앱.
 
 | 디렉토리 | 앱 | 성격 |
 | --- | --- | --- |
-| `frontend/` | **class-explorer** | 지금 쓰는 비공식 검색기. 초대제, 명단까지 다 보입니다. **건드리지 않습니다** |
-| `bench-frontend/` | **ksa-bench** | 전교생 공개용. `frontend/` 복사본에서 출발해 갈아엎는 중입니다 |
+| `frontend/` | **class-explorer** | **메인입니다.** 초대제 비공식 검색기 |
+| `bench-frontend/` | **ksa-bench** | 전교생 공개용 실험. 배포 여부가 아직 안 정해져 **보류 중**입니다 |
+
+새 기능은 **class-explorer 에 먼저** 넣습니다. 둘 다 필요한 것(친구·교시 시각표)은
+백엔드에서 공용 라우터(`friends_router.py`)로 두어 한 벌만 유지합니다.
 
 백엔드는 **한 벌**입니다. 파서가 두 벌이 되면 KEIS 응답이 바뀔 때마다 같은 수정을 두 번
 하게 되고, 곧 서로 달라집니다. 대신 **ASGI 진입점을 둘로** 두어 ksa-bench 쪽 프로세스에는
@@ -152,6 +155,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | `/trade`            | TradePage       | 수강 변경 탐색 (2026-2 한정, 플래그) |
 | `/zamong`           | ZamongPage      | 교육과정 이수 현황 + 평점 (학번 등록 필요) |
 | `/calendar`         | CalendarPage    | 학사일정 달력 + 개인 일정 + 일정 제안 |
+| `/friends`          | FriendsPage     | 친구(단방향 등록) + 공강 격자 + 지금 공강 |
 | `/about`            | SettingsPage    | 기능 가이드북 + About             |
 | `/admin`            | AdminPage       | 계정 관리 (role=admin만)          |
 

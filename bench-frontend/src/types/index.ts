@@ -152,6 +152,35 @@ export interface FriendBusy extends Friend {
     busy: string[];
 }
 
+/** `GET /friends/now` 한 명. `free` 가 null 이면 지금이 수업 시간이 아닙니다 */
+export interface FriendNow extends Friend {
+    is_me: boolean;
+    free: boolean | null;
+}
+
+export interface FriendsNowResponse {
+    term: Term;
+    /** 서버 시계 기준 — 클라이언트 시계는 틀어질 수 있어 서버가 정합니다 */
+    now: string;
+    /** 주말이면 null */
+    day: string | null;
+    /** 쉬는시간·점심이면 null */
+    period: number | null;
+    /** "점심"·"자습" 같은 것. 아니면 null */
+    break_name: string | null;
+    next_period: { period: number; start: string } | null;
+    people: FriendNow[];
+}
+
+/** `GET /periods` — 교시 시각표. 화면이 상수를 따로 들지 않도록 서버가 원본을 갖습니다 */
+export interface PeriodTime {
+    period: number;
+    start: string;
+    end: string;
+    start_minute: number;
+    end_minute: number;
+}
+
 export interface FriendsBusyResponse {
     term: Term;
     people: FriendBusy[];

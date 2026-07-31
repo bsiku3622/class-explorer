@@ -14,6 +14,8 @@ import type {
     EnrollmentStats,
     Friend,
     FriendsBusyResponse,
+    FriendsNowResponse,
+    PeriodTime,
     StudentCandidate,
     StudentTimetable,
     Term,
@@ -98,6 +100,26 @@ export const fetchFriendsBusy = async (
         params: term ? { year: term.year, semester: term.semester } : undefined,
     });
     return data;
+};
+
+/**
+ * **지금 공강인 친구.** "지금"은 서버 시계로 정합니다 — 클라이언트 시계는 틀어져
+ * 있거나 손댈 수 있어서, 사람마다 다르게 보이면 안 됩니다.
+ */
+export const fetchFriendsNow = async (
+    term?: Term | null,
+): Promise<FriendsNowResponse> => {
+    const { data } = await api.get("/friends/now", {
+        headers: authHeader(),
+        params: term ? { year: term.year, semester: term.semester } : undefined,
+    });
+    return data;
+};
+
+/** 교시 시각표. 화면이 상수를 따로 들면 한쪽만 고쳤을 때 어긋납니다. */
+export const fetchPeriods = async (): Promise<PeriodTime[]> => {
+    const { data } = await api.get("/periods", { headers: authHeader() });
+    return data.periods;
 };
 
 /** 내 누적 이수 현황. class-explorer 와 달리 남의 것은 볼 수 없습니다. */

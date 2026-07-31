@@ -17,6 +17,7 @@ from backend.curriculum_router import (
 )
 from backend.state_router import router as state_router
 from backend.calendar_router import router as calendar_router
+from backend.friends_router import router as friends_router
 from backend.classes_router import router as classes_router, terms_router
 
 app = create_app(
@@ -32,6 +33,7 @@ app.include_router(admin_router)
 app.include_router(curriculum_router)
 app.include_router(state_router)
 app.include_router(calendar_router)
+app.include_router(friends_router)   # 친구 + 교시 시각표 — 두 앱 공통
 
 # ── 여기부터는 class-explorer 에만 있습니다 ──────────────────────────────────
 app.include_router(terms_router)
