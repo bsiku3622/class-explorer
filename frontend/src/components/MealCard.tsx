@@ -1,5 +1,8 @@
 /**
- * 급식 — 날짜를 앞뒤로 넘겨 봅니다.
+ * 급식 — 끼니를 골라 보고, 날짜를 앞뒤로 넘깁니다.
+ *
+ * **세 끼를 한꺼번에 늘어놓지 않습니다.** 한 끼가 예닐곱 줄이라 셋을 펼치면 카드 혼자
+ * 화면을 차지합니다. 지금 시간대의 끼니를 골라 두고 나머지는 버튼으로 둡니다.
  *
  * **메뉴는 이 카드가 직접 받습니다** (`GET /meal`). 홈 응답에 묶으면 학교 API 가 3~5초씩
  * 걸리는 동안 홈 전체가 비어 있게 됩니다 — 여기서 받으면 급식 칸만 기다립니다. 그날 첫
@@ -13,10 +16,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, UtensilsCrossed } from "lucide-react";
 import {
     fetchMeal,
+    type HomeData,
     type MealMenu,
     type MealSlot,
-    type HomeData,
 } from "../lib/friendsApi";
+import RetroButton from "./atoms/RetroButton";
 import RetroCard from "./atoms/RetroCard";
 import RetroSubTitle from "./atoms/RetroSubTitle";
 
@@ -43,7 +47,7 @@ const toIso = (date: Date): string =>
     ).padStart(2, "0")}`;
 
 interface MealCardProps {
-    /** `GET /home` 이 준 급식. 서버 기준 오늘과 그날 메뉴 */
+    /** `GET /home` 이 준 급식 정보. 서버 기준 오늘과 지금 끼니 */
     meal: NonNullable<HomeData["meal"]>;
 }
 
@@ -51,6 +55,8 @@ const MealCard: React.FC<MealCardProps> = ({ meal }) => {
     const [offset, setOffset] = useState(0);
     const [menu, setMenu] = useState<MealMenu | null>(null);
     const [loading, setLoading] = useState(true);
+    // 지금 시간대의 끼니로 열어 둡니다. 식사 시간이 아니면 점심 — 가장 자주 찾습니다
+    const [slot, setSlot] = useState<MealSlot>(meal.slot ?? "lunch");
 
     const date = useMemo(() => shift(meal.date, offset), [meal.date, offset]);
     const iso = toIso(date);
@@ -81,9 +87,11 @@ const MealCard: React.FC<MealCardProps> = ({ meal }) => {
                 ? "내일"
                 : `${date.getMonth() + 1}월 ${date.getDate()}일`;
 
+    const items = menu?.[slot] ?? [];
+
     return (
         <RetroCard className="bg-white p-5 md:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
                 <RetroSubTitle title="Meal" icon={UtensilsCrossed} />
                 <div className="flex items-center gap-1">
                     <button
@@ -97,7 +105,7 @@ const MealCard: React.FC<MealCardProps> = ({ meal }) => {
                     <button
                         onClick={() => move(0)}
                         disabled={offset === 0}
-                        className="min-w-[7.5rem] px-2 text-center text-xs font-black tabular-nums disabled:cursor-default"
+                        className="px-2 text-center text-xs font-black tabular-nums disabled:cursor-default"
                     >
                         {label}
                         <span className="ml-1.5 font-bold text-black/40">
@@ -116,53 +124,39 @@ const MealCard: React.FC<MealCardProps> = ({ meal }) => {
                 </div>
             </div>
 
-            {menu === null ? (
-                <p className="mt-3 text-sm font-bold text-black/30">
-                    {loading ? "불러오는 중…" : "이날은 급식이 없습니다."}
-                </p>
-            ) : (
-                <div
-                    className={`mt-3 grid gap-2 transition-opacity duration-100 md:grid-cols-3 ${
-                        loading ? "opacity-40" : ""
-                    }`}
-                >
-                    {SLOTS.map(({ key, label: slotLabel }) => {
-                        const items = menu[key] ?? [];
-                        // 시안은 이 화면에서 "지금" 을 뜻합니다 — 오늘을 보고 있을 때만
-                        const isNow = offset === 0 && meal.slot === key;
-                        return (
-                            <div
-                                key={key}
-                                className={`border-2 px-3 py-2 ${
-                                    isNow
-                                        ? "border-black bg-retro-accent1"
-                                        : "border-black/15"
-                                }`}
-                            >
-                                <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
-                                    {slotLabel}
-                                </p>
-                                {items.length === 0 ? (
-                                    <p className="mt-1 text-sm font-bold text-black/25">
-                                        —
-                                    </p>
-                                ) : (
-                                    <ul className="mt-1 space-y-0.5">
-                                        {items.map((item) => (
-                                            <li
-                                                key={item}
-                                                className="text-sm font-bold leading-snug"
-                                            >
-                                                {item}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
+            <div className="mt-3 flex gap-2">
+                {SLOTS.map(({ key, label: slotLabel }) => (
+                    <RetroButton
+                        key={key}
+                        size="sm"
+                        isSelected={slot === key}
+                        onClick={() => setSlot(key)}
+                        className="flex-1"
+                    >
+                        {slotLabel}
+                    </RetroButton>
+                ))}
+            </div>
+
+            <div className={`mt-4 ${loading ? "opacity-40" : ""}`}>
+                {items.length === 0 ? (
+                    <p className="text-sm font-bold text-black/30">
+                        {loading
+                            ? "불러오는 중…"
+                            : menu === null
+                              ? "이날은 급식이 없습니다."
+                              : "이 끼니는 비어 있습니다."}
+                    </p>
+                ) : (
+                    <ul className="space-y-1">
+                        {items.map((item) => (
+                            <li key={item} className="text-sm font-bold leading-snug">
+                                {item}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
         </RetroCard>
     );
 };

@@ -83,12 +83,6 @@ export interface HomeData {
     /** 지금 있어야 할 수업. null 이면 공강입니다 */
     current: TodayClass | null;
     next: TodayClass | null;
-    friends: {
-        free: Friend[];
-        total: number;
-        /** 수업 시간이 아니면 false — "공강" 을 따질 게 없습니다 */
-        counted: boolean;
-    };
     /**
      * 서버에 급식 키가 없으면 통째로 null — 화면이 급식 칸을 아예 안 그립니다.
      *
@@ -113,9 +107,8 @@ export const fetchHome = async (term?: Term | null): Promise<HomeData> => {
 };
 
 /**
- * 하루치 급식. 홈에서 날짜를 앞뒤로 넘길 때 씁니다.
- *
- * 오늘 것은 `GET /home` 에 이미 들어 있어서 다시 부르지 않습니다.
+ * 하루치 급식. `MealCard` 가 오늘 것부터 여기서 받습니다 — `GET /home` 에는 키가
+ * 있는지와 지금 끼니만 있고 메뉴는 없습니다.
  */
 export const fetchMeal = async (
     date: string,
