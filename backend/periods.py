@@ -22,9 +22,28 @@
 보여 줍니다.
 
 시각은 자정 기준 분(minute)입니다.
+
+**"지금" 은 반드시 `now()` 로 가져오세요.** 배포 서버가 UTC 로 돌고 있어서
+`datetime.now()` 를 그대로 쓰면 교시가 9시간 어긋나고 날짜가 하루 밀립니다.
 """
 
+import datetime
+from zoneinfo import ZoneInfo
+
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
+
+# 학교 시각. 서버 타임존에 기대지 않습니다 — 서버를 옮겨도 교시는 KST 여야 합니다
+KST = ZoneInfo("Asia/Seoul")
+
+
+def now() -> datetime.datetime:
+    """지금(KST). 시각을 보는 곳은 전부 여기를 거칩니다."""
+    return datetime.datetime.now(KST)
+
+
+def today() -> datetime.date:
+    """오늘(KST). UTC 서버에서 `date.today()` 는 하루 밀립니다."""
+    return now().date()
 
 
 def _m(hour: int, minute: int) -> int:
