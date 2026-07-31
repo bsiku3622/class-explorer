@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Tooltip } from "@heroui/react";
 import { User, MapPin, Users, Clock } from "lucide-react";
-import { getKoreanName, DAY_MAP, DAYS_ORDER, extractSearchTerms } from "../lib/utils";
+import { getKoreanName, getStudentColor, DAY_MAP, DAYS_ORDER, extractSearchTerms } from "../lib/utils";
 import type { Section } from "../types";
 import { tooltipMotionProps } from "../constants/motion";
 import TeacherCard from "./atoms/TeacherCard";
@@ -12,6 +12,7 @@ interface SectionCardProps {
     handleSearchToggle: (v: string, isT?: boolean, isR?: boolean) => void;
     teacherSubjectMap: Record<string, Record<string, string[]>>;
     isModifierPressed: boolean;
+    selectedYears: string[];
     searchMode: "general" | "teacher" | "room";
 }
 
@@ -21,6 +22,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
     handleSearchToggle,
     teacherSubjectMap,
     isModifierPressed,
+    selectedYears,
     searchMode,
 }) => {
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
@@ -136,9 +138,31 @@ const SectionCard: React.FC<SectionCardProps> = ({
                         />
                         <span>{section.room}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-sm font-black text-black/70 h-8 px-3 py-0 -ml-2 border-2 border-transparent">
-                        <Users size={20} className="text-retro-accent4" />
+                    {/* 인원과 학번 분포. **이름은 없습니다** — 사람은 `student:` 검색으로
+                        한 명씩 찾습니다 */}
+                    <div className="flex items-center gap-3 text-sm font-black text-black/70 min-h-8 px-3 py-0 -ml-2 border-2 border-transparent">
+                        <Users size={20} className="text-retro-accent4 shrink-0" />
                         <span>{section.student_count} Students</span>
+                        <span className="flex flex-wrap items-center gap-1.5">
+                            {Object.entries(section.year_counts ?? {})
+                                .filter(([year]) =>
+                                    selectedYears.length === 0 ||
+                                    selectedYears.includes(year),
+                                )
+                                .map(([year, count]) => (
+                                    <span
+                                        key={year}
+                                        className="border px-1.5 py-0.5 text-[11px] font-black tabular-nums"
+                                        style={{
+                                            color: getStudentColor(`${year}-000`),
+                                            borderColor: getStudentColor(`${year}-000`),
+                                            backgroundColor: `${getStudentColor(`${year}-000`)}15`,
+                                        }}
+                                    >
+                                        {year} {count}
+                                    </span>
+                                ))}
+                        </span>
                     </div>
 
                     {section.times && section.times.length > 0 && (

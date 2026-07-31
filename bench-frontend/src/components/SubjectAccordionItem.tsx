@@ -13,6 +13,7 @@ interface SubjectAccordionItemProps {
     handleSearchToggle: (v: string, isT?: boolean, isR?: boolean) => void;
     teacherSubjectMap: Record<string, Record<string, string[]>>;
     isModifierPressed: boolean;
+    selectedYears: string[];
     searchMode: "general" | "teacher" | "room";
     isOpen: boolean;
     onToggle: () => void;
@@ -24,6 +25,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
     handleSearchToggle,
     teacherSubjectMap,
     isModifierPressed,
+    selectedYears,
     searchMode,
     isOpen,
     onToggle,
@@ -46,9 +48,14 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
         return summary;
     }, [subject.sections]);
 
-    // 예전에는 명단을 직접 세면서 학년 필터까지 걸렀습니다. 명단이 없으니 서버가
-    // 세어 준 과목 전체 인원을 그대로 씁니다 (`subject_student_count`).
-    const visibleStudentCount = subject.subject_student_count;
+    // 명단은 없지만 학번 분포(`subject_year_counts`)는 있어서 선택한 학년만 셀 수
+    // 있습니다. 이름이 아니라 숫자만 다룹니다.
+    const visibleStudentCount = useMemo(() => {
+        const counts = subject.subject_year_counts ?? {};
+        const years = Object.keys(counts);
+        const picked = selectedYears.length ? selectedYears : years;
+        return picked.reduce((sum, year) => sum + (counts[year] ?? 0), 0);
+    }, [subject.subject_year_counts, selectedYears]);
 
     const sectionDisplayText = `${subject.section_count} SECTIONS`;
 
@@ -175,6 +182,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                                         handleSearchToggle={handleSearchToggle}
                                         teacherSubjectMap={teacherSubjectMap}
                                         isModifierPressed={isModifierPressed}
+                                        selectedYears={selectedYears}
                                         searchMode={searchMode}
                                     />
                                 </React.Fragment>

@@ -150,17 +150,24 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
     const toggleExpand = (listId: string) =>
         setExpandLists((prev) => ({ ...prev, [listId]: !prev[listId] }));
 
-    // 예전에는 명단을 직접 세면서 학년까지 걸렀습니다. 명단이 없으니 서버가 세어 준
-    // 과목 전체 인원을 씁니다 — 대신 학년 필터가 이 목록에는 걸리지 않습니다.
+    // 명단은 없지만 **학번 분포**는 서버가 줍니다. 이름 없이 숫자만이라, 선택한 학년만
+    // 세는 것도 그대로 됩니다.
     const allSubjectStats = useMemo(() => {
         return allClassesData
-            .map((sub) => ({
-                name: sub.subject,
-                studentCount: sub.subject_student_count,
-            }))
+            .map((sub) => {
+                const counts = sub.subject_year_counts ?? {};
+                const picked = Object.entries(counts).filter(([year]) =>
+                    selectedYears.includes(year),
+                );
+                return {
+                    name: sub.subject,
+                    studentCount: picked.reduce((sum, [, n]) => sum + n, 0),
+                    yearCounts: Object.fromEntries(picked),
+                };
+            })
             .filter((s) => s.studentCount > 0)
             .sort((a, b) => b.studentCount - a.studentCount);
-    }, [allClassesData]);
+    }, [allClassesData, selectedYears]);
     const allTeacherStats = useMemo(() => {
         const stats: Record<string, { sections: number; periods: number }> = {};
         allClassesData.forEach((sub) =>
@@ -328,8 +335,11 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                 caption={`${s.studentCount} Students`}
                                 captionClassName="text-retro-primary"
                                 onLabelClick={() => handleSearch(getKoreanName(s.name))}
-                                /* 과목별 학번 분포는 뺐습니다 — 1학년 필수 과목에서
-                                   혼자 다른 학번이면 그게 곧 재수강 표시입니다 */
+                                tooltipContent={
+                                    s.yearCounts && Object.keys(s.yearCounts).length > 0
+                                        ? <YearBreakdown yearData={s.yearCounts} />
+                                        : undefined
+                                }
                             />
                         ))}
                     <ShowMoreButton

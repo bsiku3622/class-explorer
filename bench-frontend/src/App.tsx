@@ -48,8 +48,9 @@ const CACHE_PREFIX = "ksa_class_finder_cache";
  *
  * **4 = 분반 명단(`students`)이 빠진 응답.** 여기서 올리지 않으면 class-explorer 를
  * 쓰던 브라우저에 명단이 든 옛 캐시가 최대 1시간 남습니다.
+ * **5 = 학번 분포(`year_counts` / `subject_year_counts`) 추가.**
  */
-const CACHE_VERSION = 4;
+const CACHE_VERSION = 5;
 const TERM_KEY = "ksa_selected_term";
 const CACHE_EXPIRY = 60 * 60 * 1000;
 
@@ -111,6 +112,7 @@ const App: React.FC = () => {
     );
     /** 서버가 세어 준 학기 집계. 명단이 없으니 프론트에서 다시 셀 수 없습니다 */
     const [termStats, setTermStats] = useState<Stats | null>(null);
+    const [selectedYears, setSelectedYears] = useState<string[]>([]);
     const [searchInput, setSearchInput] = useState(initialSearch);
     const [searchTerm, setSearchTerm] = useState(initialSearch);
     const [loading, setLoading] = useState(true);
@@ -225,6 +227,7 @@ const App: React.FC = () => {
                     JSON.parse(cached);
                 if (v === CACHE_VERSION && Date.now() - timestamp < CACHE_EXPIRY) {
                     setStudentCounts(student_counts);
+                    setSelectedYears(Object.keys(student_counts));
                     setTermStats(stats ?? null);
                     setAllClassesData(data);
                     if (available_terms) setAvailableTerms(available_terms);
@@ -264,6 +267,7 @@ const App: React.FC = () => {
             }
             if (available_terms) setAvailableTerms(available_terms);
             setStudentCounts(student_counts);
+            setSelectedYears(Object.keys(student_counts));
             setTermStats(apiStats ?? null);
             setAllClassesData(data);
             setLastUpdated(now);
@@ -289,6 +293,27 @@ const App: React.FC = () => {
         [term],
     );
 
+    /**
+     * 학년 필터. 예전에는 분반 명단을 뒤져 학번을 봤지만, 이제는 서버가 주는
+     * `year_counts`(이름 없는 숫자)만으로 같은 일을 합니다.
+     */
+    const filterByYears = useCallback(
+        (subjects: SubjectData[]) => {
+            if (selectedYears.length === 0) return subjects;
+            return subjects
+                .map((subject) => ({
+                    ...subject,
+                    sections: subject.sections.filter((section) =>
+                        selectedYears.some(
+                            (year) => (section.year_counts?.[year] ?? 0) > 0,
+                        ),
+                    ),
+                }))
+                .filter((subject) => subject.sections.length > 0);
+        },
+        [selectedYears],
+    );
+
     const handleSearch = useCallback(() => {
         if (allClassesData.length === 0 || location.pathname !== "/") return;
 
@@ -303,24 +328,36 @@ const App: React.FC = () => {
 
         if (searchTerm.trim()) {
             const result = searchInClient(allClassesData, searchTerm);
-            setDisplayData(result.data);
+            const filtered = filterByYears(result.data);
+            setDisplayData(filtered);
             setSearchMode(result.mode);
             setSearchResult({
                 keyword: result.stats.keyword || searchTerm,
                 prefix: result.mode !== "general" ? result.mode : "",
                 entities: result.entities,
-                total_subjects: result.stats.total_subjects,
-                total_sections: result.stats.total_sections,
+                total_subjects: filtered.length,
+                total_sections: filtered.reduce(
+                    (sum, s) => sum + s.sections.length,
+                    0,
+                ),
             });
             setStats(null);
         } else {
             setSearchMode("general");
-            setDisplayData(allClassesData);
+            const filtered = filterByYears(allClassesData);
+            setDisplayData(filtered);
             // 수강 인원은 서버가 세어 준 값을 씁니다 — 명단이 없으니 여기서 셀 수 없습니다
             setStats(termStats);
             setSearchResult(null);
         }
-    }, [searchTerm, studentQuery, allClassesData, termStats, location.pathname]);
+    }, [
+        searchTerm,
+        studentQuery,
+        allClassesData,
+        termStats,
+        filterByYears,
+        location.pathname,
+    ]);
 
     useEffect(() => {
         handleSearch();
@@ -539,6 +576,9 @@ const App: React.FC = () => {
                                         searchInput={searchInput}
                                         setSearchInput={setSearchInput}
                                         searchTerm={searchTerm}
+                                        studentCounts={studentCounts}
+                                        selectedYears={selectedYears}
+                                        setSelectedYears={setSelectedYears}
                                         lastUpdated={lastUpdated}
                                         fetchInitialData={fetchInitialData}
                                         searchResult={searchResult}

@@ -90,6 +90,13 @@ export interface Section {
     room: string;
     /** 인원수는 줍니다 — 개인을 가리키지 않고 수강신청에 쓸모가 있습니다 */
     student_count: number;
+    /**
+     * 학번(입학연도)별 인원. `{"25": 24, "24": 1}`
+     *
+     * 분포만으로는 "누군가 재수강 중"까지만 드러나고 그게 누구인지는 여전히 한 명씩
+     * 찾아야 합니다. 이 앱이 그은 선은 **이름이 나가지 않는다**입니다.
+     */
+    year_counts: Record<string, number>;
     times: SectionTime[];
 }
 
@@ -144,6 +151,8 @@ export interface SubjectData {
     /** 영어강의(English Class) 여부 */
     is_ec?: boolean;
     subject_student_count: number;
+    /** 과목 단위 학번 분포. 분반 합이 아니라 **중복을 뺀** 값입니다 */
+    subject_year_counts: Record<string, number>;
     section_count: number;
     sections: Section[];
     /** 학점 — 교육과정에 없는 과목(외국인 전형·개편 전 이름)은 null */

@@ -89,9 +89,9 @@ async def get_term_data(
 ):
     """지정 학기의 과목·분반·시간·강의실. **수강생 명단은 들어 있지 않습니다.**
 
-    인원수(`student_count`)는 줍니다 — 개인을 가리키지 않고 수강신청에 실제로 쓸모가
-    있습니다. 다만 **학번 분포는 주지 않습니다.** 1학년 필수 과목 명단에서 혼자 다른
-    학번이면 그게 곧 재수강 표시라, 이름이 없어도 그 사실만으로 드러납니다.
+    인원수(`student_count`)와 **학번 분포**(`year_counts`)는 줍니다. 분포만으로는
+    "누군가 재수강 중"까지만 드러나고 그게 누구인지는 여전히 한 명씩 찾아야 하므로,
+    이 앱이 그은 선은 **이름이 나가지 않는다**입니다.
     """
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     response.headers["Pragma"] = "no-cache"
@@ -115,6 +115,9 @@ async def get_term_data(
     subject_students: dict[int, set[str]] = {}
     total_active_students: set[str] = set()
 
+    def year_of(stu_id: str) -> str:
+        return stu_id.split("-")[0] if "-" in stu_id else "Unknown"
+
     for cls in all_classes:
         stu_ids = {e.stuId for e in cls.enrollments}
         subjects.setdefault(cls.subject_id, cls.subject)
@@ -122,12 +125,18 @@ async def get_term_data(
         subject_students.setdefault(cls.subject_id, set()).update(stu_ids)
         total_active_students.update(stu_ids)
 
+        year_counts: dict[str, int] = {}
+        for stu_id in stu_ids:
+            yr = year_of(stu_id)
+            year_counts[yr] = year_counts.get(yr, 0) + 1
+
         grouped[cls.subject_id].append({
             "id": cls.id,
             "section": cls.section,
             "teacher": cls.teacher,
             "room": cls.room,
             "student_count": len(stu_ids),
+            "year_counts": dict(sorted(year_counts.items())),
             "times": sorted(
                 [{"day": t.day, "period": t.period, "room": t.room} for t in cls.times],
                 key=lambda x: (["MON", "TUE", "WED", "THU", "FRI"].index(x["day"]), x["period"])
@@ -140,12 +149,21 @@ async def get_term_data(
         course = subject.course
         sections.sort(key=lambda s: get_section_num(s["section"]))
         display = f"{subject.name}(EC)" if subject.is_ec else subject.name
+
+        # 과목 단위 분포는 분반 합이 아니라 **중복을 뺀** 값입니다 — 한 학생이 두 분반에
+        # 걸쳐 있으면 두 번 세이면 안 됩니다
+        subject_year_counts: dict[str, int] = {}
+        for stu_id in subject_students[subject_id]:
+            yr = year_of(stu_id)
+            subject_year_counts[yr] = subject_year_counts.get(yr, 0) + 1
+
         final_data.append({
             "subject": display,
             "subject_id": subject_id,
             "subject_english": subject.name_english,
             "is_ec": subject.is_ec,
             "subject_student_count": len(subject_students[subject_id]),
+            "subject_year_counts": dict(sorted(subject_year_counts.items())),
             "section_count": len(sections),
             "sections": sections,
             "credits": course.credits if course else None,
