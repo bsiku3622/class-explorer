@@ -49,6 +49,7 @@ export interface FriendsNowResponse {
 
 // ─── 홈 ──────────────────────────────────────────────────────────────────────
 export type MealSlot = "breakfast" | "lunch" | "dinner";
+export type MealMenu = Record<MealSlot, string[]>;
 
 export interface TodayClass {
     period: number;
@@ -88,12 +89,15 @@ export interface HomeData {
         /** 수업 시간이 아니면 false — "공강" 을 따질 게 없습니다 */
         counted: boolean;
     };
+    /** 서버에 급식 키가 없으면 통째로 null — 화면이 급식 칸을 아예 안 그립니다 */
     meal: {
+        /** 서버 기준 오늘. 날짜를 넘길 때 여기서 셉니다 */
+        date: string;
         /** 지금 시간대의 끼니. 식사 시간이 지나면 null */
         slot: MealSlot | null;
         /** 아직 안 올라온 날은 null — 메뉴는 줄 단위로 옵니다 */
-        menu: Record<MealSlot, string[]> | null;
-    };
+        menu: MealMenu | null;
+    } | null;
 }
 
 /** 홈 화면이 쓰는 것 전부. 켜자마자 보이는 자리라 한 요청으로 받습니다. */
@@ -101,6 +105,21 @@ export const fetchHome = async (term?: Term | null): Promise<HomeData> => {
     const { data } = await api.get("/home", {
         headers: authHeader(),
         params: term ? { year: term.year, semester: term.semester } : undefined,
+    });
+    return data;
+};
+
+/**
+ * 하루치 급식. 홈에서 날짜를 앞뒤로 넘길 때 씁니다.
+ *
+ * 오늘 것은 `GET /home` 에 이미 들어 있어서 다시 부르지 않습니다.
+ */
+export const fetchMeal = async (
+    date: string,
+): Promise<{ date: string; menu: MealMenu | null }> => {
+    const { data } = await api.get("/meal", {
+        headers: authHeader(),
+        params: { date },
     });
     return data;
 };
