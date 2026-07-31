@@ -11,22 +11,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Spinner } from "@heroui/react";
-import {
-    ArrowRight,
-    CalendarDays,
-    Clock,
-    MapPin,
-    Repeat,
-    Users,
-    UtensilsCrossed,
-} from "lucide-react";
+import { ArrowRight, CalendarDays, Clock, MapPin, Repeat, Users } from "lucide-react";
 import type { SubjectData, Term } from "../types";
 import {
     fetchFriends,
     fetchHome,
     type Friend,
     type HomeData,
-    type MealSlot,
     type TodayClass,
 } from "../lib/friendsApi";
 import { isTradeAvailable } from "../lib/features";
@@ -34,6 +25,7 @@ import { getKoreanName } from "../lib/utils";
 import RetroCard from "../components/atoms/RetroCard";
 import RetroSubTitle from "../components/atoms/RetroSubTitle";
 import FriendsModal from "../components/FriendsModal";
+import MealCard from "../components/MealCard";
 
 interface HomePageProps {
     term: Term | null;
@@ -59,12 +51,6 @@ const DAY_LABEL: Record<string, string> = {
     THU: "목요일",
     FRI: "금요일",
 };
-
-const MEAL_SLOTS: { key: MealSlot; label: string }[] = [
-    { key: "breakfast", label: "아침" },
-    { key: "lunch", label: "점심" },
-    { key: "dinner", label: "저녁" },
-];
 
 const ClassLine: React.FC<{ item: TodayClass; dim?: boolean }> = ({ item, dim }) => (
     <div
@@ -284,49 +270,7 @@ const HomePage: React.FC<HomePageProps> = ({
             )}
 
             {/* ── 급식 ─────────────────────────────────────────────────── */}
-            {meal.menu && (
-                <RetroCard className="bg-white p-5 md:p-6">
-                    <RetroSubTitle title="Meal" icon={UtensilsCrossed} />
-                    <div className="mt-3 grid gap-2 md:grid-cols-3">
-                        {MEAL_SLOTS.map(({ key, label }) => {
-                            const items = meal.menu?.[key] ?? [];
-                            // 방학·주말에도 급식은 나옵니다 — 시간대 강조를 끄지 않습니다
-                            const isNow = meal.slot === key;
-                            return (
-                                <div
-                                    key={key}
-                                    className={`border-2 px-3 py-2 ${
-                                        // 시안은 이 화면에서 "지금" 을 뜻합니다 — Now 카드와 같은 색
-                                        isNow
-                                            ? "border-black bg-retro-accent1"
-                                            : "border-black/15"
-                                    }`}
-                                >
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
-                                        {label}
-                                    </p>
-                                    {items.length === 0 ? (
-                                        <p className="mt-1 text-sm font-bold text-black/25">
-                                            —
-                                        </p>
-                                    ) : (
-                                        <ul className="mt-1 space-y-0.5">
-                                            {items.map((item) => (
-                                                <li
-                                                    key={item}
-                                                    className="text-sm font-bold leading-snug"
-                                                >
-                                                    {item}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </RetroCard>
-            )}
+            {meal && <MealCard meal={meal} />}
 
             {/* ── 친구 ─────────────────────────────────────────────────── */}
             <button

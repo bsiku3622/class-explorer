@@ -1,5 +1,16 @@
 # Logs
 
+## 2026-08-01 — 급식 날짜 넘기기
+
+- 변경 파일: `backend/{home_router.py,CLAUDE.md,api-guide.md}`, `frontend/src/components/MealCard.tsx` (신규), `frontend/src/pages/HomePage.tsx`, `frontend/src/lib/friendsApi.ts`, `frontend/{CLAUDE.md,component-guide.md}`
+- 요약: 홈 급식을 `MealCard` 로 떼어내고 날짜를 앞뒤로 넘겨 볼 수 있게 했습니다 (`GET /meal?date=`).
+
+**오늘 것은 다시 부르지 않습니다.** `GET /home` 에 이미 들어 있어서, 오늘을 보고 있는 동안에는 홈이 준 값을 그대로 씁니다. 날짜를 옮겼을 때만 `/meal` 을 부르고, **홈이 1분마다 다시 받아도 보고 있던 날짜는 그대로 둡니다** — 어제 급식을 읽는 중에 화면이 오늘로 튀면 안 됩니다.
+
+범위는 **앞뒤 31일**입니다. 화살표를 계속 누르면 학교 API 를 그만큼 두드리게 되고, 그 밖은 볼 이유도 없습니다.
+
+`/home` 의 `meal` 은 **키가 없으면 통째로 null** 로 바꿨습니다. 예전에는 `menu` 만 null 이라 "키가 없다" 와 "그날 급식이 없다" 가 구분되지 않았고, 날짜를 넘길 수 있게 되면서 이 둘이 다른 화면이 됐습니다.
+
 ## 2026-08-01 — 홈 다듬기 (친구 모달·급식·Trade 배너·방학)
 
 - 변경 파일: `backend/{models.py,home_router.py,CLAUDE.md,api-guide.md}`, `frontend/src/components/{FriendsModal.tsx,atoms/SearchInput.tsx}`, `frontend/src/pages/HomePage.tsx`, `frontend/src/lib/friendsApi.ts`, `frontend/{CLAUDE.md,component-guide.md}`

@@ -12,7 +12,7 @@ import os
 import re
 
 import httpx
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backend import models, periods
@@ -82,8 +82,10 @@ async def fetch_meal(db: Session, day: datetime.date) -> dict[str, list[str]] | 
                 data={"key": KSAIN_API_KEY, "date": day.isoformat()},
             )
         body = res.json()
-    except Exception:
-        # 급식이 안 나온다고 홈이 죽으면 안 됩니다. 저장하지 않아 다음에 다시 시도합니다
+    except Exception as exc:
+        # 급식이 안 나온다고 홈이 죽으면 안 됩니다. 저장하지 않아 다음에 다시 시도합니다.
+        # 다만 조용히 삼키면 "왜 급식만 안 나오지" 를 알 길이 없어 로그는 남깁니다
+        print(f"[meal] {day} 받아오기 실패: {exc!r}")
         return None
 
     data = body.get("data") if isinstance(body, dict) else None
@@ -106,6 +108,26 @@ async def fetch_meal(db: Session, day: datetime.date) -> dict[str, list[str]] | 
         # 같은 날짜를 동시에 받아 왔을 뿐입니다. 내용은 같으니 그냥 넘어갑니다
         db.rollback()
     return menu
+
+
+# 날짜를 얼마나 멀리까지 볼 수 있는지. 화살표를 계속 누르면 학교 API 를 그만큼
+# 두드리게 되니 앞뒤로 한 달만 엽니다 — 그 밖은 볼 이유도 없습니다
+MEAL_RANGE_DAYS = 31
+
+
+@router.get("/meal")
+async def get_meal(
+    date: datetime.date,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """하루치 급식. 홈에서 날짜를 앞뒤로 넘길 때 씁니다."""
+    today = datetime.date.today()
+    if abs((date - today).days) > MEAL_RANGE_DAYS:
+        raise HTTPException(
+            status_code=400, detail=f"{MEAL_RANGE_DAYS}일 안쪽 날짜만 볼 수 있습니다"
+        )
+    return {"date": date.isoformat(), "menu": await fetch_meal(db, date)}
 
 
 def current_meal_slot(minute: int) -> str | None:
@@ -255,8 +277,14 @@ async def get_home(
             # 수업 시간이 아니면 "공강" 을 따질 게 없습니다
             "counted": period is not None,
         },
-        "meal": {
-            "slot": current_meal_slot(minute),
-            "menu": await fetch_meal(db, today),
-        },
+        # 키가 없으면 통째로 null 입니다 — 화면이 급식 칸을 아예 안 그리게
+        "meal": (
+            {
+                "date": today.isoformat(),
+                "slot": current_meal_slot(minute),
+                "menu": await fetch_meal(db, today),
+            }
+            if KSAIN_API_KEY
+            else None
+        ),
     }
