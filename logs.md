@@ -1,5 +1,25 @@
 # Logs
 
+## 2026-07-31 — 교시 시각표 + 친구 기능을 두 앱 공통으로
+
+- 변경 파일: `backend/periods.py`·`friends_router.py` (신규), `backend/main.py`·`bench_main.py`·`bench_router.py`, `frontend/src/pages/FriendsPage.tsx`·`lib/friendsApi.ts` (신규), `frontend/src/{App.tsx,components/Sidebar.tsx}`, `bench-frontend/` 동일 반영, 가이드 문서 일습
+- 요약: 교시별 시각표를 서버에 두고, 친구 기능을 **class-explorer 에도** 넣었습니다. 메인은 다시 class-explorer 입니다.
+
+**교시 시각표는 서버가 원본을 갖습니다** (`backend/periods.py`, `GET /periods`). 50분 수업 + 10분 쉬는시간으로 1~4교시(08:40~12:30) → 점심·AA 미팅 → 5~11교시(13:40~20:30). 프론트가 상수를 따로 들면 한쪽만 고쳤을 때 조용히 어긋나서, 화면도 서버에서 받아 씁니다.
+
+⚠️ **표에 저녁 식사 시간이 없습니다.** 9~10교시가 17:40~19:30 으로 이어지는데 실제로 그 사이에 저녁이 있다면 10·11교시가 통째로 밀립니다. 자습(19:30~21:30)도 11교시(19:40~20:30)와 겹칩니다. 둘 다 확인되면 `periods.py` 의 표만 고치면 됩니다.
+
+**"지금"은 서버 시계로 정합니다.** 클라이언트 시계는 틀어져 있거나 손댈 수 있어서, "지금 공강" 이 사람마다 다르게 보이면 안 됩니다.
+
+**친구는 두 앱 공통 라우터(`friends_router.py`)로 뺐습니다.** 처음엔 `bench_router` 안에 있었는데 class-explorer 에도 필요해졌습니다 — 복사하면 두 벌이 되니 옮겼습니다. 등록은 **단방향**이고 수락이 없습니다: 두 앱 모두 남의 시간표를 이미 볼 수 있어서 승인 절차는 마찰만 늘고 막아 주는 게 없습니다.
+
+**사람 찾기만 앱마다 다릅니다.** ksa-bench 는 명단이 없어 `GET /students/search` 로 서버에 묻고, class-explorer 는 이미 학기 전체를 들고 있어 로컬에서 찾습니다. 두 글자 이상·20명 상한은 같습니다.
+
+`/friends/busy`·`/friends/now` 응답에는 **과목명이 없습니다** — 슬롯(`"MON-3"`)만 나갑니다. 공강을 맞추는 데 필요 없고, 주면 "누가 뭘 듣는지" 훑는 화면이 됩니다.
+
+**메인은 다시 class-explorer 입니다.** ksa-bench 는 배포 여부가 안 정해져 보류로 두고, 새 기능은 class-explorer 에 먼저 넣습니다.
+
+
 ## 2026-07-31 — ksa-bench: Trade 복원 + 친구(단방향)
 
 - 변경 파일: `backend/models.py`·`bench_router.py`, `bench-frontend/src/pages/FriendsPage.tsx` (신규), `bench-frontend/src/{App.tsx,types/index.ts,lib/benchApi.ts,lib/searchEngine.ts}`, `bench-frontend/src/pages/TradePage.tsx`·`lib/tradeEngine.ts` (복원), 가이드 문서 일습

@@ -17,7 +17,8 @@ src/
 │   ├── tradeEngine.ts        → 수강 변경 조합 탐색 (슬롯 충돌 기반)
 │   ├── curriculum.ts         → 졸업 요건 진척도 + 평점 + 선수관계 그래프 배치
 │   ├── userState.ts          → 계정별 화면 상태 저장/복원 (localStorage 이관 포함)
-│   └── features.ts           → 한시 기능 노출 플래그 (TRADE_FEATURE)
+│   ├── features.ts           → 한시 기능 노출 플래그 (TRADE_FEATURE)
+│   └── friendsApi.ts         → 친구·교시 시각표 질의 (백엔드는 두 앱 공용)
 ├── constants/
 │   └── motion.ts             → Framer Motion 설정값
 ├── hooks/

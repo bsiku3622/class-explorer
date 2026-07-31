@@ -90,6 +90,9 @@
 - [x] [bench] 검색 개편 — 다중 검색 제거, 후보 목록/개인 상세 분리, `/browse` 학생 목록 제거
 - [x] [bench] Trade 복원 (분반 명단 사용) — 매칭 방식 재설계는 나중으로
 - [x] [bench] 친구 시스템 (단방향 등록 + 공강 격자)
-- [ ] [bench] 교시별 시각표 확보 → "지금 공강인 친구" / 홈 화면
+- [x] 교시별 시각표 도입 (`backend/periods.py`) + `GET /periods`
+- [x] 친구(단방향) + 공강 격자 + "지금 공강" — **class-explorer·ksa-bench 공통**
+- [ ] 저녁 시간·자습 교시 번호 확인 → `periods.py` 표 보정
+- [ ] 홈 화면 (오늘 시간표 + 다음 교실 + 지금 공강인 친구 + 급식)
 - [ ] [bench] 관리 화면 — `/admin/*` 통째로가 아니라 안전한 것만 골라 새로
 - [ ] [bench] 배포 — systemd 유닛 2번째, nginx 블록, Netlify 사이트 추가
