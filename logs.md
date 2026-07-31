@@ -1,5 +1,19 @@
 # Logs
 
+## 2026-08-01 — 홈 다듬기 (친구 모달·급식·Trade 배너·방학)
+
+- 변경 파일: `backend/{models.py,home_router.py,CLAUDE.md,api-guide.md}`, `frontend/src/components/{FriendsModal.tsx,atoms/SearchInput.tsx}`, `frontend/src/pages/HomePage.tsx`, `frontend/src/lib/friendsApi.ts`, `frontend/{CLAUDE.md,component-guide.md}`
+- 요약: 친구 모달을 검색창 하나로 합치고, 급식을 DB 에 쌓고, Trade 배너를 넣고, 방학 화면을 학기 중과 같은 레이아웃으로 되돌렸습니다.
+
+**친구 모달 — 검색창이 하나입니다.** 먼저 등록한 사람을 걸러 보여 주고, 거기 없으면 그때 전교생에서 찾아 "추가" 를 내밉니다. 찾기와 추가를 따로 두면 "이미 등록했나?" 를 확인하러 두 곳을 봐야 합니다. 모달은 가운데로 옮기고(위에 붙어 잘려 보였습니다), 검색창은 `SearchInput` 에 `size="sm"` 을 붙여 줄였습니다 — 모달 안에 `lg` 를 두면 검색창이 창을 다 차지합니다. 추가는 행 전체가 아니라 **버튼**입니다.
+
+**급식을 `meal_menus` 에 쌓습니다.** DB 를 먼저 보고 없을 때만 학교 API 를 부릅니다 — 지난 급식은 바뀌지 않고, 메모리에만 두면 서버를 재시작할 때마다 처음부터 다시 받습니다. **아직 안 올라온 날은 저장하지 않습니다**: 빈 값으로 적어 두면 영영 빈 채로 굳습니다. 원문이 개행 섞인 한 덩어리라 서버가 줄로 쪼개 보내고, 그 김에 축산물 이력번호(`찹스테이크(호주산801000310667)`)를 지우고 `&` 로 시작하는 줄을 앞 줄에 붙입니다.
+
+**한 색은 한 뜻입니다.** Trade 배너를 넣자 급식의 "지금 끼니" 강조와 같은 노랑이 됐습니다. 시안이 이미 Now 카드에서 "지금" 을 뜻하고 있어서 급식 강조를 시안으로 옮기고, 노랑은 한시 기능(Trade) 하나만 쓰게 뒀습니다. 친구 배지(핑크)는 `counted` 일 때만 그립니다 — 수업 시간이 아니면 "공강" 이라고 할 게 없는데 핑크가 떠 있으면 거짓말입니다.
+
+**방학 화면을 되돌렸습니다.** "여름방학입니다" 를 큰 카드로 띄우니 방학 안내가 홈의 주인공이 됐습니다. 학기 중과 자리를 똑같이 두고 Now 에 한 줄, Today 에 연한 한 줄로만 알립니다. 주말도 같은 방식이라 분기가 하나 줄었습니다.
+
+
 ## 2026-08-01 — 홈 화면
 
 - 변경 파일: `backend/home_router.py` (신규), `backend/main.py`, `frontend/src/pages/HomePage.tsx`·`components/FriendsModal.tsx` (신규), `frontend/src/pages/FriendsPage.tsx` (삭제), `frontend/src/{App.tsx,lib/friendsApi.ts,components/Sidebar.tsx,components/BottomNav.tsx}`, 가이드 문서 일습

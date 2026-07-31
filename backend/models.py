@@ -331,6 +331,25 @@ class EventRequest(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
+class MealMenu(Base):
+    """
+    그날의 조·중·석식. 출처는 ksain.net 급식 API 입니다.
+
+    **한 번 받은 날짜는 다시 묻지 않습니다.** 지난 급식은 바뀔 일이 없고, 학교 API 를
+    사람 수만큼 두드릴 이유도 없습니다. 메모리 캐시로만 두면 서버를 재시작할 때마다
+    처음부터 다시 받게 됩니다.
+
+    **비어 있는 날은 저장하지 않습니다.** 아직 안 올라온 날(주로 다음 주)을 빈 값으로
+    적어 두면 영영 빈 채로 굳습니다 — 행이 없으면 다음 요청이 다시 물어봅니다.
+    """
+    __tablename__ = "meal_menus"
+    date = Column(Date, primary_key=True)
+    breakfast = Column(Text, nullable=True)
+    lunch = Column(Text, nullable=True)
+    dinner = Column(Text, nullable=True)
+    fetched_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
 class Session(Base):
     __tablename__ = "sessions"
     id = Column(Integer, primary_key=True, index=True)
