@@ -84,7 +84,7 @@ src/
 **dev 서버는 `https://localhost:5188`입니다.** 구글 OAuth 허용 origin 에 이 주소가
 등록돼 있어서, 포트를 바꾸면 구글 로그인이 막힙니다.
 
-배포 시 Netlify 대시보드 → Environment variables에서 설정.
+배포 시 Vercel 프로젝트 → Settings → Environment Variables 에서 설정.
 
 ## 코드 스플리팅
 모든 페이지는 `React.lazy()` + `Suspense`로 동적 로드됩니다.
