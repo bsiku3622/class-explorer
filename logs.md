@@ -1,5 +1,18 @@
 # Logs
 
+## 2026-07-31 — ksa-bench 를 위한 두 번째 프론트 분리
+
+- 변경 파일: `bench-frontend/` (신규, `frontend/` 복사본), `CLAUDE.md`, `.gitignore`, `tasks.md`
+- 요약: 전교생에게 열 ksa-bench 를 만들기 위해 프론트를 둘로 나눴습니다. class-explorer(`frontend/`)는 손대지 않고 그대로 둡니다.
+
+**왜 리포를 안 갈랐나** — 백엔드가 두 벌이 되면 KEIS 응답이 한 번 바뀔 때마다 같은 수정을 두 번 하게 되고, 몇 달 뒤엔 둘이 서로 달라져 "복사해서 시작한" 이득이 사라집니다. 한 리포에 두면 백엔드 공유가 지켜야 할 규율이 아니라 **구조**가 됩니다.
+
+**`frontend/` 는 이름도 안 바꿨습니다.** Netlify base directory·CI·문서가 전부 그 경로를 물고 있어서, 리네임하는 순간 "class-explorer 는 건드리지 않는다"가 깨집니다. `bench-frontend` 와 비대칭인 건 감수했습니다.
+
+**격리는 권한이 아니라 프로세스로 갑니다.** 하나의 앱에 명단을 통째로 주는 엔드포인트와 공개 서비스가 같이 살면, 새 기능을 붙이다 권한 검사 한 줄을 빠뜨리는 것이 곧 사고가 됩니다. ASGI 진입점을 둘로 두어 bench 쪽에는 그 라우터가 **아예 등록되지 않게** 할 예정입니다(아직 안 했습니다).
+
+검증: 두 프론트 모두 빌드 통과, lint 53 errors / 5 warnings 로 **동일** — 복사가 온전하고 새로 생긴 문제가 없다는 뜻입니다.
+
 ## 2026-07-31 — 학사일정 달력 + 권한 3단계
 
 - 변경 파일: `backend/models.py`, `backend/migrations.py`, `backend/auth.py`, `backend/admin_router.py`, `backend/auth_router.py`, `backend/create_user.py`, `backend/calendar_router.py` (신규), `backend/parse_calendar_pdf.py` (신규), `backend/import_calendar.py` (신규), `backend/calendar_seed.json` (신규), `backend/main.py`, `frontend/src/pages/CalendarPage.tsx` (신규), `frontend/src/components/{CalendarGrid,EventFormModal,RequestSidebar}.tsx` (신규), `frontend/src/lib/calendar.ts` (신규), `frontend/src/lib/utils.ts`, `frontend/src/types/index.ts`, `frontend/src/App.tsx`, `frontend/src/components/Sidebar.tsx`, `frontend/src/pages/AdminPage.tsx`, 가이드 문서 일습

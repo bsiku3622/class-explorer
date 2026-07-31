@@ -5,15 +5,34 @@
 KSA 학생/교사/강의실 기반 수업 탐색 웹 앱.  
 **Stack**: React 19 + TypeScript + Vite + Tailwind v4 + HeroUI / FastAPI + SQLAlchemy (SQLite)
 
+### 프론트가 둘입니다
+
+| 디렉토리 | 앱 | 성격 |
+| --- | --- | --- |
+| `frontend/` | **class-explorer** | 지금 쓰는 비공식 검색기. 초대제, 명단까지 다 보입니다. **건드리지 않습니다** |
+| `bench-frontend/` | **ksa-bench** | 전교생 공개용. `frontend/` 복사본에서 출발해 갈아엎는 중입니다 |
+
+백엔드는 **한 벌**입니다. 파서가 두 벌이 되면 KEIS 응답이 바뀔 때마다 같은 수정을 두 번
+하게 되고, 곧 서로 달라집니다. 대신 **ASGI 진입점을 둘로** 두어 ksa-bench 쪽 프로세스에는
+전체 제공 API 라우터를 아예 등록하지 않습니다 — 권한 검사 한 줄을 빠뜨려도 명단이
+새지 않게 하려는 것입니다. (진입점 분리는 아직입니다. 지금은 `backend/main.py` 하나입니다.)
+
+**ksa-bench 에서 없어지는 것**: 분반 → 학생 명단, 다중 검색, `/browse` 학생 목록.
+학생 검색은 한 번에 한 명만 되고, 교사·강의실 검색은 명단 없이 남습니다. 이렇게 하면
+명단을 얻는 비용이 학교 공식 앱(가온누리)과 같아집니다 — 한 명씩 물어봐야 합니다.
+
 ---
 
 ## Commands
 
 ```bash
-# Frontend (frontend/)
+# Frontend — class-explorer (frontend/)
 npm run dev       # Vite dev server (https://localhost:5188) — /api → localhost:8000 프록시
 npm run build     # TypeScript check + Vite build
 npm run lint      # ESLint
+
+# Frontend — ksa-bench (bench-frontend/)
+npm run dev       # https://localhost:5189 — 같은 백엔드로 프록시. 둘을 나란히 띄울 수 있습니다
 
 # Backend (repo root)
 uvicorn backend.main:app --reload   # FastAPI (port 8000)
@@ -107,6 +126,9 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 
 `/logs.md` 날짜 역순 | `/tasks.md` 최신 항목 아래에 추가
 
+**ksa-bench 작업에는 `[bench]` 를 앞에 붙입니다** (`- [ ] [bench] …`). 두 앱 기록이 한
+파일에 섞이므로, 이게 없으면 나중에 어느 앱 얘기인지 못 가립니다.
+
 ---
 
 ## Pages
@@ -132,3 +154,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | 디자인 변경   | `frontend/design-guide.md`    |
 | 컴포넌트 추가 | `frontend/component-guide.md` |
 | API 수정      | `backend/api-guide.md`        |
+| ksa-bench 작업 | `bench-frontend/CLAUDE.md` (가이드 사본이 그 안에 따로 있습니다) |
+
+**어느 프론트를 고치는지 먼저 확인하세요.** 두 디렉토리에 같은 이름의 가이드가 각각
+있어서, `frontend/design-guide.md`를 고치고 ksa-bench 를 손봤다고 생각하기 쉽습니다.
