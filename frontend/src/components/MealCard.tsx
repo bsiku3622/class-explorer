@@ -1,8 +1,9 @@
 /**
  * 급식 — 날짜를 앞뒤로 넘겨 봅니다.
  *
- * **오늘 것은 다시 부르지 않습니다.** `GET /home` 에 이미 들어 있어서, 오늘을 보고 있는
- * 동안에는 홈이 주는 값을 그대로 씁니다. 날짜를 옮겼을 때만 `GET /meal` 을 부릅니다.
+ * **메뉴는 이 카드가 직접 받습니다** (`GET /meal`). 홈 응답에 묶으면 학교 API 가 3~5초씩
+ * 걸리는 동안 홈 전체가 비어 있게 됩니다 — 여기서 받으면 급식 칸만 기다립니다. 그날 첫
+ * 조회만 느리고, 서버가 DB 에 쌓아 두므로 다음부터는 바로 옵니다.
  *
  * 홈은 1분마다 다시 받지만 **보고 있던 날짜는 그대로 둡니다** — 어제 급식을 읽는 중에
  * 화면이 오늘로 튀면 안 됩니다.
@@ -48,8 +49,8 @@ interface MealCardProps {
 
 const MealCard: React.FC<MealCardProps> = ({ meal }) => {
     const [offset, setOffset] = useState(0);
-    const [fetched, setFetched] = useState<MealMenu | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [menu, setMenu] = useState<MealMenu | null>(null);
+    const [loading, setLoading] = useState(true);
 
     const date = useMemo(() => shift(meal.date, offset), [meal.date, offset]);
     const iso = toIso(date);
@@ -57,22 +58,19 @@ const MealCard: React.FC<MealCardProps> = ({ meal }) => {
     // 날짜를 옮길 때 켜고, 받아 오면 끕니다. effect 본문에서 켜면 렌더가 한 번 더 돕니다
     const move = (next: number) => {
         setOffset(next);
-        setLoading(next !== 0);
+        setLoading(true);
     };
 
     useEffect(() => {
-        if (offset === 0) return;
         let alive = true;
         fetchMeal(iso)
-            .then((res) => alive && setFetched(res.menu))
-            .catch(() => alive && setFetched(null))
+            .then((res) => alive && setMenu(res.menu))
+            .catch(() => alive && setMenu(null))
             .finally(() => alive && setLoading(false));
         return () => {
             alive = false;
         };
-    }, [iso, offset]);
-
-    const menu = offset === 0 ? meal.menu : fetched;
+    }, [iso]);
 
     const label =
         offset === 0

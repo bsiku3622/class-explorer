@@ -76,7 +76,9 @@ async def fetch_meal(db: Session, day: datetime.date) -> dict[str, list[str]] | 
         return None
 
     try:
-        async with httpx.AsyncClient(timeout=5) as client:
+        # 학교 API 가 3~5초씩 걸립니다. 짧게 잡으면 그날 첫 조회가 통째로 실패해서
+        # 아무도 급식을 못 봅니다 — 대신 이 호출은 홈이 아니라 급식 칸만 기다립니다
+        async with httpx.AsyncClient(timeout=15) as client:
             res = await client.post(
                 KSAIN_MEAL_URL,
                 data={"key": KSAIN_API_KEY, "date": day.isoformat()},
@@ -277,13 +279,12 @@ async def get_home(
             # 수업 시간이 아니면 "공강" 을 따질 게 없습니다
             "counted": period is not None,
         },
-        # 키가 없으면 통째로 null 입니다 — 화면이 급식 칸을 아예 안 그리게
+        # **메뉴는 여기 담지 않습니다.** 학교 API 가 3~5초씩 걸려서, 같이 기다리면 홈
+        # 전체가 그만큼 늦어집니다 — 켜자마자 보이는 자리입니다. 화면이 `GET /meal` 로
+        # 따로 받아 급식 칸만 기다립니다.
+        # 키가 없으면 통째로 null 이라 화면이 급식 칸을 아예 그리지 않습니다
         "meal": (
-            {
-                "date": today.isoformat(),
-                "slot": current_meal_slot(minute),
-                "menu": await fetch_meal(db, today),
-            }
+            {"date": today.isoformat(), "slot": current_meal_slot(minute)}
             if KSAIN_API_KEY
             else None
         ),
