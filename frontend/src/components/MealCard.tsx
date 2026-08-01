@@ -13,6 +13,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from "react";
+import { Spinner } from "@heroui/react";
 import { ChevronLeft, ChevronRight, UtensilsCrossed } from "lucide-react";
 import {
     fetchMeal,
@@ -90,7 +91,7 @@ const MealCard: React.FC<MealCardProps> = ({ meal }) => {
     const items = menu?.[slot] ?? [];
 
     return (
-        <RetroCard className="bg-white p-5 md:p-6">
+        <RetroCard className="flex h-full flex-col bg-white p-5 md:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <RetroSubTitle title="Meal" icon={UtensilsCrossed} />
                 <div className="flex items-center gap-1">
@@ -138,15 +139,18 @@ const MealCard: React.FC<MealCardProps> = ({ meal }) => {
                 ))}
             </div>
 
-            <div className={`mt-4 ${loading ? "opacity-40" : ""}`}>
-                {items.length === 0 ? (
-                    <p className="text-sm font-bold text-black/30">
-                        {loading
-                            ? "불러오는 중…"
-                            : menu === null
-                              ? "이날은 급식이 없습니다."
-                              : "이 끼니는 비어 있습니다."}
-                    </p>
+            {/* 학교 API 가 3~5초 걸리는 날이 있어서 빈 칸으로 두면 고장난 것처럼 보입니다 */}
+            <div className="mt-4 flex-1">
+                {loading ? (
+                    <div className="flex h-full min-h-24 items-center justify-center">
+                        <Spinner size="sm" color="primary" />
+                    </div>
+                ) : items.length === 0 ? (
+                    <div className="flex h-full min-h-24 items-center justify-center">
+                        <p className="text-xs font-black uppercase tracking-widest text-black/25">
+                            No Data Found
+                        </p>
+                    </div>
                 ) : (
                     <ul className="space-y-1">
                         {items.map((item) => (
