@@ -114,6 +114,8 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
     const [moveTargets, setMoveTargets] = useState<Record<string, number | null>>({});
     const [addQuery, setAddQuery] = useState("");
     const [openSubject, setOpenSubject] = useState<string | null>(null);
+    /** 목록에서 마우스를 올린 과목 — 시간표에서 그 과목만 남깁니다 */
+    const [hoveredSubject, setHoveredSubject] = useState<string | null>(null);
     const [previewKey, setPreviewKey] = useState<string | null>(null);
     /** 불러오기 전에는 저장하지 않습니다 — 빈 값으로 덮어쓰는 걸 막습니다 */
     const [restored, setRestored] = useState(false);
@@ -742,6 +744,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                             times={scheduleToTimes(effectiveSchedule)}
                             color={studentColor}
                             colorFor={cellColorFor}
+                            highlightSubject={hoveredSubject}
                             showTitle={false}
                             mode="student"
                         />
@@ -800,6 +803,8 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                             key={`add-${subject}`}
                                             shadow="sm"
                                             className="bg-retro-green/15 border-retro-green"
+                                            onMouseEnter={() => setHoveredSubject(subject)}
+                                            onMouseLeave={() => setHoveredSubject(null)}
                                         >
                                             <div className="p-3 flex flex-wrap items-center gap-2">
                                                 <div className="min-w-0 flex-1">
@@ -1003,6 +1008,8 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                         <RetroCard
                                             key={sec.subject}
                                             shadow="sm"
+                                            onMouseEnter={() => setHoveredSubject(sec.subject)}
+                                            onMouseLeave={() => setHoveredSubject(null)}
                                             className={
                                                 isDropped
                                                     ? "bg-retro-primary/15 border-retro-primary"

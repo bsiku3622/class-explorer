@@ -7,6 +7,11 @@ interface TimetableGridProps {
     color?: string;
     /** 칸마다 다른 색을 쓰고 싶을 때. 반환값이 없으면 `color`로 떨어집니다 */
     colorFor?: (time: SectionTime) => string | undefined;
+    /**
+     * 이 과목만 남기고 나머지를 흐리게 합니다 — 목록에서 과목에 호버할 때 씁니다.
+     * 색을 덧칠하지 않는 이유는 칸 색이 이미 상태(이동·충돌·들어옴)를 뜻하고 있어서입니다.
+     */
+    highlightSubject?: string | null;
     className?: string;
     showTitle?: boolean;
     onCellClick?: (subject: string) => void;
@@ -19,6 +24,7 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
     times,
     color = "#7828c8",
     colorFor,
+    highlightSubject = null,
     className = "",
     showTitle = true,
     onCellClick,
@@ -99,11 +105,15 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
                             const accent = info ? colorFor?.(info) : undefined;
                             const cellColor = accent || color;
                             const cellBg = accent ? `${accent}59` : `${color}10`;
+                            const dimmed =
+                                !!highlightSubject &&
+                                !!display &&
+                                info?.subject !== highlightSubject;
 
                             return (
                                 <div
                                     key={`${day}-${period}`}
-                                    className={`relative group transition-all duration-200 border-b border-l border-black/10 ${display ? "cursor-pointer hover:border-transparent hover:z-30 hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] active:scale-[0.98]" : ""}`}
+                                    className={`relative group border-b border-l border-black/10 transition-all duration-200 ${dimmed ? "opacity-20" : ""} ${display ? "cursor-pointer hover:border-transparent hover:z-30 hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] active:scale-[0.98]" : ""}`}
                                     onClick={() => display && onCellClick?.(keyword)}>
                                     {display && (
                                         <>

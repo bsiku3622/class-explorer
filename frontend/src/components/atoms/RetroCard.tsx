@@ -8,7 +8,7 @@ const shadows = {
     lg: "shadow-[8px_8px_0_0_rgba(0,0,0,0.2)]",
 } as const;
 
-interface RetroCardProps {
+interface RetroCardProps extends React.HTMLAttributes<HTMLDivElement> {
     children: React.ReactNode;
     shadow?: keyof typeof shadows;
     className?: string;
@@ -18,8 +18,9 @@ const RetroCard: React.FC<RetroCardProps> = ({
     children,
     shadow = "md",
     className = "",
+    ...rest
 }) => (
-    <div className={`border-2 border-black ${shadows[shadow]} ${className}`}>
+    <div className={`border-2 border-black ${shadows[shadow]} ${className}`} {...rest}>
         {children}
     </div>
 );

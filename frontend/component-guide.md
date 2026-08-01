@@ -6,7 +6,7 @@
 | 컴포넌트 | Props 요약 | 역할 |
 |----------|-----------|------|
 | `RetroButton` | `variant`, `size`, `isSelected`, `icon`, `onClick` | 물리 피드백 버튼 |
-| `RetroCard` | `shadow` (none/sm/md/lg), `className` | 테두리+쉐도우 컨테이너. `none`은 바깥에서 그림자를 걸 때 (탭처럼 카드와 붙는 요소가 있는 경우) |
+| `RetroCard` | `shadow` (none/sm/md/lg), `className` + div 속성 | 테두리+쉐도우 컨테이너. `none`은 바깥에서 그림자를 걸 때 (탭처럼 카드와 붙는 요소가 있는 경우). `onMouseEnter` 같은 div 속성은 그대로 넘어갑니다 |
 | `RetroStatItem` | `label`, `value`, `unit`, `size` (sm/lg) | 숫자 통계 아이템 |
 | `RetroSubTitle` | `title`, `icon` | 섹션 소제목 (표준 스타일 고정) |
 | `StudentBadge` | `studentId`, `studentName`, `size`, `onClick` | 학번색 뱃지 |
@@ -43,7 +43,7 @@
 | `SectionCard` | 개별 분반 카드 (학생 배지, 교사, 강의실, 시간) |
 | `SubjectAccordionItem` | 과목 아코디언 (분반 목록 토글) |
 | `StatsCards` | 3열 통계 카드 (과목수, 분반수, 학생수) |
-| `TimetableGrid` | 요일×교시 시간표 그리드. `colorFor(time)`로 칸마다 다른 색 지정 가능 (미지정 시 `color`) |
+| `TimetableGrid` | 요일×교시 시간표 그리드. `colorFor(time)`로 칸마다 다른 색 지정 가능 (미지정 시 `color`). `highlightSubject`를 주면 그 과목만 남기고 나머지를 흐리게 — 색을 덧칠하지 않는 이유는 칸 색이 이미 상태를 뜻하고 있어서입니다 |
 | `EntityCard` | 검색된 엔티티 카드 (학생/교사/강의실) |
 
 ## Pages (`src/pages/`)
