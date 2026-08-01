@@ -1,5 +1,16 @@
 # Logs
 
+## 2026-08-01 — 트레이드에서 과목에 호버하면 시간표에서 그것만 남습니다
+
+- 변경 파일: `frontend/src/components/TimetableGrid.tsx`, `frontend/src/pages/TradePage.tsx`, `frontend/src/components/atoms/RetroCard.tsx`
+- 요약: My Subjects 목록에서 과목에 마우스를 올리면 시간표의 나머지 칸이 흐려집니다.
+
+과목이 열 개쯤 되면 "이게 어느 칸이지" 를 눈으로 좇게 됩니다. 목록과 시간표를 잇는 가장 싼 방법이 호버입니다.
+
+**색을 덧칠하지 않았습니다.** 칸 색은 이미 상태(이동·충돌·들어옴)를 뜻하고 있어서, 강조색을 하나 더 얹으면 그 뜻이 흐려집니다. 대신 나머지를 `opacity-20` 으로 눕혀서 남은 것이 도드라지게 했습니다.
+
+`RetroCard` 가 div 속성을 그대로 받도록 열었습니다 — 마우스 이벤트를 붙이려고 카드를 한 겹 더 감싸면 그림자와 여백이 어긋납니다.
+
 ## 2026-08-01 — 트레이드에서 못 듣는 과목 걸러내기, 스피너를 원으로
 
 - 변경 파일: `frontend/src/pages/TradePage.tsx`, `frontend/src/components/atoms/RetroSpinner.tsx`, `frontend/src/pages/HomePage.tsx`, 가이드 문서
