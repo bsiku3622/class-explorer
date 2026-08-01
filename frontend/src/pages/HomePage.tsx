@@ -153,8 +153,13 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
             )}
 
             {/* ── 지금 가야 하는 곳 · 급식 ─────────────────────────────── */}
-            <div className="grid items-start gap-4 md:grid-cols-2 md:gap-6">
-                <RetroCard className={`p-5 md:p-6 ${current ? "bg-retro-accent1" : "bg-white"}`}>
+            {/* 두 카드는 높이를 맞춥니다 — 나란히 놓고 한쪽만 짧으면 어긋나 보입니다 */}
+            <div className="grid gap-4 md:grid-cols-2 md:gap-6">
+                <RetroCard
+                    className={`flex h-full flex-col p-5 md:p-6 ${
+                        current ? "bg-retro-accent1" : "bg-white"
+                    }`}
+                >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <RetroSubTitle title="Now" icon={MapPin} />
                         <span className="text-right">
@@ -165,21 +170,25 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
                         </span>
                     </div>
 
-                    {current ? (
-                        <div className="mt-3">
-                            <p className="text-2xl font-black tracking-tighter">
-                                {getKoreanName(current.subject)}
+                    {/* 카드가 옆 칸 높이만큼 늘어나면 남는 자리를 여기가 먹습니다 —
+                        아래 줄(다음 수업·개학까지)이 바닥에 붙게 */}
+                    <div className="mt-3 flex-1">
+                        {current ? (
+                            <>
+                                <p className="text-2xl font-black tracking-tighter">
+                                    {getKoreanName(current.subject)}
+                                </p>
+                                <p className="mt-1 text-sm font-bold text-black/60">
+                                    {current.room} · {current.teacher} ·{" "}
+                                    {current.section.replace(/[^0-9]/g, "")}분반
+                                </p>
+                            </>
+                        ) : (
+                            <p className="text-2xl font-black tracking-tighter text-black/30">
+                                {idleLine}
                             </p>
-                            <p className="mt-1 text-sm font-bold text-black/60">
-                                {current.room} · {current.teacher} ·{" "}
-                                {current.section.replace(/[^0-9]/g, "")}분반
-                            </p>
-                        </div>
-                    ) : (
-                        <p className="mt-3 text-2xl font-black tracking-tighter text-black/30">
-                            {idleLine}
-                        </p>
-                    )}
+                        )}
+                    </div>
 
                     {next && (
                         <div className="mt-4 flex items-center gap-2 border-t-2 border-black/10 pt-3 text-sm font-bold text-black/50">

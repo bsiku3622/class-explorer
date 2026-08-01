@@ -1,5 +1,14 @@
 # Logs
 
+## 2026-08-01 — 급식 로딩·빈 상태, 2열 높이 맞춤
+
+- 변경 파일: `frontend/src/components/MealCard.tsx`, `frontend/src/pages/HomePage.tsx`, 가이드 문서
+- 요약: 급식을 받는 동안 스피너를 돌리고, 비면 `No Data Found` 를 적고, 가로로 놓인 두 카드의 높이를 맞췄습니다.
+
+학교 API 가 3~5초씩 걸리는 날이 있어서 **빈 칸으로 두면 고장난 것처럼 보였습니다.** 받는 동안은 스피너, 그날이나 그 끼니가 비어 있으면 `No Data Found` 입니다.
+
+**Now 와 급식은 높이를 맞춥니다** — `h-full` 로 늘리고 안쪽을 `flex-1` 로 밀어서, Now 카드의 아래 줄(다음 수업·개학까지)이 바닥에 붙습니다. 나란히 놓고 한쪽만 짧으면 어긋나 보입니다.
+
 ## 2026-08-01 — 홈 배치를 2열로, 친구를 Browse 로
 
 - 변경 파일: `frontend/src/pages/{HomePage.tsx,BrowsePage.tsx}`, `frontend/src/components/{FriendsManager.tsx (신규),MealCard.tsx,FriendsModal.tsx (삭제)}`, `frontend/src/{App.tsx,lib/friendsApi.ts}`, `backend/home_router.py`, 가이드 문서
