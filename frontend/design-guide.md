@@ -90,5 +90,17 @@ RetroCard:    border-2 border-black (bg 없음 — className으로 별도 지정
 [data-slot="base"] { border-radius: 0 !important; }  /* 모든 모서리 직각 */
 ```
 
+## 로딩 표시
+
+`RetroSpinner` 를 씁니다. **HeroUI `<Spinner />` 는 이 프로젝트에서 동작하지 않습니다** —
+`animate-spinner-ease-spin`·`w-5` 같은 클래스가 `node_modules` 안에만 있어서 Tailwind v4
+가 유틸리티를 생성하지 않고, 회전 없는 **4px 세로선**으로 그려집니다. 원형 스피너는
+전역 `rounded-none!` 오버라이드와도 싸웁니다.
+
+```
+검은 블록 3개 · animate-pulse · 160ms 씩 어긋난 delay
+sm 8px · md 12px · lg 16px
+```
+
 ## 관련 가이드
 - [component-guide.md](component-guide.md) — 컴포넌트 props & 사용법

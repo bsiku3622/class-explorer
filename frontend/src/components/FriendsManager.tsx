@@ -13,7 +13,6 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Spinner } from "@heroui/react";
 import { Users, X } from "lucide-react";
 import type { SubjectData, Term } from "../types";
 import {
@@ -27,6 +26,7 @@ import RetroButton from "./atoms/RetroButton";
 import RetroCard from "./atoms/RetroCard";
 import RetroSubTitle from "./atoms/RetroSubTitle";
 import SearchInput from "./atoms/SearchInput";
+import RetroSpinner from "./atoms/RetroSpinner";
 
 /** 전교생을 훑는 건 두 글자부터. 한 글자면 이름 하나에 수십 명이 걸립니다 */
 const LOOKUP_MIN_LENGTH = 2;
@@ -255,7 +255,7 @@ const FriendsManager: React.FC<FriendsManagerProps> = ({
 
                 {busy && (
                     <div className="flex justify-center">
-                        <Spinner size="sm" color="primary" />
+                        <RetroSpinner size="sm" />
                     </div>
                 )}
             </div>

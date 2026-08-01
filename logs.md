@@ -1,5 +1,18 @@
 # Logs
 
+## 2026-08-01 — HeroUI 스피너가 한 번도 돈 적이 없었습니다
+
+- 변경 파일: `frontend/src/components/atoms/RetroSpinner.tsx` (신규), `frontend/src/{components/MealCard.tsx,components/FriendsManager.tsx,pages/HomePage.tsx,pages/SearchPage.tsx,pages/AnalysisPage.tsx}`, `frontend/{design-guide.md,component-guide.md}`
+- 요약: HeroUI `<Spinner />` 를 걷어내고 `RetroSpinner` 로 바꿨습니다.
+
+급식 스피너가 "선 하나" 로 보인다는 지적을 받고 DOM 을 뜯어보니 **회전이 아예 없었습니다** (`animation-name: none`). 크기도 `4px x 20px` — `w-5` 가 안 먹어서 테두리만 남은 세로선이었습니다.
+
+원인은 **Tailwind v4 가 소스를 훑어서 유틸리티를 만든다**는 데 있습니다. `animate-spinner-ease-spin`·`w-5` 는 `node_modules/@heroui` 안에만 있어서 스캔 대상이 아니고, 그래서 CSS 가 생성되지 않았습니다. 빌드된 CSS 에 `animate-spinner-ease-spin` 이 **0개** 였습니다. 홈·검색·통계·친구까지 **다섯 군데 전부** 같은 상태였고, 처음부터 그랬습니다.
+
+HeroUI 소스를 `@source` 로 추가하는 길도 있지만 원형 스피너는 어차피 전역 `rounded-none!` 과 싸웁니다. 직각 블록 3개가 어긋나게 깜빡이는 쪽이 나머지 화면과 같은 말을 해서 자체 컴포넌트로 갔습니다.
+
+**같은 함정이 다른 HeroUI 컴포넌트에도 있을 수 있습니다.** `classNames` 로 우리가 직접 스타일을 주는 곳(`SearchInput` 등)은 멀쩡하지만, 라이브러리 기본 클래스에 기대는 부분은 조용히 빠집니다.
+
 ## 2026-08-01 — 급식 로딩·빈 상태, 2열 높이 맞춤
 
 - 변경 파일: `frontend/src/components/MealCard.tsx`, `frontend/src/pages/HomePage.tsx`, 가이드 문서

@@ -10,7 +10,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Spinner } from "@heroui/react";
 import { ArrowRight, CalendarDays, Clock, MapPin, Repeat } from "lucide-react";
 import type { Term } from "../types";
 import { fetchHome, type HomeData, type TodayClass } from "../lib/friendsApi";
@@ -18,6 +17,7 @@ import { isTradeAvailable } from "../lib/features";
 import { getKoreanName } from "../lib/utils";
 import RetroCard from "../components/atoms/RetroCard";
 import RetroSubTitle from "../components/atoms/RetroSubTitle";
+import RetroSpinner from "../components/atoms/RetroSpinner";
 import MealCard from "../components/MealCard";
 
 interface HomePageProps {
@@ -93,7 +93,7 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
     if (loading) {
         return (
             <div className="flex flex-col items-center gap-3 py-32">
-                <Spinner color="primary" size="lg" />
+                <RetroSpinner size="lg" />
             </div>
         );
     }

@@ -13,7 +13,6 @@
  */
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Spinner } from "@heroui/react";
 import { ChevronLeft, ChevronRight, UtensilsCrossed } from "lucide-react";
 import {
     fetchMeal,
@@ -24,6 +23,7 @@ import {
 import RetroButton from "./atoms/RetroButton";
 import RetroCard from "./atoms/RetroCard";
 import RetroSubTitle from "./atoms/RetroSubTitle";
+import RetroSpinner from "./atoms/RetroSpinner";
 
 /** 서버가 여는 범위와 같습니다 (`MEAL_RANGE_DAYS`) */
 const RANGE_DAYS = 31;
@@ -143,7 +143,7 @@ const MealCard: React.FC<MealCardProps> = ({ meal }) => {
             <div className="mt-4 flex-1">
                 {loading ? (
                     <div className="flex h-full min-h-24 items-center justify-center">
-                        <Spinner size="sm" color="primary" />
+                        <RetroSpinner />
                     </div>
                 ) : items.length === 0 ? (
                     <div className="flex h-full min-h-24 items-center justify-center">

@@ -10,7 +10,8 @@ import {
     Calendar,
     BookOpen,
 } from "lucide-react";
-import { Spinner, Tooltip } from "@heroui/react";
+import { Tooltip } from "@heroui/react";
+import RetroSpinner from "../components/atoms/RetroSpinner";
 import type { SubjectData } from "../types";
 import { getStudentColor, getKoreanName } from "../lib/utils";
 import { tooltipMotionProps } from "../constants/motion";
@@ -380,7 +381,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
     if (loading)
         return (
             <div className="flex flex-col items-center justify-center py-40 gap-4">
-                <Spinner size="lg" />
+                <RetroSpinner size="lg" />
                 <p className="font-black uppercase animate-pulse">
                     Analyzing Data...
                 </p>
