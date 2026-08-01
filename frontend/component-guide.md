@@ -11,7 +11,7 @@
 | `RetroSubTitle` | `title`, `icon` | 섹션 소제목 (표준 스타일 고정) |
 | `StudentBadge` | `studentId`, `studentName`, `size`, `onClick` | 학번색 뱃지 |
 | `CopyButton` | `text`, `label`, `title` | 클립보드 복사 + 1.5초간 "복사됨" 표시. https가 아닌 환경은 execCommand로 폴백 |
-| `RetroSpinner` | `size` (sm/md/lg), `label` | 로딩 표시. **HeroUI `<Spinner />` 를 쓰지 마세요** — 그 클래스는 `node_modules` 안에 있어 Tailwind v4 가 유틸리티를 만들지 않습니다 (회전 없이 4px 세로선으로 보입니다) |
+| `RetroSpinner` | `size` (sm/md/lg), `label` | 도는 원 (paper-ui `Spinner` 이식). **HeroUI `<Spinner />` 를 쓰지 마세요** — 그 클래스는 `node_modules` 안에 있어 Tailwind v4 가 유틸리티를 만들지 않습니다 (회전 없이 4px 세로선으로 보입니다) |
 | `SearchInput` | `value`, `onChange`, `placeholder`, `size` (lg/sm), `autoFocus`, `className` | 검색 입력 필드. `sm`은 모달·패널 안에서 — 주인공이 아닌 자리에 `lg`를 두면 검색창이 화면을 다 차지합니다 |
 | `StudentCard` | `stuId`, `name`, `subjects`, `onClick` | 학생 프로필 카드 (툴팁용) |
 | `TeacherCard` | `name`, `subjects`, `onClick` | 교사 프로필 카드 (툴팁용) |
@@ -56,7 +56,7 @@
 | `RoomsPage` | `/emptyroomfinder` | 형설관 빈 교실 탐색 |
 | `AnalysisPage` | `/analysis` | 학사 데이터 통계 대시보드 |
 | `BrowsePage` | `/browse` | 학생·교사 목록 + 교육과정 그래프 + 친구 관리 (Students / Teachers / Courses / Friends 토글) |
-| `TradePage` | `/trade` | 수강 변경 탐색 (2026-2 한정, features 플래그) |
+| `TradePage` | `/trade` | 수강 변경 탐색 (2026-2 한정, features 플래그). 드랍한 과목은 시간표에서 빠지고, 추천 목록은 이미 들었거나 선수를 안 채운 과목을 걸러 냅니다 |
 | `ZamongPage` | `/zamong` | 교육과정 이수 현황 — 졸업 요건 진척도 + 평어·평점 + 선수관계 그래프 (학번 등록 필요) |
 | `CalendarPage` | `/calendar` | 학사일정 달력 — 월 격자 + 날짜 상세 + 개인 일정(반복 가능) + 제안 서랍 |
 | `SettingsPage` | `/about` | 기능 가이드북 + About |

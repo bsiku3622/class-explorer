@@ -40,6 +40,14 @@ import {
     formatSectionTimes,
 } from "../lib/utils";
 import { fuzzyMatch } from "../lib/searchEngine";
+import api from "../lib/api";
+import {
+    buildPrereqIndex,
+    courseState,
+    inferPrereqs,
+    type Curriculum,
+    type ProgressTerm,
+} from "../lib/curriculum";
 import { loadState, saveState } from "../lib/userState";
 import RetroCard from "../components/atoms/RetroCard";
 import RetroButton from "../components/atoms/RetroButton";
@@ -56,6 +64,21 @@ interface TradePageProps {
     myStuId: string | null;
 }
 
+/**
+ * 이 과목을 지금 새로 담을 수 있는지.
+ *
+ * `taken` 은 이미 들은 과목(또는 선수 체인으로 들었을 수밖에 없는 과목), `locked` 는
+ * 선수를 아직 안 채운 과목입니다. 교육과정에 없는 과목(외국인 전형 등)은 판단할 근거가
+ * 없어 `open` 으로 둡니다 — 모르는 걸 막으면 멀쩡한 과목이 사라집니다.
+ */
+type Addability = "open" | "taken" | "locked";
+
+const ADDABILITY_LABEL: Record<Addability, string> = {
+    open: "",
+    taken: "이수함",
+    locked: "선수 미이수",
+};
+
 const ACTION_LABEL: Record<PlanAction, string> = {
     keep: "유지",
     move: "이동",
@@ -69,6 +92,11 @@ const sectionLabel = (s: SectionInfo) =>
 
 /** 계정 저장으로 옮기기 전에 쓰던 키 — 남아 있으면 한 번 옮겨 옵니다 */
 const LEGACY_STATE_KEY = "ksa_trade_state";
+
+const authHeader = () => {
+    const token = localStorage.getItem("ksa_session_token");
+    return token ? { Authorization: `Bearer ${token}` } : undefined;
+};
 
 interface SavedState {
     stuId: string | null;
@@ -89,6 +117,36 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
     const [previewKey, setPreviewKey] = useState<string | null>(null);
     /** 불러오기 전에는 저장하지 않습니다 — 빈 값으로 덮어쓰는 걸 막습니다 */
     const [restored, setRestored] = useState(false);
+    /** 이미 들은 과목과 선수 조건을 가리는 데 씁니다 */
+    const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
+    /** 어느 학생의 응답인지 함께 들고 있어야 학번이 바뀔 때 섞이지 않습니다 */
+    const [progress, setProgress] = useState<{
+        stuId: string;
+        terms: ProgressTerm[];
+    } | null>(null);
+
+    useEffect(() => {
+        api.get("/curriculum", { headers: authHeader() })
+            .then((res) => setCurriculum(res.data))
+            .catch(() => setCurriculum(null));
+    }, []);
+
+    useEffect(() => {
+        if (!stuId) return;
+        let cancelled = false;
+        api.get(`/curriculum/progress/${encodeURIComponent(stuId)}`, {
+            headers: authHeader(),
+        })
+            .then((res) => {
+                if (!cancelled) setProgress({ stuId, terms: res.data.terms ?? [] });
+            })
+            .catch(() => {
+                if (!cancelled) setProgress({ stuId, terms: [] });
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [stuId]);
 
     // 계정 정보(`myStuId`)가 늦게 도착할 수 있어, 복원 전까지는 다시 시도합니다
     useEffect(() => {
@@ -241,12 +299,12 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
     /**
      * 왼쪽 시간표에 그릴 내용.
      * 조합을 고르면 그 결과를, 고르기 전에는 지금까지 지정한 드랍·추가를 바로 반영합니다.
-     * 빠지는 과목은 남겨둔 채 색으로 구분해 어느 시간이 비는지 보이게 합니다.
+     *
+     * **드랍한 과목은 그리지 않습니다.** 한때 색만 바꿔 남겨 뒀지만, 어느 시간이 비는지는
+     * 칸이 비어야 가장 잘 보입니다 — 남겨 두면 새로 넣을 자리가 여전히 차 있어 보입니다.
      */
     const {
-        previewSchedule,
         effectiveSchedule,
-        leavingSubjects,
         enteringSubjects,
         movedSubjects,
         conflictingSubjects,
@@ -263,13 +321,9 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                     else if (!c.from) entering.add(c.subject);
                     else if (c.from.id !== c.to.id) moved.add(c.subject);
                 });
-                const dropped = schedule.filter((s) => leaving.has(s.subject));
-                // 빠지는 과목을 앞에 둬서, 같은 칸이 겹치면 새로 들어오는 쪽이 보이게 합니다
                 const applied = applyPlan(schedule, previewPlan);
                 return {
-                    previewSchedule: [...dropped, ...applied],
                     effectiveSchedule: applied,
-                    leavingSubjects: leaving,
                     enteringSubjects: entering,
                     movedSubjects: moved,
                     conflictingSubjects: conflicting, // 성립한 조합이라 충돌이 없습니다
@@ -318,11 +372,8 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                 );
             });
 
-            const dropped = schedule.filter((s) => leaving.has(s.subject));
             return {
-                previewSchedule: [...dropped, ...staying, ...added],
                 effectiveSchedule: [...staying, ...added],
-                leavingSubjects: leaving,
                 enteringSubjects: entering,
                 movedSubjects: moved,
                 conflictingSubjects: conflicting,
@@ -382,12 +433,11 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
         (time: { subject?: string }) => {
             if (!time.subject) return undefined;
             if (conflictingSubjects.has(time.subject)) return "#ff9100";
-            if (leavingSubjects.has(time.subject)) return "#ff4eba";
             if (movedSubjects.has(time.subject)) return "#00c8ff";
             if (enteringSubjects.has(time.subject)) return "#00c22a";
             return undefined;
         },
-        [leavingSubjects, movedSubjects, enteringSubjects, conflictingSubjects],
+        [movedSubjects, enteringSubjects, conflictingSubjects],
     );
 
     /** 특정 과목을 비웠다고 가정했을 때 다른 과목이 차지 중인 슬롯 */
@@ -407,6 +457,53 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
     const enrolledSubjects = useMemo(
         () => new Set(schedule.map((s) => s.subject)),
         [schedule],
+    );
+
+    const prereqIndex = useMemo(
+        () => buildPrereqIndex(curriculum?.prerequisites ?? []),
+        [curriculum],
+    );
+
+    /**
+     * 이 학생이 지금까지 들은 과목 / 이번 학기에 듣고 있는 과목.
+     *
+     * 응답의 마지막 학기가 이번 학기입니다. 지난 학기 것이 `taken`, 이번 학기 것이
+     * `current` 이고, 둘을 나누는 이유는 **이번 학기 과목은 "이미 들었다" 가 아니기**
+     * 때문입니다 — 그건 시간표에 이미 있어서 따로 걸러집니다.
+     */
+    const { taken, current } = useMemo(() => {
+        const terms = progress?.stuId === stuId ? progress.terms : [];
+        const past = new Set<string>();
+        const now = new Set<string>();
+        terms.forEach((term, i) => {
+            const target = i === terms.length - 1 ? now : past;
+            term.courses.forEach((item) => {
+                if (item.course) target.add(item.course);
+            });
+        });
+        return { taken: past, current: now };
+    }, [progress, stuId]);
+
+    const inferred = useMemo(
+        () => inferPrereqs(new Set([...taken, ...current]), prereqIndex),
+        [taken, current, prereqIndex],
+    );
+
+    /**
+     * 이 과목을 새로 담을 수 있는지. 교육과정을 아직 못 받았으면 아무것도 가리지
+     * 않습니다 — 데이터가 늦게 온다고 과목이 사라지면 안 됩니다.
+     */
+    const addabilityOf = useCallback(
+        (subject: string): Addability => {
+            if (!curriculum) return "open";
+            const course = curriculum.subject_map[subject];
+            if (!course) return "open"; // 교육과정에 없는 과목은 판단할 근거가 없습니다
+            const state = courseState(course, taken, current, inferred, prereqIndex);
+            if (state === "taken" || state === "inferred") return "taken";
+            if (state === "locked") return "locked";
+            return "open";
+        },
+        [curriculum, taken, current, inferred, prereqIndex],
     );
 
     const dropSubjects = useMemo(
@@ -450,17 +547,25 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
             ),
         }))
             .filter((g) => g.usesFreed)
+            // 이미 들었거나 선수를 안 채운 과목은 권할 수 없습니다. 그래도 굳이 보고
+            // 싶으면 아래 검색으로 찾을 수 있습니다
+            .filter((g) => addabilityOf(g.subject) === "open")
             .sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
-    }, [dropSubjects, schedule, effectiveSchedule, index]);
+    }, [dropSubjects, schedule, effectiveSchedule, index, addabilityOf]);
 
     const addedSubjects = useMemo(
         () => addSelections.map((a) => a.subject),
         [addSelections],
     );
 
+    /**
+     * 검색 결과. **거르지 않고 다 보여 줍니다** — 이미 들었거나 선수를 안 채운 과목도
+     * 찾을 수는 있어야 합니다. 대신 담을 수 있는 것부터 놓고 나머지는 회색으로 눕힙니다.
+     */
     const addMatches = useMemo(() => {
         const q = addQuery.trim();
         if (!q) return [];
+        const RANK: Record<Addability, number> = { open: 0, taken: 1, locked: 2 };
         return allClassesData
             .filter((s) => !enrolledSubjects.has(s.subject))
             .filter(
@@ -469,14 +574,15 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                     fuzzyMatch(getKoreanName(s.subject), q) ||
                     (!!s.subject_english && fuzzyMatch(s.subject_english, q)),
             )
-            .slice(0, 20)
-            .map((s) => s.subject);
-    }, [allClassesData, addQuery, enrolledSubjects]);
+            .map((s) => ({ subject: s.subject, state: addabilityOf(s.subject) }))
+            .sort((a, b) => RANK[a.state] - RANK[b.state])
+            .slice(0, 20);
+    }, [allClassesData, addQuery, enrolledSubjects, addabilityOf]);
 
     /** 추가 후보 과목별로 "바로 들어가는 분반이 있는지" 요약 */
     const addSummaries = useMemo(() => {
         const map = new Map<string, { free: number; total: number }>();
-        [...addedSubjects, ...addMatches].forEach((subject) => {
+        [...addedSubjects, ...addMatches.map((m) => m.subject)].forEach((subject) => {
             if (map.has(subject)) return;
             const candidates = evaluateAddCandidates(effectiveSchedule, index, subject);
             map.set(subject, {
@@ -633,23 +739,16 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                             )}
                         </div>
                         <TimetableGrid
-                            times={scheduleToTimes(previewSchedule)}
+                            times={scheduleToTimes(effectiveSchedule)}
                             color={studentColor}
                             colorFor={cellColorFor}
                             showTitle={false}
                             mode="student"
                         />
-                        {(leavingSubjects.size > 0 ||
-                            enteringSubjects.size > 0 ||
+                        {(enteringSubjects.size > 0 ||
                             movedSubjects.size > 0 ||
                             conflictingSubjects.size > 0) && (
                             <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-widest">
-                                {leavingSubjects.size > 0 && (
-                                    <span className="flex items-center gap-1.5">
-                                        <span className="w-3 h-3 border-2 border-black bg-retro-primary/30" />
-                                        빠짐
-                                    </span>
-                                )}
                                 {movedSubjects.size > 0 && (
                                     <span className="flex items-center gap-1.5">
                                         <span className="w-3 h-3 border-2 border-black bg-retro-accent5/40" />
@@ -1184,13 +1283,11 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
 
                         {openedByDrop.length > 0 && (
                             <div className="space-y-3">
-                                <RetroSubTitle
-                                    title="Opened by Drop"
-                                    icon={Trash2}
-                                />
+                                <RetroSubTitle title="You Can Add" icon={Plus} />
                                 <p className="text-[10px] font-bold text-black/40">
                                     드랍으로 비는 시간에 새로 들어갈 수 있는 과목입니다.
-                                    누르면 추가 후보에 담깁니다.
+                                    이미 들었거나 선수를 안 채운 과목은 빼 뒀습니다 —
+                                    그런 과목은 아래 검색으로 찾을 수 있습니다.
                                 </p>
                                 <div className="flex flex-wrap gap-1.5">
                                     {openedByDrop.map(({ subject, sections }) => (
@@ -1232,34 +1329,53 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                             />
                             {addMatches.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
-                                    {addMatches.map((subject) => {
+                                    {addMatches.map(({ subject, state }) => {
                                         const picked = addedSubjects.includes(subject);
                                         const summary = addSummaries.get(subject);
+                                        // 이미 들었거나 선수를 안 채운 과목 — 고를 수는
+                                        // 있지만 눈에 덜 띄게 눕혀 둡니다
+                                        const dim = state !== "open";
                                         return (
                                             <button
                                                 key={subject}
                                                 onClick={() => toggleAddSubject(subject)}
+                                                title={ADDABILITY_LABEL[state] || undefined}
                                                 className={`border-2 px-2 py-1 text-[11px] font-bold transition-all duration-100 ${
                                                     picked
                                                         ? "bg-black text-white border-black"
-                                                        : "bg-white border-black hover:border-black"
+                                                        : dim
+                                                          ? "border-black/20 bg-black/[0.03] text-black/40"
+                                                          : "bg-white border-black hover:border-black"
                                                 }`}
                                             >
                                                 <span className="font-black">
                                                     {getKoreanName(subject)}
                                                 </span>
-                                                {summary && (
+                                                {dim ? (
                                                     <span
                                                         className={
                                                             picked
                                                                 ? "text-white/60"
-                                                                : "text-black/40"
+                                                                : "text-black/30"
                                                         }
                                                     >
                                                         {" "}
-                                                        · 바로가능 {summary.free}/
-                                                        {summary.total}
+                                                        · {ADDABILITY_LABEL[state]}
                                                     </span>
+                                                ) : (
+                                                    summary && (
+                                                        <span
+                                                            className={
+                                                                picked
+                                                                    ? "text-white/60"
+                                                                    : "text-black/40"
+                                                            }
+                                                        >
+                                                            {" "}
+                                                            · 바로가능 {summary.free}/
+                                                            {summary.total}
+                                                        </span>
+                                                    )
                                                 )}
                                             </button>
                                         );

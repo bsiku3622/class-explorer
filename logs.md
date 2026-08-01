@@ -1,5 +1,18 @@
 # Logs
 
+## 2026-08-01 — 트레이드에서 못 듣는 과목 걸러내기, 스피너를 원으로
+
+- 변경 파일: `frontend/src/pages/TradePage.tsx`, `frontend/src/components/atoms/RetroSpinner.tsx`, `frontend/src/pages/HomePage.tsx`, 가이드 문서
+- 요약: 드랍한 과목을 시간표에서 빼고, 추가 후보에서 이미 들었거나 선수를 안 채운 과목을 걸러 냈습니다. 스피너는 paper-ui 의 도는 원으로 바꿨습니다.
+
+**드랍한 과목을 시간표에 그리지 않습니다.** 한때 색만 바꿔 남겨 뒀지만, 어느 시간이 비는지는 칸이 비어야 가장 잘 보입니다 — 남겨 두면 새로 넣을 자리가 여전히 차 있어 보입니다. 범례의 "빠짐" 도 같이 없앴습니다.
+
+**`Opened by Drop` 을 `You Can Add` 로 바꾸고, 담을 수 없는 과목을 뺐습니다.** 이미 들은 과목(또는 선수 체인상 들었을 과목)과 선수를 안 채운 과목은 권할 이유가 없습니다. 판단은 `GET /curriculum` 의 선수관계와 `GET /curriculum/progress/{stuId}` 의 이수 내역으로 합니다 — Zamong 이 쓰던 `courseState()` 를 그대로 씁니다.
+
+**검색은 거르지 않습니다.** 굳이 찾아보고 싶을 수 있어서 결과에는 남기되, 담을 수 있는 것부터 놓고 나머지는 회색으로 눕히고 `이수함`·`선수 미이수` 를 붙였습니다. 교육과정에 없는 과목(외국인 전형 등)은 판단할 근거가 없어 그냥 통과시킵니다 — 모르는 걸 막으면 멀쩡한 과목이 사라집니다.
+
+**스피너는 paper-ui 의 `Spinner` 를 옮겼습니다** — 옅은 링에 위쪽 한 조각만 진한 원, 900ms linear. 블록 3개보다 이쪽이 로딩으로 더 곧장 읽힙니다.
+
 ## 2026-08-01 — HeroUI 스피너가 한 번도 돈 적이 없었습니다
 
 - 변경 파일: `frontend/src/components/atoms/RetroSpinner.tsx` (신규), `frontend/src/{components/MealCard.tsx,components/FriendsManager.tsx,pages/HomePage.tsx,pages/SearchPage.tsx,pages/AnalysisPage.tsx}`, `frontend/{design-guide.md,component-guide.md}`

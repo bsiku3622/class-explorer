@@ -97,9 +97,12 @@ RetroCard:    border-2 border-black (bg 없음 — className으로 별도 지정
 가 유틸리티를 생성하지 않고, 회전 없는 **4px 세로선**으로 그려집니다. 원형 스피너는
 전역 `rounded-none!` 오버라이드와도 싸웁니다.
 
+생김새는 **paper-ui 의 `Spinner`** 를 옮겼습니다 — 옅은 링에 위쪽 한 조각만 진해서
+회전이 읽힙니다.
+
 ```
-검은 블록 3개 · animate-pulse · 160ms 씩 어긋난 delay
-sm 8px · md 12px · lg 16px
+rounded-full · border-black/15 · border-t-black · 900ms linear
+sm 16px(2px) · md 20px(2px) · lg 28px(3px)
 ```
 
 ## 관련 가이드
