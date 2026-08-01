@@ -11,6 +11,8 @@
 
 `RetroCard` 가 div 속성을 그대로 받도록 열었습니다 — 마우스 이벤트를 붙이려고 카드를 한 겹 더 감싸면 그림자와 여백이 어긋납니다.
 
+**지목된 칸에는 테두리까지 켭니다.** 마우스를 직접 올렸을 때 뜨는 오버레이를 그대로 재사용해서, 목록에서 가리키든 칸을 짚든 같은 모양이 되게 했습니다. 과목 카드도 호버하면 4px 떠오르고 그림자가 커집니다 — 어느 줄을 가리키고 있는지 손이 아니라 화면이 알려 줘야 합니다.
+
 ## 2026-08-01 — 트레이드에서 못 듣는 과목 걸러내기, 스피너를 원으로
 
 - 변경 파일: `frontend/src/pages/TradePage.tsx`, `frontend/src/components/atoms/RetroSpinner.tsx`, `frontend/src/pages/HomePage.tsx`, 가이드 문서

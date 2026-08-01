@@ -802,7 +802,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                         <RetroCard
                                             key={`add-${subject}`}
                                             shadow="sm"
-                                            className="bg-retro-green/15 border-retro-green"
+                                            className="bg-retro-green/15 border-retro-green transition-all duration-100 hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]"
                                             onMouseEnter={() => setHoveredSubject(subject)}
                                             onMouseLeave={() => setHoveredSubject(null)}
                                         >
@@ -1010,13 +1010,13 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                             shadow="sm"
                                             onMouseEnter={() => setHoveredSubject(sec.subject)}
                                             onMouseLeave={() => setHoveredSubject(null)}
-                                            className={
+                                            className={`transition-all duration-100 hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] ${
                                                 isDropped
                                                     ? "bg-retro-primary/15 border-retro-primary"
                                                     : isMoving
                                                       ? "bg-retro-accent5/15 border-retro-accent5"
                                                       : "bg-white border-black"
-                                            }
+                                            }`}
                                         >
                                             <div className="p-3 flex flex-wrap items-center gap-2">
                                                 <div className="min-w-0 flex-1">

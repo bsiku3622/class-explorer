@@ -105,21 +105,21 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
                             const accent = info ? colorFor?.(info) : undefined;
                             const cellColor = accent || color;
                             const cellBg = accent ? `${accent}59` : `${color}10`;
-                            const dimmed =
-                                !!highlightSubject &&
-                                !!display &&
-                                info?.subject !== highlightSubject;
+                            const marked = !!highlightSubject && !!display;
+                            const highlighted =
+                                marked && info?.subject === highlightSubject;
+                            const dimmed = marked && !highlighted;
 
                             return (
                                 <div
                                     key={`${day}-${period}`}
-                                    className={`relative group border-b border-l border-black/10 transition-all duration-200 ${dimmed ? "opacity-20" : ""} ${display ? "cursor-pointer hover:border-transparent hover:z-30 hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] active:scale-[0.98]" : ""}`}
+                                    className={`relative group border-b border-l border-black/10 transition-all duration-200 ${dimmed ? "opacity-20" : ""} ${highlighted ? "z-30 border-transparent shadow-[0_0_15px_rgba(0,0,0,0.2)]" : ""} ${display ? "cursor-pointer hover:border-transparent hover:z-30 hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] active:scale-[0.98]" : ""}`}
                                     onClick={() => display && onCellClick?.(keyword)}>
                                     {display && (
                                         <>
-                                            {/* Hover Overlay */}
+                                            {/* 마우스를 올렸을 때와, 밖에서 지목됐을 때 같은 테두리 */}
                                             <div
-                                                className="absolute border-2 transition-all duration-200 pointer-events-none z-30 opacity-0 group-hover:opacity-100"
+                                                className={`absolute border-2 transition-all duration-200 pointer-events-none z-30 group-hover:opacity-100 ${highlighted ? "opacity-100" : "opacity-0"}`}
                                                 style={{
                                                     borderColor: cellColor,
                                                     backgroundColor: `${cellColor}15`,
