@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Search, Link } from "lucide-react";
-import { Spinner } from "@heroui/react";
+import RetroSpinner from "../components/atoms/RetroSpinner";
 import SearchInput from "../components/atoms/SearchInput";
 import type { SubjectData, Stats, SearchResultStats } from "../types";
 import FilterSection from "../components/FilterSection";
@@ -125,7 +125,7 @@ const SearchPage: React.FC<SearchPageProps> = ({
             <div className="relative">
                 {loading && (
                     <div className="absolute inset-0 z-50 flex flex-col items-center justify-start pt-40 gap-4 bg-retro-bg/40 backdrop-blur-[2px]">
-                        <Spinner color="primary" size="lg" />
+                        <RetroSpinner size="lg" />
                         <p className="text-lg font-black uppercase animate-pulse">
                             Scanning Grid...
                         </p>

@@ -111,3 +111,4 @@
 - [x] 급식을 끼니 토글로 (아침·점심·저녁 버튼 + 날짜 화살표)
 - [x] 친구 관리를 홈 모달에서 Browse 탭으로 이동
 - [x] 급식 로딩 스피너 · `No Data Found` · 2열 높이 맞춤
+- [x] HeroUI 스피너 교체 (`RetroSpinner`) — Tailwind v4 가 node_modules 클래스를 안 만듭니다
