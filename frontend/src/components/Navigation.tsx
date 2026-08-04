@@ -1,3 +1,12 @@
+/**
+ * 상단 고정 바.
+ *
+ * **좁은 화면에는 두 개만 둡니다 — 로고와 학기 선택.** 계정 이름과 로그아웃까지
+ * 넣었더니 390px 에서 서로를 밀어내 잘렸습니다. 로그아웃은 하단 바의 More 안으로
+ * 옮겼고(`BottomNav`), 거기서는 두 번 눌러야 실행됩니다 — 자주 쓰지도 않는데 잘못
+ * 누르면 되돌릴 방법이 다시 로그인뿐입니다.
+ */
+
 import React from "react";
 import { Navbar, NavbarBrand, NavbarContent } from "@heroui/react";
 import { LogOut, ShieldCheck } from "lucide-react";
@@ -32,7 +41,7 @@ const Navigation: React.FC<NavigationProps> = ({
             <NavbarBrand>
                 <button
                     onClick={onLogoClick}
-                    className="text-2xl font-black tracking-tighter text-white uppercase transform -skew-x-6 hover:scale-105 transition-transform active:scale-95"
+                    className="transform text-2xl font-black uppercase -skew-x-6 tracking-tighter text-white transition-transform hover:scale-105 active:scale-95"
                 >
                     Class Explorer
                 </button>
@@ -51,12 +60,13 @@ const Navigation: React.FC<NavigationProps> = ({
                         {username}
                     </span>
                 )}
+                {/* 좁은 화면에서는 하단 바의 More 안에 있습니다 */}
                 <button
                     onClick={onLogout}
-                    className="flex items-center gap-2 border-2 border-white/30 hover:border-white bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 transition-all duration-100"
+                    className="hidden items-center gap-2 border-2 border-white/30 bg-white/10 px-3 py-1.5 text-white transition-all duration-100 hover:border-white hover:bg-white/20 sm:flex"
                 >
                     <LogOut size={14} strokeWidth={2.5} />
-                    <span className="hidden sm:inline text-xs font-black uppercase tracking-widest">
+                    <span className="text-xs font-black uppercase tracking-widest">
                         Logout
                     </span>
                 </button>
