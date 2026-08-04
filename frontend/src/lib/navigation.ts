@@ -5,8 +5,12 @@
  * 순서가 서로 달랐습니다. 두 화면이 같은 앱이라는 걸 사용자가 아는 방법은 메뉴가
  * 같은 순서인 것뿐입니다.
  *
- * 순서는 **얼마나 자주 여는가**입니다 — 홈에서 시작해 사람·교실을 찾고, 그다음이
- * 일정과 성적, 한시 기능, 마지막이 안내입니다.
+ * 순서는 두 가지가 정합니다 —
+ *
+ * 1. **얼마나 자주 여는가.** 앞 넷(홈·서치·룸·캘린더)이 모바일 하단 바에 그대로
+ *    올라갑니다. 매일 여는 것이 손가락에 가까워야 합니다
+ * 2. **누구 것을 보는가.** 브라우즈·아날리시스는 전교생과 통계, 자몽·트레이드는
+ *    내 이수현황과 내 수강입니다 — 남을 보는 화면끼리, 내 것끼리 붙여 둡니다
  */
 
 import {
@@ -35,14 +39,17 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
+    // 매일 여는 것 — 여기까지가 모바일 하단 바
     { id: "home", label: "Home", icon: House },
     { id: "search", label: "Search", icon: Search },
-    { id: "browse", label: "Browse", icon: Library },
     { id: "emptyroomfinder", label: "Rooms", icon: Map },
     { id: "calendar", label: "Calendar", icon: CalendarDays },
+    // 전교생·통계 — 남을 보는 화면
+    { id: "browse", label: "Browse", icon: Library },
+    { id: "analysis", label: "Analysis", icon: BarChart3 },
+    // 내 것
     { id: "zamong", label: "Zamong", icon: GraduationCap },
     { id: "trade", label: "Trade", icon: ArrowLeftRight, temporary: true },
-    { id: "analysis", label: "Analysis", icon: BarChart3 },
     { id: "about", label: "About", icon: Info },
 ];
 
