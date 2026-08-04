@@ -648,6 +648,7 @@ const App: React.FC = () => {
                 }
                 isAdmin={hasRole(currentUser?.role, "admin")}
                 showTrade={tradeAvailable}
+                onLogout={handleLogout}
             />
         </div>
     );
