@@ -1,5 +1,17 @@
 # Logs
 
+## 2026-08-04 — 메뉴 정리 (순서·사이드바 고정·모바일 5버튼)
+
+- 변경 파일: `frontend/src/lib/navigation.ts`(새로), `frontend/src/components/Sidebar.tsx`, `frontend/src/components/BottomNav.tsx`, `frontend/src/App.tsx`
+- 요약: 메뉴 순서를 한 곳에서 정하고, 사이드바는 상태 카드를 아래 고정, 모바일은 다섯 버튼으로 줄였습니다.
+
+**순서를 두 벌 들고 있었습니다.** 사이드바와 하단 바가 각자 배열을 가지고 있어 한쪽만 고치면 순서가 서로 달라졌습니다 — `lib/navigation.ts` 하나로 모았습니다. 새 순서는 홈 · 서치 · 브라우즈 · 룸스 · 캘린더 · 자몽 · 트레이드 · 애널리시스 · 어바웃입니다.
+
+**System Status 를 맨 아래에 붙였습니다.** 메뉴가 길어지면 상태 카드가 화면 밖으로 밀려났는데, 그건 "서버가 살아 있나" 를 보려고 스크롤해야 한다는 뜻이라 표시등의 의미가 없어집니다. 스크롤은 메뉴 영역만 합니다. Admin 아래 구분선은 지웠습니다 — 바로 밑 상태 카드 테두리와 겹쳐 선이 두 줄로 읽혔습니다.
+
+**모바일 하단 바는 다섯 개입니다** — 자주 여는 넷 + 나머지를 여는 햄버거. 여덟 개를 390px 에 욱여넣으면 글자가 4px 이 되고 손가락이 옆 버튼을 누릅니다. 펼친 판은 하단 바 바로 위에 붙습니다(화면 한가운데에 띄우면 방금 누른 버튼과 멀어져 어디서 열렸는지가 안 보입니다). Admin 도 여기로 들어와서 모바일에서 처음으로 관리 화면에 갈 수 있게 됐습니다.
+
+
 ## 2026-08-04 — 홈 배치 V2 (낮고 가로로 긴 판본)
 
 - 변경 파일: `frontend/src/components/home/TodayCardV1.tsx`(새로, V1 을 옮김), `frontend/src/components/home/TodayCardV2.tsx`(새로), `frontend/src/lib/homeView.ts`(새로), `frontend/src/pages/HomePage.tsx`, `frontend/src/components/TodayTimeline.tsx`, `backend/home_router.py`

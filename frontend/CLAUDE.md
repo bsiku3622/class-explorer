@@ -18,6 +18,7 @@ src/
 │   ├── curriculum.ts         → 졸업 요건 진척도 + 평점 + 선수관계 그래프 배치
 │   ├── userState.ts          → 계정별 화면 상태 저장/복원 (localStorage 이관 포함)
 │   ├── features.ts           → 한시 기능 노출 플래그 (TRADE_FEATURE)
+│   ├── navigation.ts         → 메뉴 순서 (사이드바·하단 바가 같이 씁니다)
 │   └── friendsApi.ts         → 홈·친구·교시 시각표 질의 (백엔드는 두 앱 공용)
 ├── constants/
 │   └── motion.ts             → Framer Motion 설정값
