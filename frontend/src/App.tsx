@@ -30,6 +30,8 @@ const TradePage = React.lazy(() => import("./pages/TradePage"));
 const HomePage = React.lazy(() => import("./pages/HomePage"));
 const ZamongPage = React.lazy(() => import("./pages/ZamongPage"));
 const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
+// 개발 전용 — funky-ui 토큰 작업용 컴포넌트 표본집. 메뉴에 올리지 않습니다
+const InventoryPage = React.lazy(() => import("./pages/InventoryPage"));
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
 const CACHE_PREFIX = "ksa_class_finder_cache";
@@ -619,6 +621,12 @@ const App: React.FC = () => {
                             />
                             {hasRole(currentUser?.role, "admin") && (
                                 <Route path="/admin" element={<AdminPage />} />
+                            )}
+                            {import.meta.env.DEV && (
+                                <Route
+                                    path="/inventory"
+                                    element={<InventoryPage />}
+                                />
                             )}
                             <Route
                                 path="*"
