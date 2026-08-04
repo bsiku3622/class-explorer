@@ -32,6 +32,11 @@ bench-frontend/dist/
 bench-frontend/dist-ssr/
 bench-frontend/*.local
 
+# Environment variables — .env.example 만 추적합니다
+.env
+.env.*
+!.env.example
+
 # Local HTTPS certificates
 frontend/*.pem
 bench-frontend/*.pem
