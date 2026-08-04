@@ -145,6 +145,20 @@ RetroCard:    border-2 border-black (bg 없음 — className으로 별도 지정
 [data-slot="base"] { border-radius: 0 !important; }  /* 모든 모서리 직각 */
 ```
 
+## 넘치는 한 줄
+
+문장 전체가 곧 내용인 자리(배너 등)는 `…` 로 자르지 말고 `MarqueeText` 를 씁니다 —
+자르면 뒷말을 영영 못 읽습니다.
+
+```
+넘칠 때만 움직임 (ResizeObserver 로 다시 잼)
+속도 45px/s 고정 · 양 끝에서 10%씩 멈춤 · 최소 6초
+prefers-reduced-motion 이면 정지
+```
+
+목록의 과목명·교실처럼 **옆에 같은 정보가 또 있는 자리**는 그냥 `truncate` 로 둡니다.
+움직이는 것이 늘어나면 정작 "지금" 이 안 보입니다.
+
 ## 로딩 표시
 
 `RetroSpinner` 를 씁니다. **HeroUI `<Spinner />` 는 이 프로젝트에서 동작하지 않습니다** —

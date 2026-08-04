@@ -12,6 +12,7 @@
 | `StudentBadge` | `studentId`, `studentName`, `size`, `onClick` | 학번색 뱃지 |
 | `CopyButton` | `text`, `label`, `title` | 클립보드 복사 + 1.5초간 "복사됨" 표시. https가 아닌 환경은 execCommand로 폴백 |
 | `RetroSpinner` | `size` (sm/md/lg), `label` | 도는 원 (paper-ui `Spinner` 이식). **HeroUI `<Spinner />` 를 쓰지 마세요** — 그 클래스는 `node_modules` 안에 있어 Tailwind v4 가 유틸리티를 만들지 않습니다 (회전 없이 4px 세로선으로 보입니다) |
+| `MarqueeText` | `children`, `className` | 한 줄이 자리에 안 들어갈 때 **`…` 로 자르는 대신 좌우로 훑고 돌아옵니다.** 잘린 문장은 뒷말을 영영 못 읽습니다 — 배너처럼 문장 전체가 곧 내용인 자리에 씁니다. **넘칠 때만** 움직이고(`ResizeObserver` 로 다시 잼), `prefers-reduced-motion` 이면 안 움직입니다. 속도는 거리와 무관하게 일정 |
 | `SearchInput` | `value`, `onChange`, `placeholder`, `size` (lg/sm), `autoFocus`, `className` | 검색 입력 필드. `sm`은 모달·패널 안에서 — 주인공이 아닌 자리에 `lg`를 두면 검색창이 화면을 다 차지합니다 |
 | `StudentCard` | `stuId`, `name`, `subjects`, `onClick` | 학생 프로필 카드 (툴팁용) |
 | `TeacherCard` | `name`, `subjects`, `onClick` | 교사 프로필 카드 (툴팁용) |
