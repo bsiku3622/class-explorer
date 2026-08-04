@@ -25,6 +25,7 @@ import { fetchHome, type HomeData } from "../lib/friendsApi";
 import { isTradeAvailable } from "../lib/features";
 import { applyHomeDemo, HOME_DEMOS, type HomeDemoKey } from "../lib/homeDemo";
 import RetroSpinner from "../components/atoms/RetroSpinner";
+import MarqueeText from "../components/atoms/MarqueeText";
 import MealCard from "../components/MealCard";
 import TodayCardV1 from "../components/home/TodayCardV1";
 import TodayCardV2 from "../components/home/TodayCardV2";
@@ -203,10 +204,12 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
                 >
                     <span className="flex min-w-0 items-center gap-2.5">
                         <Repeat size={16} strokeWidth={2.75} className="shrink-0" />
-                        <span className="truncate text-[13px] font-black">
+                        {/* 문장 전체가 곧 내용이라 자르지 않습니다 — 좁으면 훑고 돌아옵니다 */}
+                        <MarqueeText className="text-[13px] font-black">
                             지금은 수강 정정 기간입니다. Class Explorer와 함께 트레이드 조합을 찾아보세요
-                        </span>
+                        </MarqueeText>
                     </span>
+
                     <ArrowRight
                         size={16}
                         strokeWidth={2.75}

@@ -177,9 +177,9 @@ const MealCard: React.FC<MealCardProps> = ({ meal, fill = false, bare = false })
                         </p>
                     </div>
                 ) : (
-                    <ul className="space-y-0.5">
+                    <ul className="space-y-1">
                         {items.map((item) => (
-                            <li key={item} className="text-[13px] font-bold leading-snug">
+                            <li key={item} className="text-[15px] font-bold leading-snug">
                                 {item}
                             </li>
                         ))}

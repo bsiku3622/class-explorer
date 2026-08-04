@@ -39,6 +39,33 @@ body {
     @apply rounded-none! border!;
 }
 
+/* 자리가 모자란 한 줄을 …로 자르지 않고 좌우로 훑고 돌아옵니다 (MarqueeText).
+   양 끝에서 잠깐 멈춰야 읽을 틈이 생기므로 10%씩 머무릅니다. */
+@keyframes marquee-swing {
+    0%,
+    10% {
+        translate: 0 0;
+    }
+    45%,
+    55% {
+        translate: var(--marquee-shift) 0;
+    }
+    90%,
+    100% {
+        translate: 0 0;
+    }
+}
+
+.animate-marquee-swing {
+    animation: marquee-swing var(--marquee-duration) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animate-marquee-swing {
+        animation: none;
+    }
+}
+
 /* Custom styles for students list */
 .student-badge {
     @apply inline-block bg-white border-2 px-2 py-1 text-xs font-bold rounded-none shadow-[2px_2px_0_0_rgba(0,0,0,0.1)] hover:bg-retro-accent-light cursor-default transition-all;
