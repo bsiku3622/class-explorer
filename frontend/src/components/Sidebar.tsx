@@ -1,6 +1,16 @@
+/**
+ * 좌측 고정 메뉴 (데스크톱).
+ *
+ * **System Status 는 맨 아래에 붙어 있고 메뉴만 스크롤합니다.** 메뉴가 길어지면
+ * 상태 카드가 화면 밖으로 밀려나는데, 그건 "지금 서버가 살아 있나" 를 확인하려고
+ * 스크롤해야 한다는 뜻이라 표시등의 의미가 없어집니다.
+ *
+ * 메뉴 순서는 `lib/navigation.ts` 에서 옵니다 — 하단 바(모바일)와 같은 배열입니다.
+ */
+
 import React from "react";
-import { House, Search, Map, BarChart3, Library, Info, ShieldCheck, ArrowLeftRight, GraduationCap, CalendarDays } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { ADMIN_ITEM, visibleNav } from "../lib/navigation";
 
 interface SidebarItemProps {
     icon: LucideIcon;
@@ -9,21 +19,24 @@ interface SidebarItemProps {
     onClick: () => void;
 }
 
-const SidebarItem: React.FC<SidebarItemProps> = ({ icon: Icon, label, isActive, onClick }) => {
-    return (
-        <button
-            onClick={onClick}
-            className={`w-full flex items-center gap-3 px-4 py-3 font-black uppercase transition-all duration-100 border-2 ${
-                isActive
-                    ? "bg-black text-white border-black shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] hover:shadow-none hover:translate-x-1 hover:translate-y-1"
-                    : "text-black/60 border-transparent hover:text-black hover:bg-white/50"
-            }`}
-        >
-            <Icon size={20} strokeWidth={2.5} />
-            <span className="tracking-tight text-sm">{label}</span>
-        </button>
-    );
-};
+const SidebarItem: React.FC<SidebarItemProps> = ({
+    icon: Icon,
+    label,
+    isActive,
+    onClick,
+}) => (
+    <button
+        onClick={onClick}
+        className={`flex w-full items-center gap-3 border-2 px-4 py-3 font-black uppercase transition-all duration-100 ${
+            isActive
+                ? "border-black bg-black text-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none"
+                : "border-transparent text-black/60 hover:bg-white/50 hover:text-black"
+        }`}
+    >
+        <Icon size={20} strokeWidth={2.5} />
+        <span className="text-sm tracking-tight">{label}</span>
+    </button>
+);
 
 interface SidebarProps {
     activePage: string;
@@ -33,68 +46,70 @@ interface SidebarProps {
     showTrade?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, isAdmin = false, showTrade = false }) => {
-    const menuItems = [
-        { id: "home", label: "Home", icon: House },
-        { id: "search", label: "Search", icon: Search },
-        { id: "emptyroomfinder", label: "Rooms", icon: Map },
-        { id: "analysis", label: "Analysis", icon: BarChart3 },
-        { id: "browse", label: "Browse", icon: Library },
-        { id: "calendar", label: "Calendar", icon: CalendarDays },
-        { id: "zamong", label: "Zamong", icon: GraduationCap },
-        ...(showTrade ? [{ id: "trade", label: "Trade", icon: ArrowLeftRight }] : []),
-        { id: "about", label: "About", icon: Info },
-    ];
+const Sidebar: React.FC<SidebarProps> = ({
+    activePage,
+    setActivePage,
+    isAdmin = false,
+    showTrade = false,
+}) => (
+    <aside className="fixed bottom-0 left-0 top-20 z-40 hidden w-64 flex-col border-r-2 border-black bg-retro-bg md:flex">
+        {/* 스크롤은 여기만 — 아래 상태 카드는 늘 보입니다 */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-6">
+            <p className="mb-3 px-1 text-[10px] font-black uppercase tracking-[0.2em] text-black/40">
+                Main Navigation
+            </p>
+            <nav className="space-y-1">
+                {visibleNav(showTrade).map((item) => (
+                    <SidebarItem
+                        key={item.id}
+                        icon={item.icon}
+                        label={item.label}
+                        isActive={activePage === item.id}
+                        onClick={() => setActivePage(item.id)}
+                    />
+                ))}
+            </nav>
 
-    return (
-        <aside className="fixed left-0 top-20 bottom-0 w-64 bg-retro-bg border-r-2 border-black z-40 overflow-y-auto hidden md:block">
-            <div className="p-6 flex flex-col h-full">
-                <div className="pb-4">
-                    <p className="text-[10px] font-black text-black/40 uppercase tracking-[0.2em] mb-3 px-1">
-                        Main Navigation
+            {/* 구분선은 **위에만** 둡니다. 아래에도 그으면 Admin 이 상자에 갇혀 보이고,
+                바로 밑 상태 카드의 테두리와 겹쳐 선이 두 줄로 읽힙니다 */}
+            {isAdmin && (
+                <div className="mt-4 border-t-2 border-black/10 pt-4">
+                    <p className="mb-2 px-1 text-[10px] font-black uppercase tracking-[0.2em] text-black/40">
+                        Admin
                     </p>
-                    <nav className="space-y-1">
-                        {menuItems.map((item) => (
-                            <SidebarItem
-                                key={item.id}
-                                icon={item.icon}
-                                label={item.label}
-                                isActive={activePage === item.id}
-                                onClick={() => setActivePage(item.id)}
-                            />
-                        ))}
-                    </nav>
+                    <SidebarItem
+                        icon={ADMIN_ITEM.icon}
+                        label={ADMIN_ITEM.label}
+                        isActive={activePage === ADMIN_ITEM.id}
+                        onClick={() => setActivePage(ADMIN_ITEM.id)}
+                    />
                 </div>
-                
-                {isAdmin && (
-                    <div className="pt-4 mt-4 border-t-2 border-black/10">
-                        <p className="text-[10px] font-black text-black/40 uppercase tracking-[0.2em] mb-2 px-1">
-                            Admin
-                        </p>
-                        <SidebarItem
-                            icon={ShieldCheck}
-                            label="Admin"
-                            isActive={activePage === "admin"}
-                            onClick={() => setActivePage("admin")}
-                        />
-                    </div>
-                )}
-                <div className="mt-auto pt-8 border-t-2 border-black/10">
-                    <div className="bg-white border-2 border-black p-4 space-y-3 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
-                        <p className="text-[10px] font-black text-black/40 uppercase tracking-widest">System Status</p>
-                        <div className="flex justify-between items-center text-[10px] font-bold">
-                            <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /> NETWORK</span>
-                            <span className="text-green-500">ONLINE</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] font-bold">
-                            <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500" /> DATABASE</span>
-                            <span className="text-blue-500">STABLE</span>
-                        </div>
-                    </div>
+            )}
+            <div className="h-6" />
+        </div>
+
+        <div className="shrink-0 px-6 pb-6">
+            <div className="space-y-3 border-2 border-black bg-white p-4 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
+                <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                    System Status
+                </p>
+                <div className="flex items-center justify-between text-[10px] font-bold">
+                    <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+                        NETWORK
+                    </span>
+                    <span className="text-green-500">ONLINE</span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] font-bold">
+                    <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-blue-500" />
+                        DATABASE
+                    </span>
+                    <span className="text-blue-500">STABLE</span>
                 </div>
             </div>
-        </aside>
-    );
-};
+        </div>
+    </aside>
+);
 
 export default Sidebar;

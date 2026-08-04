@@ -646,6 +646,7 @@ const App: React.FC = () => {
                 setActivePage={(id) =>
                     navigate(id === "home" ? "/" : `/${id}`)
                 }
+                isAdmin={hasRole(currentUser?.role, "admin")}
                 showTrade={tradeAvailable}
             />
         </div>
