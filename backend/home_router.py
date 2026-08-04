@@ -14,10 +14,12 @@ import re
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backend import models, periods
 from backend.auth import get_current_user, get_db
+from backend.calendar_router import event_out
 from backend.terms import resolve_term
 
 router = APIRouter(tags=["home"])
@@ -43,6 +45,8 @@ def _lines(raw: str | None) -> list[str]:
       지웁니다. 화면에서 읽을 일이 없는 12자리입니다
     - **`&` 로 시작하는 줄** — `단호박카레라이스` / `&소시지` 처럼 한 메뉴가 급식표
       칸 너비 때문에 두 줄로 갈린 것이라 앞 줄에 붙입니다
+    - **괄호가 안 닫힌 줄** — `과일(메론` / `파인애플)` 도 같은 이유로 갈린 것입니다.
+      앞 줄에 여는 괄호가 더 많으면 다음 줄은 그 줄의 이어짐입니다
     """
     if not raw:
         return []
@@ -52,7 +56,9 @@ def _lines(raw: str | None) -> list[str]:
         text = re.sub(r"\d{8,}", "", line).strip()
         if not text:
             continue
-        if text.startswith("&") and items:
+        open_paren = items and items[-1].count("(") > items[-1].count(")")
+        if items and (text.startswith("&") or open_paren):
+            items[-1] += "" if text.startswith("&") else " "
             items[-1] += text
         else:
             items.append(text)
@@ -155,6 +161,10 @@ def session_state(db: Session, today: datetime.date) -> dict:
 
     학사일정의 `개학`·`종업` 표지로 판단합니다 — "방학" 이라는 일정이 따로 없어서,
     마지막 종업이 마지막 개학보다 뒤면 지금은 방학입니다.
+
+    방학이면 **언제부터 언제까지인지**도 함께 돌려줍니다 (`since` / `resumes_on`).
+    화면이 방학을 "남은 날짜" 가 아니라 **막대 위의 한 점**으로 그려서, 시작점이
+    없으면 어디쯤 와 있는지 그릴 수 없습니다.
     """
     def last(keyword: str) -> datetime.date | None:
         row = (
@@ -189,9 +199,53 @@ def session_state(db: Session, today: datetime.date) -> dict:
     return {
         "in_session": in_session,
         "label": None if in_session else (_season(resumes) if resumes else "방학"),
+        # 방학이 시작된 날 (= 마지막 종업). 진행 막대의 왼쪽 끝입니다
+        "since": None if in_session or not ended else ended.isoformat(),
         "resumes_on": resumes.isoformat() if resumes else None,
         "days_left": (resumes - today).days if resumes else None,
     }
+
+
+def events_today(
+    db: Session, today: datetime.date, user: models.User
+) -> list[models.CalendarEvent]:
+    """오늘에 걸치는 일정. **공용 전부 + 내 개인 일정**입니다.
+
+    남의 개인 일정은 어떤 경우에도 나가지 않습니다 — `/calendar` 와 같은 조건입니다.
+    """
+    return (
+        db.query(models.CalendarEvent)
+        .filter(
+            models.CalendarEvent.start_date <= today,
+            models.CalendarEvent.end_date >= today,
+            or_(
+                models.CalendarEvent.owner_id.is_(None),
+                models.CalendarEvent.owner_id == user.id,
+            ),
+        )
+        .order_by(models.CalendarEvent.start_date, models.CalendarEvent.id)
+        .all()
+    )
+
+
+def holiday_today(db: Session, today: datetime.date) -> str | None:
+    """오늘이 휴업일인지. 맞으면 그 이름("추석"·"개교기념 휴업").
+
+    **학교 공용 일정만 봅니다** (`owner_id IS NULL`) — 개인 일정이 남의 수업까지
+    없애면 안 됩니다.
+    """
+    row = (
+        db.query(models.CalendarEvent.title)
+        .filter(
+            models.CalendarEvent.category == "holiday",
+            models.CalendarEvent.owner_id.is_(None),
+            models.CalendarEvent.start_date <= today,
+            models.CalendarEvent.end_date >= today,
+        )
+        .order_by(models.CalendarEvent.start_date)
+        .first()
+    )
+    return row[0] if row else None
 
 
 # ─── 홈 ──────────────────────────────────────────────────────────────────────
@@ -212,9 +266,22 @@ async def get_home(
     period = periods.current_period(minute) if day else None
     upcoming = periods.next_period(minute) if day else None
 
+    # ── 오늘 수업이 있는 날인가
+    # 학기 데이터는 요일 단위라 **날짜를 모릅니다** — 방학이든 추석이든 "월요일"이면
+    # 월요일 시간표를 그대로 돌려줍니다. 그래서 학사일정으로 한 번 걸러야 합니다.
+    session = session_state(db, today)
+    if not session["in_session"]:
+        off_reason, off_label = "vacation", session["label"]
+    elif day is None:
+        off_reason, off_label = "weekend", "주말"
+    elif (holiday := holiday_today(db, today)) is not None:
+        off_reason, off_label = "holiday", holiday
+    else:
+        off_reason, off_label = None, None
+
     # ── 오늘 내 시간표
     my_classes: list[dict] = []
-    if current_user.stu_id and day:
+    if current_user.stu_id and off_reason is None:
         rows = (
             db.query(models.Class, models.ClassTime)
             .join(models.Enrollment, models.Enrollment.classId == models.Class.id)
@@ -225,17 +292,27 @@ async def get_home(
                 models.Class.semester == target_semester,
                 models.ClassTime.day == day,
             )
-            .options(joinedload(models.Class.subject))
+            .options(
+                joinedload(models.Class.subject)
+                .joinedload(models.Subject.course)
+                .joinedload(models.Course.department)
+            )
             .all()
         )
         for cls, time in rows:
             subject = cls.subject
+            course = subject.course
             my_classes.append({
                 "period": time.period,
                 "subject": f"{subject.name}(EC)" if subject.is_ec else subject.name,
                 "section": cls.section,
                 "teacher": cls.teacher,
                 "room": time.room or cls.room,
+                # 화면이 과목마다 색을 주는 근거. 교육과정에 없는 과목(외국인 전형 등)은
+                # `course` 가 비어 있어 null 로 나갑니다 — 그때는 무채색으로 그립니다
+                "department": (
+                    course.department.name if course and course.department else None
+                ),
             })
         my_classes.sort(key=lambda c: c["period"])
 
@@ -247,6 +324,8 @@ async def get_home(
         "term": {"year": target_year, "semester": target_semester},
         "now": {
             "time": now.strftime("%H:%M"),
+            # 자정 기준 분. 화면이 하루를 시간 축으로 그려서 캐럿을 여기에 세웁니다
+            "minute": minute,
             "date": today.isoformat(),
             "day": day,
             "period": period,
@@ -257,7 +336,24 @@ async def get_home(
                 else None
             ),
         },
-        "session": session_state(db, today),
+        "session": {
+            **session,
+            # 오늘 수업이 있는 날인가. False 면 `today` 는 항상 비어 있습니다
+            "has_class": off_reason is None,
+            # vacation | weekend | holiday | null
+            "off_reason": off_reason,
+            # "여름방학" · "주말" · "추석" — 화면에 그대로 씁니다
+            "off_label": off_label,
+        },
+        # 교시 시각표. 화면이 상수를 따로 들면 한쪽만 고쳤을 때 어긋나고, 홈은 어차피
+        # 한 요청으로 다 받는 자리라 여기 실어 보냅니다 (11줄뿐입니다)
+        "periods": periods.as_table(),
+        # 교시 사이의 큰 구멍이 무엇인지 (점심·저녁). 이름이 없으면 자 위의 빈 자리가
+        # 그냥 설명 없는 공백으로 남습니다
+        "breaks": periods.breaks_table(),
+        # 오늘 학사일정 + 내 개인 일정. 홈에 "오늘 뭐 있더라" 를 답하려면 필요하고,
+        # 하루치라 몇 줄 안 됩니다 — 화면이 `/calendar` 를 또 부르지 않게 같이 보냅니다
+        "events": [event_out(e) for e in events_today(db, today, current_user)],
         "today": my_classes,
         # 지금 있어야 할 수업. null 이면 공강입니다
         "current": current,
