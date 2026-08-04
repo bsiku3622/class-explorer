@@ -1,5 +1,15 @@
 # Logs
 
+## 2026-08-04 — `.env` 를 git 에서 걷어내고 `.env.example` 로 대체
+
+- 변경 파일: `.gitignore`, `frontend/.env.example`(새로), `bench-frontend/.env.example`(새로)
+- 요약: 두 프론트의 `.env` 가 공개 저장소에 커밋돼 있던 걸 추적 해제하고, 같은 내용을 `.env.example` 로 옮겼습니다.
+
+들어 있던 값은 `VITE_API_BASE_URL` 과 `VITE_GOOGLE_CLIENT_ID` 둘뿐이라 **유출된 시크릿은 없습니다** — 어차피 브라우저 번들에 그대로 실려 나가는 공개 값입니다. 문제는 `.gitignore` 에 `.env` 가 아예 없었다는 쪽입니다. 지금은 안전한 값만 있지만, 나중에 서버 키 한 줄을 같은 파일에 적는 순간 그대로 공개됩니다.
+
+`.env.example` 에는 값을 그대로 남겼습니다. 공개 값이라 가려 봐야 얻는 게 없고, clone 한 쪽에서 구글 로그인 버튼이 안 뜨는 이유를 찾아 헤매게 됩니다.
+
+
 ## 2026-08-04 — 모바일 헤더 정리 · More 판을 구석으로
 
 - 변경 파일: `frontend/src/components/Navigation.tsx`, `frontend/src/components/BottomNav.tsx`, `frontend/src/App.tsx`
