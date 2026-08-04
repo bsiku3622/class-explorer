@@ -161,3 +161,27 @@ const ROLE_RANK: Record<Role, number> = { user: 0, manager: 1, admin: 2 };
 
 export const hasRole = (role: Role | undefined | null, minimum: Role): boolean =>
     ROLE_RANK[role ?? "user"] >= ROLE_RANK[minimum];
+
+/**
+ * 자정 기준 분 → `"14:05"`.
+ *
+ * 교시 시각(`backend/periods.py`)이 자정 기준 분으로 오고, 홈의 시계·캐럿도 같은
+ * 단위로 셉니다 — 화면마다 따로 포맷하면 `9:5` 같은 게 섞여 나옵니다.
+ */
+export const hhmm = (minute: number): string =>
+    `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
+
+/**
+ * 이 색 위에 올릴 글자색 (검정 아니면 흰색).
+ *
+ * 색을 꽉 채우는 면(선택된 버튼 등)은 색마다 밝기가 달라서 글자색을 하나로 고정하면
+ * 어딘가는 반드시 안 읽힙니다 — 노랑 위의 흰 글씨, 보라 위의 검은 글씨.
+ */
+export const readableInk = (hex: string): string => {
+    const n = parseInt(hex.replace("#", "").slice(0, 6), 16);
+    const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+        const c = v / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.35 ? "#000000" : "#ffffff";
+};

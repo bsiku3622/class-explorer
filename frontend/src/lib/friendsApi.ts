@@ -9,7 +9,7 @@
  */
 
 import api from "./api";
-import type { Term } from "../types";
+import type { CalendarEvent, Term } from "../types";
 
 export interface Friend {
     stuId: string;
@@ -57,12 +57,16 @@ export interface TodayClass {
     section: string;
     teacher: string;
     room: string;
+    /** 이 과목의 학과. 교육과정에 없는 과목(외국인 전형 등)은 `null` */
+    department: string | null;
 }
 
 export interface HomeData {
     term: Term;
     now: {
         time: string;
+        /** 자정 기준 분. 하루를 시간 축으로 그릴 때 캐럿 위치가 여기서 나옵니다 */
+        minute: number;
         date: string;
         /** 주말이면 null */
         day: string | null;
@@ -76,10 +80,30 @@ export interface HomeData {
         in_session: boolean;
         /** 방학이면 "여름방학" 같은 이름 */
         label: string | null;
+        /** 방학이 시작된 날(= 마지막 종업). 진행 막대의 왼쪽 끝 */
+        since: string | null;
         resumes_on: string | null;
         days_left: number | null;
+        /**
+         * 오늘 수업이 있는 날인가. **false 면 `today` 는 항상 빈 배열입니다** —
+         * 학기 데이터는 요일 단위라 방학에도 "월요일 시간표" 가 나오므로 서버가
+         * 학사일정으로 한 번 걸러 줍니다
+         */
+        has_class: boolean;
+        off_reason: "vacation" | "weekend" | "holiday" | null;
+        /** "여름방학"·"주말"·"추석" — 화면에 그대로 씁니다 */
+        off_label: string | null;
     };
     today: TodayClass[];
+    /** 교시 시각표. 화면이 상수를 따로 들지 않게 홈 응답에 실려 옵니다 */
+    periods: PeriodTime[];
+    /** 점심·저녁·자습 등. **교시와 겹칩니다** — 배타적으로 보면 안 됩니다 */
+    breaks: BreakTime[];
+    /**
+     * 오늘에 걸치는 학사일정 + 내 개인 일정. 화면이 `/calendar` 를 또 부르지 않게
+     * 같이 옵니다 — 하루치라 몇 줄 안 됩니다
+     */
+    events: CalendarEvent[];
     /** 지금 있어야 할 수업. null 이면 공강입니다 */
     current: TodayClass | null;
     next: TodayClass | null;
@@ -122,6 +146,15 @@ export const fetchMeal = async (
 
 export interface PeriodTime {
     period: number;
+    start: string;
+    end: string;
+    start_minute: number;
+    end_minute: number;
+}
+
+/** 수업 외 시간대. `저녁`·`자습`은 교시와 **겹칩니다** */
+export interface BreakTime {
+    name: string;
     start: string;
     end: string;
     start_minute: number;
