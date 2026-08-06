@@ -13,8 +13,8 @@
 ## 스타일
 ```
 fixed top-0 left-0 right-0  z-50
-bg-retro-secondary (#1a1a1a)  text-white
-height: h-16 (pt-20으로 컨텐츠 밀어냄)
+bg-retro-secondary  text-white          ← 값은 index.css 의 @theme
+height: h-20 (pt-20으로 컨텐츠 밀어냄)
 ```
 
 ## 로고 애니메이션
