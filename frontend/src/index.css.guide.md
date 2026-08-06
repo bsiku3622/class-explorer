@@ -1,52 +1,41 @@
 # index.css Guide
 
-> [← Frontend Guide](../CLAUDE.md) | 디자인 규칙: [design-guide.md](../../design-guide.md)
+> [← Frontend Guide](../CLAUDE.md) | 디자인 규칙: [design-guide.md](../design-guide.md)
 
-## 역할
 Tailwind v4 테마 정의 + 전역 스타일 + HeroUI 오버라이드.
 
-## 섹션별 설명
+⚠️ **값은 여기 베껴 적지 않습니다.** 한동안 색 토큰이 `index.css`·`design-guide.md`·
+이 파일 세 군데에 각각 적혀 있었고, 셋이 전부 다른 값을 말하고 있었습니다. 실제 값은
+`index.css` 를 열어 보고, 뜻과 쓰임은 [design-guide.md](../design-guide.md) 의 색상
+토큰 표를 보세요.
 
-### 폰트 임포트
-```css
-@import url('Pretendard Variable CDN');
-font-family: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
-```
+## 무엇이 들어 있나
 
-### @theme (Tailwind v4 커스텀 토큰)
-```css
-@theme {
-  --color-retro-bg: #f8f5f0;
-  --color-retro-fg: #000000;
-  --color-retro-primary: #ff3e3e;
-  --color-retro-secondary: #1a1a1a;
-  --color-retro-accent-light: #fdf6e3;
-  --color-retro-green: #22c55e;
-}
-```
-→ `bg-retro-bg`, `text-retro-primary` 등으로 사용 가능
+| 블록 | 내용 |
+|---|---|
+| `@import` | Pretendard Variable (CDN) + `tailwindcss` |
+| `@custom-variant dark` | `.dark` 하위에서 켜지는 변형 (아직 쓰는 곳 없음) |
+| `@theme` | `--color-retro-*` 색 토큰과 `--font-sans`. 여기가 **색의 원본**입니다 |
+| `body` | `bg-retro-bg text-retro-fg` |
+| `.shadow-retro` / `-lg` | 하드 그림자 유틸 (`#000`, blur 0) |
+| `[data-slot=…]` | HeroUI 모서리를 직각으로 누르는 오버라이드 |
+| `.student-badge` | 학번 배지 공통 스타일 |
+| `@keyframes marquee-swing` | 넘치는 한 줄을 좌우로 훑는 애니메이션 (`MarqueeText`) |
 
-### 커스텀 쉐도우 유틸리티
-```css
-.shadow-retro    { box-shadow: 4px 4px 0 0 rgba(0,0,0,0.2); }
-.shadow-retro-lg { box-shadow: 6px 6px 0 0 rgba(0,0,0,0.2); }
-```
+## 손대면 안 되는 것
 
-### HeroUI 전역 오버라이드
-```css
-[data-slot="base"] { border-radius: 0 !important; }
-```
-모든 HeroUI 컴포넌트 모서리를 직각으로 강제 변환 (레트로 스타일 유지)
+**HeroUI 오버라이드** — `base`·`trigger`·`content`·`input-wrapper` 네 slot 을 한꺼번에
+`rounded-none! border!` 로 누릅니다. 빼면 앱 곳곳의 드롭다운·인풋만 둥글어집니다.
 
-### 학생 배지 스타일
-```css
-.student-badge-{year} {
-  border-color: var(--color-year);
-  background-color: color-mix(in srgb, var(--color-year) 15%, transparent);
-  color: var(--color-year);
-}
-```
+**`@keyframes marquee-swing` 의 `--marquee-shift`/`--marquee-duration`** — 값은
+`MarqueeText` 가 요소마다 인라인으로 넣습니다. 여기서 기본값을 주면 넘치지 않는
+문장까지 움직입니다.
 
 ## 주의사항
-- `@custom-variant`, `@theme`, `@apply` 구문은 Tailwind v4 전용 → LSP에서 경고 발생하나 정상 동작
-- `index.css`에 직접 컴포넌트 스타일 추가 금지 (원자 컴포넌트 사용)
+
+- `@theme`·`@custom-variant`·`@apply` 는 Tailwind v4 구문이라 **LSP 경고가 정상**입니다.
+  고치려 들지 마세요
+- **컴포넌트 스타일을 여기 추가하지 않습니다.** 원자 컴포넌트(`components/atoms/`)를
+  쓰거나 만드세요 — 전역 클래스는 어디서 쓰이는지 추적이 안 됩니다.
+  예외는 위 표의 것들처럼 **Tailwind 로 표현할 수 없는 것**(키프레임, 서드파티
+  오버라이드)뿐입니다

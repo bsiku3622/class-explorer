@@ -30,8 +30,8 @@ vertical:
 ## 바 스타일
 ```
 높이:   h-5 고정
-색상:   bg-retro-primary (#ff3e3e)
-호버:   group-hover:bg-[#ff7e7e] (연핑크)
+색상:   bg-retro-primary        ← 값은 index.css 의 @theme
+호버:   group-hover:bg-[#ff7e7e] (primary 를 밝힌 값 — 같이 고쳐야 합니다)
 비율:   width = (value / maxValue) * 100%
 ```
 

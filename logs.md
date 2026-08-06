@@ -1,5 +1,26 @@
 # Logs
 
+## 2026-08-04 — 문서의 색 토큰을 코드와 맞춤
+
+- 변경 파일: `frontend/design-guide.md`, `frontend/src/index.css.guide.md`, `frontend/src/components/Navigation.guide.md`, `frontend/src/components/molecules/BarChartRow.guide.md`
+- 요약: 색 값을 세 군데에 베껴 두었다가 셋 다 어긋났습니다. 값은 `index.css` 하나만 갖고, 문서는 가리키기만 합니다.
+
+`design-guide.md` 의 색 표는 **여섯 줄이 전부 틀려 있었습니다** — primary 를 `#ff3e3e`(빨강)로 적어 뒀는데 실제는 `#ff4eba`(핑크), bg 도 fg 도 secondary 도 accent-light 도 green 도 달랐고, `accent1`~`accent5` 다섯 개는 표에 아예 없었습니다. 표를 믿고 색을 고르면 엉뚱한 색이 나오는 상태였습니다.
+
+**원인은 중복입니다.** 같은 값이 `index.css`·`design-guide.md`·`index.css.guide.md` 세 곳에 각각 적혀 있었고, 코드를 고칠 때 문서는 따라오지 않았습니다. `index.css.guide.md` 에서는 값을 통째로 지우고 "실제 값은 `index.css` 를 열어 보라" 로 바꿨습니다 — 가이드가 값을 들고 있으면 언젠가 또 갈라집니다. 컴포넌트 가이드 둘(`Navigation`·`BarChartRow`)에 박혀 있던 hex 도 토큰 이름만 남겼습니다.
+
+같이 잡은 것 —
+
+- ⚠️ **`retro-primary` 와 `retro-accent3` 은 같은 핑크(`#ff4eba`)** 입니다. 한쪽만 바꾸면 같은 뜻이던 두 자리가 조용히 갈라집니다 — 표에 경고로 적었습니다
+- **테두리는 `retro-fg`(`#222222`)가 아니라 순수 검정**입니다. 표가 `retro-fg` 를 "기본 텍스트 + 테두리" 라고 적고 있었는데, 실제 테두리는 전부 `border-black` 입니다
+- 초록 마름모를 "빈 교실 공통 슬롯" 이라고 적어 뒀는데 실제로는 **달력의 개인 일정 표식**입니다
+- HeroUI 오버라이드가 `[data-slot="base"]` 하나라고 적혀 있었지만 실제로는 네 개의 slot 입니다
+- `Navigation.guide.md` 의 높이가 `h-16` 으로 적혀 있었는데 실제는 `h-20` 입니다
+- 죽은 링크(`../../design-guide.md`, 루트에 그런 파일이 없습니다)를 `index.css` 와 `design-guide.md` 로 고쳤습니다
+
+**`bench-frontend/` 쪽 사본은 그대로 뒀습니다** — 동결 상태라 손대지 않는 게 규칙입니다. 나중에 그쪽을 깨울 때 같은 작업이 한 번 더 필요합니다.
+
+
 ## 2026-08-04 — `.env` 를 git 에서 걷어내고 `.env.example` 로 대체
 
 - 변경 파일: `.gitignore`, `frontend/.env.example`(새로), `bench-frontend/.env.example`(새로)
