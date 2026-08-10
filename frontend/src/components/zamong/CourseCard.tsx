@@ -44,8 +44,6 @@ interface CourseCardProps {
     /** 누르면 상세가 열립니다 */
     onFocus: (name: string) => void;
     onChange: (name: string, patch: Partial<ZamongEntry>) => void;
-    /** 강조 대상에서 밀려난 카드 */
-    dimmed?: boolean;
     focused?: boolean;
     /**
      * 이 판에 안 그려지는 선수 과목 — 다른 학과 것입니다.
@@ -103,7 +101,6 @@ const CourseCard: React.FC<CourseCardProps> = ({
     unlocked,
     onFocus,
     onChange,
-    dimmed = false,
     focused = false,
     outsidePrereq = null,
 }) => {
@@ -125,7 +122,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
                     : unlocked
                       ? "border-black/40"
                       : "border-dashed border-black/25"
-            } ${dimmed ? "opacity-15" : taken || unlocked ? "" : "opacity-65"} ${
+            } ${taken || unlocked ? "" : "opacity-65"} ${
                 focused ? "shadow-[2px_2px_0_0_rgba(0,0,0,0.12)]" : ""
             }`}
             style={{ backgroundColor: TIER_TINT[tier] }}

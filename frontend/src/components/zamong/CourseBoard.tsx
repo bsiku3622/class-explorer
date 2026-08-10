@@ -50,7 +50,13 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
     onFocus,
     onChange,
 }) => {
-    /** 눌러 둔 과목 — 그 과목과 이어진 것만 남기고 나머지를 흐립니다 */
+    /**
+     * 눌러 둔 과목 — 그 과목에 이어진 **선**을 핑크로 세웁니다.
+     *
+     * ⚠️ **카드는 흐리게 만들지 않습니다.** 한때 이어지지 않은 카드를 `opacity-15` 로
+     * 지웠는데, 한 장을 누를 때마다 판이 통째로 하얘져서 방금 뭘 보고 있었는지까지
+     * 사라졌습니다. 선만 골라 세워도 어디로 이어지는지는 충분히 보입니다.
+     */
     const [traced, setTraced] = useState<string | null>(null);
 
     /** 어느 쪽으로 더 스크롤할 수 있는지 — 가장자리 그림자를 켜고 끕니다 */
@@ -94,16 +100,6 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
         [entries],
     );
 
-    const related = useMemo(() => {
-        if (!traced) return null;
-        const set = new Set<string>([traced]);
-        prerequisites.forEach((edge) => {
-            if (edge.before === traced) set.add(edge.after);
-            if (edge.after === traced) set.add(edge.before);
-        });
-        return set;
-    }, [traced, prerequisites]);
-
     /**
      * ⚠️ 한 번만 재면 안 됩니다. 이 판은 좁은 화면에서 `hidden` 이라 폭이 **0** 으로
      * 잡히는데, 창을 넓혀 판이 나타나도 학과가 그대로면 다시 잴 일이 없어 그림자가
@@ -136,7 +132,6 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
                 slots={slots}
                 unlocked={prereqSatisfied(node.name, taken, prereqIndex)}
                 focused={focused === node.name}
-                dimmed={related !== null && !related.has(node.name)}
                 outsidePrereq={edges ? prereqLine(edges) : null}
                 onFocus={onFocus}
                 onChange={onChange}
