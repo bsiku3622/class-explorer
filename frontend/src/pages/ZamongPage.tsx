@@ -77,7 +77,16 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
     const [seedSource, setSeedSource] = useState<ProgressTerm[]>([]);
     /** 지금 보고 있는 학과 판. 로드맵은 위에 고정이라 여기 섞이지 않습니다 */
     const [department, setDepartment] = useState<string>("수학");
+    /**
+     * 마우스가 올라온 과목 — **잠깐뿐입니다.** 나가면 `null` 로 돌아갑니다.
+     *
+     * 눌러 둔 과목(`selected`)과 다릅니다. 호버는 훑는 것이고 클릭은 붙잡는 것이라,
+     * 상세는 `focused ?? selected` 로 봅니다 — 훑는 동안은 그 과목을 보여 주고, 손을
+     * 치우면 붙잡아 둔 것으로 돌아옵니다. 호버만 쓰면 상세를 읽으러 눈을 내리는
+     * 순간 사라집니다.
+     */
     const [focused, setFocused] = useState<string | null>(null);
+    const [selected, setSelected] = useState<string | null>(null);
 
     /**
      * ⚠️ **불러오기에 성공한 뒤에만 저장합니다.**
@@ -374,14 +383,15 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
         [curriculum, department],
     );
 
-    const focusedCourse: Course | undefined = focused ? byName.get(focused) : undefined;
+    const shownName = focused ?? selected;
+    const focusedCourse: Course | undefined = shownName ? byName.get(shownName) : undefined;
 
     const openCourse = useCallback(
         (name: string) => {
             const course = byName.get(name);
             if (!course) return;
             setDepartment(course.department);
-            setFocused(course.name);
+            setSelected(course.name);
         },
         [byName],
     );
@@ -656,6 +666,8 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                                 slots={slots}
                                 focused={focused}
                                 onFocus={setFocused}
+                                selected={selected}
+                                onSelect={setSelected}
                                 onChange={update}
                             />
 
