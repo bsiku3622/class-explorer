@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Library, GraduationCap, BookOpen, Network, Users } from "lucide-react";
-import api from "../lib/api";
+import { fetchCurriculum } from "../lib/curriculumApi";
 import type { SubjectData, Term } from "../types";
 import { getKoreanName, getStudentColor } from "../lib/utils";
 import SearchInput from "../components/atoms/SearchInput";
@@ -20,13 +20,6 @@ import {
 } from "../lib/curriculum";
 
 type BrowseMode = "students" | "teachers" | "courses" | "friends";
-
-const SESSION_TOKEN_KEY = "ksa_session_token";
-
-const authHeader = () => {
-    const token = localStorage.getItem(SESSION_TOKEN_KEY);
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 interface BrowsePageProps {
     allClassesData: SubjectData[];
@@ -62,8 +55,8 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
 
     useEffect(() => {
         if (mode !== "courses" || curriculum) return;
-        api.get("/curriculum", { headers: authHeader() })
-            .then((res) => setCurriculum(res.data))
+        fetchCurriculum()
+            .then(setCurriculum)
             .catch(() => {});
     }, [mode, curriculum]);
 

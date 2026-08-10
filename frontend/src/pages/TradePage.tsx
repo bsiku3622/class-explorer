@@ -41,6 +41,7 @@ import {
 } from "../lib/utils";
 import { fuzzyMatch } from "../lib/searchEngine";
 import api from "../lib/api";
+import { fetchCurriculum } from "../lib/curriculumApi";
 import {
     buildPrereqIndex,
     courseState,
@@ -128,8 +129,8 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
     } | null>(null);
 
     useEffect(() => {
-        api.get("/curriculum", { headers: authHeader() })
-            .then((res) => setCurriculum(res.data))
+        fetchCurriculum()
+            .then(setCurriculum)
             .catch(() => setCurriculum(null));
     }, []);
 

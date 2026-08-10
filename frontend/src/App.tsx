@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from "react";
 import axios from "axios";
 import api from "./lib/api";
+import { clearCache } from "./lib/cache";
 import {
     useLocation,
     useNavigate,
@@ -134,6 +135,9 @@ const App: React.FC = () => {
         }
         localStorage.removeItem(SESSION_TOKEN_KEY);
         clearDataCache();
+        // 교육과정·급식·교시 캐시도 같이 비웁니다 — 다음 사람이 앞사람이 보던 걸
+        // 이어 보면 안 됩니다 (`lib/cache.ts`)
+        clearCache();
         setSessionToken(null);
         setCurrentUser(null);
         setAllClassesData([]);

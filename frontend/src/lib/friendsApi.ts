@@ -9,6 +9,9 @@
  */
 
 import api from "./api";
+import { DAY, cached } from "./cache";
+
+const MINUTE = 60 * 1000;
 import type { CalendarEvent, Term } from "../types";
 
 export interface Friend {
@@ -133,15 +136,27 @@ export const fetchHome = async (term?: Term | null): Promise<HomeData> => {
 /**
  * 하루치 급식. `MealCard` 가 오늘 것부터 여기서 받습니다 — `GET /home` 에는 키가
  * 있는지와 지금 끼니만 있고 메뉴는 없습니다.
+ *
+ * **날짜별로 캐시합니다.** 학교 API 가 3~5초씩 걸려서, 화살표로 앞뒤를 오가면 봤던
+ * 날을 매번 다시 기다리게 됩니다.
+ *
+ * ⚠️ 지난 날짜만 오래 답니다. 오늘·앞날은 **아직 안 올라왔을 수 있어서** 짧게 잡습니다 —
+ * 길게 잡으면 비어 있던 날이 하루 종일 빈 채로 굳습니다 (서버도 같은 이유로 빈 날은
+ * 저장하지 않습니다).
  */
-export const fetchMeal = async (
+export const fetchMeal = (
     date: string,
 ): Promise<{ date: string; menu: MealMenu | null }> => {
-    const { data } = await api.get("/meal", {
-        headers: authHeader(),
-        params: { date },
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const ttl = date < todayKey ? 7 * DAY : 20 * MINUTE;
+    return cached(`meal_${date}`, ttl, async () => {
+        const { data } = await api.get("/meal", {
+            headers: authHeader(),
+            params: { date },
+        });
+        return data;
     });
-    return data;
 };
 
 export interface PeriodTime {
@@ -212,8 +227,13 @@ export const fetchFriendsNow = async (
     return data;
 };
 
-/** 교시 시각표. 화면이 상수를 따로 들면 한쪽만 고쳤을 때 어긋납니다. */
-export const fetchPeriods = async (): Promise<PeriodTime[]> => {
-    const { data } = await api.get("/periods", { headers: authHeader() });
-    return data.periods;
-};
+/**
+ * 교시 시각표. 화면이 상수를 따로 들면 한쪽만 고쳤을 때 어긋납니다.
+ *
+ * 생활관 일과표에서 온 값이라 학기 중에는 안 바뀝니다 — 하루 캐시합니다.
+ */
+export const fetchPeriods = (): Promise<PeriodTime[]> =>
+    cached("periods", DAY, async () => {
+        const { data } = await api.get("/periods", { headers: authHeader() });
+        return data.periods as PeriodTime[];
+    });
