@@ -6,6 +6,8 @@ import {
     COURSE_STATE_LABEL,
     layoutFullGraph,
     layoutGraph,
+    outsidePrereqs,
+    prereqLine,
     NODE_WIDTH,
     NODE_HEIGHT,
     type Course,
@@ -92,18 +94,27 @@ const CourseGraph: React.FC<CourseGraphProps> = ({
 }) => {
     const isAll = department === ALL_DEPARTMENTS;
 
-    const byName = useMemo(
-        () => new Map(courses.map((course) => [course.name, course])),
-        [courses],
-    );
-
     const graph = useMemo<FullGraph | Graph | null>(() => {
         if (!courses.length) return null;
         if (isAll) return layoutFullGraph(courses, prerequisites, departments);
         const scoped = courses.filter((course) => course.department === department);
         if (!scoped.length) return null;
-        return layoutGraph(scoped, prerequisites, byName);
-    }, [courses, prerequisites, departments, department, isAll, byName]);
+        return layoutGraph(scoped, prerequisites);
+    }, [courses, prerequisites, departments, department, isAll]);
+
+    /**
+     * 이 판에 안 그려지는 선수 — 다른 학과 것입니다.
+     *
+     * ⚠️ 예전에는 이런 과목을 판 왼쪽에 함께 그렸는데, 융합 판에 수학·물리 카드가
+     * 섞여 나와서 저게 융합 과목인지 아닌지 구별이 안 됐습니다. 지금은 노드 아래에
+     * **글로** 답니다.
+     */
+    const outside = useMemo(() => {
+        // 전체 보기는 모든 학과가 이미 판에 있어서 "바깥" 이 없습니다
+        if (isAll) return new Map<string, Prereq[]>();
+        const scoped = courses.filter((course) => course.department === department);
+        return outsidePrereqs(scoped, prerequisites);
+    }, [courses, prerequisites, department, isAll]);
 
     const prereqIndex = useMemo(() => {
         const index = new Map<string, Prereq[]>();
@@ -211,6 +222,8 @@ const CourseGraph: React.FC<CourseGraphProps> = ({
                     const showDept = isAll || node.course.department !== department;
                     const isSelected = node.name === selected;
                     const faded = related !== null && !related.has(node.name);
+                    const outsideEdges = outside.get(node.name);
+                    const outsideLine = outsideEdges ? prereqLine(outsideEdges) : null;
 
                     return (
                         <foreignObject
@@ -259,15 +272,24 @@ const CourseGraph: React.FC<CourseGraphProps> = ({
                                         </span>
                                     )}
                                 </span>
-                                <span className="text-[9px] font-bold opacity-60">
-                                    {showDept && !isAll && (
+                                <span className="w-full truncate text-[9px] font-bold opacity-60">
+                                    {/* 다른 학과 선수는 판에 안 그리고 여기 글로 답니다 */}
+                                    {outsideLine ? (
                                         <span className="text-retro-secondary">
-                                            {node.course.department}{" · "}
+                                            선수 {outsideLine}
                                         </span>
+                                    ) : (
+                                        <>
+                                            {showDept && !isAll && (
+                                                <span className="text-retro-secondary">
+                                                    {node.course.department}{" · "}
+                                                </span>
+                                            )}
+                                            {node.course.credits}학점
+                                            {englishTaken?.has(node.name) && " · EC 수강"}
+                                            {node.course.is_pf && " · P/F"}
+                                        </>
                                     )}
-                                    {node.course.credits}학점
-                                    {englishTaken?.has(node.name) && " · EC 수강"}
-                                    {node.course.is_pf && " · P/F"}
                                 </span>
                             </button>
                         </foreignObject>
