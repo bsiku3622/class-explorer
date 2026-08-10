@@ -47,7 +47,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                 {WEEKDAY_LABEL.map((label, i) => (
                     <div
                         key={label}
-                        className={`py-2 text-center text-[10px] font-black uppercase tracking-widest ${
+                        className={`py-2 text-center text-[11px] font-black uppercase tracking-widest ${
                             i === 0
                                 ? "text-retro-primary"
                                 : i === 6
@@ -87,7 +87,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                         >
                             <div className="flex items-center justify-between">
                                 <span
-                                    className={`inline-flex h-5 min-w-5 items-center justify-center px-1 text-[11px] font-black ${
+                                    className={`inline-flex h-6 min-w-6 items-center justify-center px-1 text-[13px] font-black ${
                                         isToday ? "bg-black text-white" : ""
                                     } ${
                                         outside
@@ -103,7 +103,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                 </span>
                                 {/* 주차는 그 주의 첫 칸에만 — 매 칸에 적으면 격자가 시끄러워집니다 */}
                                 {week !== null && index % 7 === 0 && (
-                                    <span className="text-[9px] font-black text-black/25">
+                                    <span className="text-[10px] font-black text-black/25">
                                         {week}주
                                     </span>
                                 )}
@@ -115,7 +115,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                     return (
                                         <div
                                             key={`${event.id}-${key}`}
-                                            className={`flex items-center gap-1 px-1 py-0.5 text-[10px] font-bold leading-tight ${
+                                            className={`flex items-center gap-1 px-1 py-0.5 text-[11px] font-bold leading-tight ${
                                                 CATEGORY_STYLE[event.category].chip
                                             } ${outside ? "opacity-40" : ""}`}
                                         >
@@ -132,12 +132,12 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                     );
                                 })}
                                 {events.length > MAX_CHIPS && (
-                                    <div className="px-1 text-[10px] font-black text-black/35">
+                                    <div className="px-1 text-[11px] font-black text-black/35">
                                         +{events.length - MAX_CHIPS}
                                     </div>
                                 )}
                                 {ongoing > 0 && (
-                                    <div className="px-1 text-[10px] font-bold text-black/25">
+                                    <div className="px-1 text-[11px] font-bold text-black/25">
                                         ⋯ {ongoing}
                                     </div>
                                 )}

@@ -114,24 +114,32 @@ const CourseCard: React.FC<CourseCardProps> = ({
     return (
         <div
             onMouseEnter={() => onFocus(course.name)}
-            title={`${TIER_LABEL[tier]}${course.required_advanced ? " · 심화필수" : ""}`}
+            title={`${TIER_LABEL[tier]}${course.required_advanced ? " · 트랙필수" : ""}`}
             className={`flex h-full w-full flex-col gap-1.5 border-2 px-2 py-1.5 transition-all duration-100 ${
                 taken
-                    ? "border-black shadow-[3px_3px_0_0_rgba(0,0,0,0.22)]"
+                    ? // ⚠️ 채운 카드에 **그림자를 얹지 마세요.** 검은 테두리에 하드 그림자까지
+                      // 붙이면 두 변이 두 겹으로 두꺼워져서, 판에 스무 장 깔렸을 때 채운
+                      // 카드만 시커멓게 튀어나옵니다. 테두리 굵기 차이(검정 vs 40%)면
+                      // 채웠는지는 충분히 보이고, 안의 학기 칸도 이미 진해집니다
+                      "border-black"
                     : unlocked
                       ? "border-black/40"
                       : "border-dashed border-black/25"
             } ${dimmed ? "opacity-15" : taken || unlocked ? "" : "opacity-65"} ${
-                focused && !taken ? "shadow-[3px_3px_0_0_rgba(0,0,0,0.15)]" : ""
+                focused ? "shadow-[2px_2px_0_0_rgba(0,0,0,0.12)]" : ""
             }`}
             style={{ backgroundColor: TIER_TINT[tier] }}
         >
             {/* 제목 줄 — 오른쪽이 학점입니다. 분류는 카드 색이 말하므로 띠를 따로
                 두지 않습니다 (원본에도 없고, 색 위에 색을 얹으면 둘 다 흐려집니다) */}
+            {/* 포커스 링을 끕니다. 이 버튼이 하는 일은 아래 상세를 여는 것뿐이고 마우스를
+                올려도 같은 일이 일어나는데, 판에 카드가 스무 장 깔린 상태에서 클릭할 때마다
+                파란 테두리가 뜨면 정작 봐야 할 카드 색과 선을 가립니다. 실제 조작은 아래
+                셀렉트들이 맡고, 그쪽 포커스 표시는 그대로 둡니다 */}
             <button
                 type="button"
                 onClick={() => onFocus(course.name)}
-                className="flex w-full min-w-0 items-center gap-1 text-left"
+                className="flex w-full min-w-0 items-center gap-1 text-left outline-none"
             >
                 {!unlocked && !taken && (
                     <Lock size={12} strokeWidth={3} className="shrink-0 text-black/35" />

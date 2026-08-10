@@ -579,6 +579,28 @@ export const coRequisitePairs = (names: Iterable<string>): Map<string, string> =
     return pairs;
 };
 
+/**
+ * 과목 → **선수 깊이**. 선수가 없으면 0이고, 그 위에 쌓일수록 커집니다.
+ *
+ * 판의 열 번호와 같은 값입니다 — 동시수강 짝을 빼는 것까지 `layoutGraph` 와 똑같이
+ * 계산하므로, 목록을 이 값으로 정렬하면 판에서 보던 순서와 어긋나지 않습니다.
+ */
+export const courseDepths = (
+    courses: Course[],
+    prerequisites: Prereq[],
+): Map<string, number> => {
+    const names = courses.map((course) => course.name);
+    const inScope = new Set(names);
+    const pairs = coRequisitePairs(names);
+    const scoped = prerequisites.filter(
+        (edge) =>
+            inScope.has(edge.before) &&
+            inScope.has(edge.after) &&
+            pairs.get(edge.after) !== edge.before,
+    );
+    return computeLevels(names, buildPrereqIndex(scoped), inScope);
+};
+
 /** 선수 목록을 한 줄로 — 택일은 괄호로 묶어 "또는" 으로 잇습니다 */
 export const prereqLine = (edges: Prereq[]): string => {
     const required = edges.filter((edge) => !edge.alternative).map((edge) => edge.before);
