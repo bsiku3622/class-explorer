@@ -172,7 +172,9 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                 setRestored(true);
             })
             .catch(() => {
-                if (!cancelled) setRestored(true);
+                // ⚠️ 여기서 `restored` 를 켜면 안 됩니다. 저장은 전체 교체라, 못
+                // 불러온 빈 상태가 그대로 저장돼 서버에 있던 계획을 지웁니다.
+                // 안 켜 두면 이번 화면에서는 저장이 안 되지만 남아 있던 건 지킵니다
             });
         return () => {
             cancelled = true;

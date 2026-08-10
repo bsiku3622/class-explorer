@@ -78,10 +78,20 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
     const [focused, setFocused] = useState<string | null>(null);
 
     /**
-     * ⚠️ **불러오기 전에는 저장하지 않습니다.** 마운트 직후 빈 상태로 저장이 돌면
-     * 서버에 있던 기록을 통째로 덮어써 날립니다.
+     * ⚠️ **불러오기에 성공한 뒤에만 저장합니다.**
+     *
+     * 저장은 전체 교체(`PUT /curriculum/grades`)라, 화면이 빈 상태에서 한 번만 돌아도
+     * 서버 기록이 통째로 사라집니다. 그래서 마운트 직후를 막는 플래그가 있는데 —
+     * 한동안 **요청이 실패해도 이 플래그를 켜고 있었습니다.** 네트워크가 한 번 튀면
+     * 빈 화면이 그대로 저장돼 자몽이 날아가는 길이었습니다.
+     *
+     * 이제 응답을 받은 쪽만 켭니다. 못 받았으면 그 부분은 저장하지 않고, 화면에
+     * "지금 고친 건 저장되지 않습니다" 를 띄웁니다 — 조용히 안 되는 게 제일 나쁩니다.
      */
     const restored = useRef(false);
+    /** 시수·밑칠 여부는 따로 저장되므로 플래그도 따로입니다 */
+    const stateRestored = useRef(false);
+    const [loadFailed, setLoadFailed] = useState(false);
 
     useEffect(() => {
         fetchCurriculum()
@@ -93,6 +103,8 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
         if (!stuId) return;
         let cancelled = false;
         restored.current = false;
+        stateRestored.current = false;
+        setLoadFailed(false);
 
         Promise.all([
             api.get("/curriculum/grades", { headers: authHeader() }).catch(() => null),
@@ -100,34 +112,47 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
         ]).then(([gradeRes, stateRes]) => {
             if (cancelled) return;
 
-            const loaded: ZamongMap = {};
-            (gradeRes?.data?.entries ?? []).forEach(
-                (row: {
-                    course: string;
-                    grade: string | null;
-                    term: string | null;
-                    is_ec: boolean;
-                }) => {
-                    loaded[row.course] = {
-                        term: (row.term ?? null) as ZamongEntry["term"],
-                        grade: row.grade ?? null,
-                        isEc: Boolean(row.is_ec),
-                    };
-                },
-            );
-            setEntries(loaded);
+            if (gradeRes) {
+                const loaded: ZamongMap = {};
+                (gradeRes.data?.entries ?? []).forEach(
+                    (row: {
+                        course: string;
+                        grade: string | null;
+                        term: string | null;
+                        is_ec: boolean;
+                    }) => {
+                        loaded[row.course] = {
+                            term: (row.term ?? null) as ZamongEntry["term"],
+                            grade: row.grade ?? null,
+                            isEc: Boolean(row.is_ec),
+                        };
+                    },
+                );
+                setEntries(loaded);
+                // ⚠️ **받아온 뒤에만 켭니다.** 실패했는데 켜면, 빈 화면이 그대로
+                // 저장돼 서버 기록을 지웁니다 (아래 저장 effect 참고)
+                restored.current = true;
+            }
 
             const saved = stateRes?.data?.data;
-            setHours({
-                self_dev: Number(saved?.self_dev) || 0,
-                collab: Number(saved?.collab) || 0,
-                global: Number(saved?.global) || 0,
-            });
+            if (stateRes) {
+                setHours({
+                    self_dev: Number(saved?.self_dev) || 0,
+                    collab: Number(saved?.collab) || 0,
+                    global: Number(saved?.global) || 0,
+                });
+                stateRestored.current = true;
+            }
+
+            if (!gradeRes || !stateRes) {
+                setLoadFailed(true);
+                return;
+            }
 
             // 이미 뭔가 적어 둔 사람에게는 밑칠을 권하지 않습니다
-            const answered = Boolean(saved?.seeded) || Object.keys(loaded).length > 0;
+            const answered =
+                Boolean(saved?.seeded) || Object.keys(gradeRes.data?.entries ?? {}).length > 0;
             setSeeded(answered);
-            restored.current = true;
 
             // 물어볼 일이 있을 때만 학교 데이터를 꺼내 옵니다
             if (!answered) {
@@ -168,7 +193,7 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
 
     const stateTimer = useRef<number | undefined>(undefined);
     useEffect(() => {
-        if (!restored.current || !stuId) return;
+        if (!stateRestored.current || !stuId) return;
         window.clearTimeout(stateTimer.current);
         stateTimer.current = window.setTimeout(() => {
             api.put("/state/zamong", { data: { ...hours, seeded } }, { headers: authHeader() }).catch(
@@ -401,6 +426,23 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                 </RetroCard>
             ) : (
                 <>
+                    {/* 불러오기가 실패하면 저장도 막혀 있습니다. 그 사실을 안 알려 주면
+                        한참 채워 넣고 새로고침했다가 통째로 잃습니다 */}
+                    {loadFailed && (
+                        <RetroCard shadow="sm" className="bg-retro-primary/15">
+                            <div className="flex flex-wrap items-center gap-3 p-3">
+                                <TriangleAlert size={16} strokeWidth={2.5} className="shrink-0" />
+                                <p className="min-w-0 flex-1 text-[12px] font-bold leading-relaxed">
+                                    기록을 불러오지 못했습니다. <b>지금 고치는 것은 저장되지
+                                    않습니다</b> — 새로고침해서 다시 불러와주세요.
+                                </p>
+                                <RetroButton size="sm" onClick={() => window.location.reload()}>
+                                    새로고침
+                                </RetroButton>
+                            </div>
+                        </RetroCard>
+                    )}
+
                     {/* 엑셀은 늘 올릴 수 있어야 합니다 — 배너는 한 번 지나가면 다시
                         안 뜨는데, 워크북은 나중에도 갱신할 일이 있습니다 */}
                     <input

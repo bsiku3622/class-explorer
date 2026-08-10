@@ -29,8 +29,14 @@ export const loadState = async <T>(key: StateKey, legacyKey: string): Promise<T 
         const res = await api.get(`/state/${key}`, { headers: authHeader() });
         remote = (res.data?.data as T) ?? null;
     } catch {
-        // 서버에 닿지 못하면 로컬 값이라도 씁니다
-        return readLegacy<T>(legacyKey);
+        // 서버에 닿지 못했습니다. 예전 기기에 남은 값이 있으면 그거라도 씁니다.
+        //
+        // ⚠️ **없으면 예외를 던집니다.** `null` 로 돌려주면 부르는 쪽이 "저장된 게
+        // 없다" 로 읽고 빈 상태를 복원한 뒤 그대로 저장해서, **서버에 있던 계획을
+        // 덮어씁니다.** 못 받은 것과 없는 것은 다른 일입니다.
+        const legacy = readLegacy<T>(legacyKey);
+        if (legacy) return legacy;
+        throw new Error("상태를 불러오지 못했습니다");
     }
 
     if (remote) {
