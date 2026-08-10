@@ -21,7 +21,7 @@ git push origin main
 
 # 2. 백엔드
 ssh server
-cd /srv/ksa-class-finder
+cd /srv/class-explorer
 cp backend/ksa_timetable.db backend/ksa_timetable.db.bak-$(date +%Y%m%d)   # DB는 서버에만 있습니다
 git pull --ff-only
 sudo systemctl restart class-explorer.service
@@ -29,6 +29,17 @@ systemctl is-active class-explorer.service
 ```
 
 의존성이 바뀌었으면 재시작 전에 `pip install -r requirements.txt`를 한 번 돌립니다.
+
+⚠️ **`curriculum_seed.json`이 바뀐 배포에서는 재시작만으로 부족합니다** — 적재를 한 번
+돌려야 새 필드(과목 분류·트랙 등)가 DB에 들어갑니다.
+
+```bash
+python3.14 -m backend.import_curriculum
+sudo systemctl restart class-explorer.service   # 새 값을 물고 다시 뜨게
+```
+
+이 스크립트는 과목 행을 통째로 갈아끼우지만 **이수 기록(`CourseGrade`)은 과목 이름으로
+다시 이어 붙입니다.** 그래도 돌리기 전에 DB 복사본은 떠 두세요.
 
 ### 확인
 
@@ -51,7 +62,7 @@ After=network.target
 [Service]
 User=baeks
 Group=baeks
-WorkingDirectory=/srv/ksa-class-finder
+WorkingDirectory=/srv/class-explorer
 ExecStart=/home/baeks/.local/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=3
@@ -122,7 +133,7 @@ ID 토큰만 받는 방식이라 리디렉션을 쓰지 않습니다.
 systemd 가 쓰는 uvicorn(`/home/baeks/.local/bin/uvicorn`)도 그 인터프리터입니다.
 
 ```bash
-cd /srv/ksa-class-finder
+cd /srv/class-explorer
 python3.14 -m backend.parser_run                    # 오늘 기준 학기 수집
 python3.14 -m backend.parser_run -y 2026 -s 2       # 학기 지정
 python3.14 -m backend.import_curriculum             # 교육과정 적재
@@ -140,8 +151,8 @@ python3.14 -m backend.create_user <username> <password> [--manager|--admin]
 
 ```bash
 sudo apt update && sudo apt install -y python3 python3-pip nginx
-git clone <repo> /srv/ksa-class-finder
-cd /srv/ksa-class-finder && pip install -r requirements.txt
+git clone <repo> /srv/class-explorer
+cd /srv/class-explorer && pip install -r requirements.txt
 # 위 systemd·nginx 파일을 만들고
 sudo systemctl enable --now class-explorer
 sudo ln -s /etc/nginx/sites-available/ksa-fastapi.conf /etc/nginx/sites-enabled/
