@@ -53,9 +53,10 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
     /**
      * 눌러 둔 과목 — 그 과목에 이어진 **선**을 핑크로 세웁니다.
      *
-     * ⚠️ **카드는 흐리게 만들지 않습니다.** 한때 이어지지 않은 카드를 `opacity-15` 로
-     * 지웠는데, 한 장을 누를 때마다 판이 통째로 하얘져서 방금 뭘 보고 있었는지까지
-     * 사라졌습니다. 선만 골라 세워도 어디로 이어지는지는 충분히 보입니다.
+     * ⚠️ **누른 카드 하나만** 표시합니다. 이어지지 않은 카드를 `opacity-15` 로 지운
+     * 적도, 이어진 카드까지 전부 핑크로 세운 적도 있는데 둘 다 판이 시끄러웠습니다 —
+     * **어디로 이어지는지는 선이 이미 말합니다.** 테두리는 "지금 짚은 게 이것" 만
+     * 말하면 됩니다.
      */
     const [traced, setTraced] = useState<string | null>(null);
 
@@ -80,23 +81,6 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
         () => (scoped.length ? layoutBoard(scoped, prerequisites) : null),
         [scoped, prerequisites],
     );
-
-    /**
-     * 눌러 둔 과목과 **거기 바로 이어진 과목들**. 핑크 선이 잇는 것과 같은 무리입니다.
-     *
-     * ⚠️ 예전에는 이 무리를 뺀 나머지를 `opacity-15` 로 지웠는데, 한 장 누를 때마다
-     * 판이 통째로 하얘져서 방금 보고 있던 것까지 사라졌습니다. **지우지 말고 더하세요** —
-     * 이 무리에만 핑크 테두리를 주면 나머지는 그대로 두고도 눈에 걸립니다.
-     */
-    const related = useMemo(() => {
-        if (!traced) return null;
-        const set = new Set<string>([traced]);
-        prerequisites.forEach((edge) => {
-            if (edge.before === traced) set.add(edge.after);
-            if (edge.after === traced) set.add(edge.before);
-        });
-        return set;
-    }, [traced, prerequisites]);
 
     /** 이 판에 안 그려지는 선수 — 카드가 글로 답니다 */
     const outside = useMemo(
@@ -149,7 +133,7 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
                 slots={slots}
                 unlocked={prereqSatisfied(node.name, taken, prereqIndex)}
                 focused={focused === node.name}
-                traced={related?.has(node.name) ?? false}
+                traced={traced === node.name}
                 outsidePrereq={edges ? prereqLine(edges) : null}
                 onFocus={onFocus}
                 onChange={onChange}
