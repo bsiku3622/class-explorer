@@ -97,6 +97,16 @@ def run(seed_path: str, dry_run: bool) -> int:
 
     db: Session = SessionLocal()
     try:
+        # ⚠️ **사람이 적은 이수 기록은 살려서 옮깁니다.** 과목 행은 통째로 갈아끼우므로
+        # `course_id`가 전부 새 값이 되는데, 예전에는 여기서 `CourseGrade`를 그냥
+        # 지웠습니다 — 교육과정을 다시 적재할 때마다 모든 계정의 자몽이 사라집니다.
+        # 과목 **이름**으로 다시 이어 붙이고, 교육과정에서 없어진 과목만 버립니다.
+        old_course_name = dict(db.query(models.Course.id, models.Course.name).all())
+        saved_grades = [
+            (row.user_id, old_course_name.get(row.course_id), row.grade, row.term, row.is_ec)
+            for row in db.query(models.CourseGrade).all()
+        ]
+
         # 교육과정을 갈아끼우는 동안 개설 과목은 잠시 연결을 놓습니다
         db.query(models.Subject).update({models.Subject.course_id: None})
         db.query(models.CoursePrereq).delete()
@@ -105,12 +115,18 @@ def run(seed_path: str, dry_run: bool) -> int:
         db.query(models.Department).delete()
         db.flush()
 
+        department_meta = {
+            entry["name"]: entry for entry in seed.get("departments", []) if entry.get("name")
+        }
         department_id: dict[str, int] = {}
         for index, name in enumerate(departments):
+            meta = department_meta.get(name, {})
             row = models.Department(
                 name=name,
                 category=DEPARTMENT_CATEGORY.get(name, "natural"),
                 display_order=index,
+                track=meta.get("track"),
+                notes=meta.get("notes") or [],
             )
             db.add(row)
             db.flush()
@@ -126,6 +142,8 @@ def run(seed_path: str, dry_run: bool) -> int:
                 ap_credits=course.get("ap_credits") or 0,
                 is_pf=bool(course.get("is_pf")),
                 recommended_semester=course.get("recommended_semester"),
+                tier=course.get("tier"),
+                required_advanced=bool(course.get("required_advanced")),
                 description=course.get("description"),
                 description_sections=course.get("description_sections") or {},
                 description_source=course.get("description_source"),
@@ -147,6 +165,23 @@ def run(seed_path: str, dry_run: bool) -> int:
                 )
             )
 
+        restored, orphaned = 0, []
+        for user_id, name, grade, term, is_ec in saved_grades:
+            target = course_id.get(strip_language_tag(name)) if name else None
+            if target is None:
+                orphaned.append(name or "(이름 없음)")
+                continue
+            db.add(
+                models.CourseGrade(
+                    user_id=user_id,
+                    course_id=target,
+                    grade=grade,
+                    term=term,
+                    is_ec=bool(is_ec),
+                )
+            )
+            restored += 1
+
         # 개설 과목을 교육과정에 다시 잇습니다 — 예전 import_credits 가 하던 일입니다
         linked, unlinked = 0, []
         for subject in db.query(models.Subject).all():
@@ -159,6 +194,11 @@ def run(seed_path: str, dry_run: bool) -> int:
 
         db.commit()
         print(f"\n학과 {len(department_id)} · 과목 {len(course_id)} · 선수관계 {len(seen)} 저장")
+        if saved_grades:
+            note = f" · 교육과정에서 사라져 버림 {len(orphaned)}개" if orphaned else ""
+            print(f"이수 기록 {restored}개 이관{note}")
+            for name in sorted(set(orphaned)):
+                print(f"  버림: {name}")
         print(f"개설 과목 연결 {linked}개" + (f" · 교육과정에 없음 {len(unlinked)}개" if unlinked else ""))
         if unlinked:
             for name in sorted(unlinked):

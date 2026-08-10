@@ -472,6 +472,15 @@ def run_migrations(engine: Engine) -> None:
         "ALTER TABLE users ADD COLUMN email VARCHAR",
         "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)",
         "ALTER TABLE sessions ADD COLUMN ip_address VARCHAR",
+        # 자몽 — 이수 기록이 학기와 EC 여부를 함께 답니다. 학기가 없는 예전 행은
+        # 화면이 "학기 미지정"으로 골라내 채우게 합니다
+        "ALTER TABLE course_grades ADD COLUMN term VARCHAR",
+        "ALTER TABLE course_grades ADD COLUMN is_ec BOOLEAN DEFAULT 0 NOT NULL",
+        # 교육과정 — 워크북 상자 색에서 읽은 분류와 심화필수 표시
+        "ALTER TABLE courses ADD COLUMN tier VARCHAR",
+        "ALTER TABLE courses ADD COLUMN required_advanced BOOLEAN DEFAULT 0 NOT NULL",
+        "ALTER TABLE departments ADD COLUMN track VARCHAR",
+        "ALTER TABLE departments ADD COLUMN notes JSON DEFAULT '[]' NOT NULL",
         (
             "CREATE TABLE IF NOT EXISTS subject_aliases ("
             "id INTEGER PRIMARY KEY, subject VARCHAR NOT NULL, "
