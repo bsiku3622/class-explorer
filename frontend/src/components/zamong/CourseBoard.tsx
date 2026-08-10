@@ -158,7 +158,14 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
     const grid = (
         <div className="grid grid-cols-2 gap-2 py-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {ordered.map((node) => (
-                <div key={node.name} style={{ height: CARD_HEIGHT }}>
+                // ⚠️ 사다리 쪽과 **같은 클릭**을 답니다. 한때 격자에만 안 달려 있어서
+                // 융합 판(선이 없어 격자로 그립니다)과 좁은 화면에서는 카드를 눌러도
+                // 아무 일도 안 났습니다
+                <div
+                    key={node.name}
+                    style={{ height: CARD_HEIGHT }}
+                    onClick={() => onSelect(selected === node.name ? null : node.name)}
+                >
                     {renderNode(node)}
                 </div>
             ))}
