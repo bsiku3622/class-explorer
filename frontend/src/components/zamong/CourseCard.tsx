@@ -46,6 +46,13 @@ interface CourseCardProps {
     onChange: (name: string, patch: Partial<ZamongEntry>) => void;
     focused?: boolean;
     /**
+     * 눌러 둔 과목이거나 거기 바로 이어진 과목 — 테두리가 핑크로 섭니다.
+     *
+     * 판 위의 핑크 선과 **같은 무리**입니다. 선은 사이를 잇고 테두리는 끝을 짚어서,
+     * 카드가 겹쳐 선이 가려진 자리에서도 어디로 이어지는지 보입니다.
+     */
+    traced?: boolean;
+    /**
      * 이 판에 안 그려지는 선수 과목 — 다른 학과 것입니다.
      *
      * 융합 과목은 선수가 전부 타 학과라 판에 끌어오면 융합 판에 수학·물리 카드가
@@ -102,6 +109,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
     onFocus,
     onChange,
     focused = false,
+    traced = false,
     outsidePrereq = null,
 }) => {
     const tier = tierOf(course);
@@ -113,15 +121,17 @@ const CourseCard: React.FC<CourseCardProps> = ({
             onMouseEnter={() => onFocus(course.name)}
             title={`${TIER_LABEL[tier]}${course.required_advanced ? " · 트랙필수" : ""}`}
             className={`flex h-full w-full flex-col gap-1.5 border-2 px-2 py-1.5 transition-all duration-100 ${
-                taken
-                    ? // ⚠️ 채운 카드에 **그림자를 얹지 마세요.** 검은 테두리에 하드 그림자까지
-                      // 붙이면 두 변이 두 겹으로 두꺼워져서, 판에 스무 장 깔렸을 때 채운
-                      // 카드만 시커멓게 튀어나옵니다. 테두리 굵기 차이(검정 vs 40%)면
-                      // 채웠는지는 충분히 보이고, 안의 학기 칸도 이미 진해집니다
-                      "border-black"
-                    : unlocked
-                      ? "border-black/40"
-                      : "border-dashed border-black/25"
+                traced
+                    ? "border-retro-primary"
+                    : taken
+                      ? // ⚠️ 채운 카드에 **그림자를 얹지 마세요.** 검은 테두리에 하드 그림자까지
+                        // 붙이면 두 변이 두 겹으로 두꺼워져서, 판에 스무 장 깔렸을 때 채운
+                        // 카드만 시커멓게 튀어나옵니다. 테두리 굵기 차이(검정 vs 40%)면
+                        // 채웠는지는 충분히 보이고, 안의 학기 칸도 이미 진해집니다
+                        "border-black"
+                      : unlocked
+                        ? "border-black/40"
+                        : "border-dashed border-black/25"
             } ${taken || unlocked ? "" : "opacity-65"} ${
                 focused ? "shadow-[2px_2px_0_0_rgba(0,0,0,0.12)]" : ""
             }`}
