@@ -16,6 +16,12 @@ export interface Course {
     ap_credits: number;
     is_pf: boolean;
     recommended_semester: string | null;
+    /** 워크북 상자 색에서 온 분류 — core | advanced | ap | special | convergence */
+    tier: string | null;
+    /** 그 학과의 심화필수 (워크북에서 굵은 밑줄) */
+    required_advanced: boolean;
+    /** 영어강의로도 열리는 과목인지 — 화면이 EC 선택을 내밀지 정합니다 */
+    has_ec: boolean;
     description: string | null;
 }
 
@@ -29,6 +35,10 @@ export interface Prereq {
 export interface Department {
     name: string;
     category: Category;
+    /** 트랙 이수 조건 — 문장 그대로입니다. 학과마다 규칙이 달라 판정하지 않습니다 */
+    track?: string | null;
+    /** 워크북 시트에 붙어 있던 안내 */
+    notes?: string[];
 }
 
 export interface Curriculum {
@@ -39,6 +49,14 @@ export interface Curriculum {
     /** KEIS 과목명 → 카탈로그 과목명 */
     subject_map: Record<string, string>;
     requirements: Record<string, number>;
+    /** 자몽이 쓰는 졸업 요건 전체 (학점 + 시수 + 학기당 학점 범위) */
+    graduation?: {
+        credits: Record<string, number>;
+        hours: Record<string, number>;
+        term_credits: { min: number; max: number };
+    };
+    /** 자몽의 학기 칸 */
+    terms?: { key: string; label: string }[];
     /** 평어 → 평점 (4.3 만점) */
     grade_points: Record<string, number>;
 }
@@ -508,28 +526,74 @@ export const layoutFullGraph = (
 };
 
 /**
+ * 이 판에 안 그려지는 선수 과목 — 과목명 → 밖에 있는 선수들.
+ *
+ * 판은 한 학과만 그리는데 융합 과목은 선수가 전부 다른 학과라, 그냥 두면 관계가 통째로
+ * 사라집니다. 그렇다고 남의 학과 과목을 판에 끌어오면 그게 이 학과 과목인 줄 압니다.
+ * 그래서 **글로 남깁니다.**
+ */
+export const outsidePrereqs = (
+    courses: Course[],
+    prerequisites: Prereq[],
+): Map<string, Prereq[]> => {
+    const inside = new Set(courses.map((course) => course.name));
+    const outside = new Map<string, Prereq[]>();
+    prerequisites.forEach((edge) => {
+        if (!inside.has(edge.after) || inside.has(edge.before)) return;
+        const list = outside.get(edge.after);
+        if (list) list.push(edge);
+        else outside.set(edge.after, [edge]);
+    });
+    return outside;
+};
+
+/** 선수 목록을 한 줄로 — 택일은 괄호로 묶어 "또는" 으로 잇습니다 */
+export const prereqLine = (edges: Prereq[]): string => {
+    const required = edges.filter((edge) => !edge.alternative).map((edge) => edge.before);
+    const optional = edges.filter((edge) => edge.alternative).map((edge) => edge.before);
+    return [...required, ...(optional.length ? [`(${optional.join(" 또는 ")})`] : [])].join(", ");
+};
+
+/** 배치에 쓰는 칸 크기. 그래프와 자몽 보드가 카드 크기만 다르고 배치는 같습니다 */
+export interface LayoutSize {
+    width: number;
+    height: number;
+    columnGap: number;
+    rowGap: number;
+    /**
+     * 열을 세로 어디에 맞출지. 기본은 위 정렬(`top`)입니다.
+     *
+     * `center`는 칸이 큰 화면용입니다 — 수학처럼 왼쪽 열에 과목이 하나뿐이고 오른쪽
+     * 열에 다섯이면, 위 정렬은 첫 카드 아래로 400px 를 비워 놓습니다.
+     */
+    align?: "top" | "center";
+}
+
+const DEFAULT_LAYOUT: LayoutSize = {
+    width: NODE_WIDTH,
+    height: NODE_HEIGHT,
+    columnGap: COLUMN_GAP,
+    rowGap: ROW_GAP,
+};
+
+/**
  * 한 학과의 과목들을 좌→우 흐름으로 배치합니다.
  *
  * 같은 단계 안에서는 선수 과목의 세로 위치 평균에 가깝게 놓아 선이 덜 엉키게 합니다.
  *
- * `catalog`를 주면 다른 학과에 있는 선수 과목까지 왼쪽에 함께 그립니다. 융합 과목은
- * 선수가 전부 타 학과라, 이게 없으면 관계가 하나도 안 보이고 한 줄로 늘어섭니다.
+ * ⚠️ **타 학과 선수는 그리지 않습니다.** 한때 다른 학과의 선수 과목(융합은 선수가 전부
+ * 타 학과입니다)을 왼쪽에 함께 그렸는데, 융합 판에 수학·물리 과목이 섞여 나와서 저게
+ * 융합 과목인지 아닌지 구별이 안 됐습니다. 지금은 **글로 적습니다** —
+ * `outsidePrereqs()` 가 그 목록을 만들고, 화면이 "선수: …" 로 답니다.
+ *
+ * `size`는 자몽 보드처럼 칸이 큰 화면이 씁니다 — 배치 규칙은 같고 간격만 다릅니다.
  */
 export const layoutGraph = (
     courses: Course[],
     prerequisites: Prereq[],
-    catalog?: Map<string, Course>,
+    size: LayoutSize = DEFAULT_LAYOUT,
 ): Graph => {
-    const primary = new Set(courses.map((course) => course.name));
     const byName = new Map(courses.map((course) => [course.name, course]));
-
-    if (catalog) {
-        prerequisites.forEach((edge) => {
-            if (!primary.has(edge.after) || byName.has(edge.before)) return;
-            const outside = catalog.get(edge.before);
-            if (outside) byName.set(outside.name, outside);
-        });
-    }
 
     const names = [...byName.keys()];
     const inScope = new Set(names);
@@ -563,11 +627,25 @@ export const layoutGraph = (
 
         ordered.forEach((name, row) => {
             positions.set(name, {
-                x: level * (NODE_WIDTH + COLUMN_GAP),
-                y: row * (NODE_HEIGHT + ROW_GAP),
+                x: level * (size.width + size.columnGap),
+                y: row * (size.height + size.rowGap),
             });
         });
     });
+
+    // ⚠️ 선을 만들기 **전에** 옮겨야 합니다 — 경로는 좌표에서 계산되므로 나중에
+    // 카드만 옮기면 선이 허공을 향합니다
+    if (size.align === "center") {
+        const tallest = Math.max(...columns.map((column) => column?.length ?? 0), 1);
+        columns.forEach((column) => {
+            const offset = ((tallest - column.length) * (size.height + size.rowGap)) / 2;
+            if (offset === 0) return;
+            column.forEach((name) => {
+                const position = positions.get(name)!;
+                positions.set(name, { x: position.x, y: position.y + offset });
+            });
+        });
+    }
 
     const nodes: GraphNode[] = names.map((name) => {
         const position = positions.get(name)!;
@@ -583,10 +661,10 @@ export const layoutGraph = (
     const edges: GraphEdge[] = scopedEdges.map((edge) => {
         const from = positions.get(edge.before)!;
         const to = positions.get(edge.after)!;
-        const x1 = from.x + NODE_WIDTH;
-        const y1 = from.y + NODE_HEIGHT / 2;
+        const x1 = from.x + size.width;
+        const y1 = from.y + size.height / 2;
         const x2 = to.x;
-        const y2 = to.y + NODE_HEIGHT / 2;
+        const y2 = to.y + size.height / 2;
         const bend = Math.max(24, (x2 - x1) / 2);
         return {
             before: edge.before,
@@ -596,8 +674,10 @@ export const layoutGraph = (
         };
     });
 
-    const width = columns.length * (NODE_WIDTH + COLUMN_GAP) - COLUMN_GAP;
-    const height = Math.max(...columns.map((column) => column.length), 1) * (NODE_HEIGHT + ROW_GAP) - ROW_GAP;
+    const width = columns.length * (size.width + size.columnGap) - size.columnGap;
+    const height =
+        Math.max(...columns.map((column) => column.length), 1) * (size.height + size.rowGap) -
+        size.rowGap;
 
-    return { nodes, edges, width: Math.max(width, NODE_WIDTH), height };
+    return { nodes, edges, width: Math.max(width, size.width), height };
 };
