@@ -210,7 +210,10 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
                                 d={edge.path}
                                 fill="none"
                                 stroke={linked ? "#ff4eba" : touched ? "#000000" : "rgba(0,0,0,0.32)"}
-                                strokeWidth={linked ? 3 : 2}
+                                // ⚠️ 굵기는 **항상 2** 입니다. 카드 테두리도 2px 이라, 짚은
+                                // 선만 굵어지면 같은 핑크인데 선과 테두리 두께가 어긋납니다.
+                                // 색이 이미 짚었다는 걸 말하므로 굵기까지 바꿀 이유가 없습니다
+                                strokeWidth={2}
                                 strokeOpacity={traced !== null && !linked ? 0.12 : 1}
                                 strokeDasharray={edge.alternative ? "5 4" : undefined}
                             />

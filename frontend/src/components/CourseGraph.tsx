@@ -199,7 +199,9 @@ const CourseGraph: React.FC<CourseGraphProps> = ({
                                       ? "#000000"
                                       : "rgba(0,0,0,0.25)"
                             }
-                            strokeWidth={linked ? 3 : 2}
+                            // 굵기는 항상 2 — 노드 테두리도 2px 이라, 짚은 선만 굵어지면
+                            // 같은 핑크인데 선과 테두리 두께가 어긋납니다
+                            strokeWidth={2}
                             strokeOpacity={faded ? 0.15 : 1}
                             strokeDasharray={edge.alternative ? "5 4" : undefined}
                         />
