@@ -41,8 +41,8 @@ interface CourseCardProps {
     slots: TermSlot[];
     /** 선수를 채웠는지 — 못 채웠으면 흐리게 두고 자물쇠를 답니다 */
     unlocked: boolean;
-    /** 누르면 상세가 열립니다 */
-    onFocus: (name: string) => void;
+    /** 마우스가 올라오면 이름, 나가면 `null` */
+    onFocus: (name: string | null) => void;
     onChange: (name: string, patch: Partial<ZamongEntry>) => void;
     focused?: boolean;
     /**
@@ -87,6 +87,10 @@ const SelectCell: React.FC<{
         <select
             value={value}
             onChange={(event) => onChange(event.target.value)}
+            // ⚠️ **칸에만** 겁니다. 줄 전체에 걸면 라벨이나 여백을 눌러도 카드가 안
+            // 골라지는데, 카드 한가운데가 이 칸이라 "눌러도 아무 일도 안 나는" 자리가
+            // 넓어집니다. 칸을 만지는 건 카드를 고르는 것과 다른 일이니 여기서 끊습니다
+            onClick={(event) => event.stopPropagation()}
             className={cellClass(filled)}
         >
             {children}
@@ -119,6 +123,9 @@ const CourseCard: React.FC<CourseCardProps> = ({
     return (
         <div
             onMouseEnter={() => onFocus(course.name)}
+            // ⚠️ 나갈 때 끄지 않으면 마우스를 치운 뒤에도 그 과목이 짚인 채로 남습니다 —
+            // 아래 상세도, 검게 선 선수 선도 그대로 굳습니다
+            onMouseLeave={() => onFocus(null)}
             title={`${TIER_LABEL[tier]}${course.required_advanced ? " · 트랙필수" : ""}`}
             className={`flex h-full w-full flex-col gap-1.5 border-2 px-2 py-1.5 transition-all duration-100 ${
                 traced
@@ -139,15 +146,9 @@ const CourseCard: React.FC<CourseCardProps> = ({
         >
             {/* 제목 줄 — 오른쪽이 학점입니다. 분류는 카드 색이 말하므로 띠를 따로
                 두지 않습니다 (원본에도 없고, 색 위에 색을 얹으면 둘 다 흐려집니다) */}
-            {/* 포커스 링을 끕니다. 이 버튼이 하는 일은 아래 상세를 여는 것뿐이고 마우스를
-                올려도 같은 일이 일어나는데, 판에 카드가 스무 장 깔린 상태에서 클릭할 때마다
-                파란 테두리가 뜨면 정작 봐야 할 카드 색과 선을 가립니다. 실제 조작은 아래
-                셀렉트들이 맡고, 그쪽 포커스 표시는 그대로 둡니다 */}
-            <button
-                type="button"
-                onClick={() => onFocus(course.name)}
-                className="flex w-full min-w-0 items-center gap-1 text-left outline-none"
-            >
+            {/* 버튼이 아니라 그냥 줄입니다. 카드를 고르는 건 **카드 전체**가 받고
+                (`CourseBoard`), 여기 버튼을 겹쳐 두면 포커스 링이 카드 색과 선을 가립니다 */}
+            <div className="flex w-full min-w-0 items-center gap-1 text-left">
                 {!unlocked && !taken && (
                     <Lock size={12} strokeWidth={3} className="shrink-0 text-black/35" />
                 )}
@@ -166,7 +167,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
                         </span>
                     )}
                 </span>
-            </button>
+            </div>
 
             <span className="-mt-1 truncate text-[10.5px] font-bold leading-tight text-black/35">
                 {outsidePrereq ? `선수 ${outsidePrereq}` : (course.english_name ?? " ")}
@@ -198,7 +199,10 @@ const CourseCard: React.FC<CourseCardProps> = ({
                         // EC 여부는 과목이 아니라 **분반**이 정합니다
                         <button
                             type="button"
-                            onClick={() => onChange(course.name, { isEc: !entry?.isEc })}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onChange(course.name, { isEc: !entry?.isEc });
+                            }}
                             title={entry?.isEc ? "영어강의로 이수" : "눌러서 영어강의로 표시"}
                             className={`h-7 border-2 bg-white px-1.5 text-[11px] font-black transition-colors duration-100 ${
                                 entry?.isEc

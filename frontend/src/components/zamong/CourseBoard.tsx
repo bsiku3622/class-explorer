@@ -36,7 +36,10 @@ interface CourseBoardProps {
     entries: ZamongMap;
     slots: TermSlot[];
     focused: string | null;
-    onFocus: (name: string) => void;
+    onFocus: (name: string | null) => void;
+    /** 눌러 둔 과목 — 페이지가 들고 있습니다 (아래 상세가 같은 값을 씁니다) */
+    selected: string | null;
+    onSelect: (name: string | null) => void;
     onChange: (name: string, patch: Partial<ZamongEntry>) => void;
 }
 
@@ -48,18 +51,10 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
     slots,
     focused,
     onFocus,
+    selected,
+    onSelect,
     onChange,
 }) => {
-    /**
-     * 눌러 둔 과목 — 그 과목에 이어진 **선**을 핑크로 세웁니다.
-     *
-     * ⚠️ **누른 카드 하나만** 표시합니다. 이어지지 않은 카드를 `opacity-15` 로 지운
-     * 적도, 이어진 카드까지 전부 핑크로 세운 적도 있는데 둘 다 판이 시끄러웠습니다 —
-     * **어디로 이어지는지는 선이 이미 말합니다.** 테두리는 "지금 짚은 게 이것" 만
-     * 말하면 됩니다.
-     */
-    const [traced, setTraced] = useState<string | null>(null);
-
     /** 어느 쪽으로 더 스크롤할 수 있는지 — 가장자리 그림자를 켜고 끕니다 */
     const scrollRef = useRef<HTMLDivElement>(null);
     const [edges, setEdges] = useState({ left: false, right: false });
@@ -133,7 +128,7 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
                 slots={slots}
                 unlocked={prereqSatisfied(node.name, taken, prereqIndex)}
                 focused={focused === node.name}
-                traced={traced === node.name}
+                traced={selected === node.name}
                 outsidePrereq={edges ? prereqLine(edges) : null}
                 onFocus={onFocus}
                 onChange={onChange}
@@ -192,7 +187,8 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
                 className="relative"
                 style={{ width: graph.width, height: graph.height, minWidth: graph.width }}
                 onClick={(event) => {
-                    if (event.target === event.currentTarget) setTraced(null);
+                    // 빈 곳을 누르면 강조를 풉니다
+                    if (event.target === event.currentTarget) onSelect(null);
                 }}
             >
                 <svg
@@ -202,7 +198,8 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
                 >
                     {graph.edges.map((edge) => {
                         const linked =
-                            traced !== null && (edge.before === traced || edge.after === traced);
+                            selected !== null &&
+                            (edge.before === selected || edge.after === selected);
                         const touched = focused === edge.before || focused === edge.after;
                         return (
                             <path
@@ -214,7 +211,7 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
                                 // 선만 굵어지면 같은 핑크인데 선과 테두리 두께가 어긋납니다.
                                 // 색이 이미 짚었다는 걸 말하므로 굵기까지 바꿀 이유가 없습니다
                                 strokeWidth={2}
-                                strokeOpacity={traced !== null && !linked ? 0.12 : 1}
+                                strokeOpacity={selected !== null && !linked ? 0.12 : 1}
                                 strokeDasharray={edge.alternative ? "5 4" : undefined}
                             />
                         );
@@ -231,7 +228,7 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
                             width: CARD_WIDTH,
                             height: CARD_HEIGHT,
                         }}
-                        onClick={() => setTraced(traced === node.name ? null : node.name)}
+                        onClick={() => onSelect(selected === node.name ? null : node.name)}
                     >
                         {renderNode(node)}
                     </div>
