@@ -334,9 +334,15 @@ KEIS API: https://keis.ksa.hs.kr/restapi/v1/schedule/{stuId}/{year}/{semester}
       ↓
 parse_schedule() → [{subject, section, teacher, room, times}]
       ↓
-[전원 수집 후] 해당 학기 Class/ClassTime/Enrollment 전량 교체
+[전원 수집 후] ClassTime/Enrollment 는 전량 교체,
+               Class 는 (과목, 분반, 교사) 로 찾아 재사용
 ```
 수집 도중 실패해도 DB는 변경되지 않습니다. 요청 실패가 과반을 넘으면 중단합니다.
+
+⚠️ **`Class.id` 는 재수집해도 보존됩니다.** Trade 계획(`UserState.trade`)이 분반을 id 로
+가리켜서, 지웠다 다시 넣으면 남의 계획이 엉뚱한 분반에 붙습니다. 폐강·신설만 행이
+바뀌고, 교사 이름이 바뀐 분반은 키가 달라져 새 id 를 받습니다 — 자세한 건
+[parser_run.guide.md](parser_run.guide.md).
 
 ## 실행 방법
 
