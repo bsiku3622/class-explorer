@@ -23,6 +23,8 @@ backend/
 ├── state_router.py  → 계정별 화면 상태 (/state/*)
 ├── create_user.py   → 관리자 계정 생성 CLI 스크립트
 ├── subject_names.py → 과목명 분해·정규화 (한글명/영문명/EC 태그)
+├── workbook.py      → xlsx 리더 (zipfile+ElementTree, 의존성 없음) — 아래 둘이 공유
+├── zamong_import.py → 사람이 채운 Zamong 워크북 → 자몽 기록
 ├── build_curriculum_seed.py → Zamong 워크북 → curriculum_seed.json (로컬 전용)
 ├── import_curriculum.py → curriculum_seed.json → Department/Course/CoursePrereq 적재
 │                          + Subject.course_id 재연결
@@ -151,10 +153,11 @@ UserState                      CourseGrade
 ─────────────────────────────  ─────────────────────────────
 id (PK)                        id (PK)
 user_id (FK→User)              user_id (FK→User)
-key ("plan" | "trade")         course_id (FK→Course)
+key ("plan"|"trade"|"zamong")  course_id (FK→Course)
 data (JSON, 서버는 해석 안 함)   grade ("A+"... | None)
-updated_at                     UniqueConstraint (user_id, course_id)
-UniqueConstraint (user_id,key)
+updated_at                     term ("1"~"8" | "S" | None)
+UniqueConstraint (user_id,key) is_ec (영어강의로 들었는지)
+                               UniqueConstraint (user_id, course_id)
 ```
 
 ### 계정과 학번
@@ -271,11 +274,38 @@ KST 여야 하고 다른 서비스의 타임존까지 건드릴 이유가 없어
 작업 중인 계획과 이수 기록은 기기가 아니라 **계정**에 붙습니다.
 
 - `UserState` — 화면이 쓰던 JSON을 그대로 맡아 둡니다. 구조가 화면마다 달라 컬럼으로
-  펼치지 않았고, 서버는 내용을 해석하지 않습니다. 지금 쓰는 키는 `trade`뿐이고
-  `plan`은 Zamong이 옛 값을 한 번 읽어 지우려고만 남겨 뒀습니다
-- `CourseGrade` — 평어는 서버가 검증해야 해서(교육과정에 있는 과목인지, 아는 평어인지)
-  구조화했습니다. 행이 있으면 이수한 것으로 보고 `grade`는 선택입니다. 누구의 기록인지는
-  `User.stu_id`가 정하므로 학번 컬럼을 두지 않습니다
+  펼치지 않았고, 서버는 내용을 해석하지 않습니다. 지금 쓰는 키는 `trade`와 `zamong`
+  (손으로 적는 비교과 시수 + 밑칠 여부)이고, `plan`은 옛 값을 한 번 읽어 지우려고만
+  남겨 뒀습니다
+- `CourseGrade` — **자몽 한 칸**입니다. 서버가 검증해야 해서(교육과정에 있는 과목인지,
+  아는 평어·학기인지) 구조화했습니다. 누구의 기록인지는 `User.stu_id`가 정하므로 학번
+  컬럼을 두지 않습니다
+
+  ⚠️ **`Enrollment`(실제 수강 이력)와 별개입니다.** 한때 수집된 학기를 그대로 이수로
+  박아 뒀는데, 재수강한 과목이 두 학기에 나타나면서 어느 쪽이 인정인지 정할 수 없었고
+  사람이 고칠 길도 없었습니다. 이력은 자몽이 빈 사람에게 **처음 한 번 밑칠**할 때만
+  읽습니다(`/state/zamong`의 `seeded`가 그 한 번을 기억합니다). 학사 사이트를 붙여도
+  이 경계는 그대로 둡니다
+
+  **`term`이 이 표의 중심입니다** — 워크북과 같이 학기가 있어야 학점이 인정됩니다.
+  재수강은 별도 장치 없이 학기를 다시 고르면 끝이라 행을 여럿 두지 않습니다
+
+### 자몽 워크북 업로드 (`zamong_import.py`)
+
+`POST /curriculum/import-workbook` 이 사람이 채운 xlsx 를 읽어 **본인 기록을 통째로
+갈아끼웁니다.** 합치지 않는 이유는 워크북이 그 사람의 자몽 전체라, 일부만 덮으면 앱에서
+지운 과목이 되살아나기 때문입니다.
+
+카드는 색이나 병합이 아니라 **모양**으로 찾습니다 — `(r+3,c)=="학점"` 이고
+`(r+4,c)=="평어"` 인 자리가 제목이고, 학기는 `(r+2,c)`, 평어는 `(r+4,c+1)` 입니다.
+시트를 조금 손봐도 버팁니다.
+
+⚠️ **학기가 없는 카드는 건너뜁니다.** 워크북에는 안 들은 과목의 카드도 다 있고, 제목만
+EC 로 골라 둔 카드(`미분방정식(EC)`)도 흔합니다 — 학기 없는 EC 표시는 "영어강의로 들을
+생각" 이지 이수가 아닙니다.
+
+브라우저가 아니라 서버가 읽는 이유는 파서를 하나 더 들이지 않으려고입니다 (SheetJS 는
+1MB 가까이 됩니다). `workbook.py` 는 표준 라이브러리만 씁니다.
 
 ### 스키마 초기화
 

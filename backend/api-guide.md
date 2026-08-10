@@ -371,8 +371,16 @@
 작업 중인 계획을 기기(localStorage)가 아니라 계정에 붙여 둡니다. 서버는 `data` 내용을
 해석하지 않습니다 — 화면마다 구조가 다르고 자주 바뀌기 때문입니다.
 
+### `POST /curriculum/import-workbook` *(인증 필요, multipart)*
+사람이 채운 Zamong 워크북(`.xlsx`, 최대 8MB)을 올리면 **본인 기록을 통째로 교체**합니다.
+응답은 `{imported, graded, ec, sheets, unknown_courses, unknown_terms, unknown_grades}`.
+xlsx 가 아니거나 채워진 과목이 없으면 `400`, 너무 크면 `413`.
+
 ### `GET·PUT·DELETE /state/{key}` *(인증 필요)*
-`key`는 `plan` | `trade`만 허용하며, 그 외에는 `404`. 저장 크기 상한은 256KB(`413`).
+`key`는 `plan` | `trade` | `zamong`만 허용하며, 그 외에는 `404`. 저장 크기 상한은 256KB(`413`).
+
+`zamong`은 자몽이 쓰는 값입니다 — 손으로 적는 비교과 시수(`self_dev`/`collab`/`global`)와,
+밑칠을 이미 물어봤는지(`seeded`). 어디서도 자동으로 알 수 없는 값이라 서버가 검증하지 않습니다.
 
 ```json
 // PUT 요청

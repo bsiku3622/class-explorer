@@ -140,13 +140,31 @@ src/
 | 대상 | 저장 위치 |
 |------|-----------|
 | 트레이드 계획 | `PUT /state/trade` |
-| 이수 체크와 평어 | `PUT /curriculum/grades` (본인 것) |
+| 자몽 (학기·평어·EC) | `PUT /curriculum/grades` (본인 것) |
+| 자몽 시수와 밑칠 여부 | `PUT /state/zamong` |
 
 `src/lib/userState.ts`의 `loadState`/`saveState`를 씁니다. 예전 기기에 남은 값
 (`ksa_plan_state`, `ksa_trade_state`)은 처음 열 때 한 번 서버로 옮기고 지웁니다.
 
 **불러오기 전에는 저장하지 않습니다.** 마운트 직후 빈 상태로 저장이 돌면 서버 값을
 덮어써 날려버립니다 — 두 페이지 모두 `restored` 플래그로 막고 있습니다.
+
+## 응답 캐싱 (`lib/cache.ts`)
+
+학기 데이터 캐시(아래)와 **다른 물건**입니다. 여러 화면이 같이 부르는 작은 것들을 맡습니다.
+
+| 대상 | TTL | 이유 |
+|---|---|---|
+| `/curriculum` (`lib/curriculumApi.ts`) | 24h | Zamong·Browse·Trade 가 같은 걸 받습니다. 학기 무관 정의라 자주 받을 이유가 없습니다 |
+| `/periods` | 24h | 생활관 일과표에서 온 값이라 학기 중에 안 바뀝니다 |
+| `/meal?date=` | 지난 날 7d · 오늘·앞날 20분 | 학교 API 가 3~5초 걸립니다. ⚠️ 앞날을 길게 잡으면 아직 안 올라온 날이 빈 채로 굳습니다 |
+
+**같은 키의 요청은 하나로 묶습니다.** 첫 방문에는 캐시가 비어 있어서, 세 화면이 동시에
+열리면 `/curriculum` 이 세 번 나갑니다.
+
+⚠️ `api.get("/curriculum")` 을 직접 부르지 말고 `fetchCurriculum()` 을 쓰세요.
+
+로그아웃하면 `clearCache()` 로 통째로 비웁니다.
 
 ## 데이터 캐싱
 - 키: `ksa_class_finder_cache_{year}_{semester}` — **학기별로 분리**

@@ -64,7 +64,10 @@
 | `AnalysisPage` | `/analysis` | 학사 데이터 통계 대시보드 |
 | `BrowsePage` | `/browse` | 학생·교사 목록 + 교육과정 그래프 + 친구 관리 (Students / Teachers / Courses / Friends 토글) |
 | `TradePage` | `/trade` | 수강 변경 탐색 (2026-2 한정, features 플래그). 드랍한 과목은 시간표에서 빠지고, 추천 목록은 이미 들었거나 선수를 안 채운 과목을 걸러 냅니다 |
-| `ZamongPage` | `/zamong` | 교육과정 이수 현황 — 졸업 요건 진척도 + 평어·평점 + 선수관계 그래프 (학번 등록 필요) |
+| `ZamongPage` | `/zamong` | 자몽 — 학교 Zamong 워크북을 옮긴 화면. 로드맵 탭 + 학과별 카드 보드 (학번 등록 필요) |
+| `zamong/Roadmap` | — | 워크북 `Zamong` 시트 — **화면 맨 위 고정**. 숫자 격자 두 개 + 1~8학기·계절·EC 목록. 과목을 끌어 학기 이동 |
+| `zamong/CourseBoard` | — | 학과 시트 — 선수 깊이 순 카드 배치. 좁은 화면에서는 사다리를 접고 단 순서대로 |
+| `zamong/CourseCard` | — | 과목 카드 — 학기·평어를 바로 고릅니다 (체크박스 없음) |
 | `CalendarPage` | `/calendar` | 학사일정 달력 — 월 격자 + 날짜 상세 + 개인 일정(반복 가능) + 제안 서랍 |
 | `SettingsPage` | `/about` | 기능 가이드북 + About |
 | `InventoryPage` | `/inventory` | **개발 전용** (`import.meta.env.DEV`) — 이 앱이 실제로 그리는 버튼·인풋·카드·색의 표본집. funky-ui 토큰 재설계용 작업대라 메뉴에 올리지 않습니다. 표본마다 원본 `파일:줄` 이 붙어 있습니다. 이관이 끝나면 삭제합니다 |
