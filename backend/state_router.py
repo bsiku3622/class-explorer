@@ -18,8 +18,10 @@ from backend.auth import get_current_user, get_db
 
 router = APIRouter(prefix="/state", tags=["state"])
 
-# 화면 이름 — 오타로 엉뚱한 키가 쌓이지 않게 미리 정해 둡니다
-ALLOWED_KEYS = {"plan", "trade"}
+# 화면 이름 — 오타로 엉뚱한 키가 쌓이지 않게 미리 정해 둡니다.
+# `zamong` 은 손으로 적는 비교과 시수(자기계발·협업·세계시민)입니다 — 어디서도
+# 자동으로 알 수 없는 값이라 사람이 넣고, 서버가 검증할 것도 없습니다
+ALLOWED_KEYS = {"plan", "trade", "zamong"}
 
 # JSON 한 덩어리의 상한. 계획 데이터는 수 KB 수준이라 넉넉합니다
 MAX_BYTES = 256 * 1024
