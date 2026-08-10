@@ -547,6 +547,38 @@ export const outsidePrereqs = (
     return outside;
 };
 
+/**
+ * 동시수강 짝 — 이론과 그 실험처럼 **같은 학기에 같이 들어야 하는** 두 과목.
+ *
+ * 이름에서 `실험`을 빼 봐서 그런 과목이 있으면 그 둘입니다. 없으면 뒤에 `1`을 붙여
+ * 한 번 더 봅니다 (`일반생물학실험` → `일반생물학` 은 없고 `일반생물학1` 이 있습니다).
+ *
+ * 걸리지 않는 이름들: `물리학및실험1`·`화학및실험`·`생물학및실험`(실험이 이름의 일부인
+ * 단일 과목), `실험물리학특론`. 규칙이 이들을 조용히 짝지어 버리지 않는지 확인했습니다.
+ *
+ * ⚠️ **워크북은 이 관계를 선으로 그려 뒀지만 선수관계가 아닙니다.** 워크북이 상자를
+ * 좌→우로만 늘어놓을 수 있어서 그렇게 그린 것이고, 실제로는 같이 듣습니다. 그래서
+ * 배치는 이 짝을 **같은 열에 위아래로** 붙이고 둘 사이의 선은 그리지 않습니다.
+ * (`CoursePrereq` 데이터 자체는 그대로 둡니다 — 이수 판정에는 그게 맞습니다.)
+ */
+export const coRequisitePairs = (names: Iterable<string>): Map<string, string> => {
+    const all = new Set(names);
+    const pairs = new Map<string, string>();
+    all.forEach((name) => {
+        if (!name.includes("실험")) return;
+        const stripped = name.replace("실험", "");
+        const partner = all.has(stripped)
+            ? stripped
+            : all.has(`${stripped}1`)
+              ? `${stripped}1`
+              : null;
+        if (!partner || partner === name) return;
+        pairs.set(name, partner);
+        pairs.set(partner, name);
+    });
+    return pairs;
+};
+
 /** 선수 목록을 한 줄로 — 택일은 괄호로 묶어 "또는" 으로 잇습니다 */
 export const prereqLine = (edges: Prereq[]): string => {
     const required = edges.filter((edge) => !edge.alternative).map((edge) => edge.before);
@@ -568,6 +600,9 @@ export interface LayoutSize {
      */
     align?: "top" | "center";
 }
+
+/** 동시수강 짝 사이의 간격 — 이웃 간격보다 좁아야 "붙어 있다" 로 읽힙니다 */
+const PAIR_GAP = 4;
 
 const DEFAULT_LAYOUT: LayoutSize = {
     width: NODE_WIDTH,
@@ -597,11 +632,27 @@ export const layoutGraph = (
 
     const names = [...byName.keys()];
     const inScope = new Set(names);
+    const pairs = coRequisitePairs(names);
+
+    // 동시수강 짝 사이의 선은 **배치에서 뺍니다.** 워크북이 좌→우로만 그릴 수 있어서
+    // 선으로 이어 뒀을 뿐 선수관계가 아니고, 남겨 두면 실험이 한 칸 오른쪽으로 밀려
+    // 같이 듣는 과목이 다음 학기 것처럼 보입니다
     const scopedEdges = prerequisites.filter(
-        (edge) => inScope.has(edge.before) && inScope.has(edge.after),
+        (edge) =>
+            inScope.has(edge.before) &&
+            inScope.has(edge.after) &&
+            pairs.get(edge.after) !== edge.before,
     );
     const prereqIndex = buildPrereqIndex(scopedEdges);
     const levels = computeLevels(names, prereqIndex, inScope);
+
+    // 짝은 같은 열에 섭니다. 선을 뺀 것만으로 대개 맞아떨어지지만, 한쪽에만 선수가
+    // 더 붙어 있으면 어긋나므로 깊은 쪽에 맞춥니다
+    pairs.forEach((partner, name) => {
+        const level = Math.max(levels.get(name) ?? 0, levels.get(partner) ?? 0);
+        levels.set(name, level);
+        levels.set(partner, level);
+    });
 
     const columns: string[][] = [];
     names.forEach((name) => {
@@ -610,9 +661,12 @@ export const layoutGraph = (
     });
 
     const positions = new Map<string, { x: number; y: number }>();
+    /** 열마다 실제 높이 — 짝을 붙이느라 칸 수와 높이가 비례하지 않습니다 */
+    const columnHeights: number[] = [];
+
     columns.forEach((column, level) => {
         // 선수 과목이 놓인 높이의 평균 순으로 세워 선 교차를 줄입니다
-        const ordered = [...column].sort((a, b) => {
+        const sorted = [...column].sort((a, b) => {
             const anchor = (name: string) => {
                 const parents = (prereqIndex.get(name) ?? [])
                     .map((edge) => positions.get(edge.before)?.y)
@@ -625,21 +679,44 @@ export const layoutGraph = (
             return diff !== 0 ? diff : a.localeCompare(b);
         });
 
+        // 짝을 바로 뒤에 끌어다 붙입니다 — 사이에 다른 과목이 끼면 "같이 듣는다" 가
+        // 안 보입니다
+        const ordered: string[] = [];
+        const placed = new Set<string>();
+        sorted.forEach((name) => {
+            if (placed.has(name)) return;
+            ordered.push(name);
+            placed.add(name);
+            const partner = pairs.get(name);
+            if (partner && column.includes(partner) && !placed.has(partner)) {
+                ordered.push(partner);
+                placed.add(partner);
+            }
+        });
+
+        // 짝 사이는 좁게 붙여, 떨어져 선 이웃과 구별되게 합니다
+        let cursor = 0;
         ordered.forEach((name, row) => {
+            const previous = row > 0 ? ordered[row - 1] : null;
+            if (previous) {
+                cursor +=
+                    size.height + (pairs.get(previous) === name ? PAIR_GAP : size.rowGap);
+            }
             positions.set(name, {
                 x: level * (size.width + size.columnGap),
-                y: row * (size.height + size.rowGap),
+                y: cursor,
             });
         });
+        columnHeights[level] = cursor + size.height;
     });
 
     // ⚠️ 선을 만들기 **전에** 옮겨야 합니다 — 경로는 좌표에서 계산되므로 나중에
     // 카드만 옮기면 선이 허공을 향합니다
     if (size.align === "center") {
-        const tallest = Math.max(...columns.map((column) => column?.length ?? 0), 1);
-        columns.forEach((column) => {
-            const offset = ((tallest - column.length) * (size.height + size.rowGap)) / 2;
-            if (offset === 0) return;
+        const tallest = Math.max(...columnHeights.filter(Boolean), size.height);
+        columns.forEach((column, level) => {
+            const offset = (tallest - (columnHeights[level] ?? 0)) / 2;
+            if (offset <= 0) return;
             column.forEach((name) => {
                 const position = positions.get(name)!;
                 positions.set(name, { x: position.x, y: position.y + offset });
