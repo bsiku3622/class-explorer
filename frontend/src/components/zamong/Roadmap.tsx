@@ -59,7 +59,7 @@ const Th: React.FC<{ children: React.ReactNode; className?: string }> = ({
     className = "",
 }) => (
     <th
-        className={`px-2 py-1.5 text-[11px] font-black uppercase tracking-wider text-black/45 ${className}`}
+        className={`px-2 py-1 text-[11px] font-black uppercase tracking-wider text-black/45 ${className}`}
     >
         {children}
     </th>
@@ -67,7 +67,7 @@ const Th: React.FC<{ children: React.ReactNode; className?: string }> = ({
 
 /** 행 이름 — 왼쪽 첫 칸 */
 const Rh: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <th className="whitespace-nowrap py-1.5 pr-3 text-left text-[11px] font-black uppercase tracking-widest text-black/45">
+    <th className="whitespace-nowrap py-1 pr-3 text-left text-[11px] font-black uppercase tracking-widest text-black/45">
         {children}
     </th>
 );
@@ -80,7 +80,7 @@ const Td: React.FC<{ children?: React.ReactNode; className?: string; title?: str
 }) => (
     <td
         title={title}
-        className={`px-2 py-1.5 text-center text-[13px] font-black tabular-nums ${className}`}
+        className={`px-2 py-1 text-center text-[13px] font-black tabular-nums ${className}`}
     >
         {children}
     </td>
@@ -133,12 +133,12 @@ const Roadmap: React.FC<RoadmapProps> = ({
 
     return (
         <RetroCard className="bg-white">
-            <div className="flex items-center gap-3 border-b-2 border-black/10 px-4 py-3 md:px-6">
+            <div className="flex items-center gap-3 border-b-2 border-black/10 px-4 py-2 md:px-6">
                 <RetroSubTitle title="Roadmap" icon={Route} iconSize={18} />
             </div>
 
             {/* ── 워크북 행 2~5 · 학기별 ───────────────────────────────────── */}
-            <div className="overflow-x-auto border-b border-black/10 px-4 py-2 md:px-6">
+            <div className="overflow-x-auto border-b border-black/10 px-4 py-1.5 md:px-6">
                 <table className="w-full min-w-[44rem] border-collapse">
                     <thead>
                         <tr className="border-b border-black/10">
@@ -210,7 +210,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
             </div>
 
             {/* ── 워크북 행 7~10 · 졸업 요건 ───────────────────────────────── */}
-            <div className="overflow-x-auto border-b-2 border-black/10 px-4 py-2 md:px-6">
+            <div className="overflow-x-auto border-b-2 border-black/10 px-4 py-1.5 md:px-6">
                 <table className="w-full min-w-[44rem] border-collapse">
                     <thead>
                         <tr className="border-b border-black/10">
@@ -244,7 +244,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
                             {HOUR_FIELDS.map((field, index) => (
                                 <td
                                     key={field.key}
-                                    className={`px-1 py-0.5 text-center ${
+                                    className={`px-2 py-1 text-center ${
                                         index === 0 ? "border-l border-black/10" : ""
                                     }`}
                                 >
@@ -265,7 +265,10 @@ const Roadmap: React.FC<RoadmapProps> = ({
                                                 ),
                                             })
                                         }
-                                        className="h-8 w-full min-w-0 border-2 border-black/20 bg-white px-1.5 text-center text-[13px] font-black tabular-nums outline-none transition-colors duration-100 placeholder:text-black/20 focus:border-black"
+                                        // ⚠️ 테두리도 스피너도 없습니다. 이 셋만 상자를 두르고 있으니 옆칸(총 시수·
+                                        // 계열 학점)과 어긋나 보였습니다 — 여기 있는 건 전부 숫자이고,
+                                        // 이 셋만 **고칠 수 있다**는 건 손을 올렸을 때 알면 됩니다
+                                        className="w-full min-w-0 bg-transparent text-center text-[13px] font-black tabular-nums outline-none transition-colors duration-100 [appearance:textfield] placeholder:text-black/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                     />
                                 </td>
                             ))}
@@ -428,6 +431,28 @@ const TermRow: React.FC<{
         setQuery("");
     };
 
+    /**
+     * 학점은 **줄 맨 오른쪽**입니다.
+     *
+     * 이름 옆에 두면 이름 폭을 고정해야 `계절학기` 줄에서 안 밀리는데, 그러면 짧은
+     * 이름 뒤로 빈 자리가 길게 남습니다. 오른쪽에 세우면 줄마다 한 열로 서면서 그
+     * 빈 자리가 과목 자리로 갑니다.
+     */
+    const creditLabel = (
+        <span
+            className={`text-[12px] font-black tabular-nums ${
+                credits === 0
+                    ? "text-black/20"
+                    : ok
+                      ? "text-black/45"
+                      : "bg-retro-primary/25 px-1 text-black"
+            }`}
+            title={ok ? undefined : "한 학기 학점이 10~30 범위를 벗어났습니다"}
+        >
+            {credits === 0 ? "—" : `${credits}학점`}
+        </span>
+    );
+
     return (
         <div
             onDragOver={(event) => {
@@ -448,31 +473,20 @@ const TermRow: React.FC<{
                 over ? "bg-retro-primary/15" : ""
             }`}
         >
-            {/* ⚠️ 이름과 학점은 **각자 폭이 고정**입니다. 붙여 놓으면 `계절학기` 줄에서만
-                학점이 오른쪽으로 밀려서 줄마다 들쭉날쭉해집니다 */}
             {/* ⚠️ 오른쪽 첫 줄과 **같은 높이 상자** 안에서 가운데 정렬합니다. 예전에는
                 `items-baseline` + `pt-1` 로 눈대중해 놨는데, 오른쪽 줄 높이는 입력칸이
                 정해서(그리고 줄이 접히면 더 커져서) 기준선이 매번 어긋났습니다 */}
-            <div className="flex h-7 shrink-0 items-center gap-2">
+            <div className="flex h-7 shrink-0 items-center justify-between md:w-[4.5rem] md:justify-start">
                 <span
-                    className={`w-[4.5rem] shrink-0 text-[12px] font-black uppercase tracking-widest ${
+                    className={`text-[12px] font-black uppercase tracking-widest ${
                         courses.length ? "text-black" : "text-black/25"
                     }`}
                 >
                     {name}
                 </span>
-                <span
-                    className={`w-14 shrink-0 text-right text-[12px] font-black tabular-nums ${
-                        credits === 0
-                            ? "text-black/20"
-                            : ok
-                              ? "text-black/45"
-                              : "bg-retro-primary/25 text-black"
-                    }`}
-                    title={ok ? undefined : "한 학기 학점이 10~30 범위를 벗어났습니다"}
-                >
-                    {credits === 0 ? "—" : `${credits}학점`}
-                </span>
+                {/* 좁은 화면에서는 줄이 세로로 쌓여서 오른쪽 끝이라는 게 없습니다 —
+                    그때만 이름 옆에 붙입니다 */}
+                <span className="md:hidden">{creditLabel}</span>
             </div>
 
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -530,7 +544,9 @@ const TermRow: React.FC<{
                                 }
                             }}
                             placeholder={over ? "여기에 놓기" : courses.length ? "과목 넣기" : emptyText}
-                            className="h-7 w-full bg-transparent px-1.5 text-[13px] font-bold outline-none transition-colors duration-100 placeholder:font-bold placeholder:text-black/25 hover:bg-black/[0.04] focus:bg-black/[0.06]"
+                            // 테두리도, 호버·포커스 표시도 없습니다. 여기서 바뀌는 건 placeholder 뿐이고,
+                            // 칠 수 있다는 건 커서가 말합니다
+                            className="h-7 w-full bg-transparent px-1.5 text-[13px] font-bold outline-none placeholder:font-bold placeholder:text-black/25"
                         />
                         {focused && matches.length > 0 && (
                             <div className="absolute left-0 top-8 z-20 max-h-64 w-full min-w-[16rem] overflow-y-auto border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]">
@@ -553,6 +569,10 @@ const TermRow: React.FC<{
                         )}
                     </div>
                 )}
+            </div>
+
+            <div className="hidden h-7 w-16 shrink-0 items-center justify-end md:flex">
+                {creditLabel}
             </div>
         </div>
     );
