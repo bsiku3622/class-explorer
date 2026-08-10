@@ -29,6 +29,7 @@ import {
     buildPrereqIndex,
     buildUnlockIndex,
     courseDepths,
+    prereqLine,
     CATEGORY_LABEL,
 } from "../lib/curriculum";
 import {
@@ -65,6 +66,14 @@ interface ZamongPageProps {
     stuId: string | null;
     studentName: string | null;
 }
+
+/** 상세의 관계 한 줄 — 라벨 폭이 같아야 "선수 / 후수" 가 한 열로 읽힙니다 */
+const Relation: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+    <p className="flex gap-2 text-[12px] font-bold text-black/60">
+        <span className="w-14 shrink-0 font-black text-black/35">{label}</span>
+        <span className="min-w-0">{value}</span>
+    </p>
+);
 
 const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
     const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
@@ -589,7 +598,11 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                                 key={name}
                                 size="sm"
                                 isSelected={department === name}
-                                onClick={() => setDepartment(name)}
+                                onClick={() => {
+                                    // 붙잡아 둔 과목은 이 판에 없습니다 — 같이 놓습니다
+                                    setDepartment(name);
+                                    setSelected(null);
+                                }}
                             >
                                 {name}
                             </RetroButton>
@@ -691,30 +704,22 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                                     {(() => {
                                         const edges = prereqIndex.get(focusedCourse.name) ?? [];
                                         const unlocks = unlockIndex.get(focusedCourse.name) ?? [];
-                                        const optional = edges.filter((edge) => edge.alternative);
-                                        const required = edges.filter((edge) => !edge.alternative);
+                                        // 라벨을 짝으로 답니다 — "선수 / 후수" 는 서로를 보고
+                                        // 읽는 값이라, 한쪽만 문장이면 두 줄이 다른 종류처럼
+                                        // 보입니다 ("이 과목을 들으면 열립니다" 로 뒀었습니다)
                                         return (
                                             <>
                                                 {edges.length > 0 && (
-                                                    <p className="text-[12px] font-bold text-black/60">
-                                                        선수:{" "}
-                                                        {[
-                                                            ...required.map((edge) => edge.before),
-                                                            ...(optional.length
-                                                                ? [
-                                                                      `(${optional
-                                                                          .map((edge) => edge.before)
-                                                                          .join(" 또는 ")})`,
-                                                                  ]
-                                                                : []),
-                                                        ].join(", ")}
-                                                    </p>
+                                                    <Relation
+                                                        label="선수 과목"
+                                                        value={prereqLine(edges)}
+                                                    />
                                                 )}
                                                 {unlocks.length > 0 && (
-                                                    <p className="text-[12px] font-bold text-black/60">
-                                                        이 과목을 들으면 열립니다:{" "}
-                                                        {unlocks.join(", ")}
-                                                    </p>
+                                                    <Relation
+                                                        label="후수 과목"
+                                                        value={unlocks.join(", ")}
+                                                    />
                                                 )}
                                             </>
                                         );
