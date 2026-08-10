@@ -24,7 +24,7 @@
  */
 
 import React from "react";
-import { Lock } from "lucide-react";
+import { ChevronDown, Lock } from "lucide-react";
 import { GRADE_OPTIONS, type Course } from "../../lib/curriculum";
 import {
     TIER_LABEL,
@@ -64,9 +64,37 @@ interface CourseCardProps {
  * **흰 바탕에 검은 글씨**이고, 채웠는지는 테두리 굵기와 글자색이 말합니다.
  */
 const cellClass = (filled: boolean) =>
-    `h-[19px] w-full min-w-0 cursor-pointer appearance-none border-2 bg-white px-1 text-[10px] font-black outline-none transition-colors duration-100 ${
+    `h-7 w-full min-w-0 cursor-pointer appearance-none border-2 bg-white pl-1.5 pr-5 text-[13px] font-black outline-none transition-colors duration-100 ${
         filled ? "border-black text-black" : "border-black/20 text-black/35 hover:border-black/50"
     }`;
+
+/**
+ * 고르는 칸. `appearance-none` 으로 기본 모양을 지우면 **화살표까지 사라져서** 눌러서
+ * 여는 칸인지 안 보입니다 — 직접 답니다.
+ */
+const SelectCell: React.FC<{
+    value: string;
+    filled: boolean;
+    onChange: (value: string) => void;
+    children: React.ReactNode;
+}> = ({ value, filled, onChange, children }) => (
+    <span className="relative flex min-w-0 flex-1 items-center">
+        <select
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            className={cellClass(filled)}
+        >
+            {children}
+        </select>
+        <ChevronDown
+            size={13}
+            strokeWidth={3}
+            className={`pointer-events-none absolute right-1 ${
+                filled ? "text-black/60" : "text-black/30"
+            }`}
+        />
+    </span>
+);
 
 const CourseCard: React.FC<CourseCardProps> = ({
     course,
@@ -87,7 +115,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
         <div
             onMouseEnter={() => onFocus(course.name)}
             title={`${TIER_LABEL[tier]}${course.required_advanced ? " · 심화필수" : ""}`}
-            className={`flex h-full w-full flex-col gap-1 border-2 px-1.5 py-1 transition-all duration-100 ${
+            className={`flex h-full w-full flex-col gap-1.5 border-2 px-2 py-1.5 transition-all duration-100 ${
                 taken
                     ? "border-black shadow-[3px_3px_0_0_rgba(0,0,0,0.22)]"
                     : unlocked
@@ -106,41 +134,39 @@ const CourseCard: React.FC<CourseCardProps> = ({
                 className="flex w-full min-w-0 items-center gap-1 text-left"
             >
                 {!unlocked && !taken && (
-                    <Lock size={9} strokeWidth={3} className="shrink-0 text-black/35" />
+                    <Lock size={12} strokeWidth={3} className="shrink-0 text-black/35" />
                 )}
                 <span
-                    className={`min-w-0 flex-1 truncate text-[11.5px] font-black leading-tight ${
+                    className={`min-w-0 flex-1 truncate text-sm font-black leading-tight ${
                         course.required_advanced ? "underline decoration-2 underline-offset-2" : ""
                     }`}
                 >
                     {course.name}
                 </span>
-                <span className="shrink-0 text-[10px] font-black tabular-nums text-black/55">
+                <span className="shrink-0 text-[13px] font-black tabular-nums text-black/55">
                     {course.credits}
                     {course.ap_credits > 0 && (
-                        <span className="ml-0.5 text-[8px] tracking-tight text-black/40">
+                        <span className="ml-0.5 text-[10px] tracking-tight text-black/40">
                             AP{course.ap_credits}
                         </span>
                     )}
                 </span>
             </button>
 
-            <span className="-mt-1 truncate text-[8.5px] font-bold leading-tight text-black/30">
+            <span className="-mt-1 truncate text-[10.5px] font-bold leading-tight text-black/35">
                 {outsidePrereq ? `선수 ${outsidePrereq}` : (course.english_name ?? " ")}
             </span>
 
             <label className="mt-auto flex items-center gap-1">
-                <span className="w-5 shrink-0 text-[8.5px] font-black uppercase tracking-wider text-black/40">
+                <span className="w-7 shrink-0 text-[11px] font-black uppercase tracking-wider text-black/45">
                     학기
                 </span>
-                <select
+                <SelectCell
                     value={entry?.term ?? ""}
-                    onChange={(event) =>
-                        onChange(course.name, {
-                            term: (event.target.value || null) as TermKey | null,
-                        })
+                    filled={taken}
+                    onChange={(value) =>
+                        onChange(course.name, { term: (value || null) as TermKey | null })
                     }
-                    className={cellClass(taken)}
                 >
                     <option value="">—</option>
                     {slots.map((slot) => (
@@ -148,40 +174,42 @@ const CourseCard: React.FC<CourseCardProps> = ({
                             {slot.label}
                         </option>
                     ))}
-                </select>
-                {course.has_ec && (
-                    // EC 여부는 과목이 아니라 **분반**이 정합니다. 영어강의가 열리는
-                    // 과목에만 묻고, 안 열리는 과목에는 아예 내밀지 않습니다
-                    <button
-                        type="button"
-                        onClick={() => onChange(course.name, { isEc: !entry?.isEc })}
-                        title={entry?.isEc ? "영어강의로 이수" : "눌러서 영어강의로 표시"}
-                        className={`h-[19px] shrink-0 border-2 bg-white px-1 text-[8.5px] font-black transition-colors duration-100 ${
-                            entry?.isEc
-                                ? "border-black text-black"
-                                : "border-black/20 text-black/25 hover:border-black/50"
-                        }`}
-                    >
-                        EC
-                    </button>
-                )}
+                </SelectCell>
+                {/* ⚠️ EC 자리는 **비어 있어도 잡아 둡니다.** 영어강의가 열리는 과목에만
+                    버튼이 뜨는데, 그때만 폭을 뺏으면 같은 카드 안에서 학기 칸과 평어
+                    칸의 길이가 달라지고, 카드끼리도 들쭉날쭉해집니다 */}
+                <span className="flex w-8 shrink-0 justify-end">
+                    {course.has_ec && (
+                        // EC 여부는 과목이 아니라 **분반**이 정합니다
+                        <button
+                            type="button"
+                            onClick={() => onChange(course.name, { isEc: !entry?.isEc })}
+                            title={entry?.isEc ? "영어강의로 이수" : "눌러서 영어강의로 표시"}
+                            className={`h-7 border-2 bg-white px-1.5 text-[11px] font-black transition-colors duration-100 ${
+                                entry?.isEc
+                                    ? "border-black text-black"
+                                    : "border-black/20 text-black/25 hover:border-black/50"
+                            }`}
+                        >
+                            EC
+                        </button>
+                    )}
+                </span>
             </label>
 
             <label className="flex items-center gap-1">
-                <span className="w-5 shrink-0 text-[8.5px] font-black uppercase tracking-wider text-black/40">
+                <span className="w-7 shrink-0 text-[11px] font-black uppercase tracking-wider text-black/45">
                     평어
                 </span>
                 {course.is_pf ? (
-                    <span className="flex h-[19px] flex-1 items-center border-2 border-black/15 bg-white/40 px-1 text-[9px] font-black text-black/30">
+                    <span className="flex h-7 flex-1 items-center border-2 border-black/15 bg-white/40 px-1.5 text-[12px] font-black text-black/30">
                         P/F
                     </span>
                 ) : (
-                    <select
+                    <SelectCell
                         value={grade}
-                        onChange={(event) =>
-                            onChange(course.name, { grade: event.target.value || null })
-                        }
-                        className={cellClass(Boolean(grade))}
+                        filled={Boolean(grade)}
+                        onChange={(value) => onChange(course.name, { grade: value || null })}
                     >
                         <option value="">—</option>
                         {GRADE_OPTIONS.map((option) => (
@@ -189,8 +217,10 @@ const CourseCard: React.FC<CourseCardProps> = ({
                                 {option}
                             </option>
                         ))}
-                    </select>
+                    </SelectCell>
                 )}
+                {/* 위 학기 줄의 EC 자리와 폭을 맞춥니다 */}
+                <span className="w-8 shrink-0" />
             </label>
         </div>
     );
