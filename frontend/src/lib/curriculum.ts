@@ -602,7 +602,7 @@ export interface LayoutSize {
 }
 
 /** 동시수강 짝 사이의 간격 — 이웃 간격보다 좁아야 "붙어 있다" 로 읽힙니다 */
-const PAIR_GAP = 4;
+const PAIR_GAP = 6;
 
 const DEFAULT_LAYOUT: LayoutSize = {
     width: NODE_WIDTH,

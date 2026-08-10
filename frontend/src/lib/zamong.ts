@@ -353,9 +353,13 @@ export const summarize = (
  * 워크북 카드는 다섯 줄(제목·영문명·학기·학점·평어)인데 **학점 줄을 제목으로
  * 올렸습니다** — 읽기만 하는 값이라 라벨을 붙인 줄을 따로 쓸 이유가 없고, 스무 장이
  * 늘어서면 "학점"이라는 회색 글자가 스무 번 반복됩니다.
+ *
+ * ⚠️ **더 줄이지 마세요.** 한때 184×100 에 글자 8.5~11.5px 로 욱여넣었는데, 앱에서
+ * 제일 작은 글자가 배지 10px 인 걸 생각하면 그 아래로 내려간 것이었습니다. 카드는
+ * 이 화면에서 **손이 닿는 유일한 곳**이라, 학기 칸이 19px 짜리면 고르기가 일입니다.
  */
-export const CARD_WIDTH = 184;
-export const CARD_HEIGHT = 100;
+export const CARD_WIDTH = 208;
+export const CARD_HEIGHT = 136;
 
 /**
  * 한 학과를 워크북 시트처럼 좌→우로 늘어놓습니다.
@@ -370,7 +374,7 @@ export const layoutBoard = (courses: Course[], prerequisites: Prereq[]): Graph =
     layoutGraph(courses, prerequisites, {
         width: CARD_WIDTH,
         height: CARD_HEIGHT,
-        columnGap: 56,
-        rowGap: 14,
+        columnGap: 52,
+        rowGap: 18,
         align: "center",
     });

@@ -535,6 +535,7 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                         onHoursChange={(patch) => setHours((prev) => ({ ...prev, ...patch }))}
                         onOpenCourse={openCourse}
                         onMoveCourse={(course, term) => update(course, { term })}
+                        catalog={curriculum.courses}
                     />
 
                     {summary.unscheduled.length > 0 && (
@@ -555,6 +556,7 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                             <RetroButton
                                 key={name}
                                 size="sm"
+                                className="px-4 py-2 text-[13px]"
                                 isSelected={department === name}
                                 onClick={() => setDepartment(name)}
                             >
@@ -566,7 +568,7 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                             disabled={uploading}
                             onClick={() => fileRef.current?.click()}
                             title="채워 둔 Zamong 엑셀을 올려 통째로 바꿉니다"
-                            className="ml-auto flex items-center gap-1.5 border-2 border-black/25 bg-white px-2.5 py-1.5 text-[11px] font-black uppercase tracking-wider transition-colors duration-100 hover:border-black disabled:opacity-50"
+                            className="ml-auto flex items-center gap-1.5 border-2 border-black/25 bg-white px-3 py-2 text-[13px] font-black uppercase tracking-wider transition-colors duration-100 hover:border-black disabled:opacity-50"
                         >
                             <FileUp size={13} strokeWidth={2.5} />
                             {uploading ? "읽는 중…" : "엑셀"}
@@ -576,15 +578,15 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                     <RetroCard className="space-y-4 bg-white p-4 md:p-6">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="min-w-0 space-y-1">
-                                    <p className="text-sm font-black uppercase tracking-widest">
+                                    <p className="text-base font-black uppercase tracking-widest">
                                         {department}
-                                        <span className="ml-2 text-[10px] text-black/35">
+                                        <span className="ml-2 text-[12px] text-black/35">
                                             {CATEGORY_LABEL[activeDepartment?.category ?? "natural"]}
                                         </span>
                                     </p>
                                     {activeDepartment?.track && (
-                                        <p className="text-[11px] font-bold text-black/50">
-                                            <span className="mr-1.5 border-2 border-black/20 px-1 py-0.5 text-[9px] font-black uppercase tracking-widest">
+                                        <p className="text-[13px] font-bold text-black/55">
+                                            <span className="mr-1.5 border-2 border-black/20 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-widest">
                                                 트랙
                                             </span>
                                             {activeDepartment.track}
@@ -593,10 +595,10 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                                     {(activeDepartment?.notes ?? []).map((note) => (
                                         <p
                                             key={note}
-                                            className="flex items-start gap-1.5 text-[11px] font-bold text-black/40"
+                                            className="flex items-start gap-1.5 text-[12px] font-bold text-black/45"
                                         >
                                             <Info
-                                                size={12}
+                                                size={14}
                                                 strokeWidth={2.5}
                                                 className="mt-px shrink-0"
                                             />
@@ -605,12 +607,12 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                                     ))}
                                 </div>
 
-                                <div className="flex flex-wrap items-center gap-2.5 text-[10px] font-bold">
+                                <div className="flex flex-wrap items-center gap-3 text-[12px] font-bold">
                                     {TIER_ORDER.map((tier) => (
                                         <span key={tier} className="flex items-center gap-1">
                                             {/* 색이 옅어서 테두리가 없으면 안 보입니다 */}
                                             <span
-                                                className="h-3.5 w-3.5 border-2 border-black/30"
+                                                className="h-4 w-4 border-2 border-black/30"
                                                 style={{ backgroundColor: TIER_COLOR[tier] }}
                                             />
                                             {TIER_LABEL[tier]}
@@ -637,17 +639,17 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                             />
 
                             {focusedCourse ? (
-                                <div className="space-y-1 border-2 border-black bg-retro-accent-light p-3">
+                                <div className="space-y-1.5 border-2 border-black bg-retro-accent-light p-4">
                                     <div className="flex flex-wrap items-baseline gap-2">
-                                        <span className="text-sm font-black">
+                                        <span className="text-base font-black">
                                             {focusedCourse.name}
                                         </span>
                                         {focusedCourse.english_name && (
-                                            <span className="text-[10px] font-bold text-black/40">
+                                            <span className="text-[12px] font-bold text-black/40">
                                                 {focusedCourse.english_name}
                                             </span>
                                         )}
-                                        <span className="text-[10px] font-bold text-black/60">
+                                        <span className="text-[12px] font-bold text-black/60">
                                             {focusedCourse.credits}학점
                                             {focusedCourse.recommended_semester &&
                                                 ` · 권장 ${focusedCourse.recommended_semester}학기`}
@@ -661,7 +663,7 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                                         return (
                                             <>
                                                 {edges.length > 0 && (
-                                                    <p className="text-[10px] font-bold text-black/60">
+                                                    <p className="text-[12px] font-bold text-black/60">
                                                         선수:{" "}
                                                         {[
                                                             ...required.map((edge) => edge.before),
@@ -676,7 +678,7 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                                                     </p>
                                                 )}
                                                 {unlocks.length > 0 && (
-                                                    <p className="text-[10px] font-bold text-black/60">
+                                                    <p className="text-[12px] font-bold text-black/60">
                                                         이 과목을 들으면 열립니다:{" "}
                                                         {unlocks.join(", ")}
                                                     </p>
@@ -685,13 +687,13 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                                         );
                                     })()}
                                     {focusedCourse.description && (
-                                        <p className="pt-1 text-[11px] font-medium leading-relaxed text-black/70">
+                                        <p className="pt-1 text-[13px] font-medium leading-relaxed text-black/70">
                                             {focusedCourse.description}
                                         </p>
                                     )}
                                 </div>
                             ) : (
-                                <p className="text-[10px] font-bold text-black/40">
+                                <p className="text-[12px] font-bold text-black/40">
                                     카드의 학기 칸을 채우면 이수로 잡힙니다. 과목을 누르면 그
                                     과목과 이어진 선수관계만 남고, 상세가 여기 열립니다.
                                 </p>

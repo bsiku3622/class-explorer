@@ -29,10 +29,11 @@
  * 것입니다. 경계는 `lib/zamong.guide.md` 를 보세요.
  */
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Route } from "lucide-react";
 import RetroCard from "../atoms/RetroCard";
 import RetroSubTitle from "../atoms/RetroSubTitle";
+import type { Course } from "../../lib/curriculum";
 import {
     REGULAR_TERMS,
     type HourInput,
@@ -46,8 +47,10 @@ interface RoadmapProps {
     onHoursChange: (patch: Partial<HourInput>) => void;
     /** 과목을 누르면 그 학과 판으로 갑니다 */
     onOpenCourse: (name: string) => void;
-    /** 과목을 끌어다 다른 학기에 놓았을 때 */
+    /** 과목을 끌어다 놓거나, 빈 자리에서 찾아 넣었을 때 */
     onMoveCourse: (course: string, term: TermKey) => void;
+    /** 넣을 수 있는 과목 전체 */
+    catalog: Course[];
 }
 
 /** 표 머리 칸 */
@@ -56,7 +59,7 @@ const Th: React.FC<{ children: React.ReactNode; className?: string }> = ({
     className = "",
 }) => (
     <th
-        className={`px-1.5 py-1 text-[9.5px] font-black uppercase tracking-wider text-black/40 ${className}`}
+        className={`px-2 py-1.5 text-[11px] font-black uppercase tracking-wider text-black/45 ${className}`}
     >
         {children}
     </th>
@@ -64,7 +67,7 @@ const Th: React.FC<{ children: React.ReactNode; className?: string }> = ({
 
 /** 행 이름 — 왼쪽 첫 칸 */
 const Rh: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <th className="whitespace-nowrap py-1 pr-2 text-left text-[9.5px] font-black uppercase tracking-widest text-black/40">
+    <th className="whitespace-nowrap py-1.5 pr-3 text-left text-[11px] font-black uppercase tracking-widest text-black/45">
         {children}
     </th>
 );
@@ -77,7 +80,7 @@ const Td: React.FC<{ children?: React.ReactNode; className?: string; title?: str
 }) => (
     <td
         title={title}
-        className={`px-1.5 py-1 text-center text-[11px] font-black tabular-nums ${className}`}
+        className={`px-2 py-1.5 text-center text-[13px] font-black tabular-nums ${className}`}
     >
         {children}
     </td>
@@ -108,6 +111,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
     onHoursChange,
     onOpenCourse,
     onMoveCourse,
+    catalog,
 }) => {
     const credit = (key: string) => summary.creditRequirements.find((row) => row.key === key);
     const hour = (key: string) => summary.hourRequirements.find((row) => row.key === key);
@@ -129,8 +133,8 @@ const Roadmap: React.FC<RoadmapProps> = ({
 
     return (
         <RetroCard className="bg-white">
-            <div className="flex items-center gap-3 border-b-2 border-black/10 px-4 py-2 md:px-6">
-                <RetroSubTitle title="Roadmap" icon={Route} iconSize={15} />
+            <div className="flex items-center gap-3 border-b-2 border-black/10 px-4 py-3 md:px-6">
+                <RetroSubTitle title="Roadmap" icon={Route} iconSize={18} />
             </div>
 
             {/* ── 워크북 행 2~5 · 학기별 ───────────────────────────────────── */}
@@ -261,7 +265,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
                                                 ),
                                             })
                                         }
-                                        className="w-full min-w-0 border-2 border-black/15 bg-white px-1 py-0.5 text-center text-[11px] font-black tabular-nums outline-none transition-colors duration-100 placeholder:text-black/20 focus:border-black"
+                                        className="h-8 w-full min-w-0 border-2 border-black/20 bg-white px-1.5 text-center text-[13px] font-black tabular-nums outline-none transition-colors duration-100 placeholder:text-black/20 focus:border-black"
                                     />
                                 </td>
                             ))}
@@ -341,14 +345,18 @@ const Roadmap: React.FC<RoadmapProps> = ({
                     <TermRow
                         key={term.key}
                         name={term.key === "S" ? "계절학기" : term.label}
+                        credits={term.credits}
+                        ok={term.ok}
                         courses={term.courses}
                         dropTerm={term.key}
+                        catalog={catalog}
                         onOpenCourse={onOpenCourse}
                         onDropCourse={onMoveCourse}
                     />
                 ))}
                 <TermRow
                     name="EC"
+                    credits={summary.credits.ec}
                     courses={summary.ecCourses}
                     emptyText="영어강의로 들은 과목이 없습니다"
                     onOpenCourse={onOpenCourse}
@@ -363,77 +371,189 @@ const Roadmap: React.FC<RoadmapProps> = ({
  * 여기서는 누를 수 있어야 해서 조각으로 나눴지만, **테두리는 두르지 않습니다** —
  * 스무 개가 전부 상자면 같은 무게로 떠듭니다.
  *
- * **과목을 끌어다 다른 학기에 놓을 수 있습니다.** 학과 판까지 가서 학기 칸을 다시
- * 고르는 것보다, 이미 늘어서 있는 목록에서 옮기는 게 빠릅니다. 카드의 학기 칸과
- * 같은 값을 건드리므로 둘 중 어느 쪽으로 해도 결과는 같습니다.
+ * 할 수 있는 게 셋입니다.
  *
- * ⚠️ 끌기는 **마우스에서만** 됩니다 (HTML5 drag & drop). 손가락으로는 학과 판의 학기
- * 칸을 쓰면 되고, 그쪽이 원래 방식이라 잃는 게 없습니다.
+ * 1. **끌어다 다른 학기에 놓기** — 학과 판까지 가서 학기 칸을 다시 고르는 것보다
+ *    빠릅니다. 카드의 학기 칸과 같은 값을 건드리므로 결과는 같습니다
+ * 2. **빈 자리를 눌러 과목 넣기** — 학과가 어디였는지 기억이 안 나도 이름만 치면
+ *    됩니다. 학과 판을 뒤지는 것보다 이쪽이 짧습니다
+ * 3. 과목을 눌러 그 학과 판으로 가기
+ *
+ * ⚠️ 끌기는 **마우스에서만** 됩니다 (HTML5 drag & drop). 손가락으로는 눌러서 넣거나
+ * 학과 판의 학기 칸을 쓰면 되고, 둘 다 같은 값을 건드립니다.
  */
 const TermRow: React.FC<{
     name: string;
+    /** 학점·범위 판정 — EC 줄은 학점만 옵니다 */
+    credits: number;
+    ok?: boolean;
     courses: string[];
     /** 놓을 수 있는 학기. EC 줄처럼 학기가 아닌 줄은 비워 둡니다 */
     dropTerm?: TermKey;
     emptyText?: string;
+    /** 넣을 수 있는 과목 전체 — 검색 목록입니다 */
+    catalog?: Course[];
     onOpenCourse: (name: string) => void;
     onDropCourse?: (course: string, term: TermKey) => void;
-}> = ({ name, courses, dropTerm, emptyText = "비어 있습니다", onOpenCourse, onDropCourse }) => {
+}> = ({
+    name,
+    credits,
+    ok = true,
+    courses,
+    dropTerm,
+    emptyText = "비어 있습니다",
+    catalog = [],
+    onOpenCourse,
+    onDropCourse,
+}) => {
     const [over, setOver] = useState(false);
-    const droppable = Boolean(dropTerm && onDropCourse);
+    const [query, setQuery] = useState("");
+    const [focused, setFocused] = useState(false);
+    const editable = Boolean(dropTerm && onDropCourse);
+
+    const matches = useMemo(() => {
+        const needle = query.trim().toLowerCase();
+        if (!needle) return [];
+        return catalog
+            .filter(
+                (course) =>
+                    course.name.toLowerCase().includes(needle) ||
+                    (course.english_name ?? "").toLowerCase().includes(needle),
+            )
+            .slice(0, 8);
+    }, [catalog, query]);
+
+    const pick = (course: string) => {
+        onDropCourse?.(course, dropTerm!);
+        setQuery("");
+    };
 
     return (
         <div
             onDragOver={(event) => {
-                if (!droppable) return;
+                if (!editable) return;
                 // preventDefault 를 해야 브라우저가 "여기 놓을 수 있다" 로 칩니다
                 event.preventDefault();
                 setOver(true);
             }}
             onDragLeave={() => setOver(false)}
             onDrop={(event) => {
-                if (!droppable) return;
+                if (!editable) return;
                 event.preventDefault();
                 setOver(false);
                 const course = event.dataTransfer.getData("text/plain");
                 if (course) onDropCourse!(course.replace(/\(EC\)$/, ""), dropTerm!);
             }}
-            className={`flex flex-col gap-1 px-4 py-1.5 transition-colors duration-100 md:flex-row md:items-baseline md:gap-3 md:px-6 ${
+            className={`flex flex-col gap-0.5 px-4 py-0.5 transition-colors duration-100 md:flex-row md:items-start md:gap-3 md:px-6 ${
                 over ? "bg-retro-primary/15" : ""
             }`}
         >
-            <span
-                className={`w-16 shrink-0 text-[10px] font-black uppercase tracking-widest ${
-                    courses.length ? "text-black" : "text-black/25"
-                }`}
-            >
-                {name}
-            </span>
-            {courses.length === 0 ? (
-                <p className="text-[11px] font-bold text-black/25">
-                    {over ? "여기에 놓기" : emptyText}
-                </p>
-            ) : (
-                <div className="flex min-w-0 flex-wrap gap-x-1 gap-y-0.5">
-                    {courses.map((course) => (
-                        <button
-                            key={course}
-                            type="button"
-                            draggable={droppable}
-                            onDragStart={(event) => {
-                                event.dataTransfer.setData("text/plain", course);
-                                event.dataTransfer.effectAllowed = "move";
+            {/* ⚠️ 이름과 학점은 **각자 폭이 고정**입니다. 붙여 놓으면 `계절학기` 줄에서만
+                학점이 오른쪽으로 밀려서 줄마다 들쭉날쭉해집니다 */}
+            {/* ⚠️ 오른쪽 첫 줄과 **같은 높이 상자** 안에서 가운데 정렬합니다. 예전에는
+                `items-baseline` + `pt-1` 로 눈대중해 놨는데, 오른쪽 줄 높이는 입력칸이
+                정해서(그리고 줄이 접히면 더 커져서) 기준선이 매번 어긋났습니다 */}
+            <div className="flex h-7 shrink-0 items-center gap-2">
+                <span
+                    className={`w-[4.5rem] shrink-0 text-[12px] font-black uppercase tracking-widest ${
+                        courses.length ? "text-black" : "text-black/25"
+                    }`}
+                >
+                    {name}
+                </span>
+                <span
+                    className={`w-14 shrink-0 text-right text-[12px] font-black tabular-nums ${
+                        credits === 0
+                            ? "text-black/20"
+                            : ok
+                              ? "text-black/45"
+                              : "bg-retro-primary/25 text-black"
+                    }`}
+                    title={ok ? undefined : "한 학기 학점이 10~30 범위를 벗어났습니다"}
+                >
+                    {credits === 0 ? "—" : `${credits}학점`}
+                </span>
+            </div>
+
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
+                {courses.map((course) => (
+                    <button
+                        key={course}
+                        type="button"
+                        draggable={editable}
+                        onDragStart={(event) => {
+                            event.dataTransfer.setData("text/plain", course);
+                            event.dataTransfer.effectAllowed = "move";
+                        }}
+                        onClick={() => onOpenCourse(course.replace(/\(EC\)$/, ""))}
+                        // 세로 크기는 **상자 높이**로 잡습니다. 패딩으로 키우면 글자만큼만
+                        // 커져서 핑크 면이 글씨에 달라붙은 것처럼 보입니다
+                        className={`flex h-7 items-center px-1.5 text-[13px] font-bold transition-colors duration-100 hover:bg-retro-primary/25 ${
+                            editable ? "cursor-grab active:cursor-grabbing" : ""
+                        }`}
+                    >
+                        {course}
+                    </button>
+                ))}
+
+                {!editable && courses.length === 0 && (
+                    <span className="flex h-7 items-center text-[13px] font-bold text-black/25">{emptyText}</span>
+                )}
+
+                {/*
+                 * 남는 자리가 그대로 입력칸입니다.
+                 *
+                 * 처음에는 "+ 과목 넣기" 버튼을 눌러야 입력칸이 나오게 했는데, 누르는
+                 * 단계가 하나 더 있을 뿐 하는 일이 같습니다. **테두리 없는 입력칸**으로
+                 * 두면 눌러서 바로 치면 되고, 줄에 손을 올리면 테두리가 떠서 여기에
+                 * 쓸 수 있다는 게 보입니다.
+                 */}
+                {editable && (
+                    <div className="relative min-w-[9rem] flex-1">
+                        <input
+                            value={query}
+                            onChange={(event) => setQuery(event.target.value)}
+                            onFocus={() => setFocused(true)}
+                            onBlur={() => {
+                                setFocused(false);
+                                setQuery("");
                             }}
-                            onClick={() => onOpenCourse(course.replace(/\(EC\)$/, ""))}
-                            className={`px-1 text-[11px] font-bold transition-colors duration-100 hover:bg-retro-primary/25 ${
-                                droppable ? "cursor-grab active:cursor-grabbing" : ""
-                            }`}
-                        >
-                            {course}
-                        </button>
-                    ))}
-                </div>
-            )}
+                            onKeyDown={(event) => {
+                                if (event.key === "Escape") event.currentTarget.blur();
+                                // 한글 IME 는 조합 중에도 Enter 를 흘려보냅니다
+                                if (
+                                    event.key === "Enter" &&
+                                    !event.nativeEvent.isComposing &&
+                                    matches[0]
+                                ) {
+                                    pick(matches[0].name);
+                                }
+                            }}
+                            placeholder={over ? "여기에 놓기" : courses.length ? "과목 넣기" : emptyText}
+                            className="h-7 w-full bg-transparent px-1.5 text-[13px] font-bold outline-none transition-colors duration-100 placeholder:font-bold placeholder:text-black/25 hover:bg-black/[0.04] focus:bg-black/[0.06]"
+                        />
+                        {focused && matches.length > 0 && (
+                            <div className="absolute left-0 top-8 z-20 max-h-64 w-full min-w-[16rem] overflow-y-auto border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]">
+                                {matches.map((course) => (
+                                    <button
+                                        key={course.name}
+                                        type="button"
+                                        // blur 가 먼저 돌면 목록이 닫혀 클릭이 안 먹습니다
+                                        onMouseDown={(event) => event.preventDefault()}
+                                        onClick={() => pick(course.name)}
+                                        className="flex w-full items-baseline gap-2 border-b border-black/10 px-2 py-1.5 text-left last:border-b-0 hover:bg-retro-primary/20"
+                                    >
+                                        <span className="text-[13px] font-black">{course.name}</span>
+                                        <span className="ml-auto shrink-0 text-[12px] font-bold text-black/40">
+                                            {course.department} · {course.credits}학점
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
