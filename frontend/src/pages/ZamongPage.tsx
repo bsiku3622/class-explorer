@@ -28,9 +28,11 @@ import {
     type ProgressTerm,
     buildPrereqIndex,
     buildUnlockIndex,
+    courseDepths,
     CATEGORY_LABEL,
 } from "../lib/curriculum";
 import {
+    buildCourseOrder,
     DEFAULT_GRADUATION,
     DEFAULT_TERM_SLOTS,
     TIER_COLOR,
@@ -221,6 +223,22 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
         [curriculum],
     );
 
+    /**
+     * 학기 안 과목 순서 — 학과 → 선수 깊이 → 가나다.
+     *
+     * 학과 순서는 서버가 준 `departments` 그대로라, 아래 학과 고르는 버튼 줄과 같은
+     * 차례가 됩니다.
+     */
+    const courseOrder = useMemo(
+        () =>
+            buildCourseOrder(
+                byName,
+                (curriculum?.departments ?? []).map((d) => d.name),
+                courseDepths(curriculum?.courses ?? [], curriculum?.prerequisites ?? []),
+            ),
+        [byName, curriculum],
+    );
+
     const summary = useMemo(
         () =>
             summarize(
@@ -230,8 +248,9 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                 curriculum?.graduation ?? DEFAULT_GRADUATION,
                 curriculum?.grade_points ?? {},
                 hours,
+                courseOrder,
             ),
-        [entries, byName, slots, curriculum, hours],
+        [entries, byName, slots, curriculum, hours, courseOrder],
     );
 
     const update = useCallback((name: string, patch: Partial<ZamongEntry>) => {
@@ -551,28 +570,30 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                     )}
 
                     {/* 학과 고르기 — 워크북의 시트 탭입니다 */}
-                    <div className="flex flex-wrap items-center gap-2">
+                    {/* Browse 의 모드 탭과 **같은 모양**입니다 — `RetroButton size="sm"` 를
+                        그대로 쓰고 간격도 `gap-3`. 한때 여기만 크기와 간격을 손으로 키워
+                        놨는데, 같은 일을 하는 버튼이 화면마다 다르면 눈이 매번 다시 잽니다 */}
+                    <div className="flex flex-wrap items-center gap-3">
                         {departments.map((name) => (
                             <RetroButton
                                 key={name}
                                 size="sm"
-                                className="px-4 py-2 text-[13px]"
                                 isSelected={department === name}
                                 onClick={() => setDepartment(name)}
                             >
                                 {name}
                             </RetroButton>
                         ))}
-                        <button
-                            type="button"
+                        <RetroButton
+                            size="sm"
+                            className="ml-auto"
                             disabled={uploading}
                             onClick={() => fileRef.current?.click()}
                             title="채워 둔 Zamong 엑셀을 올려 통째로 바꿉니다"
-                            className="ml-auto flex items-center gap-1.5 border-2 border-black/25 bg-white px-3 py-2 text-[13px] font-black uppercase tracking-wider transition-colors duration-100 hover:border-black disabled:opacity-50"
+                            icon={<FileUp size={14} strokeWidth={2.5} />}
                         >
-                            <FileUp size={13} strokeWidth={2.5} />
                             {uploading ? "읽는 중…" : "엑셀"}
-                        </button>
+                        </RetroButton>
                     </div>
 
                     <RetroCard className="space-y-4 bg-white p-4 md:p-6">
@@ -622,7 +643,7 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                                         <span className="underline decoration-2 underline-offset-2">
                                             밑줄
                                         </span>
-                                        심화필수
+                                        트랙필수
                                     </span>
                                 </div>
                             </div>

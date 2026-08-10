@@ -249,7 +249,7 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId }) => {
                         {myGrade && (
                             <button
                                 onClick={() => setOnlyMyGrade((v) => !v)}
-                                className={`border-2 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
+                                className={`border-2 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest transition-all duration-100 ${
                                     onlyMyGrade
                                         ? "border-black bg-black text-white"
                                         : "border-black/30 bg-white text-black/40 hover:border-black hover:text-black"
@@ -309,7 +309,7 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId }) => {
                                         {fromKey(selected).getDate()}일
                                     </p>
                                     {selectedWeek !== null && (
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-black/35">
+                                        <span className="text-[11px] font-black uppercase tracking-widest text-black/35">
                                             {selectedWeek}주차
                                         </span>
                                     )}
@@ -337,7 +337,7 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId }) => {
                                                     <p className="text-sm font-bold leading-snug">
                                                         {event.title}
                                                     </p>
-                                                    <p className="mt-0.5 text-[10px] font-black uppercase tracking-widest text-black/35">
+                                                    <p className="mt-0.5 text-[11px] font-black uppercase tracking-widest text-black/35">
                                                         {event.is_personal
                                                             ? "내 일정"
                                                             : CATEGORY_LABEL[event.category]}
@@ -349,7 +349,7 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId }) => {
                                                             ` · ${event.start_date} → ${event.end_date}`}
                                                     </p>
                                                     {event.note && (
-                                                        <p className="mt-1 text-[11px] font-bold text-black/55">
+                                                        <p className="mt-1 text-[13px] font-bold text-black/55">
                                                             {event.note}
                                                         </p>
                                                     )}
@@ -399,7 +399,7 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId }) => {
                                 (c) => (
                                     <div key={c} className="flex items-center gap-2">
                                         <span className={`h-2 w-2 ${CATEGORY_STYLE[c].dot}`} />
-                                        <span className="text-[11px] font-bold text-black/60">
+                                        <span className="text-[13px] font-bold text-black/60">
                                             {CATEGORY_LABEL[c]}
                                         </span>
                                     </div>
@@ -407,7 +407,7 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId }) => {
                             )}
                             <div className="flex items-center gap-2 pt-1">
                                 <span className="h-1.5 w-1.5 rotate-45 bg-retro-green" />
-                                <span className="text-[11px] font-bold text-black/60">
+                                <span className="text-[13px] font-bold text-black/60">
                                     내 일정
                                 </span>
                             </div>

@@ -53,13 +53,19 @@ interface RoadmapProps {
     catalog: Course[];
 }
 
-/** 표 머리 칸 */
+/**
+ * 표 머리 칸.
+ *
+ * ⚠️ **높이는 `h-7` 로 못 박고 `align-middle` 로 가운데 둡니다.** 패딩만 주고 높이를
+ * 줄 높이(line-height)에 맡기면 셀마다 다른 값이 나옵니다 — 11px 헤더는 25px, 13px
+ * 글자는 27.5px, 입력칸이 든 칸은 28px 이 돼서 표가 들쭉날쭉해집니다.
+ */
 const Th: React.FC<{ children: React.ReactNode; className?: string }> = ({
     children,
     className = "",
 }) => (
     <th
-        className={`px-2 py-1 text-[11px] font-black uppercase tracking-wider text-black/45 ${className}`}
+        className={`h-7 px-2 align-middle text-[11px] font-black uppercase tracking-wider text-black/45 ${className}`}
     >
         {children}
     </th>
@@ -67,7 +73,7 @@ const Th: React.FC<{ children: React.ReactNode; className?: string }> = ({
 
 /** 행 이름 — 왼쪽 첫 칸 */
 const Rh: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <th className="whitespace-nowrap py-1 pr-3 text-left text-[11px] font-black uppercase tracking-widest text-black/45">
+    <th className="h-7 whitespace-nowrap pr-3 text-left align-middle text-[11px] font-black uppercase tracking-widest text-black/45">
         {children}
     </th>
 );
@@ -80,7 +86,7 @@ const Td: React.FC<{ children?: React.ReactNode; className?: string; title?: str
 }) => (
     <td
         title={title}
-        className={`px-2 py-1 text-center text-[13px] font-black tabular-nums ${className}`}
+        className={`h-7 px-2 text-center align-middle text-[13px] font-black tabular-nums ${className}`}
     >
         {children}
     </td>
@@ -244,7 +250,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
                             {HOUR_FIELDS.map((field, index) => (
                                 <td
                                     key={field.key}
-                                    className={`px-2 py-1 text-center ${
+                                    className={`h-7 px-2 text-center align-middle ${
                                         index === 0 ? "border-l border-black/10" : ""
                                     }`}
                                 >
@@ -268,7 +274,10 @@ const Roadmap: React.FC<RoadmapProps> = ({
                                         // ⚠️ 테두리도 스피너도 없습니다. 이 셋만 상자를 두르고 있으니 옆칸(총 시수·
                                         // 계열 학점)과 어긋나 보였습니다 — 여기 있는 건 전부 숫자이고,
                                         // 이 셋만 **고칠 수 있다**는 건 손을 올렸을 때 알면 됩니다
-                                        className="w-full min-w-0 bg-transparent text-center text-[13px] font-black tabular-nums outline-none transition-colors duration-100 [appearance:textfield] placeholder:text-black/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                        // ⚠️ `block` 이어야 합니다. 인라인이면 글자 아래 여백까지 셀
+                                        // 높이에 들어가 이 줄만 두툼해집니다. 세로 위치는 셀의
+                                        // `align-middle` 이 잡아 주므로 여기서 높이를 맞출 필요는 없습니다
+                                        className="block w-full min-w-0 bg-transparent p-0 text-center text-[13px] font-black leading-5 tabular-nums outline-none [appearance:textfield] placeholder:text-black/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                     />
                                 </td>
                             ))}
@@ -469,7 +478,7 @@ const TermRow: React.FC<{
                 const course = event.dataTransfer.getData("text/plain");
                 if (course) onDropCourse!(course.replace(/\(EC\)$/, ""), dropTerm!);
             }}
-            className={`flex flex-col gap-0.5 px-4 py-0.5 transition-colors duration-100 md:flex-row md:items-start md:gap-3 md:px-6 ${
+            className={`flex flex-col gap-0.5 px-4 py-[3px] transition-colors duration-100 md:flex-row md:items-start md:gap-3 md:px-6 ${
                 over ? "bg-retro-primary/15" : ""
             }`}
         >

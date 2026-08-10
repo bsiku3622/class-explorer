@@ -134,6 +134,44 @@ export const termSlotOf = (
     return index >= 1 && index <= 8 ? (String(index) as TermKey) : null;
 };
 
+// ─── 정렬 ────────────────────────────────────────────────────────────────────
+
+/** 이름 뒤의 `(EC)` 를 떼어 카탈로그 이름으로 */
+const baseName = (name: string) => name.replace(/\(EC\)$/, "");
+
+/**
+ * 학기 안에서 과목을 늘어놓는 순서 — **학과 → 선수 깊이 → 가나다**.
+ *
+ * 가나다만으로 세우면 같은 학기에 담은 것들이 학과를 넘나들며 뒤섞여서, 내가 이번
+ * 학기에 수학을 몇 개 담았는지 세려면 줄을 훑어야 합니다. 학과로 먼저 묶으면 그게
+ * 한눈에 보이고, 학과 순서는 **학과 고르는 버튼 줄과 같습니다**(서버가 주는
+ * `display_order`) — 두 곳이 다르면 눈이 매번 다시 찾습니다.
+ *
+ * 학과 안에서는 선수 깊이 순입니다. 수학1 → 수학2 → 미적분학1 처럼 실제로 쌓아 올린
+ * 순서라, 가나다보다 훨씬 읽기 쉽습니다.
+ */
+export const buildCourseOrder = (
+    byName: Map<string, Course>,
+    departments: string[],
+    depths: Map<string, number>,
+): ((a: string, b: string) => number) => {
+    const rank = new Map(departments.map((name, index) => [name, index]));
+    return (a, b) => {
+        const left = baseName(a);
+        const right = baseName(b);
+        const da = rank.get(byName.get(left)?.department ?? "") ?? departments.length;
+        const db = rank.get(byName.get(right)?.department ?? "") ?? departments.length;
+        if (da !== db) return da - db;
+        const la = depths.get(left) ?? 0;
+        const lb = depths.get(right) ?? 0;
+        if (la !== lb) return la - lb;
+        return left.localeCompare(right, "ko");
+    };
+};
+
+/** 정렬 정보를 못 받았을 때 — 가나다 */
+const defaultOrder = (a: string, b: string) => a.localeCompare(b, "ko");
+
 // ─── 요약 (워크북 상단표) ────────────────────────────────────────────────────
 
 export interface GraduationSpec {
@@ -235,6 +273,8 @@ export const summarize = (
     graduation: GraduationSpec,
     gradePoints: Record<string, number>,
     hours: HourInput,
+    /** 학기 안 과목 순서 — `buildCourseOrder` 를 넘기세요 */
+    compare: (a: string, b: string) => number = defaultOrder,
 ): ZamongSummary => {
     const perTerm = new Map<
         TermKey,
@@ -299,7 +339,7 @@ export const summarize = (
         return {
             ...slot,
             credits: bucket.credits,
-            courses: bucket.courses.sort(),
+            courses: bucket.courses.sort(compare),
             // 계절학기에는 하한이 없습니다 — 안 들어도 되는 학기라서요
             ok:
                 bucket.credits === 0 ||
@@ -338,7 +378,7 @@ export const summarize = (
         naturalGpa: naturalGraded ? round2(naturalPoints / naturalGraded) : null,
         gradedCredits,
         missingGrades,
-        ecCourses: ecCourses.sort(),
+        ecCourses: ecCourses.sort(compare),
         unscheduled: unscheduled.sort(),
         creditsReady: creditRequirements.every((row) => row.met),
         hoursReady: hourRequirements.every((row) => row.met),
