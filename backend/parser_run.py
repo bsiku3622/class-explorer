@@ -113,15 +113,25 @@ def replace_term_data(
     fetched: dict[str, list[parser.ParsedClass]],
 ) -> None:
     """
-    해당 학기의 수업/시간/수강 데이터를 통째로 교체합니다.
+    해당 학기의 수업/시간/수강 데이터를 교체합니다.
     Student 레코드는 다른 학기가 참조할 수 있으므로 삭제하지 않습니다.
+
+    ⚠️ `Class` 행은 지우고 다시 넣지 않고 `(subject_id, section, teacher)` 로 찾아
+    **재사용**합니다. 재수집 때마다 id 가 새로 매겨지면 그 id 를 들고 있는 저장물이
+    조용히 어긋나기 때문입니다 — Trade 계획(`UserState.trade`)이 분반을 id 로
+    가리킵니다. 추가수강신청 반영처럼 분반은 그대로고 명단만 바뀌는 수집이 흔한데,
+    그때마다 남의 계획을 깨뜨릴 이유가 없습니다.
+
+    `ClassTime` 과 `Enrollment` 는 그대로 전량 교체입니다 — 아무도 그 id 를 참조하지
+    않고, 시간·교실은 통째로 다시 받는 편이 부분 갱신보다 어긋날 여지가 적습니다.
     """
-    old_class_ids = [
-        row[0]
-        for row in db.query(models.Class.id)
+    old_classes = {
+        (cls.subject_id, cls.section, cls.teacher): cls
+        for cls in db.query(models.Class)
         .filter(models.Class.year == year, models.Class.semester == semester)
         .all()
-    ]
+    }
+    old_class_ids = [cls.id for cls in old_classes.values()]
 
     if old_class_ids:
         db.query(models.Enrollment).filter(
@@ -129,9 +139,6 @@ def replace_term_data(
         ).delete(synchronize_session=False)
         db.query(models.ClassTime).filter(
             models.ClassTime.class_id.in_(old_class_ids)
-        ).delete(synchronize_session=False)
-        db.query(models.Class).filter(
-            models.Class.id.in_(old_class_ids)
         ).delete(synchronize_session=False)
 
     # 학생 마스터 갱신 (신규만 추가, 이름은 최신 목록 기준)
@@ -155,7 +162,8 @@ def replace_term_data(
                 subject_ids[pc["subject"]] = resolve_subject(db, pc["subject"], courses)
     db.flush()
 
-    # 수업 등록 — 동일 (과목, 분반, 교사) 는 학기 안에서 하나로 합쳐집니다
+    # 수업 등록 — 동일 (과목, 분반, 교사) 는 학기 안에서 하나로 합쳐집니다.
+    # 이미 있던 분반은 행을 그대로 두고 교실만 갱신해 id 를 지킵니다
     class_ids: dict[tuple[int, str, str], Any] = {}
     for stu_id, parsed_classes in fetched.items():
         for pc in parsed_classes:
@@ -163,16 +171,20 @@ def replace_term_data(
             if key in class_ids:
                 continue
 
-            cls = models.Class(
-                subject_id=subject_ids[pc["subject"]],
-                section=pc["section"],
-                teacher=pc["teacher"],
-                room=pc["room"],
-                year=year,
-                semester=semester,
-            )
-            db.add(cls)
-            db.flush()
+            cls = old_classes.get(key)
+            if cls is None:
+                cls = models.Class(
+                    subject_id=subject_ids[pc["subject"]],
+                    section=pc["section"],
+                    teacher=pc["teacher"],
+                    room=pc["room"],
+                    year=year,
+                    semester=semester,
+                )
+                db.add(cls)
+                db.flush()
+            elif cls.room != pc["room"]:
+                cls.room = pc["room"]
             class_ids[key] = cls.id
 
             db.add_all(
@@ -181,6 +193,13 @@ def replace_term_data(
                 )
                 for t in pc["times"]
             )
+
+    # 이번 수집에 없는 분반은 폐강 — 시간·수강은 위에서 이미 지웠으므로 행만 지웁니다
+    stale_ids = [cls.id for key, cls in old_classes.items() if key not in class_ids]
+    if stale_ids:
+        db.query(models.Class).filter(
+            models.Class.id.in_(stale_ids)
+        ).delete(synchronize_session=False)
 
     # 수강 등록
     for stu_id, parsed_classes in fetched.items():
@@ -191,6 +210,9 @@ def replace_term_data(
                 continue
             seen.add(class_id)
             db.add(models.Enrollment(stuId=stu_id, classId=class_id))
+
+    reused = len(old_classes) - len(stale_ids)
+    print(f"분반: 유지 {reused} · 신설 {len(class_ids) - reused} · 폐강 {len(stale_ids)}")
 
     db.commit()
 
