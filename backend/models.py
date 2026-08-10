@@ -38,6 +38,10 @@ class Department(Base):
     name = Column(String, unique=True, nullable=False)       # 수학, 물리학, 융합 ...
     category = Column(String, nullable=False)                # natural | humanities | convergence
     display_order = Column(Integer, nullable=False, default=0)  # 화면에 늘어놓는 순서
+    # 이 학과의 트랙 이수 조건 — 문장 그대로입니다. 학과마다 규칙이 제각각이라
+    # 판정은 하지 않고 보여 주기만 합니다
+    track = Column(String, nullable=True)
+    notes = Column(JSON, default=list, nullable=False)       # 시트에 붙어 있던 안내
 
     courses = relationship("Course", back_populates="department")
 
@@ -60,6 +64,11 @@ class Course(Base):
     ap_credits = Column(Float, default=0, nullable=False)
     is_pf = Column(Boolean, default=False, nullable=False)
     recommended_semester = Column(String, nullable=True)      # "1"~"6" | "summer"
+    # 워크북이 상자 색으로 칠해 둔 분류 — core(핵심) | advanced(심화) | ap | special(특강)
+    # | convergence(융합). 색이 곧 분류라 화면도 이 값으로 칠합니다
+    tier = Column(String, nullable=True)
+    # 그 학과의 심화필수 (워크북에서 굵은 밑줄) — 트랙 조건에 걸리는 과목입니다
+    required_advanced = Column(Boolean, default=False, nullable=False)
     description = Column(Text, nullable=True)
     description_sections = Column(JSON, default=dict, nullable=False)
     description_source = Column(String, nullable=True)
@@ -225,19 +234,27 @@ class UserState(Base):
 
 class CourseGrade(Base):
     """
-    계정 본인의 이수 내역과 성적.
+    계정 본인이 **직접 적는** 이수 내역 — 자몽 한 칸입니다.
 
-    행이 있으면 이수한 것으로 봅니다. `grade`는 선택이라, 성적 없이 이수 여부만
-    체크해 둘 수도 있습니다.
+    ⚠️ **실제 수강 이력(`Enrollment`)과 별개입니다.** 한때 수집된 학기를 그대로 이수로
+    박아 뒀는데, 재수강한 과목이 두 학기에 걸쳐 나타나면서 어느 쪽이 진짜인지 화면이
+    정할 수 없었습니다. 학사 사이트를 붙이면 같은 문제가 더 커집니다 — 기록은 사실을
+    말하고 자몽은 **본인의 선언**을 담습니다. 둘을 섞지 마세요.
 
-    `Course` 단위로 기록합니다 — 같은 과목을 영어강의로 들었든 한국어강의로 들었든
-    이수는 하나입니다.
+    `term`이 이 표의 중심입니다. 워크북과 같은 규칙으로, **학기가 있어야 학점이
+    인정됩니다.** 재수강은 별도 장치 없이 학기를 다시 고르면 끝입니다 — 자몽에 남는
+    건 인정받는 한 번뿐이라 행을 여럿 둘 이유가 없습니다.
+
+    `Course` 단위로 기록하고, 영어강의로 들었는지는 `is_ec`가 담습니다 — EC 요건은
+    과목의 성질이 아니라 어느 분반을 들었느냐로 정해집니다.
     """
     __tablename__ = "course_grades"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=False, index=True)
     grade = Column(String, nullable=True)  # "A+", "A0" ... 미입력이면 None
+    term = Column(String, nullable=True)   # "1"~"6" | "S"(계절). 없으면 학점 미인정
+    is_ec = Column(Boolean, default=False, nullable=False)  # 영어강의로 들었는지
 
     __table_args__ = (UniqueConstraint('user_id', 'course_id', name='_course_grade_uc'),)
 

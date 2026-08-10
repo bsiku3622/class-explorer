@@ -49,12 +49,9 @@ import json
 import os
 import re
 import sqlite3
-import zipfile
 from collections import deque
-from dataclasses import dataclass, field
-from xml.etree import ElementTree as ET
 
-SHEET_NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+from backend.workbook import Sheet, Workbook
 
 DEFAULT_DB = os.path.expanduser(
     "~/Projects/Side Projects/SweetZamong/backend/sweet_zamong.db"
@@ -71,6 +68,55 @@ DEPARTMENTS = [
 # 과목 상자를 잇는 선의 색. 융합 시트에서는 선수 과목명을 적는 칸의 색이기도 합니다
 LINE_FILL = "FFD2D2D6"
 
+# 상자 색이 곧 과목 분류입니다 — 시트마다 왼쪽 위에 같은 색의 범례가 붙어 있습니다.
+# 지구과학 시트만 AP 를 다른 분홍(FFB9E6)으로 칠해 놨는데, 그 시트의 범례가
+# `D14='AP'[FFB9E6]` 이라 색이 아니라 범례를 따릅니다.
+TIER_FILLS = {
+    "FFFFEBF8": "core",          # 핵심
+    "FFE1EFFF": "advanced",      # 심화
+    "FFE2EFFF": "advanced",      # 심화 (범례 칸이 한 톤 다릅니다)
+    "FFB9DAFF": "ap",            # AP
+    "FFFFB9E6": "ap",            # AP — 지구과학 시트
+    "FFDADBFF": "special",       # 특강
+    "FFE1FFE1": "convergence",   # 융합
+    "FFE2FFE1": "convergence",   # 융합 (범례 칸)
+}
+
+# 학과별 트랙 이수 조건.
+#
+# ⚠️ **손으로 옮겨 적습니다.** 워크북에서는 이 문장이 한 칸에 들어 있지 않고 두세 칸에
+# 잘려 있는 데다(`B21='각 카테고리당 1과목씩'` + `B22=' 수강해야 함'`), 물리학은 아예
+# 카테고리 표로 그려져 있어서 셀을 이어 붙이는 방식이 시트 편집에 그대로 깨집니다.
+# 조건 자체는 교육과정 개편 때나 바뀌므로 옮겨 적는 편이 안전합니다.
+#
+# 판정은 하지 않고 **문장만 보여 줍니다** — 조건이 학과마다 제각각이라 규칙으로
+# 옮기면 틀렸을 때 알아채기 어렵고, 틀린 "졸업 가능"이 맞는 문장보다 해롭습니다.
+DEPARTMENT_TRACKS = {
+    "수학": "선형대수, 확률및통계, 미적분학3을 수강해야 함",
+    "정보과학": "자료구조, 정보과학3, 알고리즘을 수강해야 함",
+    "물리학": (
+        "일반물리학1 필수 + 카테고리A(일반물리학2·기초역학·기초전자기학·열및통계물리학·"
+        "물리학문제의해결과소통·현대물리학개론) 1과목 + "
+        "카테고리B(탐구물리·전자회로의이해와응용·레이저의이해와응용) 1과목"
+    ),
+    "지구과학": (
+        "일반지구과학, 일반천문학을 모두 수강 + 우주과학및실습·관측천문학·날씨와기후·"
+        "지질학·해양학·별과우주 중 택2"
+    ),
+    "화학": "일반화학1, 일반화학2 + 3학점 이상의 선택과목을 수강해야 함",
+    "생물학": "일반생물학1 + 3학점 이상의 선택과목 택2",
+}
+
+# 트랙과 별개로 시트에 붙어 있는 안내
+DEPARTMENT_NOTES = {
+    "지구과학": [
+        "<일반천문학, 일반천문학실험> 또는 <일반지구과학, 일반지구과학실험> 중 택1 필수"
+        " (4학기 내 이수 필수)",
+        "일반천문학·일반천문학실험·일반지구과학·일반지구과학실험·천체관측의기초·"
+        "지구환경과학은 모두 물리학및실험1이 선수과목",
+    ],
+}
+
 # 선 대신 과목명을 적어 둔 시트
 TEXT_PREREQ_SHEETS = {"융합"}
 
@@ -81,88 +127,6 @@ ABBREVIATIONS = {
     "일물1": "일반물리학1",
     "일물2": "일반물리학2",
 }
-
-
-def column_number(column: str) -> int:
-    number = 0
-    for char in column:
-        number = number * 26 + ord(char) - 64
-    return number
-
-
-@dataclass
-class Sheet:
-    """셀 좌표 → (텍스트, 채움색)"""
-
-    cells: dict[tuple[int, int], tuple[str, str]] = field(default_factory=dict)
-
-
-class Workbook:
-    """xlsx에서 셀 값과 채움색만 읽습니다 (openpyxl 없이)."""
-
-    def __init__(self, path: str):
-        self.archive = zipfile.ZipFile(path)
-        self._load_fills()
-        self._load_shared_strings()
-        self._load_sheet_index()
-
-    def _load_fills(self) -> None:
-        styles = ET.fromstring(self.archive.read("xl/styles.xml"))
-        self.fills: list[str] = []
-        for node in styles.find(f"{SHEET_NS}fills"):
-            pattern = node.find(f"{SHEET_NS}patternFill")
-            key = "none"
-            if pattern is not None and pattern.get("patternType") not in (None, "none"):
-                color = pattern.find(f"{SHEET_NS}fgColor")
-                if color is not None:
-                    key = color.get("rgb") or f"theme{color.get('theme')}"
-                else:
-                    key = pattern.get("patternType")
-            self.fills.append(key)
-
-        self.style_fill: list[int] = [
-            int(xf.get("fillId", 0)) for xf in styles.find(f"{SHEET_NS}cellXfs")
-        ]
-
-    def _load_shared_strings(self) -> None:
-        root = ET.fromstring(self.archive.read("xl/sharedStrings.xml"))
-        self.shared = [
-            "".join(node.text or "" for node in item.iter(f"{SHEET_NS}t"))
-            for item in root.findall(f"{SHEET_NS}si")
-        ]
-
-    def _load_sheet_index(self) -> None:
-        workbook = self.archive.read("xl/workbook.xml").decode("utf-8")
-        rels = self.archive.read("xl/_rels/workbook.xml.rels").decode("utf-8")
-        targets = dict(re.findall(r'Id="([^"]+)"[^>]*Target="([^"]+)"', rels))
-        self.sheets: dict[str, str] = {}
-        for match in re.finditer(r'<sheet[^>]*name="([^"]+)"[^>]*r:id="([^"]+)"', workbook):
-            self.sheets[match.group(1)] = "xl/" + targets[match.group(2)].lstrip("/")
-
-    def read(self, sheet_name: str) -> Sheet:
-        root = ET.fromstring(self.archive.read(self.sheets[sheet_name]))
-        sheet = Sheet()
-        for cell in root.iter(f"{SHEET_NS}c"):
-            ref = re.fullmatch(r"([A-Z]+)(\d+)", cell.get("r") or "")
-            if not ref:
-                continue
-            position = (int(ref.group(2)), column_number(ref.group(1)))
-            style = int(cell.get("s", 0))
-            fill = self.fills[self.style_fill[style]] if style < len(self.style_fill) else "none"
-
-            kind = cell.get("t")
-            value = cell.find(f"{SHEET_NS}v")
-            text = ""
-            if kind == "s" and value is not None:
-                text = self.shared[int(value.text)]
-            elif kind == "inlineStr":
-                inline = cell.find(f"{SHEET_NS}is")
-                if inline is not None:
-                    text = "".join(n.text or "" for n in inline.iter(f"{SHEET_NS}t"))
-            elif value is not None:
-                text = value.text or ""
-            sheet.cells[position] = (text.strip(), fill)
-        return sheet
 
 
 def connected_groups(positions: set[tuple[int, int]]) -> list[set[tuple[int, int]]]:
@@ -229,6 +193,47 @@ def find_boxes(
         for position in group:
             cell_name[position] = name
     return cell_name, bounds
+
+
+def extract_course_meta(sheet: Sheet, known_courses: set[str]) -> dict[str, dict]:
+    """
+    상자 색에서 과목 분류를, 제목 칸의 글꼴에서 심화필수 여부를 읽습니다.
+
+    상자 안의 칸은 색이 같으므로 아무 칸이나 봐도 되지만, 굵은 밑줄은 **제목 칸에만**
+    걸려 있어서(아래의 `학기`·`학점`·`평어` 줄은 보통 글꼴입니다) 이름이 적힌 칸을
+    따로 찾습니다.
+
+    `find_boxes` 를 다시 쓰지 않고 덩어리를 새로 묶는 이유는, 선수관계를 뽑는 경로를
+    건드리지 않기 위해서입니다 — 그쪽이 이 파일에서 제일 깨지기 쉬운 부분입니다.
+    """
+    box_cells = {
+        position for position, (_, fill) in sheet.cells.items()
+        if fill not in ("none", LINE_FILL)
+    }
+    meta: dict[str, dict] = {}
+    for group in connected_groups(box_cells):
+        # ⚠️ 색칠한 덩어리가 전부 과목 카드는 아닙니다. 물리학 시트에는 트랙 조건을
+        # 설명하는 카테고리 표가 있고, 거기 적힌 `일물1` 이 실제 카드보다 왼쪽 위라
+        # 그냥 두면 그쪽 색(심화)을 과목 분류로 집어 옵니다. 카드에는 반드시
+        # `학점` 줄이 있으므로 그걸로 가릅니다.
+        if not any(sheet.cells[position][0] == "학점" for position in group):
+            continue
+        titles = [
+            (position, resolved)
+            for position in sorted(group)
+            if (resolved := resolve_course_name(sheet.cells[position][0], known_courses))
+        ]
+        if not titles:
+            continue
+        position, name = titles[0]
+        meta.setdefault(
+            name,
+            {
+                "tier": TIER_FILLS.get(sheet.cells[position][1]),
+                "required_advanced": position in sheet.strong,
+            },
+        )
+    return meta
 
 
 def extract_line_prerequisites(
@@ -369,12 +374,14 @@ def run(db_path: str, xlsx_dir: str, output: str, dry_run: bool) -> int:
     print(f"워크북: {os.path.basename(xlsx_path)}")
 
     all_edges: set[tuple[str, str, bool]] = set()
+    all_meta: dict[str, dict] = {}
     print("\n[학과별 선수관계]")
     for department in DEPARTMENTS:
         if department not in workbook.sheets:
             print(f"  {department}: 시트 없음 — 건너뜁니다")
             continue
         sheet = workbook.read(department)
+        all_meta.update(extract_course_meta(sheet, known))
         if department in TEXT_PREREQ_SHEETS:
             edges, skipped = extract_text_prerequisites(sheet, known)
             note = f" (연결할 상자를 못 찾음: {', '.join(skipped)})" if skipped else ""
@@ -389,9 +396,28 @@ def run(db_path: str, xlsx_dir: str, output: str, dry_run: bool) -> int:
 
     print(f"\n선수관계 총 {len(all_edges)}개")
 
+    tiered = 0
+    for course in catalog:
+        meta = all_meta.get(course["name"], {})
+        course["tier"] = meta.get("tier")
+        course["required_advanced"] = bool(meta.get("required_advanced"))
+        if course["tier"]:
+            tiered += 1
+    missing = sorted(c["name"] for c in catalog if not c["tier"])
+    print(f"과목 분류 {tiered}/{len(catalog)}개" + (f" · 못 찾음: {', '.join(missing)}" if missing else ""))
+    print(f"심화필수 {sum(1 for c in catalog if c['required_advanced'])}개")
+
     seed = {
-        "version": 1,
+        "version": 2,
         "source_workbook": os.path.basename(xlsx_path),
+        "departments": [
+            {
+                "name": name,
+                "track": DEPARTMENT_TRACKS.get(name),
+                "notes": DEPARTMENT_NOTES.get(name, []),
+            }
+            for name in DEPARTMENTS
+        ],
         "courses": catalog,
         "prerequisites": [
             {"before": before, "after": after, "alternative": alternative}
