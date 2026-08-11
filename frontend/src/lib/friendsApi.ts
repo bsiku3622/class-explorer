@@ -98,6 +98,13 @@ export interface HomeData {
         off_label: string | null;
     };
     today: TodayClass[];
+    /**
+     * 요일별 내 수업 (`{ MON: [...], … }`) — 주간 격자가 씁니다.
+     *
+     * ⚠️ **`today` 와 달리 방학·휴업에도 그대로 옵니다.** 오늘이 아니라 **이 학기**를
+     * 말하는 값이라, 비우면 방학에 자기 시간표를 볼 길이 없습니다.
+     */
+    week: Record<string, TodayClass[]>;
     /** 교시 시각표. 화면이 상수를 따로 들지 않게 홈 응답에 실려 옵니다 */
     periods: PeriodTime[];
     /** 점심·저녁·자습 등. **교시와 겹칩니다** — 배타적으로 보면 안 됩니다 */

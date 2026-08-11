@@ -12,6 +12,9 @@
  * | `TodayCardV2` | 낮고 가로로 긴 카드 하나 (지금·학사일정 \| 스크롤 목록 \| 급식) | **이게 배포되는 화면입니다** |
  * | `TodayCardV1` | 세로로 긴 카드 (자 + 하루 전체 목록) | 개발에서만 — 되돌아볼 자리로 남겨 뒀습니다 |
  *
+ * 그 아래 `WeekTimetable` 이 **한 주**를 격자로 붙습니다 — 위가 오늘이면 아래는 이
+ * 학기라, 배치 판본과 상관없이 같은 자리입니다.
+ *
  * **모든 시각은 하나의 시계에서 나옵니다.** 서버가 준 `now.minute` 에 그 뒤로 흐른
  * 시간을 더해 씁니다 — 판본마다 따로 계산하면 비교하다 어긋난 걸 배치 탓으로
  * 오해하게 됩니다 (`lib/homeView.ts` 가 파생값을 한 곳에서 셉니다).
@@ -29,6 +32,7 @@ import MarqueeText from "../components/atoms/MarqueeText";
 import MealCard from "../components/MealCard";
 import TodayCardV1 from "../components/home/TodayCardV1";
 import TodayCardV2 from "../components/home/TodayCardV2";
+import WeekTimetable from "../components/home/WeekTimetable";
 
 /**
  * 수업 없는 날에 덧붙이는 한마디. 날짜로 골라서 **하루 안에는 안 바뀝니다** —
@@ -240,6 +244,10 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
                    "큰 상자 + 작은 상자" 로 읽힙니다 */
                 <TodayCardV2 home={home} liveMinute={liveMinute} quip={quip} />
             )}
+
+            {/* 위 카드가 **오늘**이라면 여기는 **이 학기**입니다. 배치 판본과 상관없이
+                같은 자리에 붙습니다 — 어느 배치에서도 시간표는 오늘 아래입니다 */}
+            <WeekTimetable home={home} liveMinute={liveMinute} />
         </div>
     );
 };

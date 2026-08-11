@@ -85,5 +85,9 @@ export const applyHomeDemo = (key: HomeDemoKey, home: HomeData): HomeData => {
             off_label: off?.label ?? null,
         },
         today: off ? [] : SAMPLE_DAY,
+        // 주간 격자에도 같은 하루를 심습니다 — 위 카드는 표본을, 아래 격자는 진짜
+        // 시간표를 보여 주면 "지금" 이 서로 다른 칸을 가리켜 화면을 못 믿게 됩니다.
+        // **`off` 여도 비우지 않습니다**: `week` 는 오늘이 아니라 학기를 말합니다
+        week: { ...home.week, [off?.day ?? "MON"]: SAMPLE_DAY },
     };
 };
