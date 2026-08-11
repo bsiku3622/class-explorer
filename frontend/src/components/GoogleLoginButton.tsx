@@ -3,6 +3,26 @@ import React, { useEffect, useRef, useState } from "react";
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 const SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 
+/**
+ * 이 빌드에 구글 로그인이 들어 있는가.
+ *
+ * ⚠️ **빌드 시점에 정해집니다.** `VITE_*` 는 번들에 값이 박히는 것이라, 환경변수가
+ * 없으면 아래 버튼은 그려지지 않는 정도가 아니라 **코드째 빠집니다**(rollup 이
+ * `CLIENT_ID` 가 늘 빈 문자열임을 증명하고 죽은 가지를 잘라냅니다).
+ *
+ * 한 번 이것 때문에 배포본에서 학교 계정 연결이 통째로 사라진 적이 있습니다 — 화면에는
+ * "연결 전에는 이용할 수 없습니다" 만 남고 연결할 방법이 없어서, 새 사용자가 로그아웃
+ * 말고 할 수 있는 게 없었습니다. **부르는 쪽이 이 값을 보고 막다른 길을 알려야 합니다.**
+ */
+export const GOOGLE_LOGIN_READY = Boolean(CLIENT_ID);
+
+if (!CLIENT_ID) {
+    // 화면에 못 띄우는 자리(로그인 화면 등)도 있어서 콘솔에는 늘 남깁니다
+    console.error(
+        "[auth] VITE_GOOGLE_CLIENT_ID 가 이 빌드에 없습니다 — 학교 계정 연결 버튼이 그려지지 않습니다.",
+    );
+}
+
 interface GoogleAccounts {
     accounts: {
         id: {

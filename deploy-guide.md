@@ -2,7 +2,12 @@
 
 | | |
 |---|---|
-| **프론트** | Vercel — `main`에 푸시하면 자동 빌드·배포 (`https://classes.bsiku.dev`) |
+| **프론트** | **Netlify** — `main`에 푸시하면 자동 빌드·배포 (`https://classes.bsiku.dev`) |
+
+⚠️ **한동안 이 표에 "Vercel" 이라고 적혀 있었습니다.** 실제로 서빙하는 건 Netlify 입니다
+(`frontend/netlify.toml` 이 빌드 설정이고, 응답에 `x-nf-request-id` 가 붙습니다). Vercel
+계정에는 이 프로젝트가 아예 없습니다. 이 착각 때문에 **환경변수를 없는 곳에 넣고 반영을
+기다리는 일**이 생깁니다 — 아래 `VITE_GOOGLE_CLIENT_ID` 사고가 그렇게 났습니다.
 
 **배포하는 프론트는 `frontend/`(class-explorer) 하나뿐입니다.** `bench-frontend/`(ksa-bench)는
 동결 상태라 어디에도 올리지 않습니다 — 리포에만 있습니다.
@@ -16,7 +21,7 @@
 ## 평소 배포 (이것만 하면 됩니다)
 
 ```bash
-# 1. 프론트 — 푸시하면 Vercel이 알아서 빌드합니다 (class-explorer 만)
+# 1. 프론트 — 푸시하면 Netlify 가 알아서 빌드합니다 (class-explorer 만)
 git push origin main
 
 # 2. 백엔드
@@ -114,12 +119,28 @@ server {
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-### Vercel 환경변수 (프로젝트 → Settings → Environment Variables)
+### 프론트 환경변수 (Netlify → Site configuration → Environment variables)
 
 | 변수 | 값 |
 |------|-----|
 | `VITE_API_BASE_URL` | `https://classesapi.bsiku.dev` |
 | `VITE_GOOGLE_CLIENT_ID` | 구글 OAuth 클라이언트 ID (공개 값) |
+
+⚠️ **`VITE_*` 는 빌드 시점에 번들에 박힙니다.** 값을 넣거나 고친 뒤에는 **다시 배포해야**
+반영됩니다 — 환경변수만 저장하고 두면 이미 빌드된 번들은 그대로입니다.
+
+⚠️ **`VITE_GOOGLE_CLIENT_ID` 가 없으면 학교 계정 연결 버튼이 코드째 빠집니다.** 안 그려
+지는 정도가 아니라 rollup 이 죽은 가지로 보고 잘라냅니다. `GoogleLinkModal` 은 닫을 수
+없는 창이라, 그 상태로 나가면 새로 들어온 사람은 **로그아웃 말고 할 수 있는 게 없습니다**
+(실제로 한동안 그렇게 배포돼 있었습니다). 지금은 그때 안내 문구가 뜨지만, 문구가 뜬다는
+건 이 변수가 빠졌다는 뜻입니다.
+
+반영됐는지 확인하는 가장 빠른 방법 — 배포된 번들에 구글 문자열이 있는지 봅니다:
+
+```bash
+JS=$(curl -s https://classes.bsiku.dev/ | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+curl -s "https://classes.bsiku.dev$JS" | grep -c 'gsi/client'   # 0 이면 빠진 것입니다
+```
 
 구글 클라우드 콘솔의 **승인된 JavaScript 원본**에 `https://classes.bsiku.dev`와
 `https://localhost:5188`이 모두 들어 있어야 합니다. "승인된 리디렉션 URI"가 아닙니다 —
