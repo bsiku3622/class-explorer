@@ -3,9 +3,10 @@
 화면 하나가 여러 번 물어보지 않게 **한 요청으로 다 돌려줍니다.** 홈은 켜자마자 보이는
 자리라 왕복이 늘면 바로 티가 납니다.
 
-담는 것: 지금 몇 교시인지 · 오늘 내 시간표 · 지금 있어야 할 교실 · 다음 수업 ·
-학기 중인지 방학인지. 급식은 **키가 있는지와 지금 끼니만** 담고 메뉴는 `GET /meal` 이
-따로 돌려줍니다 — 학교 API 가 3~5초씩 걸려서 같이 기다리면 홈 전체가 늦어집니다.
+담는 것: 지금 몇 교시인지 · 오늘 내 시간표 · **한 주 내 시간표** · 지금 있어야 할 교실 ·
+다음 수업 · 학기 중인지 방학인지. 급식은 **키가 있는지와 지금 끼니만** 담고 메뉴는
+`GET /meal` 이 따로 돌려줍니다 — 학교 API 가 3~5초씩 걸려서 같이 기다리면 홈 전체가
+늦어집니다.
 """
 
 import datetime
@@ -279,9 +280,12 @@ async def get_home(
     else:
         off_reason, off_label = None, None
 
-    # ── 오늘 내 시간표
-    my_classes: list[dict] = []
-    if current_user.stu_id and off_reason is None:
+    # ── 내 시간표 — **한 주를 한 번에** 받아 옵니다
+    #
+    # 예전엔 오늘 것만 물어봤는데, 홈에 주간 격자가 생기면서 요일 조건만 뺐습니다.
+    # 한 사람의 한 학기는 30줄 남짓이라 오늘치를 따로 물어볼 이유가 없습니다.
+    week: dict[str, list[dict]] = {d: [] for d in periods.DAYS}
+    if current_user.stu_id:
         rows = (
             db.query(models.Class, models.ClassTime)
             .join(models.Enrollment, models.Enrollment.classId == models.Class.id)
@@ -290,7 +294,6 @@ async def get_home(
                 models.Enrollment.stuId == current_user.stu_id,
                 models.Class.year == target_year,
                 models.Class.semester == target_semester,
-                models.ClassTime.day == day,
             )
             .options(
                 joinedload(models.Class.subject)
@@ -300,9 +303,11 @@ async def get_home(
             .all()
         )
         for cls, time in rows:
+            if time.day not in week:
+                continue  # 주말에 걸린 수업은 없지만, 있어도 격자에 놓을 자리가 없습니다
             subject = cls.subject
             course = subject.course
-            my_classes.append({
+            week[time.day].append({
                 "period": time.period,
                 "subject": f"{subject.name}(EC)" if subject.is_ec else subject.name,
                 "section": cls.section,
@@ -314,7 +319,13 @@ async def get_home(
                     course.department.name if course and course.department else None
                 ),
             })
-        my_classes.sort(key=lambda c: c["period"])
+        for day_classes in week.values():
+            day_classes.sort(key=lambda c: c["period"])
+
+    # ⚠️ **`today` 만 학사일정으로 거릅니다.** 학기 데이터는 요일 단위라 방학 중
+    # 월요일에도 "월요일 시간표" 가 그대로 나오는데, `week` 는 오늘이 아니라 **이 학기**
+    # 를 말하는 값이라 방학에도 그대로 둡니다 — 비우면 방학에 시간표를 볼 길이 없습니다.
+    my_classes = week[day] if off_reason is None and day else []
 
     by_period = {c["period"]: c for c in my_classes}
     current = by_period.get(period) if period else None
@@ -355,6 +366,9 @@ async def get_home(
         # 하루치라 몇 줄 안 됩니다 — 화면이 `/calendar` 를 또 부르지 않게 같이 보냅니다
         "events": [event_out(e) for e in events_today(db, today, current_user)],
         "today": my_classes,
+        # 요일별 내 수업 — 홈의 주간 격자가 씁니다. **`today` 와 달리 방학·휴업에도
+        # 그대로 옵니다**: 오늘이 아니라 이 학기를 말하는 값이라서입니다
+        "week": week,
         # 지금 있어야 할 수업. null 이면 공강입니다
         "current": current,
         "next": following,
