@@ -3,7 +3,7 @@ import axios from "axios";
 import { IdCard, LogOut } from "lucide-react";
 import api from "../lib/api";
 import RetroButton from "./atoms/RetroButton";
-import GoogleLoginButton from "./GoogleLoginButton";
+import GoogleLoginButton, { GOOGLE_LOGIN_READY } from "./GoogleLoginButton";
 
 const SESSION_TOKEN_KEY = "ksa_session_token";
 
@@ -65,7 +65,17 @@ const GoogleLinkModal: React.FC<GoogleLinkModalProps> = ({ username, onLinked, o
                         기록한 내용은 그대로 남습니다.
                     </p>
 
-                    <GoogleLoginButton onCredential={handleCredential} onError={setError} />
+                    {/* ⚠️ 버튼이 없을 때 **빈 자리로 두면 안 됩니다.** 이 창은 닫을 수
+                        없어서, 연결할 방법이 사라지면 로그아웃 말고 할 수 있는 게 없는
+                        막다른 길이 됩니다 — 실제로 배포에 `VITE_GOOGLE_CLIENT_ID` 가
+                        빠져 그 상태로 나간 적이 있습니다 */}
+                    {GOOGLE_LOGIN_READY ? (
+                        <GoogleLoginButton onCredential={handleCredential} onError={setError} />
+                    ) : (
+                        <p className="border-2 border-retro-primary bg-retro-primary/10 px-3 py-2 text-xs font-bold leading-relaxed text-retro-primary">
+                            지금은 학교 계정 연결을 할 수 없습니다. 관리자에게 알려주세요.
+                        </p>
+                    )}
 
                     {busy && (
                         <p className="text-center text-xs font-bold text-black/40">확인 중...</p>
