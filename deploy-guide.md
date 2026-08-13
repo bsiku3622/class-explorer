@@ -142,9 +142,25 @@ JS=$(curl -s https://classes.bsiku.dev/ | grep -oE '/assets/index-[A-Za-z0-9_-]+
 curl -s "https://classes.bsiku.dev$JS" | grep -c 'gsi/client'   # 0 이면 빠진 것입니다
 ```
 
-구글 클라우드 콘솔의 **승인된 JavaScript 원본**에 `https://classes.bsiku.dev`와
-`https://localhost:5188`이 모두 들어 있어야 합니다. "승인된 리디렉션 URI"가 아닙니다 —
-ID 토큰만 받는 방식이라 리디렉션을 쓰지 않습니다.
+### 구글 클라우드 콘솔
+
+**둘 다** 등록돼 있어야 합니다.
+
+| 항목 | 값 |
+|------|-----|
+| 승인된 JavaScript 원본 | `https://classes.bsiku.dev` · `https://localhost:5188` |
+| **승인된 리디렉션 URI** | `https://classes.bsiku.dev/auth/google` · `https://localhost:5188/auth/google` |
+
+⚠️ **한동안 "리디렉션 URI 가 아닙니다" 라고 적혀 있었습니다.** 그때는 구글이 그린
+버튼(GSI)이 팝업으로 처리했지만, **iOS Safari 와 인앱 브라우저가 그 팝업을 막아**
+모바일에서 버튼이 안 눌렸습니다. 지금은 페이지를 통째로 넘기는 리다이렉트 방식이라
+리디렉션 URI 가 **반드시** 필요합니다.
+
+⚠️ **리디렉션 URI 를 등록하기 전에 배포하면 데스크톱까지 같이 막힙니다** — 구글이
+`redirect_uri_mismatch` 화면을 띄우고 돌아오지 못합니다. 콘솔 먼저, 배포는 그 다음입니다.
+
+경로를 바꾸려면 `frontend/src/lib/googleAuth.ts` 의 `REDIRECT_PATH` 와 콘솔을 **같이**
+고쳐야 합니다. 글자 하나만 달라도 거절당합니다.
 
 ---
 

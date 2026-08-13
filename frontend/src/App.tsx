@@ -471,7 +471,7 @@ const App: React.FC = () => {
         return (
             <GoogleLinkModal
                 username={currentUser.username}
-                onLinked={(info) =>
+                onLinked={(info) => {
                     setCurrentUser((prev) =>
                         prev
                             ? {
@@ -481,8 +481,12 @@ const App: React.FC = () => {
                                   student_name: info.student_name,
                               }
                             : prev,
-                    )
-                }
+                    );
+                    // ⚠️ 구글에서 돌아온 직후라면 지금 주소가 `/auth/google` 입니다 —
+                    // 창이 닫히면 그 경로에 맞는 라우트가 없어 **빈 화면**이 됩니다.
+                    // 주소만 바꾸면(`replaceState`) 라우터가 모르므로 여기서 넘깁니다
+                    navigate("/", { replace: true });
+                }}
                 onLogout={handleLogout}
             />
         );

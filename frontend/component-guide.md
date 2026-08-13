@@ -31,7 +31,7 @@
 | `TermSwitcher` | 학기 선택 드롭다운 (`terms`, `current`, `onChange`). Navigation 전용 — 다크 배경 기준 스타일, 학기 1개면 미렌더. 바깥 클릭·Esc로 닫힘 |
 | `SectionsTimetable` | 한 과목의 **모든 분반**을 한 그리드에 겹쳐 표시 (`sections`, `currentSectionId`, `busySlots`). 칸에 분반 번호만 넣고, 호버하면 그리드 아래 바에 상세(교사·강의실·시간·인원·상태)를 띄웁니다. 내 분반 `retro-accent1` 진하게 / 이동 가능 연하게 / 충돌 회색 |
 | `CourseGraph` | 교육과정 선수관계 그래프. 학과 하나 또는 `ALL_DEPARTMENTS`(전체 — 학과를 가로 레인으로). 이수 상태를 넘기지 않으면 구조만 그립니다. 과목을 누르면 그 과목과 직접 이어진 것만 남고 나머지는 흐려집니다 |
-| `GoogleLoginButton` | 학교 구글 계정 확인 버튼 (`onCredential`, `onError`). **로그인이 아니라 학번 확인용** — `GoogleLinkModal`에서만 씁니다. 생김새는 인풋과 같게 우리가 그리고, 구글이 그린 버튼을 투명하게 그 위에 겹쳐 둡니다 (눌리는 건 구글 것). `VITE_GOOGLE_CLIENT_ID`가 없으면 아무것도 그리지 않습니다 |
+| `GoogleLoginButton` | 학교 구글 계정 확인 버튼 (`onStart`, `disabled`). **로그인이 아니라 학번 확인용** — `GoogleLinkModal`에서만 씁니다. **그냥 버튼입니다** — 누르면 `startGoogleLogin()`이 구글로 페이지를 넘기고, 돌아오는 건 모달이 받습니다. ⚠️ 예전처럼 **구글이 그린 버튼(GSI)을 투명하게 겹쳐 두지 마세요** — 그 버튼은 구글 iframe 안에서 팝업을 여는데 iOS Safari·인앱 브라우저가 그걸 막아서 모바일에서 눌러도 아무 일도 안 일어났습니다 |
 | `CalendarGrid` | 월 달력 격자(항상 6주). **그날 시작하는** 일정만 칩으로 쌓고, 걸쳐 있는 건 `⋯ N` 으로 접습니다 — 장기 일정이 달력을 도배하지 않게 |
 | `EventFormModal` | 일정 입력 창. `purpose`(personal/shared/request)에 따라 칸이 달라집니다. 시간은 종일·시각·교시 중 선택 |
 | `RequestSidebar` | 접었다 펴는 제안 서랍. 매니저면 허용·거절, 아니면 내가 낸 제안 상태만. 빨간 배지는 매니저에게만 |

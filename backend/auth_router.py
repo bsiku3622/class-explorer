@@ -155,7 +155,7 @@ def _student_id_from_email(email: str) -> str | None:
     return local if _STUDENT_ID_PATTERN.fullmatch(local) else None
 
 
-async def _verify_google_credential(credential: str) -> dict:
+async def _verify_google_credential(credential: str, nonce: str | None = None) -> dict:
     """
     구글이 발급한 ID 토큰을 구글에게 되물어 확인합니다.
 
@@ -196,11 +196,22 @@ async def _verify_google_credential(credential: str) -> dict:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="확인되지 않은 계정입니다."
         )
+    # 리다이렉트 방식으로 오면 화면이 넘어가기 전에 심어 둔 값이 토큰 안에 들어 있습니다.
+    # 이 흐름에서 방금 발급된 토큰인지 보는 것이라, **주면 반드시 확인합니다.**
+    #
+    # 없어도 통과시키는 이유는 배포가 프론트·백엔드 따로여서입니다 — 옛 화면을 띄워 둔
+    # 브라우저는 `nonce` 를 못 보냅니다. 두 쪽 다 새 판이 되면 필수로 올리세요.
+    if nonce and claims.get("nonce") != nonce:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="만료된 요청입니다."
+        )
     return claims
 
 
 class LinkGoogleRequest(BaseModel):
     credential: str = Field(min_length=1, max_length=4096)
+    # 화면이 구글로 넘어가기 전에 심어 둔 일회용 값. 옛 화면은 안 보냅니다
+    nonce: str | None = Field(default=None, max_length=128)
 
 
 @router.post("/link-google")
@@ -219,7 +230,7 @@ async def link_google(
     이미 학번이 정해진 계정이라면 구글 계정의 학번과 같아야 합니다 — 다르면 남의
     계정에 붙이려는 것이므로 막습니다.
     """
-    claims = await _verify_google_credential(body.credential)
+    claims = await _verify_google_credential(body.credential, body.nonce)
     email = (claims.get("email") or "").lower()
     stu_id = _student_id_from_email(email)
     if stu_id is None:
