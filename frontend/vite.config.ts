@@ -9,7 +9,17 @@ export default defineConfig(({ command }) => {
     const isDev = command === "serve";
 
     return {
-        base: './',
+        // ⚠️ **`'./'` 로 두지 마세요.** 상대 경로가 되면 `index.html` 이
+        // `./assets/…` 를 가리키는데, SPA 라 어느 주소로 들어와도 같은 파일을
+        // 받습니다 — 그래서 **주소 깊이만큼 에셋 경로가 밀립니다.**
+        //
+        //   /              → /assets/…        ✅
+        //   /search        → /assets/…        ✅ (한 단계는 우연히 맞습니다)
+        //   /auth/google   → /auth/assets/…   ❌ HTML 이 돌아오고 스크립트가 안 뜹니다
+        //
+        // 두 단계 주소가 `/auth/google` 하나뿐이라 그때까지 안 터졌고, 증상은 **흰
+        // 화면**입니다(콘솔에 MIME 오류). 루트에 배포하므로 절대 경로가 맞습니다.
+        base: '/',
         define: {
             __APP_VERSION__: JSON.stringify(pkg.version),
         },
