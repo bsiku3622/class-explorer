@@ -1,3 +1,37 @@
+## 2026-08-15 — `/auth/google` 에서 흰 화면 (vite `base: './'`)
+
+- 변경 파일: `frontend/vite.config.ts`
+- 요약: 상대 base 때문에 **두 단계 주소**에서 에셋 경로가 밀려 스크립트가 아예 안
+  떴습니다. `base: '/'` 로 고쳤습니다.
+
+구글에서 돌아오면 흰 화면만 나온다는 제보로 잡았습니다. 콘솔에는 MIME 오류 세 줄:
+
+```
+https://classes.bsiku.dev/auth/assets/index-….js
+                          ^^^^^ 여기
+Failed to load module script … MIME type of "text/html"
+```
+
+`base: './'` 라 `index.html` 이 `./assets/…` 를 가리키는데, SPA 는 **어느 주소로 들어와도
+같은 파일**을 받습니다. 그래서 주소 깊이만큼 경로가 밀립니다.
+
+| 주소 | `./assets/x.js` 가 가리키는 곳 | |
+|---|---|---|
+| `/` | `/assets/x.js` | ✅ |
+| `/search` | `/assets/x.js` | ✅ 한 단계는 **우연히** 맞습니다 |
+| `/auth/google` | `/auth/assets/x.js` | ❌ Netlify 폴백이 HTML 을 돌려줍니다 |
+
+⚠️ **지금까지 라우트가 전부 한 단계여서 안 터졌던 것뿐입니다.** `/auth/google` 이 이 앱의
+**첫 두 단계 주소**였습니다. 앞으로 `/foo/bar` 를 하나라도 더 만들면 같은 자리에서 같은
+방식으로 죽습니다 — `base` 는 절대 경로로 두세요.
+
+`base: './'` 는 `c5941ea hotfix` 에서 들어온 값인데 그때 왜 필요했는지는 남아 있지
+않습니다. 루트 도메인에 배포하므로 상대 경로일 이유가 없습니다.
+
+**증상이 흰 화면인 게 함정입니다.** 스크립트가 안 뜨니 우리 코드가 한 줄도 안 돌고,
+따라서 앱이 남기는 로그도 없습니다. 콘솔을 봐야 알 수 있고, 안 보면 "리다이렉트가
+잘못됐나" 를 계속 뒤지게 됩니다.
+
 ## 2026-08-13 — 구글 학번 확인을 리다이렉트 방식으로
 
 - 변경 파일: `frontend/src/lib/googleAuth.ts`(신규), `GoogleLoginButton.tsx`,
