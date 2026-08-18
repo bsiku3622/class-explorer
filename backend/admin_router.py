@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from backend import models
+from backend import backup, models
 from backend.auth import get_current_admin, get_db, hash_password
 from backend.terms import list_terms, resolve_term
 
@@ -291,6 +291,11 @@ def sync_data(
     """
     KEIS API에서 수업 데이터 재수집.
     학기 미지정 시 데이터가 있는 최신 학기 — 화면 기본 조회 학기와 일치시킵니다.
+
+    `year`·`semester`를 주면 DB에 아직 없는 학기도 받아옵니다. 새 학기가 열리면
+    그 방식으로 처음 한 번을 채웁니다.
+
+    반영 직전 DB 스냅샷은 `parser_run`이 만듭니다 — CLI로 돌릴 때도 남도록.
     """
     year = body.year if body else None
     semester = body.semester if body else None
@@ -314,14 +319,17 @@ def sync_data(
             logger.error("Sync failed (exit %d): %s", result.returncode, result.stderr)
             raise HTTPException(status_code=500, detail="Sync failed. Check server logs.")
         # SYNC_RESULT 줄 파싱
-        stats = {"synced": 0, "skipped": 0, "errors": 0, "elapsed": ""}
+        stats: dict[str, object] = {
+            "synced": 0, "skipped": 0, "errors": 0, "elapsed": "", "backup": "",
+        }
+        text_keys = {"elapsed", "backup"}
         for line in result.stdout.splitlines():
             if line.startswith("SYNC_RESULT"):
                 for token in line.split():
                     if "=" in token:
                         k, v = token.split("=", 1)
                         if k in stats:
-                            stats[k] = v if k == "elapsed" else int(v)
+                            stats[k] = (v if v != "-" else "") if k in text_keys else int(v)
         return {
             "detail": "Sync complete",
             "term": {"year": target_year, "semester": target_semester},
@@ -329,3 +337,37 @@ def sync_data(
         }
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504, detail="Sync timed out (300s)")
+
+
+# ─── DB 백업 ─────────────────────────────────────────────────────────────────
+@router.get("/backups")
+def list_db_backups(
+    _: models.User = Depends(get_current_admin),
+):
+    """
+    떠 둔 DB 스냅샷 목록 (최신순).
+
+    자동으로 지우지 않으므로 계속 쌓입니다 — 총 용량을 같이 줘서 언제 손볼지
+    사람이 판단하게 합니다.
+    """
+    items = backup.list_backups()
+    return {
+        "backups": items,
+        "total_bytes": sum(item["bytes"] for item in items),
+        "directory": backup.BACKUP_DIR,
+    }
+
+
+@router.post("/backups", status_code=201)
+def create_db_backup(
+    _: models.User = Depends(get_current_admin),
+):
+    """지금 상태로 스냅샷을 하나 뜹니다 (수집과 무관하게 손으로)."""
+    try:
+        info = backup.create_backup("manual")
+    except OSError as e:
+        logger.error("Backup failed: %s", e)
+        raise HTTPException(status_code=500, detail="Backup failed. Check server logs.")
+    if info is None:
+        raise HTTPException(status_code=404, detail="Database file not found")
+    return info

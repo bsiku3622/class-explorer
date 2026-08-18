@@ -15,6 +15,7 @@ env/
 # Backend Specific
 backend/ksa_timetable.db
 backend/ksa_timetable.db.bak-*
+backend/backups/
 backend/archive/
 backend/students.txt
 backend/__pycache__/

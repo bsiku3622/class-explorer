@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap } from "lucide-react";
+import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera } from "lucide-react";
 import api from "../lib/api";
 import axios from "axios";
 import type { Role } from "../types";
@@ -45,6 +45,14 @@ interface TeacherRow { name: string; section_count: number; }
 interface SubjectRow { subject: string; is_ec: boolean; english: string | null; course: string | null; }
 
 type DataTab = "students" | "teachers" | "subjects";
+
+interface TermRow { year: number; semester: number; }
+interface BackupRow { name: string; label: string; created: string; bytes: number; }
+
+const formatBytes = (n: number) =>
+    n >= 1_048_576 ? `${(n / 1_048_576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
+
+const termLabel = (t: TermRow) => `${t.year}-${t.semester}`;
 
 // ─── 인라인 편집 행 공통 레이아웃 ─────────────────────────────────────────────
 interface EditableRowProps {
@@ -113,7 +121,7 @@ const EditableRow: React.FC<EditableRowProps> = ({
 };
 
 const AdminPage: React.FC = () => {
-    const [openSections, setOpenSections] = useState({ users: true, sessions: true, data: false });
+    const [openSections, setOpenSections] = useState({ users: true, sessions: true, data: false, backups: false });
 
     // Users
     const [users, setUsers] = useState<UserRow[]>([]);
@@ -126,9 +134,19 @@ const AdminPage: React.FC = () => {
     // Sessions
     const [sessions, setSessions] = useState<SessionRow[]>([]);
 
-    // Sync
+    // Sync — 학기를 골라서 받습니다. DB에 아직 없는 학기도 직접 입력해 처음 채울 수 있습니다
     const [syncLoading, setSyncLoading] = useState(false);
-    const [syncResult, setSyncResult] = useState<{ ok: boolean; synced?: number; skipped?: number; errors?: number; elapsed?: string } | null>(null);
+    const [syncResult, setSyncResult] = useState<
+        { ok: boolean; term?: string; synced?: number; skipped?: number; errors?: number; elapsed?: string; backup?: string } | null
+    >(null);
+    const [terms, setTerms] = useState<TermRow[]>([]);
+    const [syncTerm, setSyncTerm] = useState<TermRow | null>(null);
+    const [customTerm, setCustomTerm] = useState<TermRow | null>(null);
+
+    // Backups
+    const [backups, setBackups] = useState<BackupRow[]>([]);
+    const [backupTotal, setBackupTotal] = useState(0);
+    const [backupBusy, setBackupBusy] = useState(false);
 
     // Data Management
     const [dataTab, setDataTab] = useState<DataTab>("students");
@@ -194,10 +212,32 @@ const AdminPage: React.FC = () => {
         }
     }, []);
 
+    const fetchTerms = useCallback(async () => {
+        try {
+            const res = await api.get("/admin/terms", { headers: authHeader() });
+            const rows: TermRow[] = res.data.terms ?? [];
+            setTerms(rows);
+            setSyncTerm((prev) => prev ?? rows[0] ?? null);
+        } catch (e) {
+            if (axios.isAxiosError(e)) setError(e.response?.data?.detail || "Failed to load terms");
+        }
+    }, []);
+
+    const fetchBackups = useCallback(async () => {
+        try {
+            const res = await api.get("/admin/backups", { headers: authHeader() });
+            setBackups(res.data.backups ?? []);
+            setBackupTotal(res.data.total_bytes ?? 0);
+        } catch (e) {
+            if (axios.isAxiosError(e)) setError(e.response?.data?.detail || "Failed to load backups");
+        }
+    }, []);
+
     useEffect(() => {
         fetchUsers();
         fetchSessions();
-    }, [fetchUsers, fetchSessions]);
+        fetchTerms();
+    }, [fetchUsers, fetchSessions, fetchTerms]);
 
     // ── data management handlers ───────────────────────────────────────────────
     const handleSaveStu = async (stuId: string) => {
@@ -268,15 +308,36 @@ const AdminPage: React.FC = () => {
 
     const [showSyncConfirm, setShowSyncConfirm] = useState(false);
 
+    /** 칩으로 고른 학기 · 직접 입력한 학기 중 지금 유효한 것 */
+    const targetTerm: TermRow | null = customTerm ?? syncTerm;
+
     const handleSync = async () => {
+        if (!targetTerm) return;
         setShowSyncConfirm(false);
         setSyncLoading(true); setSyncResult(null);
         try {
-            const res = await api.post("/admin/sync", {}, { headers: authHeader() });
-            setSyncResult({ ok: true, ...res.data.stats });
+            const res = await api.post(
+                "/admin/sync",
+                { year: targetTerm.year, semester: targetTerm.semester },
+                { headers: authHeader() },
+            );
+            setSyncResult({ ok: true, term: termLabel(res.data.term), ...res.data.stats });
+            // 새 학기를 처음 받았으면 목록에 없던 학기가 생깁니다
+            fetchTerms();
+            fetchBackups();
         } catch (e) {
             if (axios.isAxiosError(e)) setSyncResult({ ok: false });
         } finally { setSyncLoading(false); }
+    };
+
+    const handleCreateBackup = async () => {
+        setBackupBusy(true);
+        try {
+            await api.post("/admin/backups", {}, { headers: authHeader() });
+            fetchBackups();
+        } catch (e) {
+            if (axios.isAxiosError(e)) setError(e.response?.data?.detail || "Failed to create backup");
+        } finally { setBackupBusy(false); }
     };
 
     const toggle = (key: keyof typeof openSections) => {
@@ -286,6 +347,7 @@ const AdminPage: React.FC = () => {
             if (teachers.length === 0) fetchTeachers();
             if (subjects.length === 0) fetchSubjects();
         }
+        if (key === "backups" && !openSections.backups && backups.length === 0) fetchBackups();
         setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
     };
 
@@ -331,6 +393,15 @@ const AdminPage: React.FC = () => {
     const filteredTeachers = teachers.filter((t) => !q || t.name.toLowerCase().includes(q));
     const filteredSubjects = subjects.filter((s) => !q || s.subject.toLowerCase().includes(q));
 
+    const chipClass = (active: boolean) =>
+        `text-xs font-black uppercase px-3 py-1.5 border-2 transition-all duration-100 ${
+            active
+                ? "bg-black text-white border-black"
+                : "border-black/30 text-black/50 hover:border-black hover:text-black"
+        }`;
+
+    const termValid = !!targetTerm && targetTerm.year >= 2000 && targetTerm.year <= 2100;
+
     const dataTabBtn = (tab: DataTab, label: string) => (
         <button
             onClick={() => handleDataTabChange(tab)}
@@ -348,17 +419,69 @@ const AdminPage: React.FC = () => {
         <div className="flex flex-col gap-4 md:gap-6 pb-20">
             <PageHeader title="Admin" subtitle="System" icon={Shield} />
 
-            {/* Fetch 확인 모달 */}
+            {/* Fetch 확인 모달 — 어느 학기를 덮어쓸지 여기서 고릅니다 */}
             {showSyncConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                    <div className="bg-white border-2 border-black shadow-[8px_8px_0_0_rgba(0,0,0,0.3)] p-8 max-w-sm w-full mx-4 space-y-6">
+                    <div className="bg-white border-2 border-black shadow-[8px_8px_0_0_rgba(0,0,0,0.3)] p-8 max-w-md w-full mx-4 space-y-6">
                         <div className="space-y-2">
-                            <p className="text-sm font-black uppercase tracking-widest">Fetch from KSAIN</p>
+                            <p className="text-sm font-black uppercase tracking-widest">Fetch from KEIS</p>
                             <p className="text-sm font-bold text-black/60 leading-relaxed">
-                                이 작업은 KSAIN API에서 전체 수업 데이터를 재수집합니다.<br />
-                                완료까지 <span className="text-black font-black">몇 분 이상</span> 소요될 수 있습니다.
+                                고른 학기의 수업 데이터를 KEIS API에서 다시 받아 <span className="text-black font-black">통째로 교체</span>합니다.
+                                반영 직전 DB 스냅샷이 자동으로 남습니다.
                             </p>
                         </div>
+
+                        <div className="space-y-3">
+                            <RetroSubTitle title="Term" />
+                            <div className="flex flex-wrap gap-2">
+                                {terms.map((t) => (
+                                    <button
+                                        key={termLabel(t)}
+                                        onClick={() => { setSyncTerm(t); setCustomTerm(null); }}
+                                        className={chipClass(!customTerm && !!syncTerm && termLabel(syncTerm) === termLabel(t))}
+                                    >
+                                        {termLabel(t)}
+                                    </button>
+                                ))}
+                                <button
+                                    onClick={() => setCustomTerm(customTerm ?? { year: new Date().getFullYear(), semester: 1 })}
+                                    className={chipClass(!!customTerm)}
+                                >
+                                    새 학기
+                                </button>
+                            </div>
+
+                            {/* DB에 아직 없는 학기 — 새 학기를 처음 채울 때 씁니다 */}
+                            {customTerm && (
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="number"
+                                        value={customTerm.year}
+                                        min={2000}
+                                        max={2100}
+                                        onChange={(e) => setCustomTerm({ ...customTerm, year: Number(e.target.value) })}
+                                        className={inputClass + " w-24 text-xs"}
+                                    />
+                                    <span className="text-sm font-black text-black/40">-</span>
+                                    {[1, 2].map((sem) => (
+                                        <button
+                                            key={sem}
+                                            onClick={() => setCustomTerm({ ...customTerm, semester: sem })}
+                                            className={chipClass(customTerm.semester === sem)}
+                                        >
+                                            {sem}학기
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            <p className="text-xs font-bold text-black/40">
+                                {termValid && targetTerm
+                                    ? `${termLabel(targetTerm)} 학기를 받아옵니다. 완료까지 몇 분 이상 걸릴 수 있습니다.`
+                                    : "받아올 학기를 고르세요."}
+                            </p>
+                        </div>
+
                         <div className="flex gap-3 justify-end">
                             <button
                                 onClick={() => setShowSyncConfirm(false)}
@@ -368,7 +491,8 @@ const AdminPage: React.FC = () => {
                             </button>
                             <button
                                 onClick={handleSync}
-                                className="text-xs font-black uppercase px-4 py-2 border-2 border-black bg-black text-white hover:bg-black/80 transition-all duration-100"
+                                disabled={!termValid}
+                                className="text-xs font-black uppercase px-4 py-2 border-2 border-black bg-black text-white hover:bg-black/80 disabled:opacity-40 transition-all duration-100"
                             >
                                 확인
                             </button>
@@ -538,7 +662,7 @@ const AdminPage: React.FC = () => {
                                 className="flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1.5 border-2 border-black bg-black text-white hover:bg-black/80 transition-all duration-100 disabled:opacity-50"
                             >
                                 <RefreshCw size={11} strokeWidth={2.5} className={syncLoading ? "animate-spin" : ""} />
-                                {syncLoading ? "Fetching..." : "Fetch from KSAIN"}
+                                {syncLoading ? "Fetching..." : "Fetch from KEIS"}
                             </button>
                         </div>
                     </div>
@@ -548,10 +672,12 @@ const AdminPage: React.FC = () => {
                             {syncResult.ok ? (
                                 <span className="flex flex-wrap gap-3">
                                     <span>✓ Sync complete</span>
+                                    {syncResult.term && <span><strong>{syncResult.term}</strong></span>}
                                     <span>Synced <strong>{syncResult.synced}</strong></span>
                                     <span>Skipped <strong>{syncResult.skipped}</strong></span>
                                     {(syncResult.errors ?? 0) > 0 && <span>Errors <strong>{syncResult.errors}</strong></span>}
-                                    <span className="text-green-500">{syncResult.elapsed}s</span>
+                                    <span className="text-green-500">{syncResult.elapsed}</span>
+                                    {syncResult.backup && <span className="text-green-500">backup: {syncResult.backup}</span>}
                                 </span>
                             ) : "Sync failed"}
                         </div>
@@ -657,6 +783,57 @@ const AdminPage: React.FC = () => {
                                 )}
                             </>
                         )}
+                    </div>
+                </div>
+            </AccordionSection>
+
+            {/* Backups — 수집 직전 스냅샷이 쌓이는 곳. 자동 삭제 없음 */}
+            <AccordionSection title="Backups" icon={Archive} isOpen={openSections.backups} onToggle={() => toggle("backups")}>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <p className="text-xs font-bold text-black/40">
+                            수집 직전에 자동으로 남습니다. 지워지지 않으니 총 {formatBytes(backupTotal)} — 커지면 서버에서 직접 정리하세요.
+                        </p>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button
+                                onClick={fetchBackups}
+                                className="flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1.5 border-2 border-black/30 text-black/50 hover:border-black hover:text-black transition-all duration-100"
+                            >
+                                <RefreshCw size={11} strokeWidth={2.5} />
+                                Refetch
+                            </button>
+                            <button
+                                onClick={handleCreateBackup}
+                                disabled={backupBusy}
+                                className="flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1.5 border-2 border-black bg-black text-white hover:bg-black/80 disabled:opacity-50 transition-all duration-100"
+                            >
+                                <Camera size={11} strokeWidth={2.5} />
+                                {backupBusy ? "Saving..." : "Snapshot"}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
+                        {backups.map((b) => (
+                            <div
+                                key={b.name}
+                                className="border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.1)] px-4 py-3 flex items-center justify-between gap-3"
+                            >
+                                <div className="min-w-0">
+                                    <span className="font-black text-sm block">{b.created}</span>
+                                    <span className="text-[10px] font-bold text-black/40 block truncate">{b.name}</span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {b.label && (
+                                        <span className="text-[10px] font-black uppercase px-1.5 py-0.5 border border-black/30 text-black/50">
+                                            {b.label}
+                                        </span>
+                                    )}
+                                    <span className="text-[10px] font-bold text-black/40">{formatBytes(b.bytes)}</span>
+                                </div>
+                            </div>
+                        ))}
+                        {backups.length === 0 && <p className="text-sm font-bold text-black/40">No backups yet.</p>}
                     </div>
                 </div>
             </AccordionSection>
