@@ -10,6 +10,7 @@
 python -m backend.parser_run                       # 오늘 날짜 기준 학기
 python -m backend.parser_run --year 2026 --semester 2
 python -m backend.parser_run -y 2026 -s 2 --prune  # 데이터 없는 학생 students.txt에서 제거
+python -m backend.parser_run --no-backup           # 반영 직전 스냅샷 생략
 ```
 
 | 인자 | 기본값 | 설명 |
@@ -17,6 +18,7 @@ python -m backend.parser_run -y 2026 -s 2 --prune  # 데이터 없는 학생 stu
 | `-y, --year` | `SYNC_YEAR` 환경변수 → `current_term()` | 학년도 |
 | `-s, --semester` | `SYNC_SEMESTER` 환경변수 → `current_term()` | 학기 (1 \| 2) |
 | `--prune` | off | 해당 학기 시간표가 없는 학생을 `students.txt`에서 제거 |
+| `--no-backup` | off | 반영 직전 DB 스냅샷을 만들지 않음 |
 
 ## 동작 흐름
 ```
@@ -27,6 +29,8 @@ asyncio + httpx (동시 요청, 세마포어 최대 20, 실패 시 최대 2회 �
 GET https://keis.ksa.hs.kr/restapi/v1/schedule/{stuId}/{year}/{semester}
       ↓
 parse_schedule() → 수업 목록
+      ↓
+[반영 직전] backup.create_backup(f"sync-{year}-{semester}") — backups/ 에 스냅샷
       ↓
 [전원 수집 완료 후] replace_term_data() — 학기 단위 원자적 교체
   - Class: (subject_id, section, teacher) 로 찾아 재사용 — id 보존, 교실만 갱신
@@ -64,6 +68,7 @@ DB 반영은 **모든 요청이 끝난 뒤 한 번에** 일어나므로, 수집 
 
 | 조건 | 동작 |
 |------|------|
+| 백업 실패 (`--no-backup` 아닐 때) | DB 미변경, exit 1 |
 | 수집된 시간표 0건 | DB 미변경, exit 1 |
 | 요청 실패가 전체의 과반 초과 | API 장애로 간주 — DB 미변경, exit 1 |
 | DB 반영 중 예외 | 롤백, exit 1 |
@@ -85,10 +90,12 @@ DB 반영은 **모든 요청이 끝난 뒤 한 번에** 일어나므로, 수집 
 
 ## 출력
 ```
-SYNC_RESULT synced=342 skipped=15 errors=0 elapsed=15.9s
+백업: ksa_timetable-20260818-152707-sync-2026-2.db (2.8 MB)
+SYNC_RESULT synced=366 skipped=311 errors=0 elapsed=26.3s backup=ksa_timetable-20260818-152707-sync-2026-2.db
 ```
 - `synced` — 시간표를 받아 DB에 반영한 학생 수
 - `skipped` — 응답은 왔으나 해당 학기 시간표가 비어 있는 학생 (휴학·졸업 등)
 - `errors` — 요청 실패 (재시도 후에도 실패)
+- `backup` — 반영 직전에 뜬 스냅샷 파일명 (`--no-backup` 이면 `-`)
 
 `/admin/sync`가 이 줄을 파싱해 통계로 반환합니다.

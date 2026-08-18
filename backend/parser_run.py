@@ -4,6 +4,7 @@ KEIS 시간표 API에서 학기 단위로 시간표를 수집해 DB에 반영합
     python -m backend.parser_run                      # 현재 학기 자동 판별
     python -m backend.parser_run --year 2026 --semester 2
     python -m backend.parser_run -y 2026 -s 2 --prune # 데이터 없는 학생을 students.txt에서 제거
+    python -m backend.parser_run --no-backup          # 반영 직전 스냅샷 생략
 
 수집은 학기 단위로 원자적입니다. 모든 학생의 응답을 받아온 뒤에야 해당 학기 데이터를
 지우고 새로 넣기 때문에, 다른 학기 데이터와 수집 도중 실패에 영향받지 않습니다.
@@ -18,7 +19,7 @@ from typing import Any
 import httpx
 from sqlalchemy.orm import Session
 
-from backend import models, parser
+from backend import backup, models, parser
 from backend.database import SessionLocal, init_schema
 from backend.subject_names import match_course, split_name
 from backend.terms import current_term
@@ -231,7 +232,7 @@ def load_students(path: str) -> dict[str, str]:
 
 
 # ───────────── 엔트리포인트 ─────────────
-async def run(year: int, semester: int, prune: bool) -> int:
+async def run(year: int, semester: int, prune: bool, make_backup: bool = True) -> int:
     if not os.path.exists(STUDENTS_TXT):
         print(f"Error: {STUDENTS_TXT} 파일이 존재하지 않습니다.")
         return 1
@@ -271,6 +272,19 @@ async def run(year: int, semester: int, prune: bool) -> int:
         print(f"Error: 요청 실패 {len(errors)}건으로 과반 초과. DB를 건드리지 않고 종료합니다.")
         return 1
 
+    # 갈아 끼우기 직전 상태를 통째로 남깁니다. 백업을 못 만들면 수집을 접습니다 —
+    # 되돌릴 곳 없이 한 학기를 덮어쓰는 쪽이 더 위험합니다 (`--no-backup` 으로 생략)
+    backup_name = ""
+    if make_backup:
+        try:
+            info = backup.create_backup(f"sync-{year}-{semester}")
+        except OSError as e:
+            print(f"Error: 백업 실패({e}). DB를 건드리지 않고 종료합니다.")
+            return 1
+        if info:
+            backup_name = info["name"]
+            print(f"백업: {info['name']} ({info['bytes'] / 1_048_576:.1f} MB)")
+
     db: Session = SessionLocal()
     try:
         replace_term_data(db, year, semester, students, fetched)
@@ -291,7 +305,7 @@ async def run(year: int, semester: int, prune: bool) -> int:
     print("-" * 30)
     print(
         f"SYNC_RESULT synced={len(fetched)} skipped={len(skipped)} "
-        f"errors={len(errors)} elapsed={elapsed:.1f}s"
+        f"errors={len(errors)} elapsed={elapsed:.1f}s backup={backup_name or '-'}"
     )
     print("-" * 30)
     return 0
@@ -310,9 +324,13 @@ def main() -> int:
         "--prune", action="store_true",
         help="해당 학기에 시간표가 없는 학생을 students.txt 에서 제거",
     )
+    ap.add_argument(
+        "--no-backup", action="store_true",
+        help="반영 직전 DB 스냅샷을 만들지 않음",
+    )
     args = ap.parse_args()
 
-    return asyncio.run(run(args.year, args.semester, args.prune))
+    return asyncio.run(run(args.year, args.semester, args.prune, not args.no_backup))
 
 
 if __name__ == "__main__":

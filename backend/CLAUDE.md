@@ -30,6 +30,7 @@ backend/
 │                          + Subject.course_id 재연결
 ├── curriculum_seed.json → 교육과정 카탈로그 145과목 + 선수관계 117개
 ├── parser.py        → KEIS API 응답 파싱 로직
+├── backup.py        → DB 스냅샷 (수집 직전 자동 · 자동 삭제 없음) → backups/
 ├── parser_run.py    → 학기별 데이터 동기화 실행 스크립트
 ├── students.txt     → 학생 목록 (학번 + 이름)
 └── ksa_timetable.db → SQLite 데이터베이스
@@ -346,6 +347,12 @@ parse_schedule() → [{subject, section, teacher, room, times}]
 ```
 수집 도중 실패해도 DB는 변경되지 않습니다. 요청 실패가 과반을 넘으면 중단합니다.
 
+**반영 직전에 DB 스냅샷을 뜹니다** (`backup.py` → `backend/backups/`). 학기 하나를
+통째로 갈아 끼우는 작업이라, API 가 이상한 값을 줬거나 학기를 잘못 지정한 걸 나중에
+알아채면 되돌릴 곳이 그 파일뿐입니다. **백업을 못 만들면 수집을 접습니다** — 되돌릴
+곳 없이 덮어쓰는 쪽이 더 위험합니다(`--no-backup` 으로 생략 가능). 자동 삭제는 없고
+용량은 `/admin/backups` 의 총합으로 봅니다.
+
 ⚠️ **`Class.id` 는 재수집해도 보존됩니다.** Trade 계획(`UserState.trade`)이 분반을 id 로
 가리켜서, 지웠다 다시 넣으면 남의 계획이 엉뚱한 분반에 붙습니다. 폐강·신설만 행이
 바뀌고, 교사 이름이 바뀐 분반은 키가 달라져 새 id 를 받습니다 — 자세한 건
@@ -401,6 +408,11 @@ python -m backend.create_user <username> <password>
 | `GET` | `/admin/subjects?year=&semester=` | 해당 학기 과목 목록 (학기 기본값=최신) |
 | `GET` | `/admin/terms` | 데이터가 존재하는 학기 목록 |
 | `POST` | `/admin/sync` | 데이터 재수집 (`{"year": 2026, "semester": 2}` 선택, 생략 시 DB 최신 학기) |
+| `GET` | `/admin/backups` | DB 스냅샷 목록 + 총 용량 |
+| `POST` | `/admin/backups` | 지금 상태로 스냅샷 하나 (수집과 무관하게 손으로) |
+
+`/admin/sync` 에 학기를 주면 **DB에 아직 없는 학기도** 받아옵니다 — 새 학기가 열리면
+그렇게 첫 회를 채웁니다. 화면에서는 학기 칩과 `새 학기` 직접 입력으로 고릅니다.
 
 ## 인증 시스템
 

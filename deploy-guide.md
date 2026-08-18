@@ -182,6 +182,10 @@ python3.14 -m backend.create_user <username> <password> [--manager|--admin]
 건드리는 배포 전에는 반드시 복사본을 떠 두세요. 마이그레이션은 앱이 뜰 때 자동으로
 돕니다(`database.init_schema()`).
 
+**수집은 반영 직전에 스냅샷을 남깁니다** — `backend/backups/` 에 한 번에 약 3MB 씩,
+**자동으로 지우지 않습니다**. Admin 화면의 `Backups` 에 총 용량이 뜨니 가끔 보고 서버에서
+직접 지우세요. 스냅샷 없이 돌리려면 `--no-backup` 을 붙입니다.
+
 ---
 
 ## 처음 세팅할 때만

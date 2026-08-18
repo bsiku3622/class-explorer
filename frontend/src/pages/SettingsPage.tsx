@@ -175,7 +175,7 @@ const SettingsPage: React.FC = () => {
                     <RetroSubTitle title="About" icon={Database} />
                     <div className="space-y-1.5 text-xs font-bold text-black/50">
                         <p>KSA Class Explorer — 한국과학영재학교 수업 탐색 서비스</p>
-                        <p>데이터 출처: KSAIN API</p>
+                        <p>데이터 출처: KEIS (수업) · KSAIN (급식)</p>
                     </div>
                     <div className="inline-flex items-center gap-1.5 border-2 border-black px-2 py-0.5">
                         <span className="text-[10px] font-black uppercase tracking-widest text-black/40">Version</span>
