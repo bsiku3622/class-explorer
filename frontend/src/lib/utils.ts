@@ -35,6 +35,42 @@ export const extractSearchTerms = (searchTerm: string): string[] => {
  * @param studentId "23-123" 형식의 문자열
  * @returns Hex color string
  */
+/**
+ * 학과별 색. 홈의 **주간 격자·자·오늘 목록·히어로가 같이 씁니다** — 한 화면에서
+ `일반지구과학` 이 자리마다 다른 색이면 색이 정보가 아니라 장식이 됩니다.
+ *
+ * ⚠️ **핑크(`retro-primary`) 계열은 넣지 마세요.** 그건 "지금" 한 뜻으로 예약된
+ * 색입니다. 학과색은 8~12% 로만 깔고 지금만 100% 로 채우기 때문에 섞이지 않습니다.
+ */
+const DEPARTMENT_COLOR: Record<string, string> = {
+    수학: "#7828c8",
+    정보과학: "#2563eb",
+    물리학: "#4f46e5",
+    화학: "#ea580c",
+    생물학: "#16a34a",
+    지구과학: "#0d9488",
+    국어: "#dc2626",
+    사회: "#b45309",
+    외국어: "#0891b2",
+    예체능: "#ca8a04",
+    융합: "#64748b",
+};
+
+/** 교육과정에 없는 과목(외국인 전형 등)은 `department` 가 `null` 로 옵니다 */
+export const getDepartmentColor = (department: string | null | undefined): string =>
+    (department && DEPARTMENT_COLOR[department]) || "#64748b";
+
+/**
+ * `#7828c8` + 0.08 → `rgba(120,40,200,0.08)`.
+ *
+ * **회색으로 죽이지 말고 투명도로 낮춥니다.** 지난 수업을 회색으로 칠하면 하루가
+ * 잿빛이 되지만, 같은 색을 옅게 깔면 **무슨 과목이었는지가 남습니다.**
+ */
+export const withAlpha = (hex: string, alpha: number): string => {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+};
+
 export const getStudentColor = (studentId: string): string => {
     const year = studentId.split("-")[0];
 

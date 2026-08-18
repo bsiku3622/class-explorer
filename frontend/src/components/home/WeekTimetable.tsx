@@ -54,20 +54,20 @@
  * 칩(지금) 두 군데에 있으면 같은 색이 두 뜻을 갖습니다.
  */
 
-import React, { useMemo } from "react";
-import { CalendarRange } from "lucide-react";
-import type {
-    BreakTime,
-    HomeData,
-    PeriodTime,
-    TodayClass,
-} from "../../lib/friendsApi";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { CalendarRange, Download } from "lucide-react";
+import { toPng } from "html-to-image";
+import type { BreakTime, HomeData, TodayClass } from "../../lib/friendsApi";
 import { deriveHomeView } from "../../lib/homeView";
-import { DAY_MAP, DAYS_ORDER, getKoreanName } from "../../lib/utils";
+import {
+    DAY_MAP,
+    DAYS_ORDER,
+    getDepartmentColor,
+    getKoreanName,
+    withAlpha,
+} from "../../lib/utils";
 import RetroCard from "../atoms/RetroCard";
 import RetroSubTitle from "../atoms/RetroSubTitle";
-
-type Day = (typeof DAYS_ORDER)[number];
 
 /**
  * 교시 사이가 이보다 벌어지면 쉬는시간이 아니라 **구멍**입니다.
@@ -77,11 +77,19 @@ type Day = (typeof DAYS_ORDER)[number];
  */
 const GAP_MINUTES = 20;
 
-/** 자에서 쓰는 것과 같은 빗금 — **수업이 놓일 수 없는 구간**의 무늬입니다 */
+/**
+ * 점심·저녁 띠의 빗금.
+ *
+ * ⚠️ **자(`DayRuler`)보다 옅습니다**(0.06 vs 0.13). 저긴 16px 짜리 얇은 띠라 진해야
+ * 보이지만, 여기서는 구멍이 **교시 칸에 비례**해 90px 까지 커집니다 — 같은 농도로
+ * 그 면적을 채우면 정보가 없는 자리가 화면에서 제일 시끄러워집니다.
+ */
 const HATCH: React.CSSProperties = {
     backgroundImage:
-        "repeating-linear-gradient(-45deg, rgba(0,0,0,0.13) 0 3px, transparent 3px 7px)",
+        "repeating-linear-gradient(-45deg, rgba(0,0,0,0.06) 0 3px, transparent 3px 7px)",
 };
+
+/** 자에서 쓰는 것과 같은 빗금 — **수업이 놓일 수 없는 구간**의 무늬입니다 */
 
 /**
  * 칸에 들어갈 만큼 이름을 줄입니다 — **꼬리 괄호를 통째로 뗍니다.**
@@ -103,6 +111,13 @@ const HATCH: React.CSSProperties = {
 const tighten = (subject: string): string =>
     getKoreanName(subject).replace(/\s*\([^()]*\)$/, "");
 
+type Day = (typeof DAYS_ORDER)[number];
+
+/** 격자의 가로 한 줄 — 교시이거나, 교시 사이의 구멍입니다 */
+type Slot =
+    | { kind: "period"; period: number }
+    | { kind: "gap"; name: string; after: number; minutes: number };
+
 /** 격자에 놓이는 덩어리 하나 — 연강이면 `span` 이 2 이상입니다 */
 interface Block {
     day: Day;
@@ -112,11 +127,6 @@ interface Block {
     span: number;
     klass: TodayClass;
 }
-
-/** 격자의 가로 한 줄 — 교시이거나, 교시 사이의 구멍입니다 */
-type Slot =
-    | { kind: "period"; period: number }
-    | { kind: "gap"; name: string; after: number };
 
 /**
  * 요일별 수업 목록 → 격자 덩어리.
@@ -130,7 +140,7 @@ type Slot =
  */
 const buildBlocks = (
     week: Record<string, TodayClass[]>,
-    byPeriod: Map<number, PeriodTime>,
+    byPeriod: Map<number, { start_minute: number; end_minute: number }>,
 ): Block[] => {
     const blocks: Block[] = [];
     DAYS_ORDER.forEach((day) => {
@@ -238,6 +248,7 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({ home, liveMinute }) => {
                         kind: "gap",
                         name: gapName(before.end_minute, here.start_minute, breaks),
                         after: rows[index - 1],
+                        minutes: here.start_minute - before.end_minute,
                     });
                 }
             }
@@ -245,6 +256,18 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({ home, liveMinute }) => {
         });
         return out;
     }, [rows, byPeriod, breaks]);
+
+    /**
+     * 교시 한 칸이 몇 분인가 — **구멍 높이를 여기에 비례시킵니다.**
+     *
+     * ⚠️ 점심(70분)을 16px 띠로 그렸더니 50분 수업이 64px 인 격자에서 **점심이 수업
+     * 보다 짧아 보였습니다.** 격자는 시간을 재는 물건이라 같은 축 위에서 길이가
+     * 뒤집히면 안 됩니다.
+     */
+    const unitMinutes = useMemo(() => {
+        const first = periods[0];
+        return first ? first.end_minute - first.start_minute : 50;
+    }, [periods]);
 
     /** 교시 → 격자 행 번호 (1행은 요일 머리라 +2) */
     const rowOf = useMemo(() => {
@@ -254,6 +277,34 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({ home, liveMinute }) => {
         });
         return map;
     }, [slots]);
+
+    /**
+     * **격자만 따로 이미지로 뽑습니다.** 스크롤 상자가 아니라 안쪽 격자를 찍어야
+     * 화면 밖으로 넘어간 교시까지 다 담깁니다.
+     */
+    const gridRef = useRef<HTMLDivElement>(null);
+    const [saving, setSaving] = useState(false);
+
+    const exportPng = useCallback(async () => {
+        const node = gridRef.current;
+        if (!node) return;
+        setSaving(true);
+        try {
+            const url = await toPng(node, {
+                pixelRatio: 2,
+                backgroundColor: "#ffffff",
+                // 스크롤로 잘린 부분까지 — 찍을 때는 제 크기를 그대로 씁니다
+                width: node.scrollWidth,
+                height: node.scrollHeight,
+            });
+            const link = document.createElement("a");
+            link.download = `시간표_${home.term.year}-${home.term.semester}.png`;
+            link.href = url;
+            link.click();
+        } finally {
+            setSaving(false);
+        }
+    }, [home.term]);
 
     const total = useMemo(
         () => DAYS_ORDER.reduce((sum, day) => sum + (week[day]?.length ?? 0), 0),
@@ -266,34 +317,97 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({ home, liveMinute }) => {
 
     return (
         <RetroCard className="overflow-hidden bg-white">
-            <div className="flex items-baseline justify-between gap-3 p-4 pb-3 md:px-5 md:pt-5">
+            <div className="flex items-baseline justify-between gap-3 px-4 py-3 md:px-5">
                 <RetroSubTitle title="내 시간표" icon={CalendarRange} iconSize={15} />
-                <span className="shrink-0 text-[11px] font-bold tabular-nums text-black/35">
-                    주 {total}교시
+                <span className="flex shrink-0 items-center gap-2">
+                    <span className="text-[12px] font-bold tabular-nums text-black/35">
+                        주 {total}교시
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => void exportPng()}
+                        disabled={saving}
+                        title="이미지로 저장"
+                        className="flex items-center gap-1 border-2 border-black px-2 py-1 text-[11px] font-black shadow-[2px_2px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none disabled:opacity-40"
+                    >
+                        <Download size={12} strokeWidth={3} />
+                        {saving ? "저장 중" : "PNG"}
+                    </button>
                 </span>
             </div>
 
             {/* 격자는 카드 **끝까지** 붙습니다 — 여백을 두면 검은 요일 머리가 카드 안의
                 또 다른 카드로 읽힙니다 (`design-guide.md` 의 "카드 안에 카드") */}
+            {/* 교시가 많으면 카드가 통째로 길어져 옆 칸(오늘)과 균형이 깨집니다 —
+                격자만 제 안에서 흐르게 둡니다 */}
+            <div className="max-h-[calc(100vh-14rem)] overflow-auto">
             <div
-                className="grid border-t-2 border-black"
-                style={{ gridTemplateColumns: "1.75rem repeat(5, minmax(0, 1fr))" }}
+                ref={gridRef}
+                className="grid bg-white"
+                style={{ gridTemplateColumns: "4rem repeat(5, minmax(0, 1fr))" }}
             >
                 {/* ── 요일 머리 ───────────────────────────────────────
-                    오늘은 **검은 바에서 흰 칸으로 뒤집습니다.** 핑크로 칠하면 아래
-                    "지금" 칩과 같은 색이 되어 한 화면에서 뜻이 둘로 갈립니다 */}
-                <div className="bg-black" style={{ gridColumn: 1, gridRow: 1 }} />
+                    ⚠️ **다섯 칸을 통째로 검게 칠하지 않습니다.** 한동안 검은 바에
+                    흰 글씨였는데, 격자에서 제일 무거운 덩어리가 **정보가 제일 적은
+                    줄**이었습니다 — 요일 다섯 글자를 읽자고 카드 위쪽에 검은 띠를
+                    두르는 셈이라, 아래 칩들이 그 무게에 눌렸습니다.
+
+                    이제 머리는 흰 바탕이고 **오늘 한 칸만 핑크로 채웁니다.** 그
+                    칸에서 아래로 **핑크 기둥이 이어져** 머리와 열이 한 덩어리로
+                    읽힙니다 — 다섯 칸을 다 칠하면 그 연결이 안 보입니다.
+
+                    ⚠️ 그래서 이 화면에는 **핑크가 세 농도로 있습니다** — 머리의
+                    오늘(100%), 오늘 열 기둥(7%), 격자 안의 "지금"(100%). 셋 다 같은
+                    것을 가리키므로(오늘 · 오늘의 지금) 뜻이 갈리지 않습니다. 네
+                    번째 자리에 핑크를 쓰면 그때는 정말로 갈라집니다 */}
+                <div
+                    className="border-b border-black/10 bg-black/[0.03]"
+                    style={{ gridColumn: 1, gridRow: 1 }}
+                />
                 {DAYS_ORDER.map((day, index) => (
                     <div
                         key={day}
                         style={{ gridColumn: index + 2, gridRow: 1 }}
-                        className={`flex items-center justify-center py-1.5 text-[11px] font-black ${
-                            day === today ? "bg-white text-black" : "bg-black text-white"
+                        /* ⚠️ **오늘도 형광으로 꽉 채우지 않습니다.** 흰 바탕에 한 칸만
+                           100% 핑크였더니 격자에서 제일 센 물건이 **정보가 제일 적은
+                           칸**이었습니다 — 칩·자·목록과 같은 문법(옅은 채움 + 진한
+                           글자)으로 맞추고, 나머지 요일은 옅은 회색 바로 깔아 머리가
+                           한 줄로 읽히게 합니다 */
+                        /* 세로선은 **머리에도** 긋습니다 — 아래 칸에만 있으면
+                           요일 칸의 오른쪽에만 선이 보여서 칸이 오른쪽으로 밀린
+                           것처럼 읽힙니다 */
+                        className={`flex items-center justify-center border-b border-l border-black/10 py-2.5 text-[13px] font-black ${
+                            day === today
+                                ? "bg-retro-primary/25 text-retro-primary"
+                                : "bg-black/[0.03] text-black/70"
                         }`}
                     >
                         {DAY_MAP[day]}
                     </div>
                 ))}
+
+                {/* ── 오늘 기둥 ────────────────────────────────────
+                    오늘 **열 전체**에 옅은 핑크를 깝니다. 머리 한 칸만 칠하면 아래로
+                    내려갈수록 어느 열이 오늘인지 놓치는데, 기둥이 서 있으면 9교시
+                    근처에서도 눈이 그 열을 따라갑니다.
+
+                    ⚠️ **바탕 셀보다 먼저 그립니다** — 나중에 그리면 격자선과 칩을
+                    덮습니다. 빗금 띠까지 관통시켜야 점심에 기둥이 끊기지 않습니다.
+
+                    ⚠️ **`gridRow: "2 / -1"` 로 쓰면 안 됩니다.** `-1` 은 *명시적*
+                    그리드의 마지막 라인인데 이 격자는 `grid-template-columns` 만
+                    있고 **행은 전부 암시적**이라, 끝을 못 가리키고 조용히 **헤더 한
+                    칸 높이(42px)** 로 쪼그라듭니다. 기둥이 안 보이는 게 아니라 처음
+                    42px 만 칠해집니다 — 행 개수로 직접 세야 합니다 */}
+                {DAYS_ORDER.some((d) => d === today) && (
+                    <div
+                        style={{
+                            gridColumn: DAYS_ORDER.findIndex((d) => d === today) + 2,
+                            gridRow: `2 / span ${slots.length}`,
+                        }}
+                        className="bg-retro-primary/[0.07]"
+                    />
+                )}
 
                 {/* ── 바탕 ─────────────────────────────────────────
                     수업 칩이 이 위에 얹히므로 **행 높이는 늘 여기서 나옵니다** — 한
@@ -310,15 +424,30 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({ home, liveMinute }) => {
                             <React.Fragment key={`gap-${slot.after}`}>
                                 {/* 구멍의 이름은 교시 번호와 같은 열에 답니다 — 왼쪽
                                     열이 이 격자의 **시간 이름표** 자리입니다 */}
+                                {/* 격자 안에서 **12px 아래로 내려가지 않습니다** —
+                                    교시 번호·교실과 같은 하한입니다 */}
                                 <div
                                     style={{ gridColumn: 1, gridRow: row }}
-                                    className={`flex items-center justify-center text-[9px] font-black leading-none text-black/35 ${line}`}
+                                    className={`flex items-center justify-center text-[12px] font-black leading-none text-black/45 ${line}`}
                                 >
                                     {slot.name}
                                 </div>
+                                {/* 높이는 **교시 칸에 비례**합니다. 클래스는 고정으로
+                                    두고 비율만 CSS 변수로 넘깁니다 — 임의값을 문자열로
+                                    조립하면 Tailwind 가 유틸리티를 만들지 않습니다.
+
+                                    ⚠️ **빗금을 걷어냈습니다.** 구멍이 시간에 비례해
+                                    90px 까지 커지면서, 무늬가 화면에서 제일 큰 물건이
+                                    됐습니다 — 왼쪽 이름표("점심")가 이미 무슨 자리인지
+                                    말하므로 무늬는 덧붙임이었습니다 */}
                                 <div
-                                    style={{ ...HATCH, gridColumn: "2 / -1", gridRow: row }}
-                                    className={`h-4 ${line}`}
+                                    style={{
+                                        ...HATCH,
+                                        gridColumn: "2 / -1",
+                                        gridRow: row,
+                                        ["--r" as string]: slot.minutes / unitMinutes,
+                                    }}
+                                    className={`h-[calc(6rem*var(--r))] md:h-[calc(7rem*var(--r))] xl:h-[calc(5rem*var(--r))] ${line}`}
                                 />
                             </React.Fragment>
                         );
@@ -328,11 +457,16 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({ home, liveMinute }) => {
                         <React.Fragment key={slot.period}>
                             {/* 번호도 **위쪽 정렬**입니다 — 칩의 이름과 눈높이가 맞아야
                                 어느 교시에 시작하는지가 한 줄로 읽힙니다 */}
+                            {/* 행이 64px 이 되면서 번호를 위에 붙여 두니 칸 한가운데가
+                                통째로 비어 보였습니다 — **세로 가운데**로 옮깁니다.
+                                (연강 이름과 눈높이를 맞추려던 규칙이었는데, 이름은
+                                어차피 칩 안에서 위에 붙으므로 번호는 칸을 대표하면
+                                됩니다) */}
                             <div
                                 style={{ gridColumn: 1, gridRow: row }}
-                                className={`flex justify-center pt-1.5 text-[10px] font-black tabular-nums leading-none text-black/25 ${line}`}
+                                className={`flex items-center justify-center text-[12px] font-black leading-none text-black/45 ${line}`}
                             >
-                                {slot.period}
+                                {slot.period}교시
                             </div>
                             {/* ⚠️ **좁은 화면이 더 높습니다** (52px vs 44px). 거꾸로
                                 같지만 맞습니다 — 폰에서는 한 칸이 60px 남짓이라 이름이
@@ -342,11 +476,15 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({ home, liveMinute }) => {
                                 요일을 가른다고 보고 뺐는데, **수업이 없는 행에서는 가를
                                 게 없어서** 8교시 목요일을 찾으려면 머리부터 짚어 내려와야
                                 했습니다. 격자는 여기서 장식이 아니라 좌표입니다 */}
+                            {/* 세로선도 같은 무게로 긋습니다. 칩의 테두리가
+                                요일을 가른다고 보고 뺐다가 되돌렸습니다 — **수업이
+                                없는 행에서는 가를 게 없어서** 8교시 목요일을 찾으려면
+                                요일 머리부터 짚어 내려와야 했습니다 */}
                             {DAYS_ORDER.map((day, dayIndex) => (
                                 <div
                                     key={day}
                                     style={{ gridColumn: dayIndex + 2, gridRow: row }}
-                                    className={`h-[3.25rem] border-l border-black/[0.07] md:h-11 ${line}`}
+                                    className={`h-24 border-l border-black/10 md:h-28 xl:h-20 ${line}`}
                                 />
                             ))}
                         </React.Fragment>
@@ -363,38 +501,55 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({ home, liveMinute }) => {
                         livePeriod !== null &&
                         livePeriod >= block.period &&
                         livePeriod < block.period + block.span;
+                    const color = getDepartmentColor(block.klass.department);
                     return (
                         <div
                             key={`${block.day}-${block.period}`}
+                            /* 테두리를 **검정에서 학과색으로** 옮겼습니다. 스물일곱
+                               개가 저마다 2px 검정을 두르면 격자가 통째로 무거워집니다
+                               — 굵기는 그대로 두고 색만 바꿔도 무게가 확 내려갑니다.
+
+                               ⚠️ **"지금" 도 꽉 채우지 않습니다.** 형광 핑크로 100%
+                               채웠더니 칸 하나가 화면에서 제일 센 물건이 되어 정작
+                               옆 칸을 읽는 걸 방해했습니다 — 같은 문법(옅은 채움 +
+                               진한 테두리)에 색만 핑크입니다 */
                             style={{
                                 gridColumn: DAYS_ORDER.indexOf(block.day) + 2,
                                 gridRow: `${rowOf.get(block.period)} / span ${block.span}`,
+                                backgroundColor: now
+                                    ? "rgba(255, 78, 186, 0.22)"
+                                    : withAlpha(color, 0.08),
+                                borderColor: now ? "#ff4eba" : color,
                             }}
                             title={`${getKoreanName(block.klass.subject)} · ${block.klass.room} · ${block.klass.teacher}`}
-                            className={`m-px flex min-w-0 flex-col overflow-hidden border-2 border-black px-1 py-1 md:px-1.5 ${
-                                now ? "bg-retro-primary" : "bg-white"
-                            }`}
+                            className="m-px flex min-w-0 flex-col gap-0.5 overflow-hidden border-2 px-2 py-1.5"
                         >
                             {/* 두 줄까지 폅니다 — 한 줄로 자르면 `일반지구과학` 이
-                                `일반지구…` 가 되어 무슨 과목인지 알 수 없습니다.
-                                행 높이(위)가 두 줄 + 교실을 담도록 잡혀 있습니다 */}
-                            <span className="line-clamp-2 text-[11px] font-black leading-[1.15]">
+                                `일반지구…` 가 되어 무슨 과목인지 알 수 없습니다 */}
+                            <span
+                                className="line-clamp-2 text-[13px] font-black leading-[1.2]"
+                                style={{ color: now ? "#ff4eba" : color }}
+                            >
                                 {tighten(block.klass.subject)}
                             </span>
-                            {/* 교실은 **이름 바로 아래**에 붙습니다. 한때 `mt-auto` 로
-                                칩 바닥에 밀어 뒀는데, 두 교시짜리에서는 그게 **아래
-                                교시 자리**여서 `일반지구과학`(6–7교시)의 교실이 7교시
-                                수업의 교실처럼 읽혔습니다.
-
-                                좁은 화면에서도 남깁니다 — 시간표를 여는 이유의 절반이
-                                "어디로 가지" 인데, 한동안 `md:` 아래에서 통째로 숨겨
-                                두어 폰에서는 과목명만 보였습니다 */}
-                            <span className="shrink-0 truncate text-[9px] font-bold leading-tight text-black/40">
+                            {/* 분반·교사 — 인쇄된 학교 시간표가 늘 적어 두는 줄입니다.
+                                같은 과목을 여러 선생님이 나눠 맡으므로 **이름이 있어야
+                                내 분반인지 확인**할 수 있습니다 */}
+                            <span className="shrink-0 truncate text-[12px] font-bold leading-tight text-black/45">
+                                {block.klass.section.replace(/[^0-9]/g, "")}분반 ·{" "}
+                                {block.klass.teacher}
+                            </span>
+                            {/* 교실은 **이름 쪽에 붙입니다.** 한때 `mt-auto` 로 칩
+                                바닥에 밀어 뒀는데, 두 교시짜리에서는 그게 **아래 교시
+                                자리**여서 `일반지구과학`(6–7교시)의 교실이 7교시 수업의
+                                교실처럼 읽혔습니다 */}
+                            <span className="shrink-0 truncate text-[12px] font-bold leading-tight text-black/45">
                                 {block.klass.room}
                             </span>
                         </div>
                     );
                 })}
+            </div>
             </div>
         </RetroCard>
     );

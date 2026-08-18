@@ -20,9 +20,9 @@
  * 들면 `backend/periods.py` 만 고쳤을 때 조용히 어긋납니다.
  */
 
-import React from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import type { BreakTime, PeriodTime, TodayClass } from "../lib/friendsApi";
-import { hhmm } from "../lib/utils";
+import { getDepartmentColor, hhmm, withAlpha } from "../lib/utils";
 
 /** 자 위에서 뭔가를 가리킬 때. 양 끝은 카드 밖으로 삐져나가지 않게 붙입니다 */
 const anchor = (percent: number): React.CSSProperties =>
@@ -47,6 +47,25 @@ const DayRuler: React.FC<DayRulerProps> = ({
     today,
     nowMinute,
 }) => {
+    const boxRef = useRef<HTMLDivElement>(null);
+
+    /**
+     * **지금을 가운데 두고 엽니다.** 자를 카드 폭에 욱여넣으면 한 칸이 40px 이 되어
+     * 교시 번호와 눈금 글자가 서로 겹칩니다 — 대신 트랙에 최소 폭을 주고 가로로
+     * 흐르게 두면 칸이 숨을 쉽니다. 하루 전체를 한눈에 보는 건 포기하지만, 이
+     * 화면을 켜는 이유는 대개 "지금 언저리" 입니다.
+     */
+    useLayoutEffect(() => {
+        const box = boxRef.current;
+        const track = box?.firstElementChild as HTMLElement | undefined;
+        if (!box || !track || nowMinute === null) return;
+        const first = periods[0]?.start_minute;
+        const last = periods[periods.length - 1]?.end_minute;
+        if (first === undefined || last === undefined || last === first) return;
+        const ratio = (nowMinute - first) / (last - first);
+        box.scrollLeft = track.clientWidth * ratio - box.clientWidth / 2;
+    }, [nowMinute, periods]);
+
     if (periods.length === 0) return null;
 
     const first = periods[0].start_minute;
@@ -54,7 +73,9 @@ const DayRuler: React.FC<DayRulerProps> = ({
     const span = last - first;
     const pct = (minute: number) => ((minute - first) / span) * 100;
 
-    const mine = new Set(today.map((c) => c.period));
+    // 교시 → 그 시간의 내 수업. 색을 학과에서 가져오려면 칸이 어느 과목인지
+    // 알아야 합니다 (예전엔 `has` 여부만 알면 됐습니다)
+    const mine = new Map(today.map((c) => [c.period, c]));
 
     // 축 눈금은 **덩어리의 양 끝**에만. 교시마다 시각을 달면 열한 개가 겹칩니다
     const blocks: { start: number; end: number }[] = [];
@@ -84,13 +105,53 @@ const DayRuler: React.FC<DayRulerProps> = ({
     const restGap =
         periods.length > 1 ? periods[1].start_minute - periods[0].end_minute : 10;
 
+    /**
+     * **연강은 한 칸입니다** — 목록·주간 격자와 같은 조건(과목·분반·교실·시간 인접).
+     * 10·11교시가 같은 생활음악인데 칸이 둘이면, 자에서만 하루가 다르게 세어집니다.
+     *
+     * 사이의 쉬는시간 10분까지 덮습니다. 이동이 없는 연속 수업이라 그 틈이 곧
+     * 수업의 일부입니다 — 교실이 다르면 애초에 안 묶입니다.
+     */
+    const classBlocks: {
+        start: PeriodTime;
+        end: PeriodTime;
+        klass: TodayClass;
+        periods: number[];
+    }[] = [];
+    periods.forEach((time) => {
+        const klass = mine.get(time.period);
+        if (!klass) return;
+        const last = classBlocks[classBlocks.length - 1];
+        if (
+            last &&
+            last.klass.subject === klass.subject &&
+            last.klass.section === klass.section &&
+            last.klass.room === klass.room &&
+            last.end.period + 1 === time.period &&
+            time.start_minute - last.end.end_minute <= 20
+        ) {
+            last.end = time;
+            last.periods.push(time.period);
+            return;
+        }
+        classBlocks.push({ start: time, end: time, klass, periods: [time.period] });
+    });
+
     const caret =
         nowMinute !== null && nowMinute >= first && nowMinute <= last
             ? pct(nowMinute)
             : null;
 
     return (
-        <div className="mt-6" aria-hidden="true">
+        <div
+            ref={boxRef}
+            className="mt-5 overflow-x-auto overflow-y-hidden py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            aria-hidden="true"
+        >
+            {/* 트랙 폭은 **칸이 4:3 이 되는 값**입니다. 하루가 08:40~21:20(760분)이고
+                    한 교시가 50분이니, 칸 하나가 높이(md 48px)의 4/3 인 64px 이 되려면
+                    760/50 × 64 ≈ 60rem 이 필요합니다 — 카드가 좁으면 가로로 흐릅니다 */}
+            <div className="min-w-[60rem]">
             {/* ⚠️ **칸마다 교시 번호를 답니다.** 번호 없이 검은 막대만 두면 그게 몇
                 교시인지 알 방법이 없어 아래 목록과 연결이 안 됩니다 — 무늬를 늘려도
                 해결되지 않았습니다(빗금 두 종류까지 써 봤습니다). 칸이 곧 이름표입니다.
@@ -113,34 +174,64 @@ const DayRuler: React.FC<DayRulerProps> = ({
                     />
                 ))}
 
-                {periods.map((p) => {
-                    const has = mine.has(p.period);
-                    const past = nowMinute !== null && nowMinute >= p.end_minute;
-                    const live =
-                        nowMinute !== null &&
-                        nowMinute >= p.start_minute &&
-                        nowMinute < p.end_minute;
-
-                    // 검은 테두리 = 내 수업, 점선 = 공강. **면을 채우는 건 "지금" 하나뿐**
-                    // 입니다 — 남은 수업까지 검게 칠했더니 하루가 통째로 쨍했습니다
-                    return (
+                {/* 공강 — 점선 칸. 내 수업이 없는 교시만 그립니다 */}
+                {periods
+                    .filter((p) => !mine.has(p.period))
+                    .map((p) => (
                         <span
-                            key={p.period}
+                            key={`free-${p.period}`}
                             style={{
                                 left: `${pct(p.start_minute)}%`,
                                 width: `${((p.end_minute - p.start_minute) / span) * 100}%`,
                             }}
-                            className={`absolute inset-y-0 flex items-center justify-center border-2 text-[11px] font-black tabular-nums ${
-                                !has
-                                    ? "border-dashed border-black/20 text-black/25"
-                                    : live
-                                      ? "border-black bg-retro-primary text-black shadow-[3px_3px_0_0_rgba(0,0,0,0.25)]"
-                                      : past
-                                        ? "border-black/15 bg-black/15 text-black/40"
-                                        : "border-black bg-white text-black shadow-[2px_2px_0_0_rgba(0,0,0,0.2)]"
-                            }`}
+                            className="absolute inset-y-0 flex items-center justify-center border-2 border-dashed border-black/20 text-[11px] font-black tabular-nums text-black/25"
                         >
                             {p.period}
+                        </span>
+                    ))}
+
+                {/* 내 수업 — 연강이면 한 칸으로 이어집니다 */}
+                {classBlocks.map((b) => {
+                    const color = getDepartmentColor(b.klass.department);
+                    const past = nowMinute !== null && nowMinute >= b.end.end_minute;
+                    const live =
+                        nowMinute !== null &&
+                        nowMinute >= b.start.start_minute &&
+                        nowMinute < b.end.end_minute;
+
+                    // **면을 채우는 건 "지금" 하나뿐** — 남은 수업까지 칠했더니 하루가
+                    // 통째로 쨍했습니다.
+                    //
+                    // ⚠️ **지난 수업도 회색으로 덮지 않습니다.** `bg-black/15` 로 칠했을
+                    // 때 저녁에 열면 지나간 칸이 예닐곱이라 자가 잿빛 덩어리였습니다 —
+                    // 같은 학과색을 **투명도**로 낮추면 뭘 들었는지가 남습니다.
+                    //
+                    // ⚠️ **"지금" 도 꽉 채우지 않습니다.** 형광 핑크 100% 는 칸 하나가
+                    // 자 전체를 눌렀습니다 — 다른 칸과 같은 문법(옅은 채움 + 진한
+                    // 테두리)에 색만 핑크입니다.
+                    return (
+                        <span
+                            key={`class-${b.start.period}`}
+                            style={{
+                                left: `${pct(b.start.start_minute)}%`,
+                                width: `${((b.end.end_minute - b.start.start_minute) / span) * 100}%`,
+                                borderColor: live ? "#ff4eba" : color,
+                                backgroundColor: live
+                                    ? "rgba(255, 78, 186, 0.22)"
+                                    : withAlpha(color, 0.14),
+                                opacity: !live && past ? 0.4 : 1,
+                            }}
+                            className={`absolute inset-y-0 flex items-center justify-center border-2 text-[11px] font-black tabular-nums ${
+                                live
+                                    ? "text-black shadow-[3px_3px_0_0_rgba(0,0,0,0.18)]"
+                                    : past
+                                      ? "text-black/70"
+                                      : "text-black shadow-[2px_2px_0_0_rgba(0,0,0,0.2)]"
+                            }`}
+                        >
+                            {b.periods.length > 1
+                                ? `${b.periods[0]}–${b.periods[b.periods.length - 1]}`
+                                : b.start.period}
                         </span>
                     );
                 })}
@@ -192,6 +283,7 @@ const DayRuler: React.FC<DayRulerProps> = ({
                             </span>
                         ),
                 )}
+                </div>
             </div>
         </div>
     );
