@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        ⚠️ **Android 12 부터 런처가 위젯을 둥글게 잘라냅니다.** 직각으로 그리면 잘리는
+        건 모서리만이 아니라 **테두리 선 자체**입니다 — 실제로 윗변만 남고 좌·우·아랫변이
+        통째로 사라졌습니다(이 디자인은 그 선이 전부입니다).
+
+        막을 방법이 없으므로 맞춥니다 — 시스템이 자르는 반경을 그대로 받아 쓰면 테두리가
+        그 곡선을 따라 돌아서 사방이 다 보입니다.
+    -->
+    <dimen name="widget_corner">@android:dimen/system_app_widget_background_radius</dimen>
+</resources>

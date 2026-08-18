@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_frame"
+    android:padding="10dp">
+
+    <!-- 끼니색 머리 — 점심(주황). 실제 위젯은 지금 끼니에 따라 색이 바뀝니다 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/widget_block_lunch"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:text="점심"
+        android:textColor="#000000"
+        android:textSize="17sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:lineSpacingExtra="6dp"
+        android:text="흑미밥\n쇠고기미역국\n제육볶음\n계란찜\n배추김치"
+        android:textColor="#000000"
+        android:textSize="14sp" />
+</LinearLayout>

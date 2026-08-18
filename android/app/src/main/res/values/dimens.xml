@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        위젯 바깥 상자의 모서리 반경. **API 30 이하에서는 0** — 이 디자인의 원래
+        모습(직각)입니다.
+    -->
+    <dimen name="widget_corner">0dp</dimen>
+</resources>
