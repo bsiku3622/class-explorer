@@ -4,6 +4,7 @@
 
 KSA 학생/교사/강의실 기반 수업 탐색 웹 앱.  
 **Stack**: React 19 + TypeScript + Vite + Tailwind v4 + HeroUI / FastAPI + SQLAlchemy (SQLite)
+/ Kotlin + Jetpack Glance (안드로이드 위젯)
 
 ### 프론트가 둘입니다
 
@@ -11,6 +12,16 @@ KSA 학생/교사/강의실 기반 수업 탐색 웹 앱.
 | --- | --- | --- |
 | `frontend/` | **class-explorer** | **여기서만 개발합니다** |
 | `bench-frontend/` | **ksa-bench** | 전교생 공개용. **동결** — 배포가 정해질 때까지 손대지 않습니다 |
+
+### 폰 앱은 위젯만 합니다
+
+`android/` 는 **안드로이드 전용**이고, 존재하는 이유는 **홈 화면 위젯**(지금·급식)
+하나입니다. 시간표를 다시 그리지 않습니다 — 웹이 이미 하고 있고, 폰에서 웹으로 안 되는
+건 홈 화면에 얹히는 것뿐입니다. 앱 화면은 로그인·새로고침·위젯 추가·로그아웃이 전부.
+
+**앱 전용 API 는 없습니다.** 웹과 같은 서버, 같은 세션을 씁니다. 그래서 앱보다 **다중
+기기 로그인이 먼저**였습니다 — 예전엔 1계정 1세션이라 앱에서 로그인하면 브라우저가
+튕겼습니다.
 
 ### 작업 규칙
 
@@ -179,6 +190,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | 컴포넌트 추가 | `frontend/component-guide.md` |
 | API 수정      | `backend/api-guide.md`        |
 | ksa-bench 작업 | `bench-frontend/CLAUDE.md` (가이드 사본이 그 안에 따로 있습니다) |
+| 안드로이드 앱·위젯 | `android/CLAUDE.md` |
 
 **어느 프론트를 고치는지 먼저 확인하세요.** 두 디렉토리에 같은 이름의 가이드가 각각
 있어서, `frontend/design-guide.md`를 고치고 ksa-bench 를 손봤다고 생각하기 쉽습니다.

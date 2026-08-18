@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ⚠️ `updatePeriodMillis` 를 0 으로 둡니다. 시스템의 위젯 갱신은 **최소 30분**이고
+    도즈에서는 그마저 밀립니다 — 갱신은 WorkManager(`RefreshWorker`)가 맡습니다.
+    둘 다 켜면 같은 일을 두 번 하면서 배터리만 씁니다.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_now_desc"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_loading"
+    android:previewLayout="@layout/widget_preview_now" />

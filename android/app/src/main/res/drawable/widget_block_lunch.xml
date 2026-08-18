@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    위젯 안의 **덩어리** 하나. 모서리는 직각입니다 — 바깥 상자와 달리 런처의 둥근
+    마스크에 닿지 않으므로(사방에서 물러나 있습니다) 원래 모양을 지킬 수 있습니다.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FF9100" />
+    <stroke android:width="2dp" android:color="#000000" />
+</shape>

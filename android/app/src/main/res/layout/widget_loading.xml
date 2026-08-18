@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Glance 가 첫 그림을 그리기 전 아주 잠깐 보이는 판입니다. 비워 두면 위젯을 놓는
+    순간 투명한 구멍이 생겼다가 채워져서 잘못 놓은 것처럼 보입니다.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_frame" />

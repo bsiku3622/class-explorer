@@ -60,3 +60,12 @@ yarn-error.log*
 
 # Local Netlify folder
 .netlify
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+# SDK 경로라 사람마다 다릅니다
+android/local.properties
+android/.kotlin/
+*.apk

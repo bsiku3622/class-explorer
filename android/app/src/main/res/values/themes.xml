@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose 가 화면을 다 그리므로 테마는 창 배경만 정합니다. 크림으로 두는 건
+         앱이 뜨는 찰나에 흰 화면이 번쩍이지 않게 하려는 것입니다 -->
+    <style name="Theme.ClassExplorer" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#FFF5D1</item>
+    </style>
+</resources>

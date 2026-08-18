@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Class Explorer</string>
+    <string name="widget_now">지금</string>
+    <string name="widget_meal">급식</string>
+    <string name="widget_now_desc">지금 교시와 다음에 가야 할 교실</string>
+    <string name="widget_meal_desc">지금 시간대 끼니의 급식 메뉴</string>
+</resources>

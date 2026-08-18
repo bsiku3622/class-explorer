@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ⚠️ 기본 크기를 **3×2 로 줄이지 마세요.** 급식이 대개 예닐곱 줄이라 3×3 이 절반쯤
+    비어 보여서 한 번 줄여 봤는데, 여섯 줄짜리 메뉴에서 **마지막 줄이 글자 중간에서
+    잘렸습니다.** 목록이 스크롤되긴 하지만 잘린 줄은 고장으로 읽힙니다 — 꼬리에 남는
+    빈 자리는 목록 위젯이면 다 그렇고, 여덟 줄인 날에는 꽉 찹니다.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="180dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="3"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_meal_desc"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_loading"
+    android:previewLayout="@layout/widget_preview_meal" />
