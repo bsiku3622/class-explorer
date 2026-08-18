@@ -31,6 +31,9 @@
  *
  * ⚠️ **계획은 아직 등록된 시간표가 아닙니다.** 어느 쪽을 보고 있는지 헷갈리면 엉뚱한
  * 교실로 가게 되므로, 고른 쪽이 시안으로 켜지고 카드에도 표식이 붙습니다 (`planned`).
+ *
+ * **고른 쪽은 이 기기에 남습니다** — 계획을 짜 놓고 정정 기간 내내 그걸 보는 사람이
+ * 홈을 열 때마다 같은 버튼을 누르게 되면, 그건 기본값을 잘못 잡은 것입니다.
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -78,6 +81,24 @@ type Layout = "v1" | "v2" | "v3";
 /** 수강 정정 기간에만 갈리는 두 시간표 */
 type View = "current" | "trade";
 
+/**
+ * 마지막에 고른 쪽을 **이 기기에** 기억합니다 (학기 선택 `ksa_selected_term` 과 같은
+ * 방식). 계획을 짜 놓고 정정 기간 내내 그걸 보는 사람은 홈을 열 때마다 같은 버튼을
+ * 누르게 되는데, 그게 곧 "기본값을 잘못 잡았다" 는 뜻입니다.
+ *
+ * ⚠️ **누른 순간에만 적습니다.** 계획이 사라져 화면이 기존으로 돌아가는 건 사용자가
+ * 고른 게 아니므로, 그걸로 기억을 덮으면 계획이 돌아왔을 때 다시 눌러야 합니다.
+ */
+const VIEW_KEY = "ksa_home_view";
+
+const loadSavedView = (): View => {
+    try {
+        return localStorage.getItem(VIEW_KEY) === "trade" ? "trade" : "current";
+    } catch {
+        return "current";
+    }
+};
+
 interface HomePageProps {
     term: Term | null;
     /** 계획 시간표를 짜는 데 씁니다 — 홈은 이걸로 계산만 하고 검색하지 않습니다 */
@@ -94,8 +115,8 @@ const HomePage: React.FC<HomePageProps> = ({ term, allClassesData, myStuId }) =>
     const [demo, setDemo] = useState<HomeDemoKey | null>(null);
     /** V3 가 배포되는 화면이고, 옛 판본은 개발에서만 되돌아볼 수 있습니다 */
     const [layout, setLayout] = useState<Layout>("v3");
-    /** 기존 시간표 ↔ 트레이드 계획. **기본은 늘 기존**입니다 */
-    const [view, setView] = useState<View>("current");
+    /** 기존 시간표 ↔ 트레이드 계획. 지난번에 고른 쪽으로 엽니다 */
+    const [view, setView] = useState<View>(loadSavedView);
 
     const tradeAvailable = isTradeAvailable(term);
     /** `/trade` 에 저장해 둔 계획. 볼 게 없으면 null 이고 전환도 안 뜹니다 */
@@ -150,13 +171,24 @@ const HomePage: React.FC<HomePageProps> = ({ term, allClassesData, myStuId }) =>
         return applyPlanToHome(received, plannedSections, departments);
     }, [received, view, plannedSections, departments]);
 
+    /**
+     * 계획을 보는 중인가. **`view` 만으로 정하지 않습니다** — 계획이 없으면(정정 기간
+     * 종료·계획 비움·아직 못 받음) `view` 가 `trade` 여도 기존 시간표를 그립니다.
+     *
+     * ⚠️ 예전에는 계획이 없을 때 `view` 를 되돌리는 효과를 뒀는데, 기억한 값으로 열게
+     * 되면서 **계획을 받아 오는 동안 그게 먼저 돌아** 기본값이 매번 지워졌습니다.
+     * 상태를 고치지 말고 여기서 파생시키면 그 경합이 없습니다.
+     */
     const planned = view === "trade" && plannedSections !== null;
 
-    // 계획이 사라지면(정정 기간 종료·계획 비움) 기존 시간표로 돌아갑니다 — 안 그러면
-    // 전환 버튼은 없는데 화면만 계획인 상태로 남습니다
-    useEffect(() => {
-        if (!plannedSections) setView("current");
-    }, [plannedSections]);
+    const chooseView = useCallback((next: View) => {
+        setView(next);
+        try {
+            localStorage.setItem(VIEW_KEY, next);
+        } catch {
+            // 사파리 프라이빗 모드 등 — 기억만 못 할 뿐 이번 화면은 그대로 됩니다
+        }
+    }, []);
 
     /** 지금(자정 기준 분). 서버 시계가 기준이고 그 뒤로 흐른 시간만 더합니다 */
     const liveMinute = useMemo(() => {
@@ -281,7 +313,9 @@ const HomePage: React.FC<HomePageProps> = ({ term, allClassesData, myStuId }) =>
                 ⚠️ 홈 전체가 한꺼번에 갈립니다 — 위 히어로가 말하는 "지금 가야 할 교실"
                 까지 계획 것으로 바뀝니다. 그래서 **고른 쪽이 시안(= Trade 색)으로
                 켜지고**, 카드마다 `계획` 표식이 붙습니다. 계획은 아직 등록된 시간표가
-                아니라서, 어느 쪽을 보고 있는지 헷갈리면 엉뚱한 교실로 갑니다 */}
+                아니라서, 어느 쪽을 보고 있는지 헷갈리면 엉뚱한 교실로 갑니다.
+
+                고른 쪽은 이 기기에 남아서 **다음에도 그대로 열립니다** (`VIEW_KEY`) */}
             {plannedSections && (
                 <div className="flex flex-wrap items-center gap-2">
                     {(
@@ -295,7 +329,7 @@ const HomePage: React.FC<HomePageProps> = ({ term, allClassesData, myStuId }) =>
                             <button
                                 key={key}
                                 type="button"
-                                onClick={() => setView(key)}
+                                onClick={() => chooseView(key)}
                                 aria-pressed={on}
                                 className={`border-2 border-black px-3 py-1.5 text-[12px] font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none ${
                                     on
