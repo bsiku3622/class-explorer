@@ -118,6 +118,7 @@ def list_all_sessions(
             "user_id": s.user_id,
             "username": s.user.username,
             "device_type": s.device_type,
+            "device_label": s.device_label,
             "ip_address": s.ip_address,
             "created_at": s.created_at.isoformat(),
             "last_used_at": s.last_used_at.isoformat(),

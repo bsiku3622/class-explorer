@@ -19,8 +19,11 @@ from backend.auth import (
     verify_password,
     generate_session_token,
     get_db,
+    get_current_session,
     get_current_user,
     clear_user_sessions,
+    prune_user_sessions,
+    MAX_SESSIONS_PER_USER,
     SESSION_EXPIRE_DAYS,
 )
 
@@ -74,6 +77,50 @@ def _get_client_ip(request: Request) -> str:
         return real_ip.strip()
     return request.client.host if request.client else "unknown"
 
+
+# ─── 기기 이름 ────────────────────────────────────────────────────────────────
+#
+# ⚠️ **순서가 곧 규칙입니다.** User-Agent 는 서로를 베껴 쓰기 때문에 앞에서부터 끊어야
+# 맞습니다 — Edge 는 `Chrome/` 을 달고 다니고, Chrome 은 `Safari/` 를 달고 다니며,
+# 안드로이드는 `Linux` 를 달고 다닙니다. 뒤에서부터 찾으면 전부 Safari · Linux 가 됩니다.
+_BROWSERS = [
+    ("Edg/", "Edge"),
+    ("OPR/", "Opera"),
+    ("Whale/", "Whale"),
+    ("SamsungBrowser/", "Samsung Internet"),
+    ("Chrome/", "Chrome"),
+    ("Firefox/", "Firefox"),
+    ("Safari/", "Safari"),
+]
+_PLATFORMS = [
+    ("Android", "Android"),
+    ("iPhone", "iPhone"),
+    ("iPad", "iPad"),
+    ("Macintosh", "Mac"),
+    ("Windows", "Windows"),
+    ("Linux", "Linux"),
+]
+
+
+def _device_label(user_agent: str | None) -> str | None:
+    """
+    `"Chrome · Android"` 처럼 **사람이 자기 기기를 알아볼 만큼만** 만듭니다.
+
+    세션 목록에 이게 없으면 `mobile` 세 줄이 나란히 뜨고, 어느 게 잃어버린 폰인지
+    구별할 수 없어 폐기 버튼이 무용지물이 됩니다.
+
+    ⚠️ **클라이언트가 보낸 이름을 그대로 쓰지 않습니다.** 본인에게만 보이는 값이라
+    위험이 크진 않지만, 굳이 남이 정한 문자열을 화면에 그릴 이유가 없습니다. 폰 앱은
+    자기 User-Agent 를 알아보게 붙이면 여기 그대로 잡힙니다.
+    """
+    if not user_agent:
+        return None
+    browser = next((name for token, name in _BROWSERS if token in user_agent), None)
+    platform = next((name for token, name in _PLATFORMS if token in user_agent), None)
+    label = " · ".join(part for part in (browser, platform) if part)
+    return label or None
+
+
 def _check_login_rate_limit(ip: str) -> None:
     _maybe_cleanup()
     now = time.time()
@@ -125,14 +172,17 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     # 로그인 성공 시 rate limit 카운터 초기화
     _reset_login_rate_limit(client_ip)
 
-    # 기존 세션 모두 삭제 (1계정 1세션)
-    clear_user_sessions(db, user)
+    # 상한을 지키되 **밀어내는** 방식입니다 — 새로 들어올 자리 하나를 비웁니다.
+    # 예전에는 여기서 기존 세션을 통째로 지웠고(1계정 1세션), 그래서 폰에서 로그인하면
+    # 노트북이 튕겼습니다
+    prune_user_sessions(db, user, keep=MAX_SESSIONS_PER_USER - 1)
 
     token = generate_session_token()
     session = models.Session(
         user_id=user.id,
         session_token=token,
         device_type=body.device_type,
+        device_label=_device_label(request.headers.get("User-Agent")),
         ip_address=client_ip,
         expires_at=datetime.datetime.utcnow() + datetime.timedelta(days=SESSION_EXPIRE_DAYS),
     )
@@ -279,11 +329,34 @@ async def link_google(
 @router.post("/logout")
 def logout(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    session: models.Session = Depends(get_current_session),
 ):
-    clear_user_sessions(db, current_user)
+    """
+    **이 기기만** 로그아웃합니다.
+
+    한동안 계정의 세션을 전부 지웠습니다(1계정 1세션의 잔재). 폰에서 로그아웃했을 뿐인데
+    책상 위 노트북까지 같이 튕기는 건 아무도 기대하지 않는 동작입니다 — 전부 끊고
+    싶으면 아래 `/logout-all` 입니다.
+    """
+    db.delete(session)
     db.commit()
     return {"detail": "Logged out"}
+
+
+@router.post("/logout-all")
+def logout_all(
+    db: Session = Depends(get_db),
+    session: models.Session = Depends(get_current_session),
+):
+    """
+    **다른 기기를 전부** 로그아웃합니다 — 지금 이 기기는 남깁니다.
+
+    비밀번호가 샜다고 느낄 때 쓰는 버튼이라, 누른 사람까지 튕겨 내면 곧바로 다시
+    로그인해야 해서 오히려 불안합니다.
+    """
+    removed = clear_user_sessions(db, session.user, keep_token=session.session_token)
+    db.commit()
+    return {"detail": "Logged out", "revoked": removed}
 
 
 @router.get("/me")
@@ -309,24 +382,36 @@ def me(
 @router.get("/sessions")
 def list_sessions(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    session: models.Session = Depends(get_current_session),
 ):
+    """
+    로그인해 둔 기기 목록.
+
+    ⚠️ **`current` 가 없으면 목록이 위험해집니다** — 어느 줄이 지금 보고 있는 기기인지
+    모르면 자기 자신을 폐기하고 화면 밖으로 나가떨어집니다. `ip_address` 는 일부러
+    빼 뒀습니다(본인 것이라도 굳이 화면에 뿌릴 값이 아니고, 관리자 화면에는 있습니다).
+    """
     sessions = (
         db.query(models.Session)
-        .filter(models.Session.user_id == current_user.id)
+        .filter(models.Session.user_id == session.user_id)
         .order_by(models.Session.last_used_at.desc())
         .all()
     )
-    return [
-        {
-            "id": s.id,
-            "device_type": s.device_type,
-            "created_at": s.created_at.isoformat(),
-            "last_used_at": s.last_used_at.isoformat(),
-            "expires_at": s.expires_at.isoformat(),
-        }
-        for s in sessions
-    ]
+    return {
+        "max": MAX_SESSIONS_PER_USER,
+        "sessions": [
+            {
+                "id": s.id,
+                "device_type": s.device_type,
+                "device_label": s.device_label,
+                "current": s.id == session.id,
+                "created_at": s.created_at.isoformat(),
+                "last_used_at": s.last_used_at.isoformat(),
+                "expires_at": s.expires_at.isoformat(),
+            }
+            for s in sessions
+        ],
+    }
 
 
 @router.delete("/sessions/{session_id}")

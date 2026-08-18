@@ -368,11 +368,22 @@ class MealMenu(Base):
 
 
 class Session(Base):
+    """
+    로그인한 기기 하나. **한 계정에 여럿입니다** (`auth.MAX_SESSIONS_PER_USER`).
+
+    한동안 로그인할 때마다 이 표의 기존 행을 통째로 지웠습니다 — 표는 1:N 인데 코드가
+    1:1 을 강제하고 있었던 셈입니다. 지금은 상한을 넘으면 **가장 오래 안 쓴 행부터**
+    밀어냅니다.
+    """
     __tablename__ = "sessions"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     session_token = Column(String, unique=True, nullable=False)
     device_type = Column(String, default="web")  # "web" | "mobile"
+    #: `"Chrome · Android"` — User-Agent 에서 뽑습니다. 세션 목록에서 **어느 게 내
+    #: 폰인지** 가리는 유일한 단서라, 없으면 폐기 버튼을 누를 수가 없습니다.
+    #: 이 컬럼이 생기기 전에 만들어진 세션은 `None` 입니다
+    device_label = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     last_used_at = Column(DateTime, default=datetime.datetime.utcnow)
