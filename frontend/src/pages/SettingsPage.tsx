@@ -5,6 +5,7 @@ import RetroCard from "../components/atoms/RetroCard";
 import RetroSubTitle from "../components/atoms/RetroSubTitle";
 import AccordionSection from "../components/molecules/AccordionSection";
 import PageHeader from "../components/molecules/PageHeader";
+import DeviceSessions from "../components/DeviceSessions";
 
 interface GuideSection {
     title: string;
@@ -162,6 +163,11 @@ const SettingsPage: React.FC = () => {
                     </div>
                 </div>
             </RetroCard>
+
+            {/* 로그인한 기기 — 다중 기기 로그인을 열면서 같이 생긴 화면입니다.
+                가이드북 아래, About 위에 둡니다: 읽는 것(가이드)과 앱 정보 사이에 있는
+                **유일하게 뭔가를 하는 칸**이라 끝에 붙이면 못 찾습니다 */}
+            <DeviceSessions />
 
             {/* About */}
             <RetroCard className="bg-white p-6">

@@ -75,7 +75,7 @@
 ## 인증 엔드포인트
 
 ### `POST /auth/login`
-로그인 → session_token 발급 (기존 세션 즉시 만료)
+로그인 → session_token 발급
 
 **Request Body**:
 ```json
@@ -95,14 +95,31 @@
 }
 ```
 
-1계정 1세션. 새로 로그인하면 기존 기기 세션 즉시 만료.
+**한 계정에 기기 5대까지** (`auth.MAX_SESSIONS_PER_USER`). 넘으면 **가장 오래 안 쓴
+세션부터 밀려납니다** — 새 로그인을 거절하지 않습니다(거절하면 폰을 잃어버린 사람이
+영영 못 들어옵니다).
+
+기기 이름은 서버가 **User-Agent 에서** 뽑습니다(`"Chrome · Android"`). 클라이언트가
+보낸 이름을 쓰지 않으니, 폰 앱은 자기 User-Agent 를 알아보게 붙이면 됩니다.
+
+⚠️ 한동안 **1계정 1세션**이었습니다. 예전 문서를 보고 "로그인하면 기존 세션이 끊긴다"고
+가정한 코드가 있으면 지금은 틀립니다.
 
 ---
 
 ### `POST /auth/logout`
-현재 세션 삭제
+**이 기기만** 로그아웃 — 요청에 실린 토큰의 세션 하나만 지웁니다.
 
 **Headers**: `Authorization: Bearer <session_token>`
+
+---
+
+### `POST /auth/logout-all`
+**다른 기기를 전부** 로그아웃 — 요청을 보낸 기기는 남깁니다.
+
+**Headers**: `Authorization: Bearer <session_token>`
+
+**Response**: `{ "detail": "Logged out", "revoked": 3 }`
 
 ---
 
@@ -162,22 +179,36 @@
 ---
 
 ### `GET /auth/sessions`
-현재 사용자의 활성 세션 목록 (항상 최대 1개)
+현재 사용자가 로그인해 둔 기기 목록 (최근 사용 순)
 
 **Headers**: `Authorization: Bearer <session_token>`
 
 **Response**:
 ```json
-[
-  {
-    "id": 1,
-    "device_type": "web",
-    "created_at": "2026-03-17T00:00:00",
-    "last_used_at": "2026-03-17T01:00:00",
-    "expires_at": "2026-04-16T00:00:00"
-  }
-]
+{
+  "max": 5,
+  "sessions": [
+    {
+      "id": 1,
+      "device_type": "web",
+      "device_label": "Chrome · Android",
+      "current": true,
+      "created_at": "2026-03-17T00:00:00",
+      "last_used_at": "2026-03-17T01:00:00",
+      "expires_at": "2026-04-16T00:00:00"
+    }
+  ]
+}
 ```
+
+⚠️ **응답이 배열에서 객체로 바뀌었습니다** (`max` 를 같이 주려고). 예전 판본을 그대로
+`map()` 하는 코드가 있으면 터집니다.
+
+⚠️ **`current` 없이 목록을 그리지 마세요.** 어느 줄이 지금 보고 있는 기기인지 모르면
+자기 자신을 폐기하고 그 자리에서 로그인 화면으로 튕깁니다.
+
+`device_label` 은 **이 컬럼이 생기기 전 세션에서 `null`** 입니다 — 화면이 대신 표시할
+말을 준비해야 합니다. `ip_address` 는 일부러 뺐습니다(관리자 화면에는 있습니다).
 
 ---
 

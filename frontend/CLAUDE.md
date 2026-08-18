@@ -19,7 +19,8 @@ src/
 │   ├── userState.ts          → 계정별 화면 상태 저장/복원 (localStorage 이관 포함)
 │   ├── features.ts           → 한시 기능 노출 플래그 (TRADE_FEATURE)
 │   ├── navigation.ts         → 메뉴 순서 (사이드바·하단 바가 같이 씁니다)
-│   └── friendsApi.ts         → 홈·친구·교시 시각표 질의 (백엔드는 두 앱 공용)
+│   ├── friendsApi.ts         → 홈·친구·교시 시각표 질의 (백엔드는 두 앱 공용)
+│   └── sessionsApi.ts        → 로그인한 기기 목록·폐기 (다중 기기 로그인)
 ├── constants/
 │   └── motion.ts             → Framer Motion 설정값
 ├── hooks/
@@ -98,6 +99,19 @@ src/
 - `fetchInitialData` 401 응답 → `handleLogout()` 자동 호출 → LoginPage로
 - localStorage 키: `ksa_session_token`
 - 로그아웃 시 캐시(`ksa_class_finder_cache`)도 함께 삭제
+
+### 기기는 여럿입니다
+
+**한 계정으로 5대까지 동시에 로그인합니다.** 한동안 서버가 로그인할 때마다 기존 세션을
+통째로 지워서(1계정 1세션) 폰에서 들어오면 노트북이 튕겼습니다. 지금은 상한을 넘으면
+가장 오래 안 쓴 기기부터 밀어냅니다.
+
+- `POST /auth/logout` 은 **이 기기만** 끊습니다 — `handleLogout()` 은 그대로 두면 됩니다
+- 목록·폐기 화면은 `/about` 의 `<DeviceSessions />` (`lib/sessionsApi.ts`)
+- ⚠️ **401 은 이제 "만료" 말고 "다른 기기에 밀려남" 일 수도 있습니다.** 처리는 같지만
+  (로그아웃 → 로그인 화면), 사용자가 "왜 튕겼지" 를 물으면 답이 저 화면에 있습니다
+- ⚠️ 서버는 시각을 **UTC 를 시간대 표시 없이** 보냅니다(`datetime.utcnow().isoformat()`).
+  그대로 `new Date()` 에 넣으면 한국에서 9시간이 어긋납니다 — `Z` 를 붙이세요
 
 ## 로그인
 
