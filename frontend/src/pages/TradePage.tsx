@@ -15,9 +15,11 @@ import type { SubjectData, Term } from "../types";
 import {
     buildSubjectIndex,
     buildStudentIndex,
+    buildPlannedSchedule,
     getStudentSchedule,
     findPlans,
     applyPlan,
+    hasAutoChoice,
     scheduleToTimes,
     evaluateAddCandidates,
     findBlockers,
@@ -27,9 +29,11 @@ import {
     totalCredits,
     missingCreditSubjects,
     MAX_PLAN_RESULTS,
+    TRADE_STATE_LEGACY_KEY,
     type AddSelection,
     type PlanAction,
     type PlanResult,
+    type SavedTradePlan,
     type SectionInfo,
     type SlotKey,
 } from "../lib/tradeEngine";
@@ -91,20 +95,10 @@ const ACTION_ORDER: PlanAction[] = ["keep", "move", "drop"];
 const sectionLabel = (s: SectionInfo) =>
     `${getSectionNumber(s.section)}분반 · ${s.teacher}`;
 
-/** 계정 저장으로 옮기기 전에 쓰던 키 — 남아 있으면 한 번 옮겨 옵니다 */
-const LEGACY_STATE_KEY = "ksa_trade_state";
-
 const authHeader = () => {
     const token = localStorage.getItem("ksa_session_token");
     return token ? { Authorization: `Bearer ${token}` } : undefined;
 };
-
-interface SavedState {
-    stuId: string | null;
-    actions: Record<string, PlanAction>;
-    addSelections: AddSelection[];
-    moveTargets: Record<string, number | null>;
-}
 
 const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) => {
     const [stuId, setStuId] = useState<string | null>(null);
@@ -155,7 +149,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
     useEffect(() => {
         if (restored) return;
         let cancelled = false;
-        loadState<SavedState>("trade", LEGACY_STATE_KEY)
+        loadState<SavedTradePlan>("trade", TRADE_STATE_LEGACY_KEY)
             .then((state) => {
                 if (cancelled) return;
                 if (state?.stuId) {
@@ -165,6 +159,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                         Array.isArray(state.addSelections) ? state.addSelections : [],
                     );
                     setMoveTargets(state.moveTargets ?? {});
+                    setPreviewKey(state.previewKey ?? null);
                 } else if (myStuId) {
                     // 저장된 계획이 없으면 본인 시간표에서 시작합니다
                     setStuId(myStuId);
@@ -181,11 +176,19 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
         };
     }, [restored, myStuId]);
 
-    /** 작업 중인 계획은 계정에 남아 다른 기기에서도 이어집니다 */
+    /**
+     * 작업 중인 계획은 계정에 남아 다른 기기에서도 이어집니다.
+     *
+     * **고른 조합(`previewKey`)까지 같이 남깁니다** — 홈이 같은 계획을 그릴 때 이게
+     * 없으면 각자 첫 조합을 골라서, 같은 계획인데 두 화면의 시간표가 갈라집니다.
+     */
     useEffect(() => {
         if (!restored) return;
-        saveState("trade", stuId ? { stuId, actions, addSelections, moveTargets } : {});
-    }, [restored, stuId, actions, addSelections, moveTargets]);
+        saveState(
+            "trade",
+            stuId ? { stuId, actions, addSelections, moveTargets, previewKey } : {},
+        );
+    }, [restored, stuId, actions, addSelections, moveTargets, previewKey]);
 
     const index = useMemo(() => buildSubjectIndex(allClassesData), [allClassesData]);
     const studentIndex = useMemo(
@@ -277,15 +280,9 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
     }, [stuId, schedule, index, actions, addSelections, moveTargets]);
 
     /** 분반을 직접 고르지 않고 "자동"으로 둔 항목이 있는지 */
-    const hasAutoChoice = useMemo(
-        () =>
-            addSelections.some((a) => a.sectionId === null) ||
-            schedule.some(
-                (s) =>
-                    (actions[s.subject] ?? "keep") === "move" &&
-                    moveTargets[s.subject] == null,
-            ),
-        [addSelections, schedule, actions, moveTargets],
+    const autoChoice = useMemo(
+        () => hasAutoChoice(schedule, { actions, addSelections, moveTargets }),
+        [schedule, actions, addSelections, moveTargets],
     );
 
     /**
@@ -295,8 +292,8 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
      */
     const previewPlan = useMemo(() => {
         if (previewKey) return plans.find((p) => p.key === previewKey) ?? null;
-        return hasAutoChoice ? (plans[0] ?? null) : null;
-    }, [plans, previewKey, hasAutoChoice]);
+        return autoChoice ? (plans[0] ?? null) : null;
+    }, [plans, previewKey, autoChoice]);
 
     /** 자동으로 고른 조합인지 (사용자가 직접 누른 게 아님) */
     const isAutoPreview = !previewKey && previewPlan !== null;
@@ -305,8 +302,8 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
      * 왼쪽 시간표에 그릴 내용.
      * 조합을 고르면 그 결과를, 고르기 전에는 지금까지 지정한 드랍·추가를 바로 반영합니다.
      *
-     * **드랍한 과목은 그리지 않습니다.** 한때 색만 바꿔 남겨 뒀지만, 어느 시간이 비는지는
-     * 칸이 비어야 가장 잘 보입니다 — 남겨 두면 새로 넣을 자리가 여전히 차 있어 보입니다.
+     * ⚠️ **계산은 `tradeEngine.buildPlannedSchedule` 이 합니다** — 홈의 "트레이드"
+     * 시간표가 같은 함수를 부릅니다. 여기서 따로 세면 두 화면이 갈라집니다.
      */
     const {
         effectiveSchedule,
@@ -314,76 +311,18 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
         movedSubjects,
         conflictingSubjects,
     } = useMemo(() => {
-        const leaving = new Set<string>();
-        const entering = new Set<string>();
-        const moved = new Set<string>();
-        const conflicting = new Set<string>();
-
-        {
-            if (previewPlan) {
-                previewPlan.choices.forEach((c) => {
-                    if (!c.to) leaving.add(c.subject);
-                    else if (!c.from) entering.add(c.subject);
-                    else if (c.from.id !== c.to.id) moved.add(c.subject);
-                });
-                const applied = applyPlan(schedule, previewPlan);
-                return {
-                    effectiveSchedule: applied,
-                    enteringSubjects: entering,
-                    movedSubjects: moved,
-                    conflictingSubjects: conflicting, // 성립한 조합이라 충돌이 없습니다
-                };
-            }
-
-            schedule.forEach((s) => {
-                if ((actions[s.subject] ?? "keep") === "drop") leaving.add(s.subject);
-            });
-
-            // 목표 분반을 고른 이동은 그 자리로 옮겨 그립니다
-            const movedTo = new Map<string, SectionInfo>();
-            schedule.forEach((s) => {
-                if ((actions[s.subject] ?? "keep") !== "move") return;
-                const targetId = moveTargets[s.subject];
-                if (targetId == null || targetId === s.id) return;
-                const target = (index.get(s.subject) ?? []).find(
-                    (x) => x.id === targetId,
-                );
-                if (target) movedTo.set(s.subject, target);
-            });
-
-            const staying = schedule
-                .filter((s) => !leaving.has(s.subject))
-                .map((s) => movedTo.get(s.subject) ?? s);
-            movedTo.forEach((_, subject) => moved.add(subject));
-
-            // 옮겨간 분반이 다른 과목과 부딪히는지
-            movedTo.forEach((target, subject) => {
-                findBlockers(
-                    staying.filter((s) => s.subject !== subject),
-                    target,
-                ).forEach((b) => conflicting.add(b.subject));
-            });
-
-            const added: SectionInfo[] = [];
-            addSelections.forEach(({ subject, sectionId }) => {
-                if (sectionId === null) return; // 분반 미정이면 그릴 수 없습니다
-                const section = (index.get(subject) ?? []).find((s) => s.id === sectionId);
-                if (!section) return;
-                added.push(section);
-                entering.add(subject);
-                // 충돌을 감수하고 고정했다면, 부딪히는 기존 과목을 짚어줍니다
-                findBlockers(staying, section).forEach((b) =>
-                    conflicting.add(b.subject),
-                );
-            });
-
-            return {
-                effectiveSchedule: [...staying, ...added],
-                enteringSubjects: entering,
-                movedSubjects: moved,
-                conflictingSubjects: conflicting,
-            };
-        }
+        const planned = buildPlannedSchedule(
+            schedule,
+            index,
+            { actions, addSelections, moveTargets },
+            previewPlan,
+        );
+        return {
+            effectiveSchedule: planned.sections,
+            enteringSubjects: planned.entering,
+            movedSubjects: planned.moved,
+            conflictingSubjects: planned.conflicting,
+        };
     }, [schedule, previewPlan, actions, addSelections, moveTargets, index]);
 
     /**

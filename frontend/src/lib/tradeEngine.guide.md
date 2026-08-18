@@ -35,6 +35,9 @@
 | `compactTimes(times)` | 구인 글용 짧은 시간 표기 (`월67 목9`). 10교시 이상은 콤마로 구분 |
 | `buildTradePost(subject, from, to)` | 교환 상대 구하는 글 생성 (복사용) |
 | `applyPlan(schedule, plan)` | 조합을 적용한 최종 시간표 (미리보기용) |
+| `buildPlannedSchedule(schedule, index, state, plan)` | **계획을 적용한 시간표 + 표식**(들어옴·이동·충돌). 조합을 넘기면 그 결과를, 안 넘기면 지금까지 지정한 드랍·추가·이동을 바로 반영 |
+| `hasAutoChoice(schedule, state)` | 분반을 안 고르고 "자동"으로 둔 항목이 있는지 |
+| `sameSections(a, b)` | 두 시간표가 같은 분반 묶음인지 (계획이 아무것도 안 바꾸는지 판정) |
 | `scheduleToTimes(sections)` | `TimetableGrid`에 넘길 `SectionTime[]`로 변환 |
 
 ## 교환 상대 (`findTradePartners`)
@@ -57,6 +60,24 @@
 ## 결과 해석
 `PlanResult.choices`에는 **변화가 있는 항목만** 담깁니다. 유지된 과목은 빠집니다.
 `from`이 null이면 신규 추가, `to`가 null이면 드랍입니다.
+
+## 계획은 두 화면이 나눠 씁니다
+
+`/trade` 가 계정에 저장하는 값(`userState` 의 `trade` 키, 타입 `SavedTradePlan`)을
+**홈도 읽습니다** — 수강 정정 기간의 `[기존 시간표 | 트레이드 계획]` 전환입니다
+(`hooks/useTradePlan.ts` → `lib/plannedHome.ts`).
+
+| 저장 항목 | 쓰임 |
+|---|---|
+| `stuId` | **홈은 내 학번일 때만 그립니다.** 트레이드는 남의 시간표도 열 수 있어서, 이게 없으면 남의 계획이 "내 시간표" 자리에 앉습니다 |
+| `actions` · `addSelections` · `moveTargets` | 무엇을 어떻게 바꾸는가 (`PlanState`) |
+| `previewKey` | 목록에서 **고른 조합**. 없으면 자동(첫 조합) |
+
+⚠️ **`previewKey` 를 저장에서 빼지 마세요.** 두 화면이 각자 첫 조합을 고르게 되어,
+같은 계획인데 홈과 트레이드의 시간표가 갈라집니다.
+
+⚠️ **계획 시간표는 `buildPlannedSchedule` 하나로만 계산합니다.** 홈이 따로 세면
+같은 이유로 갈라집니다.
 
 ## 주의
 정원 정보가 없어 **자리 여유는 판정하지 않습니다**. 시간 충돌만 봅니다.

@@ -19,15 +19,29 @@
  * **모든 시각은 하나의 시계에서 나옵니다.** 서버가 준 `now.minute` 에 그 뒤로 흐른
  * 시간을 더해 씁니다 — 판본마다 따로 계산하면 비교하다 어긋난 걸 배치 탓으로
  * 오해하게 됩니다 (`lib/homeView.ts` 가 파생값을 한 곳에서 셉니다).
+ *
+ * ## 수강 정정 기간에는 시간표가 두 벌입니다
+ *
+ * `/trade` 에 계획을 짜 뒀다면 홈 위에 **[기존 시간표 | 트레이드 계획]** 이 붙습니다.
+ * 고르면 **화면 전체**가 갈립니다 — 히어로의 "지금 가야 할 교실" 까지 계획 것으로
+ * 바뀝니다.
+ *
+ * 화면을 두 벌 만들지 않고 **응답만 갈아 끼웁니다** (`lib/plannedHome.ts`). 그래야
+ * 히어로·자·목록·주간 격자가 각자 "계획일 때는 이렇게" 를 따로 알 필요가 없습니다.
+ *
+ * ⚠️ **계획은 아직 등록된 시간표가 아닙니다.** 어느 쪽을 보고 있는지 헷갈리면 엉뚱한
+ * 교실로 가게 되므로, 고른 쪽이 시안으로 켜지고 카드에도 표식이 붙습니다 (`planned`).
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Repeat } from "lucide-react";
-import type { Term } from "../types";
+import type { SubjectData, Term } from "../types";
 import { fetchHome, type HomeData } from "../lib/friendsApi";
 import { isTradeAvailable } from "../lib/features";
 import { applyHomeDemo, HOME_DEMOS, type HomeDemoKey } from "../lib/homeDemo";
+import { applyPlanToHome, buildDepartmentMap } from "../lib/plannedHome";
+import { useTradePlan } from "../hooks/useTradePlan";
 import RetroSpinner from "../components/atoms/RetroSpinner";
 import MarqueeText from "../components/atoms/MarqueeText";
 import MealCard from "../components/MealCard";
@@ -61,11 +75,17 @@ const OFF_LINES: Record<"vacation" | "weekend" | "holiday", string[]> = {
 
 type Layout = "v1" | "v2" | "v3";
 
+/** 수강 정정 기간에만 갈리는 두 시간표 */
+type View = "current" | "trade";
+
 interface HomePageProps {
     term: Term | null;
+    /** 계획 시간표를 짜는 데 씁니다 — 홈은 이걸로 계산만 하고 검색하지 않습니다 */
+    allClassesData: SubjectData[];
+    myStuId: string | null;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ term }) => {
+const HomePage: React.FC<HomePageProps> = ({ term, allClassesData, myStuId }) => {
     /** 응답과 **받은 시각**을 같이 듭니다 — 그 뒤로 흐른 시간을 더해 시계를 굴립니다 */
     const [state, setState] = useState<{ home: HomeData; at: number } | null>(null);
     const [loading, setLoading] = useState(true);
@@ -74,6 +94,12 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
     const [demo, setDemo] = useState<HomeDemoKey | null>(null);
     /** V3 가 배포되는 화면이고, 옛 판본은 개발에서만 되돌아볼 수 있습니다 */
     const [layout, setLayout] = useState<Layout>("v3");
+    /** 기존 시간표 ↔ 트레이드 계획. **기본은 늘 기존**입니다 */
+    const [view, setView] = useState<View>("current");
+
+    const tradeAvailable = isTradeAvailable(term);
+    /** `/trade` 에 저장해 둔 계획. 볼 게 없으면 null 이고 전환도 안 뜹니다 */
+    const plannedSections = useTradePlan(tradeAvailable, allClassesData, myStuId);
 
     const reload = useCallback(async () => {
         try {
@@ -102,12 +128,35 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
         return () => clearInterval(timer);
     }, []);
 
-    const home = useMemo(() => {
+    const received = useMemo(() => {
         if (!state) return null;
         return import.meta.env.DEV && demo
             ? applyHomeDemo(demo, state.home)
             : state.home;
     }, [state, demo]);
+
+    const departments = useMemo(
+        () => buildDepartmentMap(allClassesData),
+        [allClassesData],
+    );
+
+    /**
+     * 화면이 그리는 응답. 계획을 보는 중이면 **시간표만 갈아 끼운** 사본입니다
+     * (`plannedHome.ts`) — 급식·학사일정·방학 여부는 계획과 상관이 없습니다.
+     */
+    const home = useMemo(() => {
+        if (!received) return null;
+        if (view !== "trade" || !plannedSections) return received;
+        return applyPlanToHome(received, plannedSections, departments);
+    }, [received, view, plannedSections, departments]);
+
+    const planned = view === "trade" && plannedSections !== null;
+
+    // 계획이 사라지면(정정 기간 종료·계획 비움) 기존 시간표로 돌아갑니다 — 안 그러면
+    // 전환 버튼은 없는데 화면만 계획인 상태로 남습니다
+    useEffect(() => {
+        if (!plannedSections) setView("current");
+    }, [plannedSections]);
 
     /** 지금(자정 기준 분). 서버 시계가 기준이고 그 뒤로 흐른 시간만 더합니다 */
     const liveMinute = useMemo(() => {
@@ -204,7 +253,7 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
             {/* ── 수강 변경 기간에만 ─────────────────────────────────────
                 핑크가 "지금" 으로 옮겨 가면서 배너는 시안을 씁니다 — 한 화면에서 같은
                 색이 두 뜻을 가지면 안 됩니다 */}
-            {isTradeAvailable(term) && (
+            {tradeAvailable && (
                 <Link
                     to="/trade"
                     className="group flex items-center justify-between gap-3 border-2 border-black bg-retro-accent1 px-4 py-2.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-1 hover:translate-y-1 hover:shadow-none"
@@ -223,6 +272,44 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
                         className="shrink-0 transition-transform duration-100 group-hover:translate-x-0.5"
                     />
                 </Link>
+            )}
+
+            {/* ── 어느 시간표를 볼 것인가 ──────────────────────────────────
+                **저장해 둔 계획이 실제로 뭔가 바꿀 때만** 뜹니다 (`useTradePlan`).
+                계획이 없거나 남의 계획이면 고를 게 없어서 버튼도 없습니다.
+
+                ⚠️ 홈 전체가 한꺼번에 갈립니다 — 위 히어로가 말하는 "지금 가야 할 교실"
+                까지 계획 것으로 바뀝니다. 그래서 **고른 쪽이 시안(= Trade 색)으로
+                켜지고**, 카드마다 `계획` 표식이 붙습니다. 계획은 아직 등록된 시간표가
+                아니라서, 어느 쪽을 보고 있는지 헷갈리면 엉뚱한 교실로 갑니다 */}
+            {plannedSections && (
+                <div className="flex flex-wrap items-center gap-2">
+                    {(
+                        [
+                            { key: "current", label: "기존 시간표" },
+                            { key: "trade", label: "트레이드 계획" },
+                        ] as const
+                    ).map(({ key, label }) => {
+                        const on = view === key;
+                        return (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => setView(key)}
+                                aria-pressed={on}
+                                className={`border-2 border-black px-3 py-1.5 text-[12px] font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none ${
+                                    on
+                                        ? key === "trade"
+                                            ? "bg-retro-accent1 text-black"
+                                            : "bg-black text-white"
+                                        : "bg-white hover:bg-retro-accent-light"
+                                }`}
+                            >
+                                {label}
+                            </button>
+                        );
+                    })}
+                </div>
             )}
 
             {/* 옛 판본 분기 앞에 `import.meta.env.DEV &&` 를 두는 이유는 **V1·V2 를
@@ -248,12 +335,17 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
                 /* V3 — "지금" 이 머리로 올라가고 그 자리에 자가 돌아왔습니다.
                    ⚠️ **주간 격자를 V3 가 직접 그립니다** — 오늘(왼쪽)과 나란히
                    놓아야 해서, 아래에 따로 붙이면 자리가 어긋납니다 */
-                <TodayCardV3 home={home} liveMinute={liveMinute} quip={quip} />
+                <TodayCardV3
+                    home={home}
+                    liveMinute={liveMinute}
+                    quip={quip}
+                    planned={planned}
+                />
             )}
 
             {/* 옛 판본은 격자가 **아래**에 붙습니다 (V3 는 자기가 그립니다) */}
             {import.meta.env.DEV && layout !== "v3" && (
-                <WeekTimetable home={home} liveMinute={liveMinute} />
+                <WeekTimetable home={home} liveMinute={liveMinute} planned={planned} />
             )}
         </div>
     );

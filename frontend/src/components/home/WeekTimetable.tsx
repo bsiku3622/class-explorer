@@ -196,9 +196,15 @@ interface WeekTimetableProps {
     home: HomeData;
     /** 홈이 굴리는 시계 (서버 시각 + 그 뒤로 흐른 시간) */
     liveMinute: number;
+    /** 등록된 시간표가 아니라 **트레이드 계획**을 그리는 중인가 (`HomePage`) */
+    planned?: boolean;
 }
 
-const WeekTimetable: React.FC<WeekTimetableProps> = ({ home, liveMinute }) => {
+const WeekTimetable: React.FC<WeekTimetableProps> = ({
+    home,
+    liveMinute,
+    planned = false,
+}) => {
     // `?? {}` 는 배포 중 한쪽만 새 버전일 때를 버팁니다 — 옛 서버는 `week` 를 안 보냅니다.
     // `useMemo` 로 감싸는 건 그 빈 객체가 매 렌더 새로 만들어지지 않게 하려는 것입니다
     const week = useMemo(() => home.week ?? {}, [home.week]);
@@ -298,13 +304,16 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({ home, liveMinute }) => {
                 height: node.scrollHeight,
             });
             const link = document.createElement("a");
-            link.download = `시간표_${home.term.year}-${home.term.semester}.png`;
+            // 계획을 찍은 파일이 "내 시간표" 이름으로 남으면 나중에 둘을 못 가립니다
+            link.download = `시간표_${home.term.year}-${home.term.semester}${
+                planned ? "_계획" : ""
+            }.png`;
             link.href = url;
             link.click();
         } finally {
             setSaving(false);
         }
-    }, [home.term]);
+    }, [home.term, planned]);
 
     const total = useMemo(
         () => DAYS_ORDER.reduce((sum, day) => sum + (week[day]?.length ?? 0), 0),
@@ -318,7 +327,20 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({ home, liveMinute }) => {
     return (
         <RetroCard className="overflow-hidden bg-white">
             <div className="flex items-baseline justify-between gap-3 px-4 py-3 md:px-5">
-                <RetroSubTitle title="내 시간표" icon={CalendarRange} iconSize={15} />
+                <span className="flex min-w-0 items-center gap-2">
+                    <RetroSubTitle
+                        title="내 시간표"
+                        icon={CalendarRange}
+                        iconSize={15}
+                    />
+                    {/* 격자만 따로 보거나 PNG 로 찍는 자리라, 계획이라는 말이 여기에도
+                        있어야 합니다 — 위 히어로의 표식은 잘라 낸 그림에 안 담깁니다 */}
+                    {planned && (
+                        <span className="shrink-0 border-2 border-black bg-retro-accent1 px-1.5 py-0.5 text-[10px] font-black">
+                            계획
+                        </span>
+                    )}
+                </span>
                 <span className="flex shrink-0 items-center gap-2">
                     <span className="text-[12px] font-bold tabular-nums text-black/35">
                         주 {total}교시
