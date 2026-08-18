@@ -9,8 +9,9 @@
  *
  * | | 생김새 | |
  * |---|---|---|
- * | `TodayCardV2` | 낮고 가로로 긴 카드 하나 (지금·학사일정 \| 스크롤 목록 \| 급식) | **이게 배포되는 화면입니다** |
- * | `TodayCardV1` | 세로로 긴 카드 (자 + 하루 전체 목록) | 개발에서만 — 되돌아볼 자리로 남겨 뒀습니다 |
+ * | `TodayCardV3` | 행 둘 — 지금(히어로 \| 일정) 위, 하루(자 + 목록 \| 급식) 아래 | **이게 배포되는 화면입니다** |
+ * | `TodayCardV2` | 낮고 가로로 긴 카드 하나 (지금·학사일정 \| 스크롤 목록 \| 급식) | 개발에서만 |
+ * | `TodayCardV1` | 세로로 긴 카드 (자 + 하루 전체 목록) | 개발에서만 |
  *
  * 그 아래 `WeekTimetable` 이 **한 주**를 격자로 붙습니다 — 위가 오늘이면 아래는 이
  * 학기라, 배치 판본과 상관없이 같은 자리입니다.
@@ -32,6 +33,7 @@ import MarqueeText from "../components/atoms/MarqueeText";
 import MealCard from "../components/MealCard";
 import TodayCardV1 from "../components/home/TodayCardV1";
 import TodayCardV2 from "../components/home/TodayCardV2";
+import TodayCardV3 from "../components/home/TodayCardV3";
 import WeekTimetable from "../components/home/WeekTimetable";
 
 /**
@@ -57,7 +59,7 @@ const OFF_LINES: Record<"vacation" | "weekend" | "holiday", string[]> = {
     ],
 };
 
-type Layout = "v1" | "v2";
+type Layout = "v1" | "v2" | "v3";
 
 interface HomePageProps {
     term: Term | null;
@@ -70,8 +72,8 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
     const [nowMs, setNowMs] = useState(() => Date.now());
     /** 개발 전용 — 오늘이 방학이어도 수업 중 화면을 볼 수 있게 (`homeDemo.ts`) */
     const [demo, setDemo] = useState<HomeDemoKey | null>(null);
-    /** V2 가 배포되는 화면이고, V1 은 개발에서만 되돌아볼 수 있습니다 */
-    const [layout, setLayout] = useState<Layout>("v2");
+    /** V3 가 배포되는 화면이고, 옛 판본은 개발에서만 되돌아볼 수 있습니다 */
+    const [layout, setLayout] = useState<Layout>("v3");
 
     const reload = useCallback(async () => {
         try {
@@ -177,7 +179,8 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
                         </span>
                         {(
                             [
-                                { key: "v2", label: "V2 (배포)" },
+                                { key: "v3", label: "V3 (배포)" },
+                                { key: "v2", label: "V2 (구)" },
                                 { key: "v1", label: "V1 (구)" },
                             ] as const
                         ).map(({ key, label }) => (
@@ -222,12 +225,10 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
                 </Link>
             )}
 
-            {/* `import.meta.env.DEV &&` 를 앞에 두는 이유는 **V2 를 프로덕션 번들에서
-                빼기 위해서**입니다 — 이게 없으면 rollup 이 `layout` 이 절대 "v2" 가 안
-                된다는 걸 증명할 수 없어 두 판본을 다 실어 보냅니다 */}
-            {/* `import.meta.env.DEV &&` 를 앞에 두는 이유는 **V1 을 프로덕션 번들에서
-                빼기 위해서**입니다 — 이게 없으면 rollup 이 `layout` 이 절대 "v1" 이 안
-                된다는 걸 증명할 수 없어 두 판본을 다 실어 보냅니다 */}
+            {/* 옛 판본 분기 앞에 `import.meta.env.DEV &&` 를 두는 이유는 **V1·V2 를
+                프로덕션 번들에서 빼기 위해서**입니다 — 이게 없으면 rollup 이 `layout`
+                이 절대 "v1"·"v2" 가 안 된다는 걸 증명할 수 없어 세 판본을 다 실어
+                보냅니다. 배포되는 V3 만 무조건 남습니다 */}
             {import.meta.env.DEV && layout === "v1" ? (
                 <>
                     <TodayCardV1 home={home} liveMinute={liveMinute} quip={quip} />
@@ -239,15 +240,21 @@ const HomePage: React.FC<HomePageProps> = ({ term }) => {
                         </div>
                     )}
                 </>
-            ) : (
+            ) : import.meta.env.DEV && layout === "v2" ? (
                 /* V2 는 **급식까지 한 카드 안**입니다 — 따로 두면 한 행이 아니라
                    "큰 상자 + 작은 상자" 로 읽힙니다 */
                 <TodayCardV2 home={home} liveMinute={liveMinute} quip={quip} />
+            ) : (
+                /* V3 — "지금" 이 머리로 올라가고 그 자리에 자가 돌아왔습니다.
+                   ⚠️ **주간 격자를 V3 가 직접 그립니다** — 오늘(왼쪽)과 나란히
+                   놓아야 해서, 아래에 따로 붙이면 자리가 어긋납니다 */
+                <TodayCardV3 home={home} liveMinute={liveMinute} quip={quip} />
             )}
 
-            {/* 위 카드가 **오늘**이라면 여기는 **이 학기**입니다. 배치 판본과 상관없이
-                같은 자리에 붙습니다 — 어느 배치에서도 시간표는 오늘 아래입니다 */}
-            <WeekTimetable home={home} liveMinute={liveMinute} />
+            {/* 옛 판본은 격자가 **아래**에 붙습니다 (V3 는 자기가 그립니다) */}
+            {import.meta.env.DEV && layout !== "v3" && (
+                <WeekTimetable home={home} liveMinute={liveMinute} />
+            )}
         </div>
     );
 };
