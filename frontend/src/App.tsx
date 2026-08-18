@@ -523,7 +523,11 @@ const App: React.FC = () => {
                             <Route
                                 path="/"
                                 element={
-                                    <HomePage term={term} />
+                                    <HomePage
+                                        term={term}
+                                        allClassesData={allClassesData}
+                                        myStuId={currentUser?.stu_id ?? null}
+                                    />
                                 }
                             />
                             <Route

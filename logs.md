@@ -1,3 +1,42 @@
+## 2026-08-18 — 홈에서 기존/트레이드 시간표 전환
+
+- 변경 파일: `frontend/src/pages/HomePage.tsx`, `frontend/src/lib/{plannedHome(신규),tradeEngine}.ts`,
+  `frontend/src/hooks/useTradePlan.ts`(신규), `frontend/src/components/home/{TodayCardV3,WeekTimetable}.tsx`,
+  `frontend/src/pages/TradePage.tsx`, `frontend/src/App.tsx`
+- 요약: 수강 정정 기간에 `/trade` 계획이 있으면 홈 위에 `[기존 시간표 | 트레이드 계획]`
+  이 붙고, 고르면 홈 전체가 계획 시간표로 갈립니다
+
+**화면을 두 벌 만들지 않았습니다.** `HomeData` 의 `today`·`week`(그리고 `current`·`next`)
+만 갈아 끼운 사본을 아래로 흘려보냅니다(`lib/plannedHome.ts`). 히어로·자·목록·주간
+격자가 각자 "계획일 때는 이렇게" 를 알 필요가 없고, 파생값은 종전대로 `homeView.ts`
+한 곳에서 셉니다. 카드마다 분기를 심는 길로 갔으면 네 자리가 따로 놀았을 겁니다.
+
+**계획 계산은 `tradeEngine.buildPlannedSchedule` 하나로 모았습니다.** 원래 트레이드
+화면의 80줄짜리 `useMemo` 안에 있던 것을 그대로 끌어냈고, 홈은 같은 함수를 부릅니다.
+⚠️ 여기서 갈라지면 같은 계획인데 두 화면의 시간표가 달라집니다.
+
+**⚠️ `previewKey`(목록에서 고른 조합)를 저장 항목에 새로 넣었습니다.** 이게 없으면
+홈과 트레이드가 각자 첫 조합을 골라서, "자동" 으로 맡긴 항목이 있을 때 결과가
+갈립니다. 저장 형식이 늘어난 것이라 되돌리려면 두 화면을 같이 봐야 합니다.
+
+**남의 계획은 안 그립니다.** 트레이드는 친구 계획을 봐주려고 다른 학생도 열 수 있어서,
+저장된 `stuId` 가 내 학번이 아니면 홈에서는 전환 자체가 안 뜹니다. 계획이 시간표를
+하나도 안 바꿀 때(`sameSections`)도 마찬가지입니다 — 같은 걸 두 번 보여 줄 이유가
+없습니다.
+
+**함정 둘.**
+
+1. 교실은 `t.room || s.room` 순서로 골라야 합니다. 서버(`/home`)가 교시별 교실을
+   먼저 보고 없을 때만 분반 교실을 쓰는데, 분반 교실을 먼저 쓰면 실험 분반에서 두
+   시간표가 어긋납니다
+2. `useTradePlan` 은 못 불러왔을 때 조용히 `null` 로 둡니다. 트레이드 화면 쪽 ⚠️
+   (`restored` 를 켜면 안 된다)와 반대인 이유는 **홈은 읽기만 하기 때문**입니다 —
+   저장을 안 하니 덮어쓸 위험이 없습니다
+
+계획을 보는 중이라는 표식은 시안(Trade 색)입니다 — 히어로에 `계획 미리보기`, 주간
+격자에 `계획`, PNG 파일 이름에 `_계획`. 아직 등록된 시간표가 아니라서, 어느 쪽을 보고
+있는지 헷갈리면 엉뚱한 교실로 갑니다.
+
 ## 2026-08-18 — 홈 재설계 (V3 배포본 · 학과색 · 주간 격자 개편)
 
 - 변경 파일: `frontend/src/components/home/{TodayCardV3(신규),WeekTimetable}.tsx`,

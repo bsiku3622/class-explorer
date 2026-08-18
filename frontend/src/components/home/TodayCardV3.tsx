@@ -63,9 +63,20 @@ interface TodayCardV3Props {
     home: HomeData;
     liveMinute: number;
     quip: string | null;
+    /**
+     * 지금 그리는 게 **등록된 시간표가 아니라 트레이드 계획**인가 (`HomePage`).
+     * 켜지면 히어로와 주간 격자에 표식이 붙습니다 — 이 화면은 "지금 어디로 가야
+     * 하나" 에 답하는 자리라, 계획을 실제로 오해하면 엉뚱한 교실로 갑니다.
+     */
+    planned?: boolean;
 }
 
-const TodayCardV3: React.FC<TodayCardV3Props> = ({ home, liveMinute, quip }) => {
+const TodayCardV3: React.FC<TodayCardV3Props> = ({
+    home,
+    liveMinute,
+    quip,
+    planned = false,
+}) => {
     const { now, session, today, events, meal } = home;
     const periods = home.periods ?? [];
     const breaks = home.breaks ?? [];
@@ -173,8 +184,18 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({ home, liveMinute, quip }) => 
                     <div className="flex items-baseline justify-between gap-3">
                         {/* `font-black` + `tracking-wide` 로 두니 11px 인데도 제목과
                             경쟁했습니다 — 이 줄은 **언제인지만** 알려 주면 됩니다 */}
-                        <span className="truncate text-[12px] font-bold text-black/45">
-                            {dateLabel(now.date)}
+                        <span className="flex min-w-0 items-baseline gap-2">
+                            <span className="truncate text-[12px] font-bold text-black/45">
+                                {dateLabel(now.date)}
+                            </span>
+                            {/* 계획을 보는 중이라는 말은 **날짜 옆**에 붙습니다 —
+                                이 줄이 "언제·무엇을 보고 있는가" 를 말하는 자리입니다.
+                                색은 Trade 와 같은 시안입니다 (`design-guide.md`) */}
+                            {planned && (
+                                <span className="shrink-0 border-2 border-black bg-retro-accent1 px-1.5 py-0.5 text-[10px] font-black">
+                                    계획 미리보기
+                                </span>
+                            )}
                         </span>
                         {/* 시계는 두지 않습니다 — 이 화면의 단위는 교시이고, 시각은
                             아래 목록의 줄마다 이미 붙어 있습니다 */}
@@ -422,7 +443,7 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({ home, liveMinute, quip }) => 
                 </div>
 
                 {/* 위 카드가 **오늘**이라면 여기는 **이 학기**입니다 */}
-                <WeekTimetable home={home} liveMinute={liveMinute} />
+                <WeekTimetable home={home} liveMinute={liveMinute} planned={planned} />
             </div>
         </div>
     );

@@ -503,3 +503,138 @@ export const buildTradePost = (
         `너: ${theirs} -> ${mine}`,
     ].join("\n");
 };
+
+// ─── 계획 상태 ────────────────────────────────────────────────────────────────
+
+/**
+ * 화면이 들고 있는 "무엇을 어떻게 바꾸겠다" — `/trade` 가 계정에 저장하고,
+ * **홈이 같은 값을 읽어** 계획 시간표를 그립니다.
+ */
+export interface PlanState {
+    /** 과목명 → 처리 방식. 없으면 `keep` */
+    actions: Record<string, PlanAction>;
+    addSelections: AddSelection[];
+    moveTargets: Record<string, number | null>;
+}
+
+/** `userState` 의 `trade` 키에 저장되는 모양 */
+export interface SavedTradePlan extends PlanState {
+    stuId: string | null;
+    /**
+     * 조합 목록에서 고른 것(`PlanResult.key`). 없으면 자동(첫 조합)입니다.
+     *
+     * 이걸 같이 저장하는 이유는 **홈이 트레이드 화면과 같은 시간표를 그려야** 하기
+     * 때문입니다 — 화면마다 첫 조합을 각자 고르면 같은 계획인데 다른 결과가 됩니다.
+     */
+    previewKey?: string | null;
+}
+
+/** 계정 저장으로 옮기기 전에 쓰던 localStorage 키 — 남아 있으면 한 번 옮겨 옵니다 */
+export const TRADE_STATE_LEGACY_KEY = "ksa_trade_state";
+
+/** 분반을 직접 고르지 않고 "자동"으로 둔 항목이 있는지 */
+export const hasAutoChoice = (schedule: SectionInfo[], state: PlanState): boolean =>
+    state.addSelections.some((a) => a.sectionId === null) ||
+    schedule.some(
+        (s) =>
+            (state.actions[s.subject] ?? "keep") === "move" &&
+            state.moveTargets[s.subject] == null,
+    );
+
+export interface PlannedSchedule {
+    /** 계획을 반영한 시간표 */
+    sections: SectionInfo[];
+    /** 새로 들어온 과목 */
+    entering: Set<string>;
+    /** 분반이 바뀐 과목 */
+    moved: Set<string>;
+    /** 고정한 분반과 시간이 부딪히는 기존 과목 */
+    conflicting: Set<string>;
+}
+
+/**
+ * 계획을 적용한 시간표.
+ *
+ * 조합(`plan`)을 넘기면 그 결과를, 안 넘기면 지금까지 지정한 드랍·추가·이동을 바로
+ * 반영합니다. **드랍한 과목은 그리지 않습니다** — 어느 시간이 비는지는 칸이 비어야
+ * 가장 잘 보입니다. 남겨 두면 새로 넣을 자리가 여전히 차 있어 보입니다.
+ *
+ * ⚠️ **트레이드 화면과 홈이 이 함수 하나를 같이 씁니다.** 각자 계산하면 같은 계획인데
+ * 두 화면의 시간표가 갈라집니다.
+ */
+export const buildPlannedSchedule = (
+    schedule: SectionInfo[],
+    index: SubjectIndex,
+    state: PlanState,
+    plan: PlanResult | null,
+): PlannedSchedule => {
+    const { actions, addSelections, moveTargets } = state;
+    const leaving = new Set<string>();
+    const entering = new Set<string>();
+    const moved = new Set<string>();
+    const conflicting = new Set<string>();
+
+    if (plan) {
+        plan.choices.forEach((c) => {
+            if (!c.to) leaving.add(c.subject);
+            else if (!c.from) entering.add(c.subject);
+            else if (c.from.id !== c.to.id) moved.add(c.subject);
+        });
+        return {
+            sections: applyPlan(schedule, plan),
+            entering,
+            moved,
+            conflicting, // 성립한 조합이라 충돌이 없습니다
+        };
+    }
+
+    schedule.forEach((s) => {
+        if ((actions[s.subject] ?? "keep") === "drop") leaving.add(s.subject);
+    });
+
+    // 목표 분반을 고른 이동은 그 자리로 옮겨 그립니다
+    const movedTo = new Map<string, SectionInfo>();
+    schedule.forEach((s) => {
+        if ((actions[s.subject] ?? "keep") !== "move") return;
+        const targetId = moveTargets[s.subject];
+        if (targetId == null || targetId === s.id) return;
+        const target = (index.get(s.subject) ?? []).find((x) => x.id === targetId);
+        if (target) movedTo.set(s.subject, target);
+    });
+
+    const staying = schedule
+        .filter((s) => !leaving.has(s.subject))
+        .map((s) => movedTo.get(s.subject) ?? s);
+    movedTo.forEach((_, subject) => moved.add(subject));
+
+    // 옮겨간 분반이 다른 과목과 부딪히는지
+    movedTo.forEach((target, subject) => {
+        findBlockers(
+            staying.filter((s) => s.subject !== subject),
+            target,
+        ).forEach((b) => conflicting.add(b.subject));
+    });
+
+    const added: SectionInfo[] = [];
+    addSelections.forEach(({ subject, sectionId }) => {
+        if (sectionId === null) return; // 분반 미정이면 그릴 수 없습니다
+        const section = (index.get(subject) ?? []).find((s) => s.id === sectionId);
+        if (!section) return;
+        added.push(section);
+        entering.add(subject);
+        // 충돌을 감수하고 고정했다면, 부딪히는 기존 과목을 짚어줍니다
+        findBlockers(staying, section).forEach((b) => conflicting.add(b.subject));
+    });
+
+    return { sections: [...staying, ...added], entering, moved, conflicting };
+};
+
+/**
+ * 계획이 실제로 시간표를 바꾸는가. 분반 id 집합만 봅니다 — 순서는 뜻이 없습니다.
+ * 홈은 이게 false 면 전환 토글 자체를 띄우지 않습니다.
+ */
+export const sameSections = (a: SectionInfo[], b: SectionInfo[]): boolean => {
+    if (a.length !== b.length) return false;
+    const ids = new Set(a.map((s) => s.id));
+    return b.every((s) => ids.has(s.id));
+};
