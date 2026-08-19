@@ -55,7 +55,8 @@
  */
 
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { CalendarRange, Download } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CalendarRange, Check, Download } from "lucide-react";
 import { toPng } from "html-to-image";
 import type { BreakTime, HomeData, TodayClass } from "../../lib/friendsApi";
 import { deriveHomeView } from "../../lib/homeView";
@@ -66,6 +67,12 @@ import {
     getKoreanName,
     withAlpha,
 } from "../../lib/utils";
+import {
+    searchHref,
+    sectionQuery,
+    subjectQuery,
+    teacherQuery,
+} from "../../lib/searchEngine";
 import RetroCard from "../atoms/RetroCard";
 import RetroSubTitle from "../atoms/RetroSubTitle";
 
@@ -290,11 +297,32 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
      */
     const gridRef = useRef<HTMLDivElement>(null);
     const [saving, setSaving] = useState(false);
+    /**
+     * PNG 를 **강조 없이** 찍을지. 시간표를 남에게 보내거나 인쇄할 때 "오늘"·"지금" 은
+     * 찍는 순간의 사정일 뿐이라, 그림에 남으면 다음 날부터 틀린 표시가 됩니다.
+     */
+    const [plainExport, setPlainExport] = useState(false);
+    /** 찍는 **그 순간에만** 강조를 뗍니다 — 화면은 평소대로 둡니다 */
+    const [stripping, setStripping] = useState(false);
+
+    /**
+     * "오늘·지금" 을 칠할 요일. 찍는 동안에는 `null` 이라 요일 머리·열 기둥·지금 칩이
+     * 한꺼번에 조용해집니다 — 세 곳이 같은 값을 보고 있어서 한 군데만 빠지지 않습니다.
+     */
+    const markDay = stripping ? null : today;
 
     const exportPng = useCallback(async () => {
         const node = gridRef.current;
         if (!node) return;
         setSaving(true);
+        if (plainExport) {
+            setStripping(true);
+            // ⚠️ **상태를 바꾼 즉시 찍으면 강조가 그대로 담깁니다.** React 가 다시
+            // 그리고 브라우저가 칠하는 것까지 기다려야 해서 프레임을 둘 넘깁니다
+            await new Promise((resolve) =>
+                requestAnimationFrame(() => requestAnimationFrame(resolve)),
+            );
+        }
         try {
             const url = await toPng(node, {
                 pixelRatio: 2,
@@ -312,8 +340,9 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
             link.click();
         } finally {
             setSaving(false);
+            setStripping(false);
         }
-    }, [home.term, planned]);
+    }, [home.term, planned, plainExport]);
 
     const total = useMemo(
         () => DAYS_ORDER.reduce((sum, day) => sum + (week[day]?.length ?? 0), 0),
@@ -329,7 +358,7 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
             <div className="flex items-baseline justify-between gap-3 px-4 py-3 md:px-5">
                 <span className="flex min-w-0 items-center gap-2">
                     <RetroSubTitle
-                        title="내 시간표"
+                        title="Timetable"
                         icon={CalendarRange}
                         iconSize={15}
                     />
@@ -345,6 +374,28 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                     <span className="text-[12px] font-bold tabular-nums text-black/35">
                         주 {total}교시
                     </span>
+                    {/* 찍기 **전에** 고르는 값이라 PNG 버튼 왼쪽에 둡니다 — 누른 뒤에
+                        물어보려면 창을 띄워야 하고, 그건 버튼 하나짜리 일에 과합니다 */}
+                    <button
+                        type="button"
+                        onClick={() => setPlainExport((v) => !v)}
+                        aria-pressed={plainExport}
+                        title="오늘·지금 강조를 뺀 채로 저장합니다"
+                        className="flex items-center gap-1.5 text-[11px] font-black text-black/45 transition-colors duration-100 hover:text-black"
+                    >
+                        {/* 네모 + 체크 — 이 화면에는 폼 요소가 없어서 브라우저 기본
+                            체크박스를 쓰면 유일하게 둥근 물건이 됩니다 */}
+                        <span
+                            className={`flex h-3.5 w-3.5 items-center justify-center border-2 border-black ${
+                                plainExport ? "bg-black" : "bg-white"
+                            }`}
+                        >
+                            {plainExport && (
+                                <Check size={10} strokeWidth={4} className="text-white" />
+                            )}
+                        </span>
+                        강조 없이
+                    </button>
                     <button
                         type="button"
                         onClick={() => void exportPng()}
@@ -399,7 +450,7 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                            요일 칸의 오른쪽에만 선이 보여서 칸이 오른쪽으로 밀린
                            것처럼 읽힙니다 */
                         className={`flex items-center justify-center border-b border-l border-black/10 py-2.5 text-[13px] font-black ${
-                            day === today
+                            day === markDay
                                 ? "bg-retro-primary/25 text-retro-primary"
                                 : "bg-black/[0.03] text-black/70"
                         }`}
@@ -421,10 +472,10 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                     있고 **행은 전부 암시적**이라, 끝을 못 가리키고 조용히 **헤더 한
                     칸 높이(42px)** 로 쪼그라듭니다. 기둥이 안 보이는 게 아니라 처음
                     42px 만 칠해집니다 — 행 개수로 직접 세야 합니다 */}
-                {DAYS_ORDER.some((d) => d === today) && (
+                {DAYS_ORDER.some((d) => d === markDay) && (
                     <div
                         style={{
-                            gridColumn: DAYS_ORDER.findIndex((d) => d === today) + 2,
+                            gridColumn: DAYS_ORDER.findIndex((d) => d === markDay) + 2,
                             gridRow: `2 / span ${slots.length}`,
                         }}
                         className="bg-retro-primary/[0.07]"
@@ -519,7 +570,7 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                     틈이 곧 쉬는시간입니다 */}
                 {blocks.map((block) => {
                     const now =
-                        block.day === today &&
+                        block.day === markDay &&
                         livePeriod !== null &&
                         livePeriod >= block.period &&
                         livePeriod < block.period + block.span;
@@ -548,18 +599,41 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                         >
                             {/* 두 줄까지 폅니다 — 한 줄로 자르면 `일반지구과학` 이
                                 `일반지구…` 가 되어 무슨 과목인지 알 수 없습니다 */}
-                            <span
-                                className="line-clamp-2 text-[13px] font-black leading-[1.2]"
+                            {/* 이름·분반·교사는 **검색으로 가는 문**입니다. 칸 안의
+                                글자를 누르면 그 과목·분반·선생님이 검색되고, 검색어는
+                                `searchEngine` 이 자기 문법에 맞게 만듭니다 */}
+                            <Link
+                                to={searchHref(subjectQuery(block.klass.subject))}
+                                title={`${getKoreanName(block.klass.subject)} 검색`}
+                                className="line-clamp-2 text-[13px] font-black leading-[1.2] hover:underline"
                                 style={{ color: now ? "#ff4eba" : color }}
                             >
                                 {tighten(block.klass.subject)}
-                            </span>
+                            </Link>
                             {/* 분반·교사 — 인쇄된 학교 시간표가 늘 적어 두는 줄입니다.
                                 같은 과목을 여러 선생님이 나눠 맡으므로 **이름이 있어야
                                 내 분반인지 확인**할 수 있습니다 */}
                             <span className="shrink-0 truncate text-[12px] font-bold leading-tight text-black/45">
-                                {block.klass.section.replace(/[^0-9]/g, "")}분반 ·{" "}
-                                {block.klass.teacher}
+                                <Link
+                                    to={searchHref(
+                                        sectionQuery(
+                                            block.klass.subject,
+                                            block.klass.section,
+                                        ),
+                                    )}
+                                    title={`${getKoreanName(block.klass.subject)} ${block.klass.section.replace(/[^0-9]/g, "")}분반 검색`}
+                                    className="hover:underline"
+                                >
+                                    {block.klass.section.replace(/[^0-9]/g, "")}분반
+                                </Link>{" "}
+                                ·{" "}
+                                <Link
+                                    to={searchHref(teacherQuery(block.klass.teacher))}
+                                    title={`${block.klass.teacher} 검색`}
+                                    className="hover:underline"
+                                >
+                                    {block.klass.teacher}
+                                </Link>
                             </span>
                             {/* 교실은 **이름 쪽에 붙입니다.** 한때 `mt-auto` 로 칩
                                 바닥에 밀어 뒀는데, 두 교시짜리에서는 그게 **아래 교시

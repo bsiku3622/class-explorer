@@ -10,6 +10,7 @@
  */
 
 import type { HomeData, TodayClass } from "./friendsApi";
+import { DAYS_ORDER } from "./utils";
 
 export interface HomeView {
     /** 오늘 수업이 있는 날인가 (방학·주말·휴업이 아닌가) */
@@ -140,4 +141,88 @@ export const dateLabel = (iso: string): string => {
     const [year, month, day] = iso.split("-").map(Number);
     const weekday = WEEKDAY_KO[new Date(year, month - 1, day).getDay()];
     return `${year}년 ${month}월 ${day}일 ${weekday}요일`;
+};
+
+// ─── 이 학기에 내가 듣는 것 ──────────────────────────────────────────────────
+
+/** 한 과목이 한 주에 어떻게 놓여 있는가 */
+export interface SubjectSummary {
+    subject: string;
+    section: string;
+    teacher: string;
+    /** 교시마다 교실이 다를 수 있어 목록입니다 (대개 하나) */
+    rooms: string[];
+    department: string | null;
+    /** 요일별 교시 — 요일 순서는 `DAYS_ORDER` 를 따릅니다 */
+    times: { day: string; periods: number[] }[];
+    /** 주 몇 교시인가 */
+    periodCount: number;
+}
+
+/**
+ * 주간 시간표(`week`)를 **과목 단위로 접습니다.**
+ *
+ * 격자는 "언제" 를 묻는 물건이라 같은 과목이 요일마다 흩어져 있습니다. 여기서는
+ * "무엇을 듣고 있나" 를 한 줄씩 셉니다 — 학점을 세거나 분반을 확인할 때 격자를 훑는
+ * 대신 목록을 보면 됩니다.
+ *
+ * ⚠️ **`week` 를 그대로 받습니다.** 계획을 보는 중이면 계획의 과목이 나옵니다
+ * (`plannedHome.ts` 가 이미 갈아 끼운 값이라 여기서 따로 알 필요가 없습니다).
+ */
+export const collectSubjects = (
+    week: Record<string, TodayClass[]>,
+): SubjectSummary[] => {
+    const map = new Map<string, SubjectSummary>();
+
+    DAYS_ORDER.forEach((day) => {
+        (week[day] ?? []).forEach((klass) => {
+            // 같은 과목을 두 분반 들을 수는 없지만, 분반까지 키에 넣어야 데이터가
+            // 어긋났을 때 조용히 섞이지 않고 두 줄로 드러납니다
+            const key = `${klass.subject}\u0000${klass.section}`;
+            const found = map.get(key);
+            const entry =
+                found ??
+                {
+                    subject: klass.subject,
+                    section: klass.section,
+                    teacher: klass.teacher,
+                    rooms: [],
+                    department: klass.department,
+                    times: [],
+                    periodCount: 0,
+                };
+            if (!found) map.set(key, entry);
+
+            if (klass.room && !entry.rooms.includes(klass.room))
+                entry.rooms.push(klass.room);
+
+            const slot = entry.times.find((t) => t.day === day);
+            if (slot) slot.periods.push(klass.period);
+            else entry.times.push({ day, periods: [klass.period] });
+            entry.periodCount += 1;
+        });
+    });
+
+    return Array.from(map.values())
+        .map((entry) => ({
+            ...entry,
+            times: entry.times.map((t) => ({
+                ...t,
+                periods: [...t.periods].sort((a, b) => a - b),
+            })),
+        }))
+        .sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
+};
+
+/** `[5, 6, 9]` → `"5–6, 9교시"` — 이어진 교시는 붙여 씁니다 */
+export const periodLabel = (periods: number[]): string => {
+    const runs: number[][] = [];
+    periods.forEach((period) => {
+        const last = runs[runs.length - 1];
+        if (last && period === last[last.length - 1] + 1) last.push(period);
+        else runs.push([period]);
+    });
+    return `${runs
+        .map((run) => (run.length > 1 ? `${run[0]}–${run[run.length - 1]}` : `${run[0]}`))
+        .join(", ")}교시`;
 };

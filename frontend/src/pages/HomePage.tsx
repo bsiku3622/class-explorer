@@ -52,6 +52,7 @@ import TodayCardV1 from "../components/home/TodayCardV1";
 import TodayCardV2 from "../components/home/TodayCardV2";
 import TodayCardV3 from "../components/home/TodayCardV3";
 import WeekTimetable from "../components/home/WeekTimetable";
+import MySubjects from "../components/home/MySubjects";
 
 /**
  * 수업 없는 날에 덧붙이는 한마디. 날짜로 골라서 **하루 안에는 안 바뀝니다** —
@@ -158,6 +159,13 @@ const HomePage: React.FC<HomePageProps> = ({ term, allClassesData, myStuId }) =>
 
     const departments = useMemo(
         () => buildDepartmentMap(allClassesData),
+        [allClassesData],
+    );
+
+    /** 과목 목록이 학점을 적는 데 씁니다 — 교육과정에 없는 과목은 `null` 로 옵니다 */
+    const credits = useMemo(
+        () =>
+            new Map(allClassesData.map((s) => [s.subject, s.credits ?? null])),
         [allClassesData],
     );
 
@@ -381,6 +389,10 @@ const HomePage: React.FC<HomePageProps> = ({ term, allClassesData, myStuId }) =>
             {import.meta.env.DEV && layout !== "v3" && (
                 <WeekTimetable home={home} liveMinute={liveMinute} planned={planned} />
             )}
+
+            {/* 맨 아래 — "언제" 를 다 본 다음의 **"무엇을"** 입니다. 격자 위로 올리면
+                하루·한 주를 보러 온 사람이 목록부터 지나가게 됩니다 */}
+            <MySubjects week={home.week ?? {}} credits={credits} />
         </div>
     );
 };

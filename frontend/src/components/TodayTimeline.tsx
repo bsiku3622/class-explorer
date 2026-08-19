@@ -13,9 +13,16 @@
  */
 
 import React from "react";
+import { Link } from "react-router-dom";
 import type { PeriodTime, TodayClass } from "../lib/friendsApi";
 import { getDepartmentColor, getKoreanName } from "../lib/utils";
 import { duration } from "../lib/homeView";
+import {
+    searchHref,
+    sectionQuery,
+    subjectQuery,
+    teacherQuery,
+} from "../lib/searchEngine";
 
 /** 연강이면 `periods` 가 둘 이상이고 `endTime` 이 마지막 교시입니다 */
 /**
@@ -175,9 +182,17 @@ const TodayTimeline: React.FC<TodayTimelineProps> = ({
             {rows.map((row) => {
                 if (row.kind === "free") {
                     const past = nowMinute !== null && nowMinute >= row.time.end_minute;
-                    // ⚠️ **공강·점심은 강조하지 않습니다.** 핑크는 "지금 뭘 하고 있다"
-                    // 는 뜻이라, 공강에 붙이면 **아무 일도 없는 자리**가 화면에서 제일
-                    // 세집니다. 지금이 어디쯤인지는 자의 캐럿이 이미 짚고 있습니다
+                    const live =
+                        nowMinute !== null &&
+                        nowMinute >= row.time.start_minute &&
+                        nowMinute < row.time.end_minute;
+                    // **공강에도 "지금" 을 붙입니다.** 한동안 안 붙였는데(핑크는 "뭘
+                    // 하고 있다" 는 뜻이니 빈 자리를 세게 만들지 말자는 것이었습니다),
+                    // 목록에는 자와 달리 **캐럿이 없어서** 공강 시간에는 어디가 지금인지
+                    // 짚어 주는 게 하나도 없었습니다.
+                    //
+                    // ⚠️ 대신 **수업 줄보다 옅게**(8% vs 12%) 칠하고 글자만 핑크로
+                    // 둡니다 — 진행 중인 수업이 화면에서 여전히 더 무거워야 합니다
                     return (
                         <li
                             key={row.key}
@@ -187,22 +202,42 @@ const TodayTimeline: React.FC<TodayTimelineProps> = ({
                             // 5교시 수업은 화면에서 같은 길이를 차지해야 합니다
                             style={{ minHeight: `${ROW_REM}rem` }}
                             className={`flex items-center gap-3 py-2 ${
-                                past ? "opacity-55" : ""
-                            } ${bleed ? "" : "px-3"}`}
+                                live
+                                    ? `border-y-2 border-retro-primary bg-retro-primary/[0.08] ${
+                                          bleed ? "-mx-5 px-5 md:-mx-6 md:px-6" : "px-3"
+                                      }`
+                                    : past
+                                      ? "opacity-55"
+                                      : ""
+                            } ${!live && !bleed ? "px-3" : ""}`}
                         >
                             {/* 수업 줄의 학과색 띠와 **자리를 맞춥니다** — 색만 없고
                                 폭은 같아야 시각 숫자가 세로로 정렬됩니다 */}
-                            <span className="-mb-2 -mt-2 w-1 shrink-0 self-stretch" />
+                            <span
+                                className="-mb-2 -mt-2 w-1 shrink-0 self-stretch"
+                                style={live ? { backgroundColor: NOW_PINK } : undefined}
+                            />
                             <span className="w-16 shrink-0 whitespace-nowrap leading-none">
-                                <span className="block text-[13px] font-black tabular-nums text-black/35">
+                                <span
+                                    className={`block text-[13px] font-black tabular-nums ${
+                                        live ? "text-black" : "text-black/35"
+                                    }`}
+                                >
                                     {row.time.start}
                                 </span>
-                                <span className="mt-1 block text-[12px] font-bold tabular-nums text-black/25">
+                                <span
+                                    className={`mt-1 block text-[12px] font-bold tabular-nums ${
+                                        live ? "text-black/45" : "text-black/25"
+                                    }`}
+                                >
                                     {row.time.period}교시
                                 </span>
                             </span>
-                            <span className="min-w-0 flex-1 text-[13px] font-black text-black/25">
-                                공강
+                            <span
+                                className="min-w-0 flex-1 text-[13px] font-black"
+                                style={{ color: live ? NOW_PINK : undefined }}
+                            >
+                                <span className={live ? "" : "text-black/25"}>공강</span>
                             </span>
 
                         </li>
@@ -290,14 +325,36 @@ const TodayTimeline: React.FC<TodayTimelineProps> = ({
                                 띠가 무슨 뜻인지 따로 설명할 필요가 없습니다.
                                 **진행 중이면 이름도 핑크**입니다 — 그 줄에서는 면·
                                 띠·글자가 한 색으로 모입니다 */}
-                            <span
-                                className="block truncate text-[15px] font-black leading-tight tracking-tight"
+                            {/* 이름·교사·분반은 **검색으로 가는 문**입니다 —
+                                여기서 궁금해지는 건 대개 "이 수업 누가 또 듣지",
+                                "이 선생님 다른 수업은" 이고, 그건 검색 화면의 일입니다.
+                                검색어는 `searchEngine` 이 자기 문법에 맞게 만듭니다 */}
+                            <Link
+                                to={searchHref(subjectQuery(item.subject))}
+                                title={`${getKoreanName(item.subject)} 검색`}
+                                className="block truncate text-[15px] font-black leading-tight tracking-tight hover:underline"
                                 style={{ color: live ? NOW_PINK : color }}
                             >
                                 {getKoreanName(item.subject)}
-                            </span>
+                            </Link>
                             <span className="mt-0.5 block truncate text-[12px] font-bold text-black/40">
-                                {item.teacher} · {item.section.replace(/[^0-9]/g, "")}분반
+                                <Link
+                                    to={searchHref(teacherQuery(item.teacher))}
+                                    title={`${item.teacher} 검색`}
+                                    className="hover:underline"
+                                >
+                                    {item.teacher}
+                                </Link>{" "}
+                                ·{" "}
+                                <Link
+                                    to={searchHref(
+                                        sectionQuery(item.subject, item.section),
+                                    )}
+                                    title={`${getKoreanName(item.subject)} ${item.section.replace(/[^0-9]/g, "")}분반 검색`}
+                                    className="hover:underline"
+                                >
+                                    {item.section.replace(/[^0-9]/g, "")}분반
+                                </Link>
                             </span>
                         </span>
 

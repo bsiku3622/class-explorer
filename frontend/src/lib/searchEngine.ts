@@ -645,3 +645,44 @@ export const searchInClient = (
         },
     };
 };
+
+// ─── 화면에서 검색으로 ────────────────────────────────────────────────────────
+
+/**
+ * 화면에 찍힌 값(과목명·교사명)을 **이 엔진이 읽을 수 있는 검색어**로 바꿉니다.
+ *
+ * ⚠️ **괄호·`+`·`&`·`/`·`!`·`:` 를 그대로 넘기면 안 됩니다.** 전부 질의 문법의 글자라,
+ * `미적분학2(EC)` 를 그대로 던지면 `(EC)` 가 논리식의 **괄호 그룹**으로 파싱되고
+ * `Cognitive Neuroscience: The…` 는 `:` 앞이 prefix 로 잘립니다.
+ *
+ * 괄호는 **지우고 안의 글자는 남깁니다** — `fuzzyMatch` 의 `normalize()` 가 검색 대상
+ * 에서도 구두점을 떼기 때문에, `미적분학2EC` 는 `미적분학2(EC)` 에만 붙고 한국어반
+ * `미적분학2` 에는 안 붙습니다. 통째로 잘라 내면 그 구분이 사라집니다.
+ */
+export const toSearchTerm = (value: string): string =>
+    value
+        .replace(/[()+&/!:]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+/** 과목 하나. 영문 병기는 떼고 검색 문법 글자만 털어 냅니다 */
+export const subjectQuery = (subject: string): string =>
+    toSearchTerm(getKoreanName(subject) || subject);
+
+/**
+ * 과목의 한 분반 — 이 엔진의 **구분자 검색**(`국어1/1`) 형식입니다.
+ * `section` 은 `제5분반`·`05` 처럼 들어오므로 숫자만 뽑습니다.
+ */
+export const sectionQuery = (subject: string, section: string): string => {
+    const number = section.replace(/[^0-9]/g, "");
+    const name = subjectQuery(subject);
+    return number ? `${name}/${number}` : name;
+};
+
+/** 교사 전용 모드 — 이름이 과목·교실과 겹쳐도 사람만 나옵니다 */
+export const teacherQuery = (teacher: string): string =>
+    `teacher:${toSearchTerm(teacher)}`;
+
+/** 검색 화면 주소. `App` 이 `?q=` 를 읽어 검색어로 넣습니다 */
+export const searchHref = (query: string): string =>
+    `/search?q=${encodeURIComponent(query)}`;
