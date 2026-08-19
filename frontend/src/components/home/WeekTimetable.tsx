@@ -298,31 +298,30 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
     const gridRef = useRef<HTMLDivElement>(null);
     const [saving, setSaving] = useState(false);
     /**
-     * PNG 를 **강조 없이** 찍을지. 시간표를 남에게 보내거나 인쇄할 때 "오늘"·"지금" 은
-     * 찍는 순간의 사정일 뿐이라, 그림에 남으면 다음 날부터 틀린 표시가 됩니다.
+     * 오늘·지금을 칠할지. **화면과 PNG 가 같은 스위치를 봅니다.**
+     *
+     * 한때 이걸 "PNG 를 강조 없이 찍기" 로만 뒀는데, 그러면 **화면에서는 확인할 방법이
+     * 없는 설정**이 됩니다 — 찍어서 열어 봐야 결과를 압니다. 화면이 곧 미리보기가
+     * 되게 하면 그 왕복이 사라지고, 찍기 직전에 상태를 바꿨다가 되돌리는 곡예
+     * (`requestAnimationFrame` 두 번)도 필요 없어집니다.
+     *
+     * 켜진 상태가 기본입니다 — 홈은 "지금" 을 말하는 화면이고, 강조를 끄는 건 시간표를
+     * 남에게 보낼 때처럼 **오늘이 뜻을 잃는 자리**에서만 하는 일입니다.
      */
-    const [plainExport, setPlainExport] = useState(false);
-    /** 찍는 **그 순간에만** 강조를 뗍니다 — 화면은 평소대로 둡니다 */
-    const [stripping, setStripping] = useState(false);
+    const [showToday, setShowToday] = useState(true);
 
     /**
-     * "오늘·지금" 을 칠할 요일. 찍는 동안에는 `null` 이라 요일 머리·열 기둥·지금 칩이
+     * "오늘·지금" 을 칠할 요일. 꺼져 있으면 `null` 이라 요일 머리·열 기둥·지금 칩이
      * 한꺼번에 조용해집니다 — 세 곳이 같은 값을 보고 있어서 한 군데만 빠지지 않습니다.
      */
-    const markDay = stripping ? null : today;
+    const markDay = showToday ? today : null;
 
     const exportPng = useCallback(async () => {
         const node = gridRef.current;
         if (!node) return;
         setSaving(true);
-        if (plainExport) {
-            setStripping(true);
-            // ⚠️ **상태를 바꾼 즉시 찍으면 강조가 그대로 담깁니다.** React 가 다시
-            // 그리고 브라우저가 칠하는 것까지 기다려야 해서 프레임을 둘 넘깁니다
-            await new Promise((resolve) =>
-                requestAnimationFrame(() => requestAnimationFrame(resolve)),
-            );
-        }
+        // 화면에 보이는 그대로 찍습니다 — 오늘·지금 강조를 뺄지는 위의 스위치가 이미
+        // 정해 놓았습니다. 찍는 순간에만 몰래 바꾸면 결과를 미리 볼 수 없습니다
         try {
             const url = await toPng(node, {
                 pixelRatio: 2,
@@ -340,9 +339,8 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
             link.click();
         } finally {
             setSaving(false);
-            setStripping(false);
         }
-    }, [home.term, planned, plainExport]);
+    }, [home.term, planned]);
 
     const total = useMemo(
         () => DAYS_ORDER.reduce((sum, day) => sum + (week[day]?.length ?? 0), 0),
@@ -374,27 +372,27 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                     <span className="text-[12px] font-bold tabular-nums text-black/35">
                         주 {total}교시
                     </span>
-                    {/* 찍기 **전에** 고르는 값이라 PNG 버튼 왼쪽에 둡니다 — 누른 뒤에
-                        물어보려면 창을 띄워야 하고, 그건 버튼 하나짜리 일에 과합니다 */}
+                    {/* 화면과 PNG 를 같이 바꾸는 스위치라 격자 머리에 둡니다 —
+                        내보내기 옵션이 아니라 **이 격자를 어떻게 볼지**의 문제입니다 */}
                     <button
                         type="button"
-                        onClick={() => setPlainExport((v) => !v)}
-                        aria-pressed={plainExport}
-                        title="오늘·지금 강조를 뺀 채로 저장합니다"
+                        onClick={() => setShowToday((v) => !v)}
+                        aria-pressed={showToday}
+                        title="오늘 열·지금 수업 강조를 켜고 끕니다 (PNG 도 보이는 그대로 찍힙니다)"
                         className="flex items-center gap-1.5 text-[11px] font-black text-black/45 transition-colors duration-100 hover:text-black"
                     >
                         {/* 네모 + 체크 — 이 화면에는 폼 요소가 없어서 브라우저 기본
                             체크박스를 쓰면 유일하게 둥근 물건이 됩니다 */}
                         <span
                             className={`flex h-3.5 w-3.5 items-center justify-center border-2 border-black ${
-                                plainExport ? "bg-black" : "bg-white"
+                                showToday ? "bg-black" : "bg-white"
                             }`}
                         >
-                            {plainExport && (
+                            {showToday && (
                                 <Check size={10} strokeWidth={4} className="text-white" />
                             )}
                         </span>
-                        강조 없이
+                        현재 요일 표시
                     </button>
                     <button
                         type="button"
