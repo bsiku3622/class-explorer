@@ -54,7 +54,7 @@
  * 칩(지금) 두 군데에 있으면 같은 색이 두 뜻을 갖습니다.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { CalendarRange, Check, Download } from "lucide-react";
 import { toPng } from "html-to-image";
@@ -83,6 +83,17 @@ import RetroSubTitle from "../atoms/RetroSubTitle";
  * 사이 어디를 잘라도 같은 답이 나옵니다 — 교시 시각표가 조금 바뀌어도 안 흔들립니다.
  */
 const GAP_MINUTES = 20;
+
+/**
+ * 고정(sticky)된 요일 머리의 배경 — **흰 바탕에 미리 섞어 둔 값**입니다.
+ *
+ * ⚠️ `bg-black/[0.03]`·`bg-retro-primary/25` 를 그대로 쓰면 안 됩니다. 97%·75% 가 비어
+ * 있어서 **아래로 흐르는 칩이 요일 글자를 통과해** 보입니다. 보이던 색을 그대로
+ * 유지하려면 같은 색을 흰색과 섞은 값을 박아야 합니다
+ * (`#f7f7f7` = 검정 3% · `#ffd3ee` = `#ff4eba` 25%).
+ */
+const HEAD_BG = "#f7f7f7";
+const HEAD_TODAY_BG = "#ffd3ee";
 
 /**
  * 점심·저녁 띠의 빗금.
@@ -296,6 +307,7 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
      * 화면 밖으로 넘어간 교시까지 다 담깁니다.
      */
     const gridRef = useRef<HTMLDivElement>(null);
+    const boxRef = useRef<HTMLDivElement>(null);
     const [saving, setSaving] = useState(false);
     /**
      * 오늘·지금을 칠할지. **화면과 PNG 가 같은 스위치를 봅니다.**
@@ -341,6 +353,26 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
             setSaving(false);
         }
     }, [home.term, planned]);
+
+    /**
+     * 폰에서는 격자가 화면보다 넓어서 **월요일부터 보입니다** — 목요일인 사람은 열
+     * 때마다 손으로 밀어야 합니다. 가로로 흐를 때만 오늘 열을 가운데로 옮겨 둡니다.
+     *
+     * ⚠️ **다 보이면 건드리지 않습니다.** 데스크톱에서 `scrollLeft` 를 만지면 아무
+     * 일도 안 일어나야 하는데, 조건 없이 쓰면 브라우저가 카드로 포커스를 옮기며
+     * 페이지가 덜컥 움직이는 경우가 있습니다.
+     */
+    useEffect(() => {
+        const box = boxRef.current;
+        if (!box || !today) return;
+        if (box.scrollWidth <= box.clientWidth) return;
+        const index = DAYS_ORDER.findIndex((d) => d === today);
+        if (index < 0) return;
+        const rail = 64; // 교시 열 4rem — 고정이라 스크롤 계산에서 빼 둡니다
+        const dayWidth = (box.scrollWidth - rail) / DAYS_ORDER.length;
+        const center = rail + dayWidth * index + dayWidth / 2;
+        box.scrollLeft = Math.max(0, center - (box.clientWidth + rail) / 2);
+    }, [today, rows.length]);
 
     const total = useMemo(
         () => DAYS_ORDER.reduce((sum, day) => sum + (week[day]?.length ?? 0), 0),
@@ -410,11 +442,27 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
             {/* 격자는 카드 **끝까지** 붙습니다 — 여백을 두면 검은 요일 머리가 카드 안의
                 또 다른 카드로 읽힙니다 (`design-guide.md` 의 "카드 안에 카드") */}
             {/* 교시가 많으면 카드가 통째로 길어져 옆 칸(오늘)과 균형이 깨집니다 —
-                격자만 제 안에서 흐르게 둡니다 */}
-            <div className="max-h-[calc(100vh-14rem)] overflow-auto">
+                격자만 제 안에서 흐르게 둡니다.
+
+                ⚠️ **가로로도 흐릅니다** — `overscroll-x-contain` 은 격자 끝에서 손가락이
+                페이지를 끌고 가지 않게 잡아 줍니다 (폰에서 좌우로 훑다 보면 뒤로가기
+                제스처가 걸립니다) */}
+            <div
+                ref={boxRef}
+                className="max-h-[calc(100vh-14rem)] overflow-auto overscroll-x-contain"
+            >
+            {/* ⚠️ **폰에서 다섯 열을 우겨넣지 않습니다.** 390px 화면에서 한 칸이 57px 이
+                되면 `5분반 · 박인숙` 이 `5분…` 으로 잘리고 과목명도 두 줄 안에 안
+                들어갑니다 — 시간표를 여는 이유(어느 교실로, 누구 수업)가 통째로
+                사라집니다. **최소 폭을 주고 가로로 흐르게** 두면 한 칸이 99px 이 되어
+                세 줄이 다 읽힙니다.
+
+                `xl` 에서 다시 푸는 건 그때 격자가 오늘 목록과 **2열로 나란히** 서면서
+                제 폭이 34rem 남짓이 되기 때문입니다 — 최소 폭을 그대로 두면 데스크톱에
+                없던 가로 스크롤이 생깁니다 */}
             <div
                 ref={gridRef}
-                className="grid bg-white"
+                className="grid min-w-[35rem] bg-white xl:min-w-0"
                 style={{ gridTemplateColumns: "4rem repeat(5, minmax(0, 1fr))" }}
             >
                 {/* ── 요일 머리 ───────────────────────────────────────
@@ -431,14 +479,15 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                     오늘(100%), 오늘 열 기둥(7%), 격자 안의 "지금"(100%). 셋 다 같은
                     것을 가리키므로(오늘 · 오늘의 지금) 뜻이 갈리지 않습니다. 네
                     번째 자리에 핑크를 쓰면 그때는 정말로 갈라집니다 */}
+                {/* 교시 열과 요일 머리가 둘 다 고정이라 **모서리도 고정**입니다.
+                    안 그러면 가로로 흘릴 때 이 칸만 따라 움직여 구멍이 생깁니다 */}
                 <div
-                    className="border-b border-black/10 bg-black/[0.03]"
-                    style={{ gridColumn: 1, gridRow: 1 }}
+                    className="sticky left-0 top-0 z-30 border-b border-black/10"
+                    style={{ gridColumn: 1, gridRow: 1, backgroundColor: HEAD_BG }}
                 />
                 {DAYS_ORDER.map((day, index) => (
                     <div
                         key={day}
-                        style={{ gridColumn: index + 2, gridRow: 1 }}
                         /* ⚠️ **오늘도 형광으로 꽉 채우지 않습니다.** 흰 바탕에 한 칸만
                            100% 핑크였더니 격자에서 제일 센 물건이 **정보가 제일 적은
                            칸**이었습니다 — 칩·자·목록과 같은 문법(옅은 채움 + 진한
@@ -447,11 +496,16 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                         /* 세로선은 **머리에도** 긋습니다 — 아래 칸에만 있으면
                            요일 칸의 오른쪽에만 선이 보여서 칸이 오른쪽으로 밀린
                            것처럼 읽힙니다 */
-                        className={`flex items-center justify-center border-b border-l border-black/10 py-2.5 text-[13px] font-black ${
-                            day === markDay
-                                ? "bg-retro-primary/25 text-retro-primary"
-                                : "bg-black/[0.03] text-black/70"
-                        }`}
+                        /* ⚠️ **고정된 칸의 배경은 불투명해야 합니다.** `bg-black/[0.03]`
+                           은 97% 가 비어 있어서, 아래로 흐르는 칩이 요일 글자를 통과해
+                           보입니다 — 같은 색을 **흰 바탕에 섞은 값**으로 박아 둡니다 */
+                        className="sticky top-0 z-20 flex items-center justify-center border-b border-l border-black/10 py-2.5 text-[13px] font-black"
+                        style={{
+                            gridColumn: index + 2,
+                            gridRow: 1,
+                            backgroundColor: day === markDay ? HEAD_TODAY_BG : HEAD_BG,
+                            color: day === markDay ? "#ff4eba" : "rgba(0,0,0,0.7)",
+                        }}
                     >
                         {DAY_MAP[day]}
                     </div>
@@ -499,7 +553,7 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                                     교시 번호·교실과 같은 하한입니다 */}
                                 <div
                                     style={{ gridColumn: 1, gridRow: row }}
-                                    className={`flex items-center justify-center text-[12px] font-black leading-none text-black/45 ${line}`}
+                                    className={`sticky left-0 z-10 flex items-center justify-center bg-white text-[12px] font-black leading-none text-black/45 ${line}`}
                                 >
                                     {slot.name}
                                 </div>
@@ -533,9 +587,12 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                                 (연강 이름과 눈높이를 맞추려던 규칙이었는데, 이름은
                                 어차피 칩 안에서 위에 붙으므로 번호는 칸을 대표하면
                                 됩니다) */}
+                            {/* 가로로 흘릴 때 **교시 번호는 자리를 지킵니다** — 목요일
+                                근처에서 오른쪽 끝까지 밀고 갔을 때 번호가 같이 사라지면
+                                지금 보는 칸이 몇 교시인지 알 방법이 없습니다 */}
                             <div
                                 style={{ gridColumn: 1, gridRow: row }}
-                                className={`flex items-center justify-center text-[12px] font-black leading-none text-black/45 ${line}`}
+                                className={`sticky left-0 z-10 flex items-center justify-center bg-white text-[12px] font-black leading-none text-black/45 ${line}`}
                             >
                                 {slot.period}교시
                             </div>
