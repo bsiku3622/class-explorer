@@ -177,9 +177,12 @@ const MealCard: React.FC<MealCardProps> = ({ meal, fill = false, bare = false })
                         </p>
                     </div>
                 ) : (
+                    /* 글자 크기는 옆 칸(홈의 `오늘 일정`, 옛 12px)과 **딱 가운데**서
+                       만납니다 — 한 행에 나란히 선 두 칸이 3px 씩 차이 나면 같은 층의
+                       정보인데 무게가 달라 보입니다 */
                     <ul className="space-y-1">
                         {items.map((item) => (
-                            <li key={item} className="text-[15px] font-bold leading-snug">
+                            <li key={item} className="text-[13.5px] font-bold leading-snug">
                                 {item}
                             </li>
                         ))}

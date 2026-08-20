@@ -185,7 +185,9 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                         {/* `font-black` + `tracking-wide` 로 두니 11px 인데도 제목과
                             경쟁했습니다 — 이 줄은 **언제인지만** 알려 주면 됩니다 */}
                         <span className="flex min-w-0 items-baseline gap-2">
-                            <span className="truncate text-[12px] font-bold text-black/45">
+                            {/* 아래 `창5702 · 정현우 · 1분반` 줄과 **같은 글씨**입니다 —
+                                히어로 안에서 부연은 한 크기로 통일합니다 */}
+                            <span className="truncate text-[13px] font-bold text-black/45">
                                 {dateLabel(now.date)}
                             </span>
                             {/* 계획을 보는 중이라는 말은 **날짜 옆**에 붙습니다 —
@@ -341,7 +343,10 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                                         className={`w-1 shrink-0 ${CATEGORY_STYLE[event.category].dot}`}
                                     />
                                     <span className="min-w-0 flex-1">
-                                        <span className="block truncate text-[12px] font-black">
+                                        {/* 급식 메뉴(옛 15px)와 **딱 가운데**서 만납니다.
+                                            한 행에 나란히 선 두 칸이 3px 씩 차이 나면
+                                            같은 층의 정보인데 무게가 달라 보입니다 */}
+                                        <span className="block truncate text-[13.5px] font-black">
                                             {event.title}
                                         </span>
                                         {timeLabel(event) && (

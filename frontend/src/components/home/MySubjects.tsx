@@ -2,137 +2,125 @@
  * 이 학기에 듣는 **과목 목록** — 홈의 맨 아래.
  *
  * 위의 격자(`WeekTimetable`)가 "언제" 를 묻는 물건이라면 여기는 **"무엇을"** 입니다.
- * 같은 과목이 요일마다 흩어져 있는 격자에서는 몇 과목인지·몇 학점인지 세려면 눈으로
- * 훑어야 하는데, 그건 목록이 훨씬 잘하는 일입니다.
  *
- * ```
- * ┌ Subjects ───────────────────── 12과목 · 26학점 ┐
- * │ ▸ ▍세계사의이해        5분반 · 박인숙    3학점  │
- * │ ▾ ▍미적분학2           1분반 · 김정은    4학점  │
- * │      형3205 · 월 5–6교시 · 목 3교시             │
- * └────────────────────────────────────────────────┘
- * ```
+ * ⚠️ **화면을 새로 만들지 않았습니다.** 검색에서 자기 이름을 찾았을 때 나오는 그
+ * 아코디언(`SubjectAccordionItem`)을 **그대로** 씁니다 — 같은 것을 두 벌 만들면 한쪽만
+ * 고쳐 놓고 잊습니다. 그래서 이 파일이 하는 일은 딱 하나, **내가 듣는 분반만 남긴
+ * `SubjectData` 를 만들어 넘기는 것**입니다.
  *
- * **줄마다 테두리를 두르지 않습니다** — 카드 안에 카드가 열두 개 든 꼴이 되고, 그건
- * 오늘 목록에서 이미 한 번 실패한 길입니다 (`design-guide.md`). 나누는 건 `black/10`
- * 구분선이고, 색은 왼쪽 학과색 띠 하나뿐입니다.
+ * 검색 화면과 같은 조건으로 넘깁니다.
  *
- * ⚠️ **접힌 줄에도 분반·교사가 보입니다.** 펼쳐야 알 수 있게 두면 "내가 몇 분반이지"
- * 를 확인하려고 열두 줄을 다 열게 됩니다 — 펼침은 **교실과 시간**을 위한 자리입니다.
+ * | prop | 값 | 왜 |
+ * |---|---|---|
+ * | `searchMode` | `"student"` | 학생 한 명을 본 결과라는 뜻 |
+ * | `isSingleStudentSearch` | `true` | 머리의 칩이 `SECTION 5` 로 바뀝니다 |
+ * | `searchTerm` | 내 학번 | 명단에서 **내 배지만** 살아납니다 |
+ *
+ * ⚠️ `searchTerm` 을 비우면 안 됩니다 — `hasStudentInSearch` 가 켜진 채로 맞는 사람이
+ * 하나도 없어서 **명단 전체가 회색**이 됩니다.
  */
 
 import React, { useMemo, useState } from "react";
-import { BookMarked, ChevronDown } from "lucide-react";
+import type { SubjectData } from "../../types";
 import type { TodayClass } from "../../lib/friendsApi";
-import { collectSubjects, periodLabel } from "../../lib/homeView";
-import { DAY_MAP, getDepartmentColor, getKoreanName } from "../../lib/utils";
-import RetroCard from "../atoms/RetroCard";
+import { DAYS_ORDER } from "../../lib/utils";
 import RetroSubTitle from "../atoms/RetroSubTitle";
+import { BookMarked } from "lucide-react";
+import SubjectAccordionItem from "../SubjectAccordionItem";
 
 interface MySubjectsProps {
     /** 주간 시간표. **계획을 보는 중이면 계획의 과목이 옵니다** */
     week: Record<string, TodayClass[]>;
-    /** 과목명 → 학점. 교육과정에 없는 과목(외국인 전형 등)은 `null` */
-    credits: Map<string, number | null>;
+    allClassesData: SubjectData[];
+    myStuId: string | null;
+    /** 아래는 전부 `SubjectAccordionItem` 이 요구하는 것들 (`App.tsx` 가 들고 있습니다) */
+    studentSubjectMap: Record<string, string[]>;
+    teacherSubjectMap: Record<string, Record<string, string[]>>;
+    selectedYears: string[];
+    isModifierPressed: boolean;
+    handleSearchToggle: (value: string, isTeacher?: boolean, isRoom?: boolean) => void;
 }
 
-const MySubjects: React.FC<MySubjectsProps> = ({ week, credits }) => {
-    const subjects = useMemo(() => collectSubjects(week), [week]);
-    const [open, setOpen] = useState<string | null>(null);
+const MySubjects: React.FC<MySubjectsProps> = ({
+    week,
+    allClassesData,
+    myStuId,
+    studentSubjectMap,
+    teacherSubjectMap,
+    selectedYears,
+    isModifierPressed,
+    handleSearchToggle,
+}) => {
+    const [open, setOpen] = useState<string[]>([]);
 
     /**
-     * 학점 합계. **학점을 모르는 과목이 있으면 `+` 를 붙입니다** — 모르는 걸 0으로
-     * 세고 조용히 더하면 합계가 틀린 채로 확신에 차 보입니다.
+     * 내가 듣는 분반만 남긴 과목들.
+     *
+     * 시간표(`week`)가 기준이라 **계획을 보는 중이면 계획의 과목**이 그대로 따라옵니다 —
+     * 여기서 트레이드를 따로 알 필요가 없습니다. 학점·명단 같은 나머지 정보는
+     * `allClassesData` 에서 찾아 붙입니다.
      */
-    const total = useMemo(() => {
-        let sum = 0;
-        let unknown = false;
-        subjects.forEach((s) => {
-            const credit = credits.get(s.subject);
-            if (credit == null) unknown = true;
-            else sum += credit;
+    const subjects = useMemo(() => {
+        const mine = new Map<string, Set<string>>();
+        DAYS_ORDER.forEach((day) => {
+            (week[day] ?? []).forEach((klass) => {
+                const sections = mine.get(klass.subject) ?? new Set<string>();
+                sections.add(klass.section);
+                mine.set(klass.subject, sections);
+            });
         });
-        return { sum, unknown };
-    }, [subjects, credits]);
+
+        return allClassesData
+            .filter((subject) => mine.has(subject.subject))
+            .map((subject) => {
+                const wanted = mine.get(subject.subject)!;
+                return {
+                    ...subject,
+                    sections: subject.sections.filter((s) => wanted.has(s.section)),
+                };
+            })
+            .filter((subject) => subject.sections.length > 0)
+            .sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
+    }, [week, allClassesData]);
 
     if (subjects.length === 0) return null;
 
     return (
-        <RetroCard className="overflow-hidden bg-white">
-            <div className="flex items-baseline justify-between gap-3 px-4 py-3 md:px-5">
+        <div className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-3">
                 <RetroSubTitle title="Subjects" icon={BookMarked} iconSize={15} />
                 <span className="shrink-0 text-[12px] font-bold tabular-nums text-black/35">
-                    {subjects.length}과목 · {total.sum}
-                    {total.unknown ? "+" : ""}학점
+                    {subjects.length}과목
                 </span>
             </div>
 
-            <ul className="divide-y divide-black/10 border-t border-black/10">
-                {subjects.map((item) => {
-                    const key = `${item.subject}-${item.section}`;
-                    const isOpen = open === key;
-                    const color = getDepartmentColor(item.department);
-                    const credit = credits.get(item.subject);
-                    return (
-                        <li key={key}>
-                            <button
-                                type="button"
-                                onClick={() => setOpen(isOpen ? null : key)}
-                                aria-expanded={isOpen}
-                                className="flex w-full items-center gap-3 py-3 pr-4 text-left transition-colors duration-100 hover:bg-retro-accent-light md:pr-5"
-                            >
-                                {/* 학과색 띠 — 자·목록·격자와 같은 색이라 같은 과목이
-                                    네 자리에서 같은 색으로 보입니다 */}
-                                <span
-                                    className="-my-3 w-1 shrink-0 self-stretch"
-                                    style={{ backgroundColor: color }}
-                                />
-                                <span className="min-w-0 flex-1">
-                                    <span
-                                        className="block truncate text-[15px] font-black leading-tight tracking-tight"
-                                        style={{ color }}
-                                    >
-                                        {getKoreanName(item.subject)}
-                                    </span>
-                                    <span className="mt-0.5 block truncate text-[12px] font-bold text-black/40">
-                                        {item.section.replace(/[^0-9]/g, "")}분반 ·{" "}
-                                        {item.teacher}
-                                    </span>
-                                </span>
-                                <span className="shrink-0 text-[12px] font-bold tabular-nums text-black/35">
-                                    {credit == null ? "—" : `${credit}학점`}
-                                </span>
-                                <ChevronDown
-                                    size={16}
-                                    strokeWidth={3}
-                                    className={`shrink-0 text-black/30 transition-transform duration-100 ${
-                                        isOpen ? "rotate-180" : ""
-                                    }`}
-                                />
-                            </button>
-
-                            {isOpen && (
-                                /* 펼친 자리는 **교실과 시간**입니다. 왼쪽 여백을 띠
-                                   너비만큼 맞춰서 접힌 줄의 글자와 세로로 이어집니다 */
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pb-3 pl-4 pr-4 text-[12px] font-bold text-black/45 md:pr-5">
-                                    <span className="font-black text-black">
-                                        {item.rooms.join(" · ") || "배정중"}
-                                    </span>
-                                    {item.times.map((slot) => (
-                                        <span key={slot.day} className="tabular-nums">
-                                            {DAY_MAP[slot.day]} {periodLabel(slot.periods)}
-                                        </span>
-                                    ))}
-                                    <span className="tabular-nums text-black/30">
-                                        주 {item.periodCount}교시
-                                    </span>
-                                </div>
-                            )}
-                        </li>
-                    );
-                })}
-            </ul>
-        </RetroCard>
+            <div>
+                {subjects.map((subject) => (
+                    <SubjectAccordionItem
+                        key={subject.subject}
+                        subject={subject}
+                        // 내 배지만 살아나게 하는 값입니다 (파일 머리의 ⚠️ 참고)
+                        searchTerm={myStuId ?? ""}
+                        handleSearchToggle={handleSearchToggle}
+                        studentSubjectMap={studentSubjectMap}
+                        teacherSubjectMap={teacherSubjectMap}
+                        isModifierPressed={isModifierPressed}
+                        hasStudentInSearch={Boolean(myStuId)}
+                        selectedYears={selectedYears}
+                        searchMode="student"
+                        isOpen={open.includes(subject.subject)}
+                        onToggle={() =>
+                            setOpen((prev) =>
+                                prev.includes(subject.subject)
+                                    ? prev.filter((s) => s !== subject.subject)
+                                    : [...prev, subject.subject],
+                            )
+                        }
+                        isSingleStudentSearch
+                    />
+                ))}
+            </div>
+        </div>
     );
 };
 
