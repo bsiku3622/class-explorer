@@ -1,3 +1,11 @@
+/**
+ * 학번 배지 — `25 이름`.
+ *
+ * ⚠️ **호버 효과를 두지 않습니다.** 배지는 늘어놓고 **읽는 물건**이라, 마우스가 지나가는
+ * 자리마다 반응하면 정작 움직여야 할 것(검색어와 맞는 배지의 진동)이 묻힙니다.
+ * 누를 때 눌리는 느낌(`active:scale-95`)만 남깁니다.
+ */
+
 import React from "react";
 import { getStudentColor } from "../../lib/utils";
 
@@ -30,7 +38,7 @@ const StudentBadge: React.FC<StudentBadgeProps> = ({
     return (
         <div
             className={`flex items-center gap-2 border-2 font-black italic shadow-[2px_2px_0_0_rgba(0,0,0,0.05)] transition-all ${
-                isClickable ? "cursor-pointer hover:scale-105 active:scale-95" : "cursor-default"
+                isClickable ? "cursor-pointer active:scale-95" : "cursor-default"
             } ${sizeClasses[size]} ${className}`}
             style={{
                 backgroundColor: `${color}15`,
