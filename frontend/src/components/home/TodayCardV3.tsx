@@ -83,6 +83,7 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
     const {
         isSchoolDay,
         livePeriod,
+        inBreak,
         current,
         currentPeriods,
         next,
@@ -144,16 +145,22 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
         return () => cancelAnimationFrame(frame);
     }, [focusPeriod, hasTimetable, today]);
 
-    /** 큰 글씨 한 줄 — 수업 중이면 과목명, 아니면 지금이 무슨 상태인지 */
+    /**
+     * 큰 글씨 한 줄 — 수업 중이면 과목명, 아니면 지금이 무슨 상태인지.
+     *
+     * ⚠️ **공강과 쉬는시간을 가릅니다.** 공강은 수업이 아예 없는 교시, 쉬는시간은
+     * 수업과 수업 사이 10분입니다. 연강 사이라면 `current` 가 살아 있어서 여기까지
+     * 오지도 않습니다 — 그 10분은 수업이 끝난 게 아니니까요 (`homeView.ts`).
+     */
     const headline = current
         ? getKoreanName(current.subject)
         : !isSchoolDay
           ? (session.off_label ?? "휴일")
           : today.length === 0
             ? "수업 없는 날"
-            : next
-              ? "공강"
-              : "일과 종료";
+            : !next
+              ? "일과 종료"
+              : (now.break_name ?? (inBreak ? "쉬는시간" : "공강"));
 
     return (
         <div className="flex flex-col gap-4 md:gap-5">
