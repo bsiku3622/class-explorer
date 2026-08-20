@@ -625,9 +625,12 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                 })}
 
                 {/* ── 수업 ─────────────────────────────────────────
-                    바탕 **뒤에** 그려서 그 위에 얹힙니다. `m-px` 로 1px 씩 물러나
+                    바탕 **뒤에** 그려서 그 위에 얹힙니다. 사방으로 1px 씩 물러나
                     붙어 있는 칩끼리 테두리가 겹쳐 4px 로 뭉치지 않게 합니다 — 그
-                    틈이 곧 쉬는시간입니다 */}
+                    틈이 곧 쉬는시간입니다.
+
+                    ⚠️ 물러나는 **숫자**는 변마다 다릅니다(아래 `atTop` 주석) —
+                    격자선이 칸 안쪽에 그려지는 쪽은 1px 을 더 줘야 흰 틈이 같아집니다 */}
                 {blocks.map((block) => {
                     const now =
                         block.day === markDay &&
@@ -635,6 +638,19 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                         livePeriod >= block.period &&
                         livePeriod < block.period + block.span;
                     const color = getDepartmentColor(block.klass.department);
+                    /**
+                     * ⚠️ **여백이 사방으로 같아 보이게 하려면 숫자를 다르게 줘야 합니다.**
+                     *
+                     * 격자선은 칸의 **위·왼쪽 안쪽**에 그려집니다(`border-t`·`border-l`).
+                     * 그래서 사방에 `m-px` 를 주면 선이 있는 쪽은 그 1px 을 선이 다 먹어
+                     * **칩이 선에 딱 붙고**, 반대쪽만 흰 틈이 남습니다 — 한쪽에만 갭이
+                     * 있는 것처럼 보이는 게 이것 때문이었습니다.
+                     *
+                     * 선이 있는 쪽만 1px 더 밀면 **네 변 모두 흰 틈이 1px** 이 됩니다.
+                     * 첫 줄은 예외입니다 — 그 위의 선은 요일 머리의 `border-b` 라 칸
+                     * 안쪽이 아니어서, 더 밀면 혼자 2px 이 됩니다.
+                     */
+                    const atTop = rowOf.get(block.period) === 2;
                     return (
                         <div
                             key={`${block.day}-${block.period}`}
@@ -653,9 +669,13 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                                     ? "rgba(255, 78, 186, 0.22)"
                                     : withAlpha(color, 0.08),
                                 borderColor: now ? "#ff4eba" : color,
+                                marginTop: atTop ? 1 : 2,
+                                marginLeft: 2,
+                                marginRight: 1,
+                                marginBottom: 1,
                             }}
                             title={`${getKoreanName(block.klass.subject)} · ${block.klass.room} · ${block.klass.teacher}`}
-                            className="m-px flex min-w-0 flex-col gap-0.5 overflow-hidden border-2 px-2 py-1.5"
+                            className="flex min-w-0 flex-col gap-0.5 overflow-hidden border-2 px-2 py-1.5"
                         >
                             {/* 두 줄까지 폅니다 — 한 줄로 자르면 `일반지구과학` 이
                                 `일반지구…` 가 되어 무슨 과목인지 알 수 없습니다 */}
