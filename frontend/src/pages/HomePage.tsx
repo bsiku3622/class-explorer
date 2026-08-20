@@ -2,7 +2,26 @@
  * 홈 — "지금 뭘 해야 하는가" 한 화면.
  *
  * 켜자마자 보이는 자리라 **한 요청(`GET /home`)으로 다 받습니다.** 여러 번 물어보면
- * 화면이 조각조각 채워지는 게 그대로 보입니다. (급식만 예외 — `MealCard` 참고)
+ * 화면이 조각조각 채워지는 게 그대로 보입니다. (급식 메뉴만 예외 — `MealCard` 참고)
+ *
+ * ## 그리고 그 한 번으로 끝입니다
+ *
+ * **주기적으로 다시 받지 않습니다.** 화면에서 움직이는 값(지금 몇 교시·남은 시간·다음
+ * 수업)은 전부 **받아 둔 교시 시각표와 시간표에서 계산**됩니다 — `lib/homeView.ts` 가
+ * `liveMinute` 하나로 다 셉니다. 서버는 그걸 한 번 더 계산해 줄 뿐이라 물어볼 이유가
+ * 없고, 실제로 응답의 `now.period`·`current`·`next` 는 화면이 쓰지도 않습니다.
+ *
+ * 다시 받는 건 **정말 필요한 세 자리**뿐입니다.
+ *
+ * | 언제 | 왜 |
+ * |---|---|
+ * | 깨어났을 때 (`visibilitychange`·`online`) | 덮어 둔 사이 일정·급식이 바뀌었을 수 있습니다 |
+ * | 날짜가 넘어갔을 때 | 시간표·급식·학사일정이 통째로 어제 것이 됩니다 |
+ * | 사용자가 `다시 시도` 를 눌렀을 때 | 못 받았다고 알린 뒤의 되돌리기 |
+ *
+ * ⚠️ 1분마다 받던 시절에는 **노트북을 덮었다 열 때마다 오류 카드**가 떴습니다 — 깨어난
+ * 직후 네트워크가 붙기 전에 주기 요청이 실패했기 때문입니다. 주기 요청을 없앤 지금도
+ * 실패는 화면을 지우지 않고 한 줄로만 알립니다.
  *
  * 이 파일은 **껍데기**입니다 — 받아 오고, 시계를 굴리고, 어느 배치를 그릴지만
  * 정합니다. 실제 화면은 두 판본이 있고 비교하려고 둘 다 남겨 뒀습니다.
@@ -92,6 +111,13 @@ type View = "current" | "trade";
  */
 const VIEW_KEY = "ksa_home_view";
 
+/** 자정 기준 분 — 시계는 이 기기 것으로 굴립니다 */
+const minuteOfDay = (d: Date) => d.getHours() * 60 + d.getMinutes();
+
+/** `2026-08-20` — 날짜가 넘어갔는지 보는 데만 씁니다 */
+const dateKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
 const loadSavedView = (): View => {
     try {
         return localStorage.getItem(VIEW_KEY) === "trade" ? "trade" : "current";
@@ -170,12 +196,6 @@ const HomePage: React.FC<HomePageProps> = ({
         void reload();
     }, [reload]);
 
-    // 1분마다 다시 받습니다 — "지금 몇 교시" 가 화면에 떠 있는 값이라 멈춰 있으면 틀립니다
-    useEffect(() => {
-        const timer = setInterval(() => void reload(), 60_000);
-        return () => clearInterval(timer);
-    }, [reload]);
-
     /**
      * **깨어나면 곧바로 다시 받습니다.** 덮어 둔 동안 타이머는 멈춰 있어서, 열자마자
      * 보이는 건 잠들기 전의 시간표입니다 — 다음 주기(최대 1분)까지 기다리면 "지금"
@@ -193,8 +213,10 @@ const HomePage: React.FC<HomePageProps> = ({
         };
     }, [reload]);
 
-    // 요청 사이에도 시계는 움직여야 합니다. 응답을 기다리는 동안 멈춰 보이면
-    // 화면이 죽은 것처럼 읽힙니다
+    /**
+     * **화면을 굴리는 건 이 시계 하나입니다.** 교시가 넘어가는 것도, 남은 시간이
+     * 줄어드는 것도 전부 여기서 다시 그려집니다 — 서버에 다시 물을 일이 아닙니다.
+     */
     useEffect(() => {
         const timer = setInterval(() => setNowMs(Date.now()), 15_000);
         return () => clearInterval(timer);
@@ -241,12 +263,35 @@ const HomePage: React.FC<HomePageProps> = ({
         }
     }, []);
 
-    /** 지금(자정 기준 분). 서버 시계가 기준이고 그 뒤로 흐른 시간만 더합니다 */
+    /**
+     * 지금(자정 기준 분).
+     *
+     * **서버 시계와 이 기기 시계의 차이를 받은 순간에 한 번 재 두고, 그 뒤로는 기기
+     * 시계로만 굴립니다.** 기준은 여전히 서버지만 1분마다 물어볼 이유가 없습니다.
+     *
+     * ⚠️ 예전에는 `서버 분 + 흐른 시간` 을 `1439` 로 잘랐습니다. 노트북을 덮어 두면
+     * 흐른 시간이 몇 시간씩 되는데, 그러면 시계가 **23:59 에 붙어 버립니다.** 기기
+     * 시계에서 다시 세면 자정을 넘겨도 자연스럽게 맞습니다.
+     */
     const liveMinute = useMemo(() => {
         if (!state || !home) return null;
-        const elapsed = Math.max(0, Math.floor((nowMs - state.at) / 60_000));
-        return Math.min(1439, home.now.minute + elapsed);
+        const offset = home.now.minute - minuteOfDay(new Date(state.at));
+        return (((minuteOfDay(new Date(nowMs)) + offset) % 1440) + 1440) % 1440;
     }, [state, home, nowMs]);
+
+    /**
+     * **날짜가 넘어가면 그때 한 번 다시 받습니다.** 시간표·급식·학사일정은 날짜에
+     * 매인 값이라, 탭을 밤새 열어 두면 어제 것이 그대로 남습니다.
+     *
+     * ⚠️ 기기 날짜가 어긋난 사람에게 매 초 요청이 나가지 않게, 마지막으로 받은 지
+     * 1분은 지났을 때만 부릅니다.
+     */
+    useEffect(() => {
+        if (!state || !home) return;
+        if (dateKey(new Date(nowMs)) === home.now.date) return;
+        if (nowMs - state.at < 60_000) return;
+        void reload();
+    }, [nowMs, state, home, reload]);
 
     const quip = useMemo(() => {
         const reason = home?.session.off_reason;

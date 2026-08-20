@@ -68,7 +68,11 @@ interface MealCardProps {
 
 const MealCard: React.FC<MealCardProps> = ({ meal, fill = false, bare = false }) => {
     const [offset, setOffset] = useState(0);
-    const [menu, setMenu] = useState<MealMenu | null>(null);
+    /** 받아 둔 메뉴와 **그게 어느 날 것인지**. 날짜를 같이 들어야 실패했을 때 남길지
+     *  버릴지 가릅니다 */
+    const [menu, setMenu] = useState<{ date: string; data: MealMenu | null } | null>(
+        null,
+    );
     const [loading, setLoading] = useState(true);
     // 지금 시간대의 끼니로 열어 둡니다. 식사 시간이 아니면 점심 — 가장 자주 찾습니다
     const [slot, setSlot] = useState<MealSlot>(meal.slot ?? "lunch");
@@ -85,8 +89,14 @@ const MealCard: React.FC<MealCardProps> = ({ meal, fill = false, bare = false })
     useEffect(() => {
         let alive = true;
         fetchMeal(iso)
-            .then((res) => alive && setMenu(res.menu))
-            .catch(() => alive && setMenu(null))
+            .then((res) => alive && setMenu({ date: iso, data: res.menu }))
+            .catch(() => {
+                // ⚠️ **같은 날을 다시 받다 실패한 거면 있던 메뉴를 그대로 둡니다** —
+                // 깨어난 직후처럼 한 번 실패했다고 읽고 있던 급식이 `No Data Found` 로
+                // 바뀔 이유가 없습니다. 다른 날짜를 받다 실패한 거면 보여 줄 게 없으니
+                // 비웁니다 (어제 메뉴를 오늘 것처럼 두면 그게 더 나쁩니다)
+                if (alive) setMenu((prev) => (prev?.date === iso ? prev : null));
+            })
             .finally(() => alive && setLoading(false));
         return () => {
             alive = false;
@@ -102,7 +112,7 @@ const MealCard: React.FC<MealCardProps> = ({ meal, fill = false, bare = false })
                 ? "내일"
                 : `${date.getMonth() + 1}월 ${date.getDate()}일`;
 
-    const items = menu?.[slot] ?? [];
+    const items = menu?.data?.[slot] ?? [];
 
     // ⚠️ `fill` 없이 `h-full` 을 걸면 안 됩니다 — grid item 이라 100% 가 **행 높이**
     // 로 풀려서, 아래에 따로 놓았을 때 옆 카드만큼 늘어나 아래가 빈 상자가 됩니다
