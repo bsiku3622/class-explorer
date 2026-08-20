@@ -544,7 +544,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
             <div className="flex flex-col gap-6 pb-20">
                 <PageHeader
                     title="Trade"
-                    subtitle="수강 변경 탐색"
+                    subtitle="Course Change"
                     icon={ArrowLeftRight}
                 />
                 <RetroCard className="bg-white p-8 text-center">
@@ -563,7 +563,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
         <div className="flex flex-col gap-4 md:gap-6 pb-20">
             <PageHeader
                 title="Trade"
-                subtitle="수강 변경 탐색"
+                subtitle="Course Change"
                 icon={ArrowLeftRight}
                 action={
                     stuId ? (

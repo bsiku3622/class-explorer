@@ -413,7 +413,7 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
     if (loadError) {
         return (
             <div className="flex flex-col gap-6 pb-20">
-                <PageHeader title="Zamong" subtitle="교육과정 이수 현황" icon={GraduationCap} />
+                <PageHeader title="Zamong" subtitle="Curriculum Progress" icon={GraduationCap} />
                 <RetroCard className="bg-white p-8 text-center">
                     <p className="font-black uppercase tracking-widest text-black/40">{loadError}</p>
                 </RetroCard>
@@ -428,7 +428,7 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
         <div className="flex flex-col gap-3 pb-20 md:gap-4">
             <PageHeader
                 title="Zamong"
-                subtitle="교육과정 이수 현황"
+                subtitle="Curriculum Progress"
                 icon={GraduationCap}
                 action={
                     stuId && (

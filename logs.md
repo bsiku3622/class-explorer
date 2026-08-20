@@ -1,3 +1,29 @@
+## 2026-08-20 — 제목을 전부 영어로 · 오늘 일정과 급식의 굵기 통일
+
+- 변경 파일: `frontend/src/components/home/{TodayCardV3,TodayCardV2}.tsx`,
+  `frontend/src/components/DeviceSessions.tsx`,
+  `frontend/src/pages/{CalendarPage,ZamongPage,TradePage,RoomsPage}.tsx`
+- 요약: 화면에 남아 있던 한글 제목을 영어로 맞추고, 오늘 일정 항목의 굵기를 급식과
+  같은 `font-bold` 로 내렸습니다
+
+**제목만 영어입니다.** 본문·버튼·안내 문구는 한국어 그대로고, 바꾼 건 섹션 소제목
+(`RetroSubTitle`)과 페이지 제목·부제(`PageHeader`)뿐입니다. `오늘 일정` 옆에 `MEAL` 이
+서 있는 식으로 섞여 있으면 그것만으로 어수선해 보입니다.
+
+| 전 | 후 |
+|---|---|
+| `오늘 일정` | `Events` |
+| `로그인한 기기` | `Devices` |
+| 학사일정 / 부제 `Calendar` | `Calendar` / 부제 `Schedule` (제목·부제가 뒤집혀 있었습니다) |
+| 부제 `교육과정 이수 현황` | `Curriculum Progress` |
+| 부제 `수강 변경 탐색` | `Course Change` |
+| 부제 `형설관` | `Hyung-seol Hall` |
+
+**굵기는 700 으로 모았습니다.** 오늘 일정이 900, 급식이 700 이었는데 크기를 맞춘 뒤에도
+한쪽만 굵어서 여전히 무게가 달랐습니다. 900 쪽으로 올리지 않은 건 급식이 예닐곱 줄짜리
+목록이라 통째로 900 이면 그 칸이 화면에서 제일 무거워지기 때문입니다 — 목록의 기본값을
+따릅니다.
+
 ## 2026-08-20 — 홈 과목 목록을 검색 아코디언으로 교체 · 시간표 머리 겹침 · 글자 크기
 
 - 변경 파일: `frontend/src/components/home/{MySubjects,WeekTimetable,TodayCardV3}.tsx`,

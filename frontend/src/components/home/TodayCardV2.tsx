@@ -172,7 +172,7 @@ const TodayCardV2: React.FC<TodayCardV2Props> = ({ home, liveMinute, quip }) => 
                     끼우면 높이 제약이 안 내려가서 `overflow-y-auto` 가 무시되고 목록이
                     카드 밖으로 흘러넘칩니다 */}
                 <div className="mt-4 flex min-h-0 flex-1 flex-col border-t-2 border-black/10 pt-3">
-                    <RetroSubTitle title="오늘 일정" icon={CalendarDays} iconSize={14} />
+                    <RetroSubTitle title="Events" icon={CalendarDays} iconSize={14} />
                     {events.length === 0 ? (
                         <p className="mt-2 text-[12px] font-bold text-black/30">
                             등록된 일정이 없습니다

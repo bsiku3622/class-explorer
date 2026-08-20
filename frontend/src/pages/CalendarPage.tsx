@@ -202,8 +202,8 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId }) => {
     return (
         <div className="space-y-6 md:pr-12">
             <PageHeader
-                title="학사일정"
-                subtitle="Calendar"
+                title="Calendar"
+                subtitle="Schedule"
                 icon={CalendarDays}
                 action={
                     <div className="flex items-center gap-2">
