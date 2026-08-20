@@ -385,13 +385,18 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
 
     return (
         <RetroCard className="overflow-hidden bg-white">
-            <div className="flex items-baseline justify-between gap-3 px-4 py-3 md:px-5">
+            {/* ⚠️ **줄바꿈을 허용합니다.** 제목·`계획` 표식·주 교시 수·체크박스·PNG 까지
+                다섯 덩어리라, 폰(390px)에서 한 줄에 밀어 넣으면 380px 을 넘겨 **글자끼리
+                겹칩니다.** 오른쪽 뭉치를 통째로 아랫줄로 내려보내면 둘 다 온전합니다 */}
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 md:px-5">
                 <span className="flex min-w-0 items-center gap-2">
-                    <RetroSubTitle
-                        title="Timetable"
-                        icon={CalendarRange}
-                        iconSize={15}
-                    />
+                    <span className="min-w-0 truncate">
+                        <RetroSubTitle
+                            title="Timetable"
+                            icon={CalendarRange}
+                            iconSize={15}
+                        />
+                    </span>
                     {/* 격자만 따로 보거나 PNG 로 찍는 자리라, 계획이라는 말이 여기에도
                         있어야 합니다 — 위 히어로의 표식은 잘라 낸 그림에 안 담깁니다 */}
                     {planned && (
@@ -400,7 +405,7 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                         </span>
                     )}
                 </span>
-                <span className="flex shrink-0 items-center gap-2">
+                <span className="ml-auto flex shrink-0 items-center gap-2">
                     <span className="text-[12px] font-bold tabular-nums text-black/35">
                         주 {total}교시
                     </span>

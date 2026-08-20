@@ -527,6 +527,11 @@ const App: React.FC = () => {
                                         term={term}
                                         allClassesData={allClassesData}
                                         myStuId={currentUser?.stu_id ?? null}
+                                        studentSubjectMap={studentSubjectMap}
+                                        teacherSubjectMap={teacherSubjectMap}
+                                        selectedYears={selectedYears}
+                                        isModifierPressed={isModifierPressed}
+                                        handleSearchToggle={handleSearchToggle}
                                     />
                                 }
                             />

@@ -102,12 +102,30 @@ const loadSavedView = (): View => {
 
 interface HomePageProps {
     term: Term | null;
-    /** 계획 시간표를 짜는 데 씁니다 — 홈은 이걸로 계산만 하고 검색하지 않습니다 */
+    /** 계획 시간표를 짜고, 맨 아래 과목 아코디언을 채우는 데 씁니다 */
     allClassesData: SubjectData[];
     myStuId: string | null;
+    /**
+     * 아래 넷은 **맨 아래 과목 아코디언이 검색 화면과 같은 물건**이라 필요합니다
+     * (`components/home/MySubjects.tsx`). 홈이 쓰는 값은 아니고 그대로 넘깁니다.
+     */
+    studentSubjectMap: Record<string, string[]>;
+    teacherSubjectMap: Record<string, Record<string, string[]>>;
+    selectedYears: string[];
+    isModifierPressed: boolean;
+    handleSearchToggle: (value: string, isTeacher?: boolean, isRoom?: boolean) => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ term, allClassesData, myStuId }) => {
+const HomePage: React.FC<HomePageProps> = ({
+    term,
+    allClassesData,
+    myStuId,
+    studentSubjectMap,
+    teacherSubjectMap,
+    selectedYears,
+    isModifierPressed,
+    handleSearchToggle,
+}) => {
     /** 응답과 **받은 시각**을 같이 듭니다 — 그 뒤로 흐른 시간을 더해 시계를 굴립니다 */
     const [state, setState] = useState<{ home: HomeData; at: number } | null>(null);
     const [loading, setLoading] = useState(true);
@@ -159,13 +177,6 @@ const HomePage: React.FC<HomePageProps> = ({ term, allClassesData, myStuId }) =>
 
     const departments = useMemo(
         () => buildDepartmentMap(allClassesData),
-        [allClassesData],
-    );
-
-    /** 과목 목록이 학점을 적는 데 씁니다 — 교육과정에 없는 과목은 `null` 로 옵니다 */
-    const credits = useMemo(
-        () =>
-            new Map(allClassesData.map((s) => [s.subject, s.credits ?? null])),
         [allClassesData],
     );
 
@@ -392,7 +403,16 @@ const HomePage: React.FC<HomePageProps> = ({ term, allClassesData, myStuId }) =>
 
             {/* 맨 아래 — "언제" 를 다 본 다음의 **"무엇을"** 입니다. 격자 위로 올리면
                 하루·한 주를 보러 온 사람이 목록부터 지나가게 됩니다 */}
-            <MySubjects week={home.week ?? {}} credits={credits} />
+            <MySubjects
+                week={home.week ?? {}}
+                allClassesData={allClassesData}
+                myStuId={myStuId}
+                studentSubjectMap={studentSubjectMap}
+                teacherSubjectMap={teacherSubjectMap}
+                selectedYears={selectedYears}
+                isModifierPressed={isModifierPressed}
+                handleSearchToggle={handleSearchToggle}
+            />
         </div>
     );
 };
