@@ -32,7 +32,6 @@ interface SearchPageProps {
     displayData: SubjectData[];
     studentSubjectMap: Record<string, string[]>;
     teacherSubjectMap: Record<string, Record<string, string[]>>;
-    hasStudentInSearch: boolean;
     expandedSubjects: string[];
     toggleSubject: (name: string) => void;
 }
@@ -60,7 +59,6 @@ const SearchPage: React.FC<SearchPageProps> = ({
     displayData,
     studentSubjectMap,
     teacherSubjectMap,
-    hasStudentInSearch,
     expandedSubjects,
     toggleSubject,
 }) => {
@@ -144,7 +142,6 @@ const SearchPage: React.FC<SearchPageProps> = ({
                                   studentSubjectMap={studentSubjectMap}
                                   teacherSubjectMap={teacherSubjectMap}
                                   isModifierPressed={isModifierPressed}
-                                  hasStudentInSearch={hasStudentInSearch}
                                   selectedYears={selectedYears}
                                   searchMode={searchMode}
                                   isOpen={expandedSubjects.includes(

@@ -14,7 +14,6 @@ interface SubjectAccordionItemProps {
     studentSubjectMap: Record<string, string[]>;
     teacherSubjectMap: Record<string, Record<string, string[]>>;
     isModifierPressed: boolean;
-    hasStudentInSearch: boolean;
     selectedYears: string[];
     searchMode: "general" | "student" | "teacher" | "room";
     isOpen: boolean;
@@ -29,7 +28,6 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
     studentSubjectMap,
     teacherSubjectMap,
     isModifierPressed,
-    hasStudentInSearch,
     selectedYears,
     searchMode,
     isOpen,
@@ -194,7 +192,6 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                                         studentSubjectMap={studentSubjectMap}
                                         teacherSubjectMap={teacherSubjectMap}
                                         isModifierPressed={isModifierPressed}
-                                        hasStudentInSearch={hasStudentInSearch}
                                         selectedYears={selectedYears}
                                         searchMode={searchMode}
                                     />
