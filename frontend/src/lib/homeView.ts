@@ -10,6 +10,9 @@
  */
 
 import type { HomeData, TodayClass } from "./friendsApi";
+
+/** 교시 사이가 이보다 짧으면 **쉬는시간**입니다 (그보다 길면 점심·저녁 같은 구간) */
+const BREAK_MINUTES = 20;
 import { DAYS_ORDER } from "./utils";
 
 export interface HomeView {
@@ -17,6 +20,14 @@ export interface HomeView {
     isSchoolDay: boolean;
     /** 지금 몇 교시. 쉬는시간이면 null */
     livePeriod: number | null;
+    /**
+     * 지금이 **교시 사이의 쉬는시간**인가. 서버의 `break_name`(점심·저녁·자습)과
+     * 다릅니다 — 그건 이름 붙은 긴 구간이고 이건 교시 사이 10분입니다.
+     *
+     * ⚠️ **공강과 구별해야 합니다.** 공강은 수업이 아예 없는 교시, 쉬는시간은 수업과
+     * 수업 사이입니다. 둘을 같은 말로 부르면 화면이 "수업 끝났다" 고 말해 버립니다.
+     */
+    inBreak: boolean;
     /** 지금 있어야 할 수업. null 이면 공강 */
     current: TodayClass | null;
     /**
@@ -45,14 +56,9 @@ export const deriveHomeView = (home: HomeData, liveMinute: number): HomeView => 
           )?.period ?? null)
         : null;
 
-    const current =
-        livePeriod !== null
-            ? (home.today.find((c) => c.period === livePeriod) ?? null)
-            : null;
-
     /**
-     * 지금 수업을 **연강 단위로 펼칩니다.** 앞뒤로 같은 과목·분반·교실이 붙어 있고
-     * 시간이 이어지면 한 덩어리입니다 — 목록·주간 격자가 쓰는 조건과 같습니다.
+     * 앞뒤 교시가 **한 수업인가** — 과목·분반·교실이 같고 시간이 붙어 있어야 합니다.
+     * 목록·주간 격자가 쓰는 조건과 같습니다.
      *
      * ⚠️ 시간을 같이 보는 건 4교시와 5교시가 번호는 이어져도 사이에 점심이 70분
      * 있어서입니다. 번호만 보면 점심을 가로지르는 연강이 생깁니다.
@@ -61,12 +67,51 @@ export const deriveHomeView = (home: HomeData, liveMinute: number): HomeView => 
         a.subject === b.subject &&
         a.section === b.section &&
         a.room === b.room &&
-        gapTo - gapFrom <= 20;
+        gapTo - gapFrom <= BREAK_MINUTES;
 
+    let current =
+        livePeriod !== null
+            ? (home.today.find((c) => c.period === livePeriod) ?? null)
+            : null;
+    /** 연강을 펼칠 기준 교시. 쉬는시간이면 **직전 교시**가 기준입니다 */
+    let anchor = livePeriod;
+    let inBreak = false;
+
+    /**
+     * ⚠️ **연강 사이의 10분은 수업이 끝난 게 아닙니다.**
+     *
+     * 교시로만 보면 7교시와 8교시 사이는 아무 교시도 아니라서 `livePeriod` 가 null 이
+     * 되고, 그대로 두면 화면이 **"공강"** 이라고 말합니다 — 7·8교시 연강 문학을 듣는
+     * 중에 교실을 나가게 되는 말입니다. 앞뒤가 같은 수업이면 **아직 그 수업 중**으로
+     * 잡고, 다른 수업이면 공강이 아니라 **쉬는시간**으로 부릅니다.
+     */
+    if (isSchoolDay && livePeriod === null) {
+        const before = [...periods].reverse().find((p) => p.end_minute <= liveMinute);
+        const after = periods.find((p) => p.start_minute > liveMinute);
+        if (
+            before &&
+            after &&
+            after.start_minute - before.end_minute <= BREAK_MINUTES
+        ) {
+            inBreak = true;
+            const beforeClass = home.today.find((c) => c.period === before.period);
+            const afterClass = home.today.find((c) => c.period === after.period);
+            if (
+                beforeClass &&
+                afterClass &&
+                joined(beforeClass, afterClass, before.end_minute, after.start_minute)
+            ) {
+                current = beforeClass;
+                anchor = before.period;
+            }
+        }
+    }
+
+    /** 지금 수업을 **연강 단위로 펼칩니다** — 목록·주간 격자가 쓰는 조건과 같습니다 */
     const currentPeriods: number[] = [];
-    if (current) {
-        currentPeriods.push(current.period);
-        for (let p = current.period - 1; ; p -= 1) {
+    if (current && anchor !== null) {
+        currentPeriods.push(anchor);
+        for (let p = anchor - 1; ; p -= 1) {
             const before = home.today.find((c) => c.period === p);
             const beforeTime = byPeriod.get(p);
             const hereTime = byPeriod.get(p + 1);
@@ -75,7 +120,7 @@ export const deriveHomeView = (home: HomeData, liveMinute: number): HomeView => 
                 break;
             currentPeriods.unshift(p);
         }
-        for (let p = current.period + 1; ; p += 1) {
+        for (let p = anchor + 1; ; p += 1) {
             const after = home.today.find((c) => c.period === p);
             const beforeTime = byPeriod.get(p - 1);
             const hereTime = byPeriod.get(p);
@@ -95,16 +140,29 @@ export const deriveHomeView = (home: HomeData, liveMinute: number): HomeView => 
         ) ?? null;
 
     // 연강이면 `10–11교시` — 히어로가 말하는 시간 범위와 칩이 어긋나면 안 됩니다
+    /**
+     * ⚠️ 이름 있는 구간(점심·저녁·자습)에는 "쉬는시간" 을 붙이지 않습니다 — 아래에서
+     * 그 이름을 그대로 쓰므로, 안 그러면 `쉬는시간 · 점심` 처럼 두 번 말합니다.
+     */
     const periodText =
         currentPeriods.length > 1
             ? `${currentPeriods[0]}–${currentPeriods[currentPeriods.length - 1]}교시`
             : livePeriod
               ? `${livePeriod}교시`
-              : "쉬는시간";
+              : home.now.break_name
+                ? null
+                : "쉬는시간";
+
+    /**
+     * 연강 사이라면 `7–8교시 · 쉬는시간` 처럼 붙입니다. 수업이 없는 쉬는시간은
+     * `periodText` 가 이미 "쉬는시간" 이라 덧붙이지 않습니다 (두 번 쓰게 됩니다).
+     */
+    const breakName =
+        home.now.break_name ?? (inBreak && current ? "쉬는시간" : null);
 
     const periodLabel = !isSchoolDay
         ? null
-        : [periodText, home.now.break_name].filter(Boolean).join(" · ");
+        : [periodText, breakName].filter(Boolean).join(" · ");
 
     const freeMinutes = home.today.reduce((sum, item, index) => {
         if (index === 0) return sum;
@@ -118,6 +176,7 @@ export const deriveHomeView = (home: HomeData, liveMinute: number): HomeView => 
     return {
         isSchoolDay,
         livePeriod,
+        inBreak,
         current,
         currentPeriods,
         next,

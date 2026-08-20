@@ -17,6 +17,8 @@ import type { HomeData, TodayClass } from "./friendsApi";
 
 export const HOME_DEMOS = [
     { key: "class", label: "수업중" },
+    // 연강 사이 10분 — 화면이 "공강" 이라고 말하던 자리라 표본으로 남겨 둡니다
+    { key: "joint", label: "연강 쉬는시간" },
     { key: "gap", label: "공강" },
     { key: "before", label: "수업 전" },
     { key: "done", label: "수업 끝" },
@@ -43,6 +45,7 @@ const hhmm = (minute: number) =>
 /** 자정 기준 분. 각 상황이 성립하는 시각을 골라 둡니다 */
 const MINUTE: Record<HomeDemoKey, number> = {
     class: 909, // 15:09 — 6교시 한가운데
+    joint: 935, // 15:35 — 6·7교시 연강(일반지구과학) 사이의 쉬는시간
     gap: 660, // 11:00 — 3교시(수업 없음)
     before: 480, // 08:00 — 1교시 전
     done: 1320, // 22:00 — 11교시 뒤

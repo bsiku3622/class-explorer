@@ -234,7 +234,7 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
     );
 
     /** 파생값은 홈 전체가 한 곳에서 셉니다 — 여기서 따로 계산하면 위 카드와 어긋납니다 */
-    const { isSchoolDay, livePeriod } = deriveHomeView(home, liveMinute);
+    const { isSchoolDay, currentPeriods } = deriveHomeView(home, liveMinute);
     const today = isSchoolDay ? home.now.day : null;
 
     const blocks = useMemo(() => buildBlocks(week, byPeriod), [week, byPeriod]);
@@ -632,11 +632,15 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                     ⚠️ 물러나는 **숫자**는 변마다 다릅니다(아래 `atTop` 주석) —
                     격자선이 칸 안쪽에 그려지는 쪽은 1px 을 더 줘야 흰 틈이 같아집니다 */}
                 {blocks.map((block) => {
+                    /* ⚠️ **교시 번호로 판정하지 않습니다.** 연강 사이 10분에는
+                       `livePeriod` 가 null 이라, 번호로 보면 진행 중인 연강의 핑크가
+                       그 10분 동안 꺼집니다 — 자·오늘 목록은 덩어리로 보고 있어서
+                       격자만 혼자 어긋납니다 (`homeView.currentPeriods`) */
                     const now =
                         block.day === markDay &&
-                        livePeriod !== null &&
-                        livePeriod >= block.period &&
-                        livePeriod < block.period + block.span;
+                        currentPeriods.some(
+                            (p) => p >= block.period && p < block.period + block.span,
+                        );
                     const color = getDepartmentColor(block.klass.department);
                     /**
                      * ⚠️ **여백이 사방으로 같아 보이게 하려면 숫자를 다르게 줘야 합니다.**
