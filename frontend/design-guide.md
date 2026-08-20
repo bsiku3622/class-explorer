@@ -86,6 +86,15 @@
 | 25 | Green | `#00B327` |
 | 26 | Cyan | `#00B5E7` |
 
+## 제목은 영어입니다
+
+**섹션 소제목(`RetroSubTitle`)과 페이지 제목·부제(`PageHeader`)는 전부 영어**입니다 —
+`Today` · `Timetable` · `Events` · `Meal` · `Subjects` · `Devices` · `Curriculum Progress`.
+
+한동안 `오늘 일정` 옆에 `MEAL` 이 서 있는 식으로 섞여 있었는데, **한 행에 나란히 선 두
+칸의 제목이 서로 다른 언어**면 그것만으로 어수선해집니다. 본문·버튼·안내 문구는 한국어
+그대로입니다 — 바뀐 건 제목 줄뿐입니다.
+
 ## 타이포그래피
 - **폰트**: Pretendard Variable
 - **섹션 소제목**: `text-sm font-bold text-black/40 uppercase tracking-widest flex items-center gap-2`

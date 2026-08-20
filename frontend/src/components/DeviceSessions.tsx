@@ -126,7 +126,7 @@ const DeviceSessions: React.FC = () => {
         <RetroCard className="bg-white p-6">
             <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                    <RetroSubTitle title="로그인한 기기" icon={MonitorSmartphone} />
+                    <RetroSubTitle title="Devices" icon={MonitorSmartphone} />
                     <div className="flex shrink-0 items-center gap-2">
                         {max > 0 && (
                             <span className="text-[11px] font-bold tabular-nums text-black/35">

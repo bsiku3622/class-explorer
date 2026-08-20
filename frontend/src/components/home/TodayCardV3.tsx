@@ -330,7 +330,7 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                     쪼개져 있었습니다 */}
                 {hasEvents && (
                     <div className="flex min-w-0 flex-col border-t-2 border-black/10 p-5 lg:border-l-2 lg:border-t-0">
-                        <RetroSubTitle title="오늘 일정" icon={CalendarDays} iconSize={14} />
+                        <RetroSubTitle title="Events" icon={CalendarDays} iconSize={14} />
                         <ul className="mt-3 space-y-2">
                             {events.slice(0, EVENT_LIMIT).map((event) => (
                                 /* 왼쪽 색 막대가 곧 분류입니다 — 점보다 눈에 걸리고
@@ -343,10 +343,10 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                                         className={`w-1 shrink-0 ${CATEGORY_STYLE[event.category].dot}`}
                                     />
                                     <span className="min-w-0 flex-1">
-                                        {/* 급식 메뉴(옛 15px)와 **딱 가운데**서 만납니다.
-                                            한 행에 나란히 선 두 칸이 3px 씩 차이 나면
-                                            같은 층의 정보인데 무게가 달라 보입니다 */}
-                                        <span className="block truncate text-[13.5px] font-black">
+                                        {/* 옆 칸(급식)과 **크기도 굵기도 같습니다** —
+                                            한 행에 나란히 선 두 칸은 같은 층의 정보라,
+                                            한쪽만 굵으면 무게가 달라 보입니다 */}
+                                        <span className="block truncate text-[13.5px] font-bold">
                                             {event.title}
                                         </span>
                                         {timeLabel(event) && (

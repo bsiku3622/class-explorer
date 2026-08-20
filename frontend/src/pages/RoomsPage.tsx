@@ -97,7 +97,7 @@ const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData, onRoomSearch }) =
         <div className="flex flex-col gap-4 md:gap-6 pb-20">
             <PageHeader
                 title="Rooms"
-                subtitle="형설관"
+                subtitle="Hyung-seol Hall"
                 icon={MapPin}
                 action={
                     <RetroButton onClick={resetSelection} icon={<RefreshCcw size={18} strokeWidth={2.5} />}>
