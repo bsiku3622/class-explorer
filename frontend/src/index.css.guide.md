@@ -21,6 +21,7 @@ Tailwind v4 테마 정의 + 전역 스타일 + HeroUI 오버라이드.
 | `[data-slot=…]` | HeroUI 모서리를 직각으로 누르는 오버라이드 |
 | `.student-badge` | 학번 배지 공통 스타일 |
 | `@keyframes marquee-swing` | 넘치는 한 줄을 좌우로 훑는 애니메이션 (`MarqueeText`) |
+| `@keyframes badge-bounce` | 검색어와 맞는 학생 배지가 위아래로 통통 (`SectionCard`). ⚠️ `transform` 이 아니라 **`translate` 속성**을 씁니다 — 배지의 `hover:scale-105` 가 `scale` 을 쓰므로 같은 `transform` 에 얹으면 하나가 지워집니다 |
 
 ## 손대면 안 되는 것
 

@@ -1,3 +1,29 @@
+## 2026-08-20 — 검색 명단: 흐리게 하는 대신 찾는 사람이 통통 튑니다
+
+- 변경 파일: `frontend/src/components/SectionCard.tsx`, `frontend/src/index.css`,
+  `frontend/src/components/SubjectAccordionItem.tsx`, `frontend/src/pages/SearchPage.tsx`,
+  `frontend/src/App.tsx`, `frontend/src/components/home/MySubjects.tsx`
+- 요약: 검색어와 안 맞는 학생 배지를 `grayscale opacity-30` 으로 지우던 처리를 걷어내고,
+  맞는 배지만 위아래로 통통 튀게 했습니다
+
+**흐리게 하는 쪽이 잘못이었습니다.** 명단을 보는 이유의 절반은 "누구랑 같이 듣나" 인데,
+찾는 사람 하나만 남기고 나머지를 지우면 화면이 반쯤 죽습니다. 전부 제 색으로 두고
+**찾는 사람만 움직이게** 하면 남의 색을 뺏지 않고도 제일 먼저 눈에 들어옵니다.
+
+⚠️ **`transform` 이 아니라 `translate` 속성으로 움직입니다.** 배지에 `hover:scale-105`
+가 걸려 있는데 Tailwind v4 는 그걸 `scale` 속성으로 냅니다 — 같은 `transform` 에 얹으면
+둘 중 하나가 지워져서, 튀는 배지에 마우스를 올려도 커지지 않거나 반대로 튐이 멈춥니다.
+`MarqueeText` 가 이미 같은 이유로 `translate` 를 쓰고 있어 그 방식을 따랐습니다.
+
+⚠️ **움직임 하나에만 기대지 않습니다.** `prefers-reduced-motion` 이면 애니메이션이 꺼지
+므로, 맞는 배지는 면을 조금 더 채우고(20 → 38) 그림자를 세게 둬서 정지 화면에서도
+구분됩니다. 캡처한 그림에서도 마찬가지입니다.
+
+**`hasStudentInSearch` 를 통째로 지웠습니다.** 흐리게 만드는 판단에만 쓰이던 값이라
+`App` 의 memo 부터 `SearchPage` · `SubjectAccordionItem` · `SectionCard` · 홈의
+`MySubjects` 까지 따라 내려가던 prop 이 전부 죽었습니다 — 남겨 두면 다음 사람이 "이건
+왜 넘기지" 를 다시 좇게 됩니다.
+
 ## 2026-08-20 — 제목을 전부 영어로 · 오늘 일정과 급식의 굵기 통일
 
 - 변경 파일: `frontend/src/components/home/{TodayCardV3,TodayCardV2}.tsx`,

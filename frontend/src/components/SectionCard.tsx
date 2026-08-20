@@ -14,7 +14,6 @@ interface SectionCardProps {
     studentSubjectMap: Record<string, string[]>;
     teacherSubjectMap: Record<string, Record<string, string[]>>;
     isModifierPressed: boolean;
-    hasStudentInSearch: boolean;
     selectedYears: string[];
     searchMode: "general" | "student" | "teacher" | "room";
 }
@@ -26,7 +25,6 @@ const SectionCard: React.FC<SectionCardProps> = ({
     studentSubjectMap,
     teacherSubjectMap,
     isModifierPressed,
-    hasStudentInSearch,
     selectedYears,
     searchMode,
 }) => {
@@ -216,8 +214,6 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                 student.name.toLowerCase().includes(term),
                         );
 
-                        const shouldGrayOut = hasStudentInSearch && !isMatch;
-
                         const mySubjects =
                             studentSubjectMap[student.stuId] || [];
 
@@ -247,23 +243,25 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                 }
                             >
                                 <div
+                                    /* ⚠️ **안 맞는 사람을 흐리게 하지 않습니다.** 예전에는
+                                       `grayscale opacity-30` 으로 지웠는데, 명단을 보는
+                                       이유의 절반이 "누구랑 같이 듣나" 라서 나머지가 안
+                                       보이면 화면이 반쯤 죽습니다. 전부 제 색으로 두고,
+                                       찾는 사람만 **통통 튀게** 합니다 (`index.css`) —
+                                       움직임은 색을 뺏지 않고도 제일 먼저 눈에 띕니다.
+
+                                       모션을 끈 환경(`prefers-reduced-motion`)에서도
+                                       구분되도록 **면을 조금 더 채우고 그림자를 세게**
+                                       둡니다 — 움직임 하나에만 기대면 안 됩니다 */
                                     className={`student-badge cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200 ${
-                                        shouldGrayOut
-                                            ? "grayscale opacity-30 scale-100 border-black/10 shadow-none"
-                                            : isMatch
-                                              ? "z-10 shadow-[3px_3px_0_0_rgba(0,0,0,0.1)]"
-                                              : ""
+                                        isMatch
+                                            ? "animate-badge-bounce z-10 shadow-[3px_3px_0_0_rgba(0,0,0,0.2)]"
+                                            : ""
                                     }`}
                                     style={{
-                                        borderColor: shouldGrayOut
-                                            ? "#00000020"
-                                            : color,
-                                        backgroundColor: shouldGrayOut
-                                            ? "transparent"
-                                            : `${color}20`,
-                                        color: shouldGrayOut
-                                            ? "rgba(0,0,0,0.6)"
-                                            : color,
+                                        borderColor: color,
+                                        backgroundColor: `${color}${isMatch ? "38" : "20"}`,
+                                        color: color,
                                     }}
                                     onMouseEnter={() =>
                                         setHoveredItemId(student.stuId)

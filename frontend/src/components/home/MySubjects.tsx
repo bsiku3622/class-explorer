@@ -14,10 +14,10 @@
  * |---|---|---|
  * | `searchMode` | `"student"` | 학생 한 명을 본 결과라는 뜻 |
  * | `isSingleStudentSearch` | `true` | 머리의 칩이 `SECTION 5` 로 바뀝니다 |
- * | `searchTerm` | 내 학번 | 명단에서 **내 배지만** 살아납니다 |
+ * | `searchTerm` | 내 학번 | 명단에서 **내 배지가 통통 튑니다** |
  *
- * ⚠️ `searchTerm` 을 비우면 안 됩니다 — `hasStudentInSearch` 가 켜진 채로 맞는 사람이
- * 하나도 없어서 **명단 전체가 회색**이 됩니다.
+ * `searchTerm` 이 비면 아무도 안 튈 뿐, 명단은 그대로 다 보입니다 — 예전에는 여기가
+ * 비면 **명단 전체가 회색**이 됐지만 그 처리를 걷어냈습니다 (`SectionCard` 의 ⚠️).
  */
 
 import React, { useMemo, useState } from "react";
@@ -99,13 +99,12 @@ const MySubjects: React.FC<MySubjectsProps> = ({
                     <SubjectAccordionItem
                         key={subject.subject}
                         subject={subject}
-                        // 내 배지만 살아나게 하는 값입니다 (파일 머리의 ⚠️ 참고)
+                        // 내 배지를 튀게 하는 값입니다 (파일 머리의 표 참고)
                         searchTerm={myStuId ?? ""}
                         handleSearchToggle={handleSearchToggle}
                         studentSubjectMap={studentSubjectMap}
                         teacherSubjectMap={teacherSubjectMap}
                         isModifierPressed={isModifierPressed}
-                        hasStudentInSearch={Boolean(myStuId)}
                         selectedYears={selectedYears}
                         searchMode="student"
                         isOpen={open.includes(subject.subject)}

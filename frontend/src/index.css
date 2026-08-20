@@ -66,6 +66,35 @@ body {
     }
 }
 
+/* 검색어와 맞는 사람만 **위아래로 통통** 튑니다.
+
+   예전에는 반대로 했습니다 — 맞는 사람만 남기고 **나머지를 회색(opacity 0.3)으로**
+   지웠는데, 명단을 보는 이유의 절반은 "누구랑 같이 듣나" 라서 나머지가 안 보이면
+   화면이 반쯤 죽습니다. 이제 전부 제 색으로 두고 **찾는 사람만 움직입니다** —
+   움직임은 색을 뺏지 않고도 눈에 제일 먼저 들어옵니다.
+
+   ⚠️ `transform` 이 아니라 `translate` 속성을 씁니다 — 배지의 `hover:scale-105` 가
+   `scale` 속성을 쓰기 때문에, 같은 `transform` 에 얹으면 둘 중 하나가 지워집니다. */
+@keyframes badge-bounce {
+    0%,
+    100% {
+        translate: 0 0;
+    }
+    50% {
+        translate: 0 -3px;
+    }
+}
+
+.animate-badge-bounce {
+    animation: badge-bounce 1.05s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animate-badge-bounce {
+        animation: none;
+    }
+}
+
 /* Custom styles for students list */
 .student-badge {
     @apply inline-block bg-white border-2 px-2 py-1 text-xs font-bold rounded-none shadow-[2px_2px_0_0_rgba(0,0,0,0.1)] hover:bg-retro-accent-light cursor-default transition-all;

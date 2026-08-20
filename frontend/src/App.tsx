@@ -168,11 +168,6 @@ const App: React.FC = () => {
         }
     }, [location.pathname]);
 
-    const hasStudentInSearch = useMemo(() => {
-        if (!searchResult) return false;
-        return searchResult.entities.some((e) => e.type === "student");
-    }, [searchResult]);
-
     const isLogicalSearch = useMemo(
         () =>
             searchTerm.includes("+") ||
@@ -561,7 +556,6 @@ const App: React.FC = () => {
                                         displayData={displayData}
                                         studentSubjectMap={studentSubjectMap}
                                         teacherSubjectMap={teacherSubjectMap}
-                                        hasStudentInSearch={hasStudentInSearch}
                                         expandedSubjects={expandedSubjects}
                                         toggleSubject={toggleSubject}
                                     />
