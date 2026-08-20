@@ -1,3 +1,19 @@
+## 2026-08-20 — 배지 강조를 진동으로, 호버 효과 제거
+
+- 변경 파일: `frontend/src/index.css`, `frontend/src/components/SectionCard.tsx`,
+  `frontend/src/components/SearchResultDisplay.tsx`
+- 요약: 찾는 사람의 강조를 위아래 튐(`badge-bounce`)에서 좌우 진동(`badge-buzz`)으로
+  바꾸고, 학생 배지의 호버 효과를 뺐습니다
+
+**진동은 계속 떨지 않습니다.** 주기(1.8s)의 앞 20%만 좌우 ±1.5px 로 떨고 나머지는
+가만히 있습니다 — 폰 진동과 같은 리듬입니다. 쉬지 않고 흔들면 명단에 서른 명이 있는
+화면에서 한 칸이 계속 움직여 옆을 읽는 걸 방해합니다.
+
+**호버 효과를 뺀 이유가 여기에 있습니다.** 마우스가 지나가는 자리마다 배지가 커지면
+움직이는 것이 둘이 되어, 정작 봐야 할 진동이 그 소음에 묻힙니다. 명단은 **읽는
+물건**이라 클릭 피드백(`active:scale-95`)만 남겼습니다. 배지 공통 스타일(`.student-badge`)
+의 `hover:bg-retro-accent-light` 도 같이 걷어냈습니다.
+
 ## 2026-08-20 — 검색 명단: 흐리게 하는 대신 찾는 사람이 통통 튑니다
 
 - 변경 파일: `frontend/src/components/SectionCard.tsx`, `frontend/src/index.css`,

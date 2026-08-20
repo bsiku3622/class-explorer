@@ -431,7 +431,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                                 }
                                             >
                                                 <div
-                                                    className="student-badge cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200"
+                                                    className="student-badge cursor-pointer active:scale-95 transition-all duration-200"
                                                     style={{
                                                         borderColor: color,
                                                         backgroundColor: `${color}20`,
