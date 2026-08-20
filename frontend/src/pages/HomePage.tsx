@@ -38,7 +38,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Repeat } from "lucide-react";
+import { ArrowRight, Repeat, WifiOff } from "lucide-react";
 import type { SubjectData, Term } from "../types";
 import { fetchHome, type HomeData } from "../lib/friendsApi";
 import { isTradeAvailable } from "../lib/features";
@@ -129,6 +129,8 @@ const HomePage: React.FC<HomePageProps> = ({
     /** 응답과 **받은 시각**을 같이 듭니다 — 그 뒤로 흐른 시간을 더해 시계를 굴립니다 */
     const [state, setState] = useState<{ home: HomeData; at: number } | null>(null);
     const [loading, setLoading] = useState(true);
+    /** 마지막 요청이 실패했는가. **화면을 지우지는 않고** 표시만 합니다 */
+    const [failed, setFailed] = useState(false);
     const [nowMs, setNowMs] = useState(() => Date.now());
     /** 개발 전용 — 오늘이 방학이어도 수업 중 화면을 볼 수 있게 (`homeDemo.ts`) */
     const [demo, setDemo] = useState<HomeDemoKey | null>(null);
@@ -141,11 +143,24 @@ const HomePage: React.FC<HomePageProps> = ({
     /** `/trade` 에 저장해 둔 계획. 볼 게 없으면 null 이고 전환도 안 뜹니다 */
     const plannedSections = useTradePlan(tradeAvailable, allClassesData, myStuId);
 
+    /**
+     * ⚠️ **실패해도 이미 그린 화면을 버리지 않습니다.**
+     *
+     * 한동안 실패하면 `setState(null)` 을 했는데, 홈은 1분마다 다시 받는 화면이라
+     * **노트북을 덮었다 열 때마다** 오류 카드가 떴습니다 — 깨어난 직후 네트워크가
+     * 붙기 전에 주기 요청이 한 번 나가서 실패하기 때문입니다. 멀쩡히 보고 있던
+     * 시간표가 "화면을 불러오지 못했습니다" 로 바뀔 이유가 없습니다.
+     *
+     * 그래서 실패는 **표시만** 하고(`failed`) 마지막 응답을 그대로 둡니다. 오류
+     * 카드는 **한 번도 못 받았을 때**(`state === null`)만 나옵니다.
+     */
     const reload = useCallback(async () => {
         try {
-            setState({ home: await fetchHome(term), at: Date.now() });
+            const home = await fetchHome(term);
+            setState({ home, at: Date.now() });
+            setFailed(false);
         } catch {
-            setState(null);
+            setFailed(true);
         } finally {
             setLoading(false);
         }
@@ -159,6 +174,23 @@ const HomePage: React.FC<HomePageProps> = ({
     useEffect(() => {
         const timer = setInterval(() => void reload(), 60_000);
         return () => clearInterval(timer);
+    }, [reload]);
+
+    /**
+     * **깨어나면 곧바로 다시 받습니다.** 덮어 둔 동안 타이머는 멈춰 있어서, 열자마자
+     * 보이는 건 잠들기 전의 시간표입니다 — 다음 주기(최대 1분)까지 기다리면 "지금"
+     * 이 한참 틀린 채로 떠 있습니다. 네트워크가 돌아오는 순간(`online`)도 같습니다.
+     */
+    useEffect(() => {
+        const wake = () => {
+            if (document.visibilityState === "visible") void reload();
+        };
+        document.addEventListener("visibilitychange", wake);
+        window.addEventListener("online", wake);
+        return () => {
+            document.removeEventListener("visibilitychange", wake);
+            window.removeEventListener("online", wake);
+        };
     }, [reload]);
 
     // 요청 사이에도 시계는 움직여야 합니다. 응답을 기다리는 동안 멈춰 보이면
@@ -232,17 +264,30 @@ const HomePage: React.FC<HomePageProps> = ({
         );
     }
 
+    /**
+     * **한 번도 못 받았을 때만** 여기까지 옵니다 — 받아 둔 게 있으면 실패해도 그 화면을
+     * 그대로 그리고 위에 안내만 얹습니다 (`reload` 의 ⚠️).
+     */
     if (!home || liveMinute === null) {
         return (
             <div className="border-2 border-black bg-white px-5 py-12 text-center shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]">
                 <p className="text-sm font-bold text-black/50">
                     화면을 불러오지 못했습니다.
                 </p>
+                <button
+                    type="button"
+                    onClick={() => void reload()}
+                    className="mt-4 border-2 border-black bg-white px-3 py-1.5 text-[12px] font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none"
+                >
+                    다시 시도
+                </button>
             </div>
         );
     }
 
     const meal = home.meal;
+    /** 마지막으로 받은 지 몇 분 지났는가 — 실패 안내에 씁니다 */
+    const staleMinutes = state ? Math.floor((nowMs - state.at) / 60_000) : 0;
 
     return (
         <div className="flex flex-col gap-4 pb-20 md:gap-6">
@@ -298,6 +343,31 @@ const HomePage: React.FC<HomePageProps> = ({
                             </button>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* ── 못 받았을 때 ─────────────────────────────────────────
+                ⚠️ **화면을 지우는 대신 이 줄만 얹습니다.** 노트북을 덮었다 열면 깨어난
+                직후 요청이 한 번 실패하는데, 그때마다 멀쩡한 시간표를 오류 카드로
+                바꿔 버리면 "지금 몇 교시" 를 보러 온 사람이 아무것도 못 봅니다.
+
+                색은 쓰지 않습니다 — 핑크·시안은 이 화면에서 뜻이 정해져 있고
+                (`design-guide.md`), 이건 상태가 아니라 **사정**을 알리는 줄입니다 */}
+            {failed && (
+                <div className="flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-[12px] font-bold text-black/50 shadow-[2px_2px_0_0_rgba(0,0,0,0.2)]">
+                    <WifiOff size={14} strokeWidth={2.75} className="shrink-0" />
+                    <span className="min-w-0 flex-1 truncate">
+                        연결이 끊겨{" "}
+                        {staleMinutes < 1 ? "방금" : `${staleMinutes}분 전`} 받은 화면을
+                        보여 주고 있습니다
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => void reload()}
+                        className="shrink-0 border-2 border-black px-2 py-0.5 text-[11px] font-black text-black transition-all duration-100 hover:bg-retro-accent-light"
+                    >
+                        다시 시도
+                    </button>
                 </div>
             )}
 
