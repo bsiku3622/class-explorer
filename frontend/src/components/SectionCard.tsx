@@ -247,15 +247,19 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                        `grayscale opacity-30` 으로 지웠는데, 명단을 보는
                                        이유의 절반이 "누구랑 같이 듣나" 라서 나머지가 안
                                        보이면 화면이 반쯤 죽습니다. 전부 제 색으로 두고,
-                                       찾는 사람만 **통통 튀게** 합니다 (`index.css`) —
+                                       찾는 사람만 **잠깐 진동하게** 합니다 (`index.css`) —
                                        움직임은 색을 뺏지 않고도 제일 먼저 눈에 띕니다.
 
                                        모션을 끈 환경(`prefers-reduced-motion`)에서도
                                        구분되도록 **면을 조금 더 채우고 그림자를 세게**
-                                       둡니다 — 움직임 하나에만 기대면 안 됩니다 */
-                                    className={`student-badge cursor-pointer hover:scale-105 active:scale-95 transition-all duration-200 ${
+                                       둡니다 — 움직임 하나에만 기대면 안 됩니다.
+
+                                       ⚠️ **호버 효과는 없습니다.** 마우스가 지나가는
+                                       자리마다 배지가 커지면, 정작 움직여야 할 것(찾는
+                                       사람의 진동)이 그 소음에 묻힙니다 */
+                                    className={`student-badge cursor-pointer active:scale-95 transition-all duration-200 ${
                                         isMatch
-                                            ? "animate-badge-bounce z-10 shadow-[3px_3px_0_0_rgba(0,0,0,0.2)]"
+                                            ? "animate-badge-buzz z-10 shadow-[3px_3px_0_0_rgba(0,0,0,0.2)]"
                                             : ""
                                     }`}
                                     style={{
