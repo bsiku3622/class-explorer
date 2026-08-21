@@ -31,14 +31,6 @@ body {
     box-shadow: 8px 8px 0px 0px #000;
 }
 
-/* Override HeroUI default rounded corners to be sharp/retro */
-[data-slot="base"],
-[data-slot="trigger"],
-[data-slot="content"],
-[data-slot="input-wrapper"] {
-    @apply rounded-none! border!;
-}
-
 /* 자리가 모자란 한 줄을 …로 자르지 않고 좌우로 훑고 돌아옵니다 (MarqueeText).
    양 끝에서 잠깐 멈춰야 읽을 틈이 생기므로 10%씩 머무릅니다. */
 @keyframes marquee-swing {

@@ -10,6 +10,8 @@ export interface ChangeSummaryData {
         moved: { class: string; from: string; to: string }[];
         /** 담당 교사만 바뀐 분반. 예전 요약에는 없어서 optional 입니다 */
         swapped?: { class: string; from: string; to: string }[];
+        /** `배정중` 이던 강의실이 실제 교실로 정해진 분반 수 */
+        assigned?: number;
         kept: number;
     };
     times: { added: number; removed: number };
@@ -84,6 +86,12 @@ const ChangeSummary: React.FC<{ data: ChangeSummaryData }> = ({ data }) => {
                     <div className="flex items-baseline gap-1.5">
                         <span className="text-black/40">교사 교체</span>
                         <span className="text-black">{swapped.length}</span>
+                    </div>
+                )}
+                {!!classes.assigned && (
+                    <div className="flex items-baseline gap-1.5">
+                        <span className="text-black/40">교실 배정</span>
+                        <span className="text-black">{classes.assigned}</span>
                     </div>
                 )}
                 {students.new > 0 && (

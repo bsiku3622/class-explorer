@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { Chip, Divider, Tooltip } from "@heroui/react";
+import RetroChip from "./atoms/RetroChip";
+import RetroTooltip from "./atoms/RetroTooltip";
 import { ChevronDown, Users } from "lucide-react";
 import type { SubjectData, Section } from "../types";
-import { tooltipMotionProps } from "../constants/motion";
 import { extractSearchTerms, getKoreanName } from "../lib/utils";
 import SectionCard from "./SectionCard";
 import TeacherCard from "./atoms/TeacherCard";
@@ -79,18 +79,16 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                         {getKoreanName(subject.subject)}
                     </span>
                     <div className="flex gap-2 sm:gap-3 shrink-0">
-                        <Chip
-                            size="sm"
+                        <RetroChip
                             className={`${isSingleStudentSearch ? "bg-retro-accent1" : "bg-retro-accent2"} border-2 border-black text-xs sm:text-sm font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-2 sm:px-3 h-auto py-1 sm:py-1.5 uppercase`}
                         >
                             {sectionDisplayText}
-                        </Chip>
-                        <Chip
-                            size="sm"
+                        </RetroChip>
+                        <RetroChip
                             className="bg-retro-accent3 border-2 border-black text-xs sm:text-sm font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-2 sm:px-3 h-auto py-1 sm:py-1.5"
                         >
                             {visibleStudentCount} STUDENTS
-                        </Chip>
+                        </RetroChip>
                     </div>
                 </div>
                 <ChevronDown
@@ -134,19 +132,12 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                                         });
 
                                         return (
-                                            <Tooltip
+                                                                                        <RetroTooltip
                                                 key={name}
                                                 isOpen={
                                                     isModifierPressed &&
                                                     hoveredTeacher === name
                                                 }
-                                                placement="top"
-                                                motionProps={tooltipMotionProps}
-                                                classNames={{
-                                                    base: "!transition-none",
-                                                    content:
-                                                        "p-0 rounded-none border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
-                                                }}
                                                 content={
                                                     <TeacherCard
                                                         name={name}
@@ -172,7 +163,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                                                     {name}(
                                                     {nums.sort().join(",")})
                                                 </button>
-                                            </Tooltip>
+                                            </RetroTooltip>
                                         );
                                     },
                                 )}
@@ -183,7 +174,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                             (section: Section, idx: number) => (
                                 <React.Fragment key={section.id}>
                                     {idx > 0 && (
-                                        <Divider className="mb-4 h-px bg-black opacity-20" />
+                                        <div className="mb-4 h-px bg-black opacity-20" />
                                     )}
                                     <SectionCard
                                         section={section}

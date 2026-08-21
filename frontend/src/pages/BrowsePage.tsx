@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import { Library, GraduationCap, BookOpen, Network, Users } from "lucide-react";
 import { fetchCurriculum } from "../lib/curriculumApi";
 import type { SubjectData, Term } from "../types";
@@ -12,6 +12,7 @@ import { Filter, RotateCcw } from "lucide-react";
 import CourseGraph from "../components/CourseGraph";
 import FriendsManager from "../components/FriendsManager";
 import RetroCard from "../components/atoms/RetroCard";
+import { useVirtualGrid } from "../hooks/useVirtualGrid";
 import {
     ALL_DEPARTMENTS,
     CATEGORY_LABEL,
@@ -132,6 +133,20 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
         () => (curriculum?.departments ?? []).map((d) => d.name),
         [curriculum],
     );
+
+    // 전교생을 한 번에 그리면 DOM 이 7천 노드를 넘습니다. 보이는 줄만 그립니다
+    const studentBox = useRef<HTMLDivElement>(null);
+    const studentRows = useRef<HTMLDivElement>(null);
+    const teacherBox = useRef<HTMLDivElement>(null);
+    const teacherRows = useRef<HTMLDivElement>(null);
+    const students = useVirtualGrid(filteredStudents, {
+        containerRef: studentBox,
+        gridRef: studentRows,
+    });
+    const teachers = useVirtualGrid(filteredTeachers, {
+        containerRef: teacherBox,
+        gridRef: teacherRows,
+    });
 
     const focusedCourse = useMemo(
         () => (curriculum?.courses ?? []).find((c) => c.name === focused) ?? null,
@@ -358,16 +373,23 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
             {/* Grid */}
             {mode === "courses" || mode === "friends" ? null : mode === "students" ? (
                 <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 -mt-4">
-                        {filteredStudents.map((s) => (
-                            <StudentCard
-                                key={s.stuId}
-                                stuId={s.stuId}
-                                name={s.name}
-                                subjects={s.subjects}
-                                onClick={() => handleSearch(s.stuId)}
-                            />
-                        ))}
+                    <div ref={studentBox} className="-mt-4">
+                        <div style={{ height: students.topSpacer }} />
+                        <div
+                            ref={studentRows}
+                            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                        >
+                            {students.visible.map((s) => (
+                                <StudentCard
+                                    key={s.stuId}
+                                    stuId={s.stuId}
+                                    name={s.name}
+                                    subjects={s.subjects}
+                                    onClick={() => handleSearch(s.stuId)}
+                                />
+                            ))}
+                        </div>
+                        <div style={{ height: students.bottomSpacer }} />
                     </div>
                     {filteredStudents.length === 0 && (
                         <div className="flex items-center justify-center py-24">
@@ -377,15 +399,22 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                 </>
             ) : (
                 <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 -mt-4">
-                        {filteredTeachers.map((t) => (
-                            <TeacherCard
-                                key={t.name}
-                                name={t.name}
-                                subjects={t.subjects}
-                                onClick={() => handleSearch(t.name, true)}
-                            />
-                        ))}
+                    <div ref={teacherBox} className="-mt-4">
+                        <div style={{ height: teachers.topSpacer }} />
+                        <div
+                            ref={teacherRows}
+                            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                        >
+                            {teachers.visible.map((t) => (
+                                <TeacherCard
+                                    key={t.name}
+                                    name={t.name}
+                                    subjects={t.subjects}
+                                    onClick={() => handleSearch(t.name, true)}
+                                />
+                            ))}
+                        </div>
+                        <div style={{ height: teachers.bottomSpacer }} />
                     </div>
                     {filteredTeachers.length === 0 && (
                         <div className="flex items-center justify-center py-24">

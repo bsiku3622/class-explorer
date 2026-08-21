@@ -226,11 +226,16 @@ def diff_terms(before: TermState, after: TermState, student_changes: dict) -> di
             added.remove(key)
             removed.remove((name, ec, sec, old_teacher))
 
-    moved = [
-        {"class": _label(*key), "from": old_rooms[key], "to": new_rooms[key]}
-        for key in sorted(kept)
-        if old_rooms[key] != new_rooms[key]
-    ]
+    # 학기 초에는 강의실이 `배정중` 으로 내려옵니다. 그게 실제 교실로 바뀌는 것은
+    # "교실 이동" 이 아니라 한 번 일어나는 배정이라, 줄줄이 적지 않고 세기만 합니다
+    moved, assigned = [], 0
+    for key in sorted(kept):
+        if old_rooms[key] == new_rooms[key]:
+            continue
+        if old_rooms[key] == parser.UNASSIGNED_ROOM:
+            assigned += 1
+        else:
+            moved.append({"class": _label(*key), "from": old_rooms[key], "to": new_rooms[key]})
 
     time_added = sum(len(new_times.get(k, set()) - old_times.get(k, set())) for k in set(new_times) | set(old_times))
     time_removed = sum(len(old_times.get(k, set()) - new_times.get(k, set())) for k in set(new_times) | set(old_times))
@@ -250,7 +255,7 @@ def diff_terms(before: TermState, after: TermState, student_changes: dict) -> di
     )[:20]
 
     changed = bool(
-        added or removed or swapped or moved or time_added or time_removed
+        added or removed or swapped or moved or assigned or time_added or time_removed
         or enr_added or enr_removed
         or student_changes.get("new") or student_changes.get("renamed")
     )
@@ -262,6 +267,7 @@ def diff_terms(before: TermState, after: TermState, student_changes: dict) -> di
             "removed": [_label(*k) for k in removed],
             "moved": moved,
             "swapped": swapped,
+            "assigned": assigned,
             "kept": len(kept),
         },
         "times": {"added": time_added, "removed": time_removed},

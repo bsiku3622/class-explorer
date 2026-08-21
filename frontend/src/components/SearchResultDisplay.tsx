@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Tooltip, Chip } from "@heroui/react";
+import RetroChip from "./atoms/RetroChip";
+import RetroTooltip from "./atoms/RetroTooltip";
 import {
     BookOpen,
     AlertCircle,
@@ -9,7 +10,6 @@ import {
 } from "lucide-react";
 import type { SearchResultStats, SearchEntity } from "../types";
 import { getStudentColor, getKoreanName } from "../lib/utils";
-import { tooltipMotionProps } from "../constants/motion";
 import TimetableGrid from "./TimetableGrid";
 import EntityCard from "./EntityCard";
 import RetroStatItem from "./atoms/RetroStatItem";
@@ -331,23 +331,14 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                         const color = getEntityColor(entity);
                                         const entityKey = `logical-${entity.id}-${entity.name}-${i}`;
                                         return (
-                                            <Tooltip
+                                                                                        <RetroTooltip
                                                 key={i}
                                                 isOpen={
                                                     isModifierPressed &&
                                                     hoveredEntityId ===
                                                         entityKey
                                                 }
-                                                placement="top"
                                                 offset={15}
-                                                delay={0}
-                                                closeDelay={0}
-                                                motionProps={tooltipMotionProps}
-                                                classNames={{
-                                                    base: "!transition-none",
-                                                    content:
-                                                        "p-0 rounded-none border border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
-                                                }}
                                                 content={
                                                     <div className="flex divide-x-2 divide-black min-w-[320px] max-w-112.5 text-left">
                                                         <div
@@ -465,7 +456,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                                           ? `${entity.name} T`
                                                           : `${entity.name}`}
                                                 </div>
-                                            </Tooltip>
+                                            </RetroTooltip>
                                         );
                                     })}
                                 </div>
@@ -644,9 +635,9 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                     prefix={searchResult.prefix}
                                 />
                             </div>
-                            <Chip className="bg-black text-white border border-black rounded-none font-black text-xs py-1 px-3">
+                            <RetroChip className="bg-black text-white border border-black rounded-none font-black text-xs py-1 px-3">
                                 {searchResult.total_subjects} SUBJECTS MATCHED
-                            </Chip>
+                            </RetroChip>
                         </div>
                     </div>
                     <div className="flex gap-10 border-t-2 md:border-t-0 md:border-l-2 border-black/10 pt-6 md:pt-0 md:pl-10">

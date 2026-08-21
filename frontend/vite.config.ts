@@ -33,7 +33,6 @@ export default defineConfig(({ command }) => {
             rollupOptions: {
                 output: {
                     manualChunks: {
-                        heroui: ["@heroui/react"],
                         vendor: ["react", "react-dom", "react-router-dom"],
                     },
                 },
