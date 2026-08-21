@@ -96,6 +96,12 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 `Course`는 언어·표기를 벗겨낸 과목 정체성(학점·선수관계가 붙는 곳),
 `Subject`는 KEIS 개설명(영어강의 `(EC)`와 한국어강의가 별개 행)입니다.
 
+**데이터 회차**: 수집은 행을 지우지 않고 `version_from`/`version_to` 로 **닫습니다**.
+`(year, semester)` 마다 1부터 오르고 **바뀐 게 있을 때만** 늘어납니다. 읽을 때는
+`backend/versioning.py` 의 `at_version()` 을 거치세요 — 손으로 조건을 적으면 폐강된
+분반이 조회에 섞입니다. 회차는 `/auth/me` 에 실려 나가 **전교생 브라우저 캐시를
+무효화**합니다.
+
 **학기 모델**: 수업 데이터는 `Class.year`/`Class.semester`로 학기별 공존.
 학기 미지정 요청은 최신 학기로 응답하고, 프론트는 `ksa_selected_term`에 선택 학기를 보존합니다.
 
@@ -105,6 +111,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | `src/lib/searchEngine.ts` | 검색 전체 로직 (prefix 파싱, 불린 연산, 초성 매칭)                              |
 | `src/lib/schedule.ts`     | 연강·쉬는시간 판정 규칙 — 시간표를 그리는 넷이 같이 씁니다                       |
 | `src/lib/session.ts`      | 세션 토큰 + 인증 헤더 — 토큰 키를 쓰는 유일한 자리                              |
+| `backend/versioning.py`   | 회차 필터·기록 — 수업/시간/수강을 읽는 모든 자리가 같이 씁니다                    |
 | `src/lib/utils.ts`        | `DAY_MAP`, `DAYS_ORDER`, `PERIODS`, `extractSearchTerms()`, `getStudentColor()` |
 | `src/lib/api.ts`          | axios 인스턴스 (`VITE_API_BASE_URL` 기반 baseURL)                               |
 | `src/lib/curriculum.ts`   | 졸업 요건 진척도 + 선수관계 그래프 배치                                          |
@@ -122,6 +129,9 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 - `DAY_MAP`, `DAYS_ORDER`, `PERIODS` — `src/lib/utils.ts`에서 import, 로컬 재정의 금지
 - 연강·쉬는시간 판정 — `src/lib/schedule.ts`. **임계값을 파일마다 다시 적지 마세요**
 - 세션 토큰 — `src/lib/session.ts` (`authHeader()`). `localStorage` 를 직접 읽지 마세요
+- 수업·시간·수강 조회 — `backend/versioning.py` 의 `at_version()`. **조건을 손으로 적지 마세요**
+- `Class.enrollments` · `Class.times` 등 관계는 **지금 열려 있는 행만** 봅니다. 과거 회차는
+  관계로 못 읽습니다 — `at_version(model, version)` 으로 직접 물어야 합니다
 - 하이라이트 키워드 추출: `extractSearchTerms()` 단일 사용
 - `searchTerm` ↔ URL `?q=` 동기화는 `App.tsx`에서만 관리
 - 한글 IME Enter 중복 방지: `e.nativeEvent.isComposing` 체크 필수

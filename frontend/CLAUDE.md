@@ -222,12 +222,28 @@ vs `{}`). axios 가 둘 다 받아 줘서 아무도 못 알아챘지만, 키를 
 
 ## 데이터 캐싱
 - 키: `ksa_class_finder_cache_{year}_{semester}` — **학기별로 분리**
-- 만료: 1시간 (3,600,000ms)
-- 저장 내용: `{ v, timestamp, student_counts, data, available_terms }`
-- `v`는 스키마 버전(`CACHE_VERSION`, 현재 **3**). **API 응답에 필드를 추가하면 반드시
+- 만료: 1시간 (3,600,000ms) — 이제 **백스톱일 뿐**입니다
+- 저장 내용: `{ v, timestamp, student_counts, data, available_terms, version }`
+- `v`는 스키마 버전(`CACHE_VERSION`, 현재 **5**). **API 응답에 필드를 추가하면 반드시
   올리세요** — 안 올리면 예전 응답을 든 브라우저가 최대 1시간 동안 새 필드를 못 받습니다
 - 강제 갱신: `fetchInitialData(true)` 호출
 - 로그아웃 시 `ksa_class_finder_cache` prefix가 붙은 키를 모두 삭제
+
+### ⚠️ 무효화는 TTL 이 아니라 회차가 합니다
+
+`version` 은 서버의 데이터 회차입니다. `/auth/me` 가 `data_versions` 로 학기별 회차를
+실어 주고, 캐시에 든 값과 다르면 **TTL 이 남아 있어도 버립니다.**
+
+예전에는 관리자가 재수집을 눌러도 **본인 브라우저까지** 최대 1시간 옛 시간표를 봤습니다.
+`clearCache()` 로 때울 수도 있었지만 그러면 누른 사람만 고쳐지고 학생들은 그대로입니다.
+회차를 응답에 실으면 전원이 스스로 버립니다.
+
+`/auth/me` 와 `GET /` 는 **나란히** 나갑니다 — 직렬로 묶으면 첫 화면이 한 왕복 느려집니다.
+그래서 회차가 늦게 도착해 어긋나는 경우를 effect 하나가 받아 다시 받습니다. 맞으면 아무
+일도 하지 않으므로 추가 요청은 정말 갈렸을 때만 나갑니다.
+
+캐시를 읽는 순간의 회차는 state 가 아니라 `dataVersionsRef` 로 봅니다 — state 만 쓰면
+닫힌 값이 잡혀 방금 받은 회차를 놓칩니다.
 
 ## 학기 전환
 - 선택 학기: `ksa_selected_term`에 `{ year, semester }` 저장 → 새로고침 시 유지

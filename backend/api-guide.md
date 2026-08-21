@@ -168,9 +168,17 @@
 {
   "id": 1, "username": "admin", "is_admin": true,
   "stu_id": "25-059", "student_name": "백재원",
-  "email": "25-059@ksa.hs.kr"
+  "email": "25-059@ksa.hs.kr",
+  "data_versions": { "2026-2": 7, "2026-1": 3 }
 }
 ```
+
+`data_versions`는 학기별 데이터 회차입니다. **프론트가 캐시를 계속 써도 되는지 판단하는
+유일한 근거**라, 값이 자기 캐시와 다르면 TTL 이 남아 있어도 버리고 다시 받습니다.
+
+여기에 얹은 이유는 이 응답이 **앱을 열 때마다 캐시 없이 한 번은 나가는 유일한 요청**이기
+때문입니다. 학기 데이터가 캐시에 맞으면 `GET /` 는 아예 나가지 않아서, 회차를 물어볼
+자리를 따로 만들면 요청이 하나 더 늘어납니다.
 
 `email`이 `null`이면 학교 구글 계정과 아직 이어지지 않은 옛 계정입니다. 프론트가
 연결 창을 강제로 띄우므로 이 상태로는 앱을 쓸 수 없습니다. 구글로 들어오면 `stu_id`도
@@ -241,6 +249,7 @@
 |----------|------|------|
 | `year` | int (2000~2100) | 학년도. 생략 시 데이터가 있는 최신 학기 |
 | `semester` | int (1\|2) | 학기. 생략 시 데이터가 있는 최신 학기 |
+| `version` | int (≥1) | 그 회차 시점으로 조회. 생략 시 현재. 없는 회차면 **404** |
 
 > `year`와 `semester`가 **둘 다** 주어졌을 때만 해당 학기를 조회합니다. 하나만 주면 최신 학기로 폴백합니다.
 
@@ -248,6 +257,8 @@
 ```json
 {
   "term": { "year": 2026, "semester": 2 },
+  "version": 7,
+  "latest_version": 7,
   "available_terms": [
     { "year": 2026, "semester": 2 },
     { "year": 2026, "semester": 1 }
@@ -454,6 +465,61 @@ const data = await api.get('/', {
 - 프론트엔드 localStorage에 1시간 캐싱 — 키는 학기별로 분리 (`ksa_class_finder_cache_{year}_{semester}`)
 - 선택 학기는 `ksa_selected_term`에 보존 (새로고침 시 유지)
 - 강제 갱신: `fetchInitialData(true)`
+
+**무효화는 TTL 이 아니라 회차가 합니다.** 캐시에 `version` 을 같이 저장하고, `/auth/me` 가
+알려 준 값과 다르면 버립니다. TTL 은 이제 백스톱일 뿐입니다.
+
+이전에는 재수집을 해도 **누른 관리자 본인 브라우저까지** 최대 1시간 옛 데이터를 봤습니다.
+`clearCache()` 를 부르는 것으로 때울 수도 있었지만 그러면 관리자만 고쳐지고 학생들은
+그대로였습니다. 회차를 응답에 실으면 **전원이 스스로 버립니다.**
+
+`/auth/me` 와 `GET /` 는 나란히 나갑니다 — 첫 화면을 빠르게 두려는 것입니다. 그래서 회차가
+늦게 도착해 어긋나는 경우를 `App.tsx` 의 effect 가 받아 한 번 더 받습니다. 맞으면 아무 일도
+일어나지 않으므로 추가 요청은 정말 갈렸을 때만 나갑니다.
+
+---
+
+## 회차 엔드포인트
+
+### `GET /admin/versions?year=&semester=` *(admin)*
+한 학기의 회차 이력 (최신순). 학기를 안 주면 최신 학기입니다.
+
+```json
+{
+  "term": { "year": 2026, "semester": 2 },
+  "versions": [
+    {
+      "version": 2, "created_at": "2026-08-21T10:19:45", "source": "sync",
+      "note": null, "synced": 365, "skipped": 312, "errors": 0,
+      "elapsed": "24.6s", "backup": "ksa_timetable-20260821-191945-sync-2026-2-v2.db",
+      "summary": {
+        "changed": true,
+        "classes": { "added": [], "removed": [], "moved": [...], "swapped": [...], "kept": 250 },
+        "times": { "added": 25, "removed": 23 },
+        "enrollments": { "added": 163, "removed": 190, "by_class": [...] },
+        "students": { "new": 0, "renamed": 0 }
+      }
+    }
+  ]
+}
+```
+
+`source` 는 `sync`(수집) · `edit`(이름 수정) · `seed`(버전 도입 이전부터 있던 데이터)입니다.
+`summary` 는 1회차와 `seed` 에는 없습니다 — 비교할 앞이 없어서입니다.
+
+### `POST /admin/sync` 응답
+```json
+{
+  "detail": "Sync complete",
+  "term": { "year": 2026, "semester": 2 },
+  "stats": { "synced": 365, "skipped": 312, "errors": 0, "elapsed": "24.6s",
+             "backup": "...", "version": 2, "changed": 1 },
+  "changed": true, "version": 2, "summary": { ... }
+}
+```
+
+**바뀐 게 없으면 `changed: false`, `detail: "No changes"` 이고 백업도 회차도 만들지
+않습니다.** "돌렸다" 와 "달라졌다" 는 다른 사건입니다.
 
 ---
 

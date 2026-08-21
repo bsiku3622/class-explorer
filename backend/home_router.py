@@ -22,6 +22,7 @@ from backend import models, periods
 from backend.auth import get_current_user, get_db
 from backend.calendar_router import event_out
 from backend.terms import resolve_term
+from backend.versioning import at_version
 
 router = APIRouter(tags=["home"])
 
@@ -294,6 +295,9 @@ async def get_home(
                 models.Enrollment.stuId == current_user.stu_id,
                 models.Class.year == target_year,
                 models.Class.semester == target_semester,
+                at_version(models.Class),
+                at_version(models.ClassTime),
+                at_version(models.Enrollment),
             )
             .options(
                 joinedload(models.Class.subject)

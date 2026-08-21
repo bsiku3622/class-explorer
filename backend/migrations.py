@@ -464,6 +464,144 @@ def _migrate_admin_flag_to_role(conn) -> None:
             print(f"[migration] 권한을 role 로 이관 — 관리자 {moved}명")
 
 
+def _add_version_ranges(conn) -> None:
+    """
+    수집이 건드리는 세 테이블에 유효 버전 구간을 붙입니다.
+
+    지금까지는 재수집이 한 학기를 통째로 갈아 끼웠습니다. 그래서 "지난주엔 뭐가
+    달랐나"를 물으면 백업 파일을 열어 보는 수밖에 없었고, 백업 이름의 날짜는 파일을
+    뜬 날짜지 데이터가 바뀐 날짜가 아니라 그것마저 어긋났습니다.
+
+    행마다 `[version_from, version_to)` 를 달아 두면 변경분만 쌓입니다. 실측으로는
+    회차당 몇 KB 수준이고, 학기가 새로 열릴 때만 150KB 정도 붙습니다.
+
+    ⚠️ UNIQUE 제약에 `version_from` 이 들어갑니다. 한 학생이 수업을 뺐다가 다시 듣는
+    일이 실제로 있는데, 옛 제약이면 그 이력을 두 행으로 남길 수 없어 뭉개집니다.
+    SQLite 는 제약을 ALTER 로 못 바꿔서 테이블을 다시 세웁니다 — id 를 그대로 옮기므로
+    FK 와 Trade 계획이 가리키는 분반 id 는 유지됩니다.
+    """
+    if _has_column(conn, "classes", "version_from"):
+        return
+
+    conn.execute(text("PRAGMA foreign_keys=OFF"))
+
+    # ── classes ──────────────────────────────────────────────────────────────
+    conn.execute(text("DROP TABLE IF EXISTS classes_versioned"))
+    conn.execute(
+        text(
+            """
+            CREATE TABLE classes_versioned (
+                id INTEGER NOT NULL PRIMARY KEY,
+                subject_id INTEGER NOT NULL REFERENCES subjects(id),
+                section VARCHAR,
+                teacher VARCHAR,
+                room VARCHAR,
+                year INTEGER NOT NULL,
+                semester INTEGER NOT NULL,
+                version_from INTEGER NOT NULL DEFAULT 1,
+                version_to INTEGER,
+                CONSTRAINT _subject_section_uc
+                  UNIQUE (subject_id, section, teacher, year, semester, version_from)
+            )
+            """
+        )
+    )
+    conn.execute(
+        text(
+            """
+            INSERT INTO classes_versioned
+                (id, subject_id, section, teacher, room, year, semester, version_from, version_to)
+            SELECT id, subject_id, section, teacher, room, year, semester, 1, NULL FROM classes
+            """
+        )
+    )
+    conn.execute(text("DROP TABLE classes"))
+    conn.execute(text("ALTER TABLE classes_versioned RENAME TO classes"))
+    for stmt in (
+        "CREATE INDEX ix_classes_id ON classes (id)",
+        "CREATE INDEX ix_classes_subject_id ON classes (subject_id)",
+        "CREATE INDEX ix_classes_year ON classes (year)",
+        "CREATE INDEX ix_classes_semester ON classes (semester)",
+        "CREATE INDEX ix_classes_version_from ON classes (version_from)",
+        "CREATE INDEX ix_classes_version_to ON classes (version_to)",
+    ):
+        conn.execute(text(stmt))
+
+    # ── enrollments ──────────────────────────────────────────────────────────
+    conn.execute(text("DROP TABLE IF EXISTS enrollments_versioned"))
+    conn.execute(
+        text(
+            """
+            CREATE TABLE enrollments_versioned (
+                id INTEGER NOT NULL,
+                "stuId" VARCHAR,
+                "classId" INTEGER,
+                version_from INTEGER NOT NULL DEFAULT 1,
+                version_to INTEGER,
+                PRIMARY KEY (id),
+                CONSTRAINT _student_enrollment_uc UNIQUE ("stuId", "classId", version_from),
+                FOREIGN KEY("stuId") REFERENCES students ("stuId"),
+                FOREIGN KEY("classId") REFERENCES classes (id)
+            )
+            """
+        )
+    )
+    conn.execute(
+        text(
+            """
+            INSERT INTO enrollments_versioned (id, "stuId", "classId", version_from, version_to)
+            SELECT id, "stuId", "classId", 1, NULL FROM enrollments
+            """
+        )
+    )
+    conn.execute(text("DROP TABLE enrollments"))
+    conn.execute(text("ALTER TABLE enrollments_versioned RENAME TO enrollments"))
+    for stmt in (
+        "CREATE INDEX ix_enrollments_id ON enrollments (id)",
+        "CREATE INDEX ix_enrollments_version_from ON enrollments (version_from)",
+        "CREATE INDEX ix_enrollments_version_to ON enrollments (version_to)",
+    ):
+        conn.execute(text(stmt))
+
+    # ── class_times — UNIQUE 제약이 없어 컬럼만 붙이면 됩니다 ────────────────
+    conn.execute(text("ALTER TABLE class_times ADD COLUMN version_from INTEGER NOT NULL DEFAULT 1"))
+    conn.execute(text("ALTER TABLE class_times ADD COLUMN version_to INTEGER"))
+    conn.execute(text("CREATE INDEX ix_class_times_version_from ON class_times (version_from)"))
+    conn.execute(text("CREATE INDEX ix_class_times_version_to ON class_times (version_to)"))
+
+    conn.execute(text("PRAGMA foreign_keys=ON"))
+    conn.commit()
+    print("[migration] 수업·시간·수강에 버전 구간 추가 — 기존 데이터는 전부 v1")
+
+
+def _seed_term_versions(conn) -> None:
+    """
+    이미 쌓여 있는 학기마다 1회차를 만들어 둡니다.
+
+    회차가 없으면 "현재 버전"을 물을 곳이 없어 첫 수집이 2회차부터 시작합니다.
+    출처를 `seed` 로 남겨, 실제로 수집을 돌려서 생긴 회차와 구분되게 합니다.
+    """
+    if not _has_table(conn, "term_versions") or not _has_table(conn, "classes"):
+        return
+    if conn.execute(text("SELECT 1 FROM term_versions LIMIT 1")).first():
+        return
+
+    conn.execute(
+        text(
+            """
+            INSERT INTO term_versions (year, semester, version, created_at, source, note)
+            SELECT DISTINCT year, semester, 1, CURRENT_TIMESTAMP, 'seed',
+                   '버전 도입 이전부터 쌓여 있던 데이터'
+            FROM classes
+            """
+        )
+    )
+    conn.commit()
+    seeded = conn.execute(text("SELECT COUNT(*) FROM term_versions")).scalar()
+    if seeded:
+        print(f"[migration] 학기 {seeded}개에 1회차 기록 생성")
+
+
 def run_migrations(engine: Engine) -> None:
     # 단순 컬럼 추가 — 이미 있으면 무시
     simple = [
@@ -504,3 +642,5 @@ def run_migrations(engine: Engine) -> None:
         _unique_student_link(conn)
         _split_into_subject_tables(conn)
         _migrate_admin_flag_to_role(conn)
+        _add_version_ranges(conn)
+        _seed_term_versions(conn)

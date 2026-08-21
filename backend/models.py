@@ -22,11 +22,26 @@ from backend.database import Base
 import datetime
 
 
+# 아래 네 관계는 **지금 열려 있는 행만** 봅니다.
+#
+# 폐강되거나 수강을 뺀 행은 지워지지 않고 닫히기만 하므로, 조건을 안 걸면 `cls.times`
+# 하나 읽었을 뿐인데 지난 학기의 유령 시간이 딸려 옵니다. 화면에서 티가 잘 안 나는
+# 종류의 사고라 관계 정의에서 막습니다 — 읽는 쪽이 조건을 기억할 필요가 없어집니다.
+#
+# `viewonly` 인 이유는 컬렉션에서 빠지는 것이 삭제로 오해되지 않게 하려는 것입니다.
+# 수집은 관계가 아니라 세션에 직접 넣고, 닫을 때는 `version_to` 만 찍습니다.
+# **과거 회차를 읽을 때는 이 관계를 쓰지 마세요** — `at_version()` 으로 직접 물어야 합니다.
+
+
 class Student(Base):
     __tablename__ = "students"
     stuId = Column(String, primary_key=True, index=True)
     name = Column(String)
-    enrollments = relationship("Enrollment", back_populates="student")
+    enrollments = relationship(
+        "Enrollment",
+        primaryjoin="and_(Student.stuId == Enrollment.stuId, Enrollment.version_to.is_(None))",
+        viewonly=True,
+    )
 
 
 # ─── 과목 4층 ────────────────────────────────────────────────────────────────
@@ -98,13 +113,23 @@ class Subject(Base):
     is_ec = Column(Boolean, default=False, nullable=False)    # 영어강의(English Class)
 
     course = relationship("Course", back_populates="subjects")
-    classes = relationship("Class", back_populates="subject")
+    classes = relationship(
+        "Class",
+        primaryjoin="and_(Subject.id == Class.subject_id, Class.version_to.is_(None))",
+        viewonly=True,
+    )
 
     __table_args__ = (UniqueConstraint('name', 'is_ec', name='_subject_name_lang_uc'),)
 
 
 class Class(Base):
-    """한 학기에 실제로 열린 분반."""
+    """
+    한 학기에 실제로 열린 분반.
+
+    행이 언제부터 언제까지 유효한지를 `version_from`/`version_to`가 들고 있습니다
+    (`backend/versioning.py`). 폐강돼도 행을 지우지 않고 닫기만 합니다 — Trade 계획이
+    분반을 id로 가리키고 있어서, 지우면 남의 계획이 조용히 깨집니다.
+    """
     __tablename__ = "classes"
     id = Column(Integer, primary_key=True, index=True)
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False, index=True)
@@ -113,13 +138,23 @@ class Class(Base):
     room = Column(String)                # 대표 강의실
     year = Column(Integer, index=True, nullable=False)
     semester = Column(Integer, index=True, nullable=False)
+    version_from = Column(Integer, nullable=False, default=1, index=True)
+    version_to = Column(Integer, nullable=True, index=True)
 
-    subject = relationship("Subject", back_populates="classes")
-    enrollments = relationship("Enrollment", back_populates="class_info")
-    times = relationship("ClassTime", back_populates="class_info", cascade="all, delete-orphan")
+    subject = relationship("Subject")
+    enrollments = relationship(
+        "Enrollment",
+        primaryjoin="and_(Class.id == Enrollment.classId, Enrollment.version_to.is_(None))",
+        viewonly=True,
+    )
+    times = relationship(
+        "ClassTime",
+        primaryjoin="and_(Class.id == ClassTime.class_id, ClassTime.version_to.is_(None))",
+        viewonly=True,
+    )
 
     __table_args__ = (
-        UniqueConstraint('subject_id', 'section', 'teacher', 'year', 'semester', name='_subject_section_uc'),
+        UniqueConstraint('subject_id', 'section', 'teacher', 'year', 'semester', 'version_from', name='_subject_section_uc'),
     )
 
 
@@ -130,8 +165,10 @@ class ClassTime(Base):
     period = Column(Integer)  # 1-11
     room = Column(String)
     class_id = Column(Integer, ForeignKey("classes.id"))
+    version_from = Column(Integer, nullable=False, default=1, index=True)
+    version_to = Column(Integer, nullable=True, index=True)
 
-    class_info = relationship("Class", back_populates="times")
+    class_info = relationship("Class")
 
 
 class Enrollment(Base):
@@ -139,11 +176,52 @@ class Enrollment(Base):
     id = Column(Integer, primary_key=True, index=True)
     stuId = Column(String, ForeignKey("students.stuId"))
     classId = Column(Integer, ForeignKey("classes.id"))
+    version_from = Column(Integer, nullable=False, default=1, index=True)
+    version_to = Column(Integer, nullable=True, index=True)
 
-    student = relationship("Student", back_populates="enrollments")
-    class_info = relationship("Class", back_populates="enrollments")
+    student = relationship("Student")
+    class_info = relationship("Class")
 
-    __table_args__ = (UniqueConstraint('stuId', 'classId', name='_student_enrollment_uc'),)
+    __table_args__ = (UniqueConstraint('stuId', 'classId', 'version_from', name='_student_enrollment_uc'),)
+
+
+class TermVersion(Base):
+    """
+    한 학기 데이터가 바뀐 회차. `(year, semester)` 안에서 1부터 올라갑니다.
+
+    **바뀐 게 있을 때만 늘어납니다.** 수집을 돌려도 결과가 직전과 같으면 회차를
+    만들지 않습니다. 실제로 8월 11일부터 19일까지 백업 다섯 개가 전부 같은 내용이었는데,
+    그때마다 회차를 매겼으면 이력이 의미를 잃고 전교생 브라우저가 같은 데이터를
+    다시 받았을 겁니다.
+
+    `summary`는 직전 회차와의 차이입니다. 개인 이름은 담지 않습니다 — 관리자만 보는
+    화면이라도 명단이 새는 통로를 늘릴 이유가 없습니다.
+
+    수집이 아닌 변경(학생·교사 이름 수정)도 회차를 올립니다. 화면에 나가는 내용이
+    달라지면 캐시가 갈려야 하기 때문입니다. 그런 회차는 `source='edit'`이고, `students`·
+    `subjects`에는 버전 구간이 없어 **과거 회차를 열어도 이름은 현재 값으로 보입니다.**
+    """
+    __tablename__ = "term_versions"
+    id = Column(Integer, primary_key=True, index=True)
+    year = Column(Integer, nullable=False, index=True)
+    semester = Column(Integer, nullable=False, index=True)
+    version = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    source = Column(String, nullable=False, default="sync")   # sync | edit | seed
+    note = Column(String, nullable=True)                      # source='edit' 일 때 무엇을 고쳤는지
+
+    # 수집 통계 — source='sync' 에서만 채워집니다
+    synced = Column(Integer, nullable=True)
+    skipped = Column(Integer, nullable=True)
+    errors = Column(Integer, nullable=True)
+    elapsed = Column(String, nullable=True)
+    backup_name = Column(String, nullable=True)
+
+    summary = Column(JSON, nullable=True)   # 직전 회차와의 차이
+
+    __table_args__ = (
+        UniqueConstraint('year', 'semester', 'version', name='_term_version_uc'),
+    )
 
 
 class CoursePrereq(Base):

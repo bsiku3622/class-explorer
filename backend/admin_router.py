@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from backend import backup, models
 from backend.auth import get_current_admin, get_db, hash_password
 from backend.terms import list_terms, resolve_term
+from backend.versioning import at_version, bump_terms, terms_of_student, terms_of_teacher
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -173,7 +174,15 @@ def update_student(
     student = db.query(models.Student).filter(models.Student.stuId == stu_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
-    student.name = body.name.strip()
+    new_name = body.name.strip()
+    if new_name == student.name:
+        return {"stuId": student.stuId, "name": student.name}
+
+    # 이름은 화면에 그대로 나가는 값이라, 고치면 각자 브라우저의 학기 캐시가 갈려야
+    # 합니다. 회차를 올리는 것이 그 신호입니다 — 수집이 아니어도 마찬가지입니다
+    terms = terms_of_student(db, stu_id)
+    student.name = new_name
+    bump_terms(db, terms, note=f"학생 이름 수정 ({stu_id})")
     db.commit()
     return {"stuId": student.stuId, "name": student.name}
 
@@ -200,6 +209,7 @@ def list_teachers(
             models.Class.teacher != "배정중",
             models.Class.year == target_year,
             models.Class.semester == target_semester,
+            at_version(models.Class),
         )
         .group_by(models.Class.teacher)
         .order_by(models.Class.teacher)
@@ -219,6 +229,9 @@ def rename_teacher(
     new_name = body.new_name.strip()
     if not new_name:
         raise HTTPException(status_code=400, detail="New name cannot be empty")
+    # 닫힌 행까지 함께 고칩니다. 오타를 바로잡는 작업이지 "이때부터 이름이 바뀌었다" 가
+    # 아니라서, 과거 회차를 열었을 때도 고친 이름으로 보이는 쪽이 맞습니다
+    terms = terms_of_teacher(db, teacher_name)
     updated = (
         db.query(models.Class)
         .filter(models.Class.teacher == teacher_name)
@@ -226,6 +239,7 @@ def rename_teacher(
     )
     if updated == 0:
         raise HTTPException(status_code=404, detail="Teacher not found")
+    bump_terms(db, terms, note=f"교사 이름 수정 ({teacher_name} → {new_name})")
     db.commit()
     return {"old_name": teacher_name, "new_name": new_name, "updated_sections": updated}
 
@@ -321,6 +335,7 @@ def sync_data(
         # SYNC_RESULT 줄 파싱
         stats: dict[str, object] = {
             "synced": 0, "skipped": 0, "errors": 0, "elapsed": "", "backup": "",
+            "version": 0, "changed": 0,
         }
         text_keys = {"elapsed", "backup"}
         for line in result.stdout.splitlines():
@@ -330,13 +345,76 @@ def sync_data(
                         k, v = token.split("=", 1)
                         if k in stats:
                             stats[k] = (v if v != "-" else "") if k in text_keys else int(v)
+
+        # 수집은 별도 프로세스라 우리 세션이 옛 상태를 들고 있을 수 있습니다.
+        # 회차 기록을 읽기 전에 트랜잭션을 끊어 새로 읽게 합니다
+        db.rollback()
+        changed = bool(stats["changed"])
+        entry = (
+            db.query(models.TermVersion)
+            .filter(
+                models.TermVersion.year == target_year,
+                models.TermVersion.semester == target_semester,
+                models.TermVersion.version == stats["version"],
+            )
+            .first()
+            if changed
+            else None
+        )
         return {
-            "detail": "Sync complete",
+            "detail": "Sync complete" if changed else "No changes",
             "term": {"year": target_year, "semester": target_semester},
             "stats": stats,
+            "changed": changed,
+            "version": stats["version"],
+            "summary": entry.summary if entry else None,
         }
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504, detail="Sync timed out (300s)")
+
+
+# ─── 회차 이력 ───────────────────────────────────────────────────────────────
+@router.get("/versions")
+def list_versions(
+    year: int | None = Query(default=None, ge=2000, le=2100),
+    semester: int | None = Query(default=None, ge=1, le=2),
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    """
+    한 학기의 회차 이력 (최신순).
+
+    학기를 안 주면 최신 학기입니다. `summary` 는 직전 회차와의 차이이고, 1회차나
+    버전 도입 이전부터 있던 데이터에는 비어 있습니다 — 비교할 앞이 없어서입니다.
+    """
+    target_year, target_semester = resolve_term(db, year, semester)
+    rows = (
+        db.query(models.TermVersion)
+        .filter(
+            models.TermVersion.year == target_year,
+            models.TermVersion.semester == target_semester,
+        )
+        .order_by(models.TermVersion.version.desc())
+        .all()
+    )
+    return {
+        "term": {"year": target_year, "semester": target_semester},
+        "versions": [
+            {
+                "version": row.version,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "source": row.source,
+                "note": row.note,
+                "synced": row.synced,
+                "skipped": row.skipped,
+                "errors": row.errors,
+                "elapsed": row.elapsed,
+                "backup": row.backup_name,
+                "summary": row.summary,
+            }
+            for row in rows
+        ],
+    }
 
 
 # ─── DB 백업 ─────────────────────────────────────────────────────────────────

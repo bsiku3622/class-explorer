@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera } from "lucide-react";
+import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera, History } from "lucide-react";
 import api from "../lib/api";
 import { authHeader } from "../lib/session";
 import axios from "axios";
@@ -8,6 +8,8 @@ import RetroButton from "../components/atoms/RetroButton";
 import RetroSubTitle from "../components/atoms/RetroSubTitle";
 import AccordionSection from "../components/molecules/AccordionSection";
 import PageHeader from "../components/molecules/PageHeader";
+import ChangeSummary from "../components/admin/ChangeSummary";
+import type { ChangeSummaryData } from "../components/admin/ChangeSummary";
 
 interface UserRow {
     id: number;
@@ -41,12 +43,59 @@ interface SubjectRow { subject: string; is_ec: boolean; english: string | null; 
 type DataTab = "students" | "teachers" | "subjects";
 
 interface TermRow { year: number; semester: number; }
+
+interface VersionRow {
+    version: number;
+    created_at: string | null;
+    source: string;
+    note: string | null;
+    synced: number | null;
+    skipped: number | null;
+    errors: number | null;
+    elapsed: string | null;
+    backup: string | null;
+    summary: ChangeSummaryData | null;
+}
 interface BackupRow { name: string; label: string; created: string; bytes: number; }
 
 const formatBytes = (n: number) =>
     n >= 1_048_576 ? `${(n / 1_048_576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
 
 const termLabel = (t: TermRow) => `${t.year}-${t.semester}`;
+
+/**
+ * 서버가 `datetime.utcnow()` 로 적어 시간대 표시가 없습니다. 그대로 넘기면 브라우저가
+ * 현지 시각으로 읽어 9시간이 밀리므로 `Z` 를 붙여 UTC 임을 알려 줍니다.
+ */
+const formatWhen = (iso: string | null): string => {
+    if (!iso) return "";
+    const at = new Date(/[Z+]/.test(iso.slice(10)) ? iso : `${iso}Z`);
+    return Number.isNaN(at.getTime())
+        ? ""
+        : at.toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
+};
+
+/** 회차 줄에 접힌 채로 보이는 한 줄 — 펼치지 않아도 규모가 가늠되게 */
+const versionHeadline = (row: VersionRow): string => {
+    const sum = row.summary;
+    if (!sum) return row.source === "seed" ? "기준점" : "";
+    const parts: string[] = [];
+    const net = (added: number, removed: number) => {
+        if (added) parts.push(`+${added}`);
+        if (removed) parts.push(`-${removed}`);
+    };
+    if (sum.classes.added.length || sum.classes.removed.length) {
+        parts.push("분반");
+        net(sum.classes.added.length, sum.classes.removed.length);
+    }
+    if (sum.enrollments.added || sum.enrollments.removed) {
+        parts.push("수강");
+        net(sum.enrollments.added, sum.enrollments.removed);
+    }
+    if (sum.classes.moved.length) parts.push(`교실 ${sum.classes.moved.length}`);
+    if (sum.classes.swapped?.length) parts.push(`교사 ${sum.classes.swapped.length}`);
+    return parts.join(" ") || "변화 없음";
+};
 
 // ─── 인라인 편집 행 공통 레이아웃 ─────────────────────────────────────────────
 interface EditableRowProps {
@@ -115,7 +164,7 @@ const EditableRow: React.FC<EditableRowProps> = ({
 };
 
 const AdminPage: React.FC = () => {
-    const [openSections, setOpenSections] = useState({ users: true, sessions: true, data: false, backups: false });
+    const [openSections, setOpenSections] = useState({ users: true, sessions: true, data: false, versions: false, backups: false });
 
     // Users
     const [users, setUsers] = useState<UserRow[]>([]);
@@ -131,11 +180,19 @@ const AdminPage: React.FC = () => {
     // Sync — 학기를 골라서 받습니다. DB에 아직 없는 학기도 직접 입력해 처음 채울 수 있습니다
     const [syncLoading, setSyncLoading] = useState(false);
     const [syncResult, setSyncResult] = useState<
-        { ok: boolean; term?: string; synced?: number; skipped?: number; errors?: number; elapsed?: string; backup?: string } | null
+        {
+            ok: boolean; term?: string; synced?: number; skipped?: number;
+            errors?: number; elapsed?: string; backup?: string;
+            changed?: boolean; version?: number; summary?: ChangeSummaryData | null;
+        } | null
     >(null);
     const [terms, setTerms] = useState<TermRow[]>([]);
     const [syncTerm, setSyncTerm] = useState<TermRow | null>(null);
     const [customTerm, setCustomTerm] = useState<TermRow | null>(null);
+
+    // 회차 이력
+    const [versions, setVersions] = useState<VersionRow[]>([]);
+    const [openVersion, setOpenVersion] = useState<number | null>(null);
 
     // Backups
     const [backups, setBackups] = useState<BackupRow[]>([]);
@@ -214,6 +271,18 @@ const AdminPage: React.FC = () => {
             setSyncTerm((prev) => prev ?? rows[0] ?? null);
         } catch (e) {
             if (axios.isAxiosError(e)) setError(e.response?.data?.detail || "Failed to load terms");
+        }
+    }, []);
+
+    const fetchVersions = useCallback(async (target?: TermRow | null) => {
+        try {
+            const res = await api.get("/admin/versions", {
+                headers: authHeader(),
+                params: target ? { year: target.year, semester: target.semester } : undefined,
+            });
+            setVersions(res.data.versions ?? []);
+        } catch (e) {
+            if (axios.isAxiosError(e)) setError(e.response?.data?.detail || "Failed to load versions");
         }
     }, []);
 
@@ -315,10 +384,18 @@ const AdminPage: React.FC = () => {
                 { year: targetTerm.year, semester: targetTerm.semester },
                 { headers: authHeader() },
             );
-            setSyncResult({ ok: true, term: termLabel(res.data.term), ...res.data.stats });
+            setSyncResult({
+                ok: true,
+                term: termLabel(res.data.term),
+                ...res.data.stats,
+                changed: res.data.changed,
+                version: res.data.version,
+                summary: res.data.summary,
+            });
             // 새 학기를 처음 받았으면 목록에 없던 학기가 생깁니다
             fetchTerms();
             fetchBackups();
+            fetchVersions(targetTerm);
         } catch (e) {
             if (axios.isAxiosError(e)) setSyncResult({ ok: false });
         } finally { setSyncLoading(false); }
@@ -341,6 +418,7 @@ const AdminPage: React.FC = () => {
             if (teachers.length === 0) fetchTeachers();
             if (subjects.length === 0) fetchSubjects();
         }
+        if (key === "versions" && !openSections.versions && versions.length === 0) fetchVersions(targetTerm);
         if (key === "backups" && !openSections.backups && backups.length === 0) fetchBackups();
         setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
     };
@@ -662,18 +740,31 @@ const AdminPage: React.FC = () => {
                     </div>
 
                     {syncResult && (
-                        <div className={`border-2 px-3 py-2 text-xs font-bold ${syncResult.ok ? "border-green-600 bg-green-50 text-green-700" : "border-red-500 bg-red-50 text-red-600"}`}>
+                        <div className={`border-2 px-3 py-2 text-xs font-bold ${
+                            !syncResult.ok ? "border-red-500 bg-red-50 text-red-600"
+                            : syncResult.changed ? "border-green-600 bg-green-50 text-green-700"
+                            : "border-black/30 bg-black/[0.03] text-black/60"
+                        }`}>
                             {syncResult.ok ? (
                                 <span className="flex flex-wrap gap-3">
-                                    <span>✓ Sync complete</span>
+                                    {/* 바뀐 게 없으면 회차도 백업도 만들지 않습니다 —
+                                        "돌렸다" 와 "달라졌다" 는 다른 사건입니다 */}
+                                    <span>{syncResult.changed ? "✓ Sync complete" : "= No changes"}</span>
                                     {syncResult.term && <span><strong>{syncResult.term}</strong></span>}
+                                    {syncResult.version ? <span>v<strong>{syncResult.version}</strong></span> : null}
                                     <span>Synced <strong>{syncResult.synced}</strong></span>
                                     <span>Skipped <strong>{syncResult.skipped}</strong></span>
                                     {(syncResult.errors ?? 0) > 0 && <span>Errors <strong>{syncResult.errors}</strong></span>}
-                                    <span className="text-green-500">{syncResult.elapsed}</span>
-                                    {syncResult.backup && <span className="text-green-500">backup: {syncResult.backup}</span>}
+                                    <span className="opacity-60">{syncResult.elapsed}</span>
+                                    {syncResult.backup && <span className="opacity-60">backup: {syncResult.backup}</span>}
                                 </span>
                             ) : "Sync failed"}
+                        </div>
+                    )}
+
+                    {syncResult?.ok && syncResult.summary && (
+                        <div className="border-2 border-black bg-white px-3 py-3">
+                            <ChangeSummary data={syncResult.summary} />
                         </div>
                     )}
 
@@ -782,6 +873,66 @@ const AdminPage: React.FC = () => {
             </AccordionSection>
 
             {/* Backups — 수집 직전 스냅샷이 쌓이는 곳. 자동 삭제 없음 */}
+            {/* 회차 이력 — 언제 무엇이 갈렸는지. 백업 파일을 열어 보지 않아도 됩니다 */}
+            <AccordionSection title="Data Versions" icon={History} isOpen={openSections.versions} onToggle={() => toggle("versions")}>
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                        <RetroSubTitle title={targetTerm ? termLabel(targetTerm) : "학기 미선택"} />
+                        <button
+                            onClick={() => fetchVersions(targetTerm)}
+                            className="flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1.5 border-2 border-black/30 text-black/50 hover:border-black hover:text-black transition-all duration-100"
+                        >
+                            <RefreshCw size={11} strokeWidth={2.5} />
+                            Refetch
+                        </button>
+                    </div>
+
+                    {versions.length === 0 ? (
+                        <p className="text-xs font-bold text-black/40">회차 기록이 없습니다.</p>
+                    ) : (
+                        <ul className="space-y-2">
+                            {versions.map((row) => (
+                                <li key={row.version} className="border-2 border-black">
+                                    <button
+                                        onClick={() => setOpenVersion(openVersion === row.version ? null : row.version)}
+                                        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-retro-accent-light transition-all duration-100"
+                                    >
+                                        <span className="flex items-center gap-2 min-w-0">
+                                            <span className="text-sm font-black shrink-0">v{row.version}</span>
+                                            <span className="shrink-0 text-[10px] font-black uppercase px-1.5 py-0.5 border-2 border-black/20 text-black/50">
+                                                {row.source}
+                                            </span>
+                                            <span className="text-xs font-bold text-black/50 truncate">{formatWhen(row.created_at)}</span>
+                                        </span>
+                                        <span className="shrink-0 text-xs font-bold text-black/40">{versionHeadline(row)}</span>
+                                    </button>
+
+                                    {openVersion === row.version && (
+                                        <div className="border-t-2 border-black px-3 py-3 space-y-2">
+                                            {row.note && <p className="text-xs font-bold text-black/50">{row.note}</p>}
+                                            {row.summary ? (
+                                                <ChangeSummary data={row.summary} />
+                                            ) : (
+                                                <p className="text-xs font-bold text-black/40">
+                                                    비교할 앞 회차가 없습니다.
+                                                </p>
+                                            )}
+                                            <div className="flex flex-wrap gap-3 text-[10px] font-bold text-black/30">
+                                                {row.synced !== null && <span>synced {row.synced}</span>}
+                                                {row.skipped !== null && <span>skipped {row.skipped}</span>}
+                                                {!!row.errors && <span>errors {row.errors}</span>}
+                                                {row.elapsed && <span>{row.elapsed}</span>}
+                                                {row.backup && <span className="truncate">backup: {row.backup}</span>}
+                                            </div>
+                                        </div>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            </AccordionSection>
+
             <AccordionSection title="Backups" icon={Archive} isOpen={openSections.backups} onToggle={() => toggle("backups")}>
                 <div className="space-y-4">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
