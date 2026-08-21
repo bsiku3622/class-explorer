@@ -7,15 +7,9 @@
  */
 
 import api from "./api";
+import { authHeader } from "./session";
 import { DAY, cached } from "./cache";
 import type { Curriculum, ProgressTerm } from "./curriculum";
-
-const SESSION_TOKEN_KEY = "ksa_session_token";
-
-const authHeader = () => {
-    const token = localStorage.getItem(SESSION_TOKEN_KEY);
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 /** 카탈로그·선수관계·졸업 요건. 교육과정 개편 때나 바뀝니다 */
 export const fetchCurriculum = (): Promise<Curriculum> =>

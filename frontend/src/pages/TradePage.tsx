@@ -45,6 +45,7 @@ import {
 } from "../lib/utils";
 import { fuzzyMatch } from "../lib/searchEngine";
 import api from "../lib/api";
+import { authHeader } from "../lib/session";
 import { fetchCurriculum } from "../lib/curriculumApi";
 import {
     buildPrereqIndex,
@@ -94,11 +95,6 @@ const ACTION_ORDER: PlanAction[] = ["keep", "move", "drop"];
 
 const sectionLabel = (s: SectionInfo) =>
     `${getSectionNumber(s.section)}분반 · ${s.teacher}`;
-
-const authHeader = () => {
-    const token = localStorage.getItem("ksa_session_token");
-    return token ? { Authorization: `Bearer ${token}` } : undefined;
-};
 
 const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) => {
     const [stuId, setStuId] = useState<string | null>(null);

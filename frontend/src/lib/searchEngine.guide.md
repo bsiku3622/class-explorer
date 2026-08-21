@@ -7,18 +7,34 @@
 
 ## 진입점
 
-### `searchInClient(allData, searchTerm, selectedYears): SearchResult`
+### `searchInClient(allData: SubjectData[], searchTerm, selectedYears): SearchResult`
 ```
 searchTerm → parseQuery() → filterMatchingClasses() → extractEntities()
                                                       → grouped finalData
 ```
 반환값: `{ data, entities, mode, warning, stats }`
 
+## 타입
+
+**`any` 를 다시 들이지 마세요.** 한동안 이 파일 하나에 `any` 가 32개 있었고
+(프로젝트 lint 오류 58건 중 40건이 여기였습니다), 그 그늘에서 `data` 가 `SubjectData`
+라고 선언된 채 **`subject_id` 칸이 비어 나가고 있었습니다.** 읽는 화면이 없어서
+아무도 몰랐을 뿐입니다.
+
+| 타입 | 무엇 |
+|---|---|
+| `SearchMode` | `"general" \| "student" \| "teacher" \| "room"` — 검색 모드가 쓰이는 곳마다 다시 적지 않습니다 |
+| `MatchedSection` | 걸린 분반 하나 = `Section` + `subject`·`subject_id`. ⚠️ `students` 는 **학년 필터를 통과한 사람만** 남은 명단이고 `student_count` 도 그 길이입니다 |
+| `EntityDraft` | 엔티티를 모으는 중간 모양(`subjectsRaw` 포함). **밖으로 안 나갑니다** — 마지막에 `SearchEntity` 로 폅니다 |
+
+⚠️ 예전에는 `subjectsRaw`(내부용 `Map`)가 결과 엔티티에 **딸려 나갔습니다**. 읽는 곳이
+없어 지웠지만, 되살리지 마세요 — `SearchEntity` 에 없는 필드입니다.
+
 ---
 
 ## 내부 함수
 
-### `parseQuery(searchTerm, allData)`
+### `parseQuery(searchTerm)`
 검색어를 파싱해 모드, 쿼리, 플래그를 반환.
 
 | prefix | 단축키 | mode |
@@ -44,6 +60,10 @@ searchTerm → parseQuery() → filterMatchingClasses() → extractEntities()
 ### `extractEntities(matchingClasses, flatTerms, mode, effectiveQuery)`
 매칭된 분반에서 학생/교사/강의실 엔티티 추출.
 - 정렬: `teacher(1) → student(2) → room(3)`, 동일 타입은 이름순
+- 셋이 모으는 방식이 같아서 `ensure()`(없으면 만들기) · `addSection()` ·
+  `addTimes()` 세 헬퍼로 모았습니다. ⚠️ 예전엔 같은 20줄이 세 번 반복돼 있었고,
+  **강의실만 시간에 조건이 붙어 있어서**(찾는 방에서 열리는 교시만) 차이를 찾으려면
+  세 덩이를 나란히 놓고 비교해야 했습니다 — 지금은 `addTimes` 의 `keep` 인자 하나입니다
 
 ---
 

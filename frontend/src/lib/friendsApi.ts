@@ -9,6 +9,7 @@
  */
 
 import api from "./api";
+import { authHeader } from "./session";
 import { DAY, cached } from "./cache";
 
 const MINUTE = 60 * 1000;
@@ -182,11 +183,6 @@ export interface BreakTime {
     start_minute: number;
     end_minute: number;
 }
-
-const authHeader = () => {
-    const token = localStorage.getItem("ksa_session_token");
-    return token ? { Authorization: `Bearer ${token}` } : undefined;
-};
 
 export const fetchFriends = async (): Promise<Friend[]> => {
     const { data } = await api.get("/friends", { headers: authHeader() });

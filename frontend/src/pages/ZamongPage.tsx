@@ -21,6 +21,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FileUp, GraduationCap, Info, TriangleAlert, Upload, X } from "lucide-react";
 import api from "../lib/api";
+import { authHeader } from "../lib/session";
 import { fetchCurriculum, fetchProgress } from "../lib/curriculumApi";
 import {
     type Course,
@@ -54,13 +55,6 @@ import RetroCard from "../components/atoms/RetroCard";
 import PageHeader from "../components/molecules/PageHeader";
 import CourseBoard from "../components/zamong/CourseBoard";
 import Roadmap from "../components/zamong/Roadmap";
-
-const SESSION_TOKEN_KEY = "ksa_session_token";
-
-const authHeader = () => {
-    const token = localStorage.getItem(SESSION_TOKEN_KEY);
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 interface ZamongPageProps {
     stuId: string | null;

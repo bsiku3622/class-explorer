@@ -108,7 +108,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
         if (studentEntities.length < 2) return null;
         const schedules = studentEntities.map((entity) => {
             const map: Record<string, string> = {};
-            (entity.times || []).forEach((t: any) => {
+            (entity.times || []).forEach((t) => {
                 map[`${t.day}-${t.period}`] = t.subject || "";
             });
             return map;

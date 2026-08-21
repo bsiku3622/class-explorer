@@ -4,6 +4,42 @@ import {
     replaceRomanNumerals,
     getKoreanName,
 } from "./utils";
+import type {
+    SearchEntity,
+    Section,
+    SectionTime,
+    StudentInfo,
+    SubjectData,
+} from "../types";
+
+/** 검색이 도는 방식. prefix(`teacher:`) 로 정해지고 화면 배치까지 여기서 갈립니다 */
+export type SearchMode = "general" | "student" | "teacher" | "room";
+
+/**
+ * 검색에 걸린 분반 하나 — 원본 `Section` 에 **어느 과목의 것인지**가 얹힌 것입니다.
+ *
+ * `students` 는 **학년 필터를 통과한 사람만** 남은 명단이고 `student_count` 도 그
+ * 길이입니다. 원본 `Section` 의 전체 명단이 아닙니다.
+ */
+export interface MatchedSection extends Section {
+    subject: string;
+    subject_id: number;
+}
+
+/**
+ * 엔티티(사람·강의실)를 모으는 중간 모양.
+ *
+ * `subjectsRaw` 는 `"교사|과목"` → 분반 집합입니다. 같은 과목의 여러 분반을 한 줄로
+ * 접어야 해서(`국어1(1,2)`) 마지막에야 문자열로 폅니다 — 모으는 동안은 집합이라야
+ * 중복이 안 생깁니다.
+ */
+interface EntityDraft {
+    type: SearchEntity["type"];
+    name: string;
+    id: string;
+    subjectsRaw: Map<string, Set<string>>;
+    times: SectionTime[];
+}
 
 const _CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
 const _chosungCache = new Map<string, string>();
@@ -121,7 +157,7 @@ export const evaluateBoolExpression = (
 
     const tokens =
         trimmedExpr
-            .match(/\(|\)|&&|&|\+|!|[^\(\)+&!]+/g)
+            .match(/\(|\)|&&|&|\+|!|[^()+&!]+/g)
             ?.map((t) => t.trim())
             .filter((t) => t) || [];
 
@@ -180,15 +216,15 @@ export const evaluateBoolExpression = (
 
     try {
         return parseExpression();
-    } catch (e) {
+    } catch {
         return false;
     }
 };
 
 export interface SearchResult {
-    data: any[];
-    entities: any[];
-    mode: "general" | "student" | "teacher" | "room";
+    data: SubjectData[];
+    entities: SearchEntity[];
+    mode: SearchMode;
     warning?: string;
     stats: {
         keyword: string;
@@ -198,9 +234,9 @@ export interface SearchResult {
     };
 }
 
-const parseQuery = (searchTerm: string, _allData: any[]) => {
-    let cleanKeyword = searchTerm.trim();
-    let mode: "general" | "student" | "teacher" | "room" = "general";
+const parseQuery = (searchTerm: string) => {
+    const cleanKeyword = searchTerm.trim();
+    let mode: SearchMode = "general";
     let effectiveQuery = cleanKeyword;
     let warning: string | undefined = undefined;
 
@@ -258,18 +294,12 @@ const parseQuery = (searchTerm: string, _allData: any[]) => {
 };
 
 const filterMatchingClasses = (
-    allData: any[],
+    allData: SubjectData[],
     queryParams: ReturnType<typeof parseQuery>,
     selectedYears: string[],
-) => {
-    const {
-        mode,
-        effectiveQuery,
-        flatTerms: _flatTerms,
-        warning,
-        isDividerSearch,
-    } = queryParams;
-    const matchingClasses: any[] = [];
+): MatchedSection[] => {
+    const { mode, effectiveQuery, warning, isDividerSearch } = queryParams;
+    const matchingClasses: MatchedSection[] = [];
 
     // '국어1/1' 패턴에서 과목과 분반 분리 (분반은 콤마로 여러 개 가능)
     let targetSubject = "";
@@ -287,8 +317,8 @@ const filterMatchingClasses = (
 
     allData.forEach((subject) => {
         const subjectName = subject.subject;
-        subject.sections.forEach((sec: any) => {
-            const activeStudents = sec.students.filter((s: any) =>
+        subject.sections.forEach((sec: Section) => {
+            const activeStudents = sec.students.filter((s) =>
                 selectedYears.includes(s.stuId.split("-")[0]),
             );
 
@@ -302,14 +332,14 @@ const filterMatchingClasses = (
                 sec.section,
                 sec.teacher,
                 sec.room,
-                ...(sec.times || []).flatMap((t: any) => [
+                ...(sec.times || []).flatMap((t) => [
                     t.room,
                     `${t.day}${t.period}`,
                     `${dayMap[t.day]}${t.period}`,
                 ]),
-                ...activeStudents.map((s: any) => s.stuId),
-                ...activeStudents.map((s: any) => s.name),
-            ].filter(Boolean);
+                ...activeStudents.map((s) => s.stuId),
+                ...activeStudents.map((s) => s.name),
+            ].filter((item): item is string => Boolean(item));
 
             const evaluate = (expr: string, pool: string[]) => {
                 if (warning && expr === effectiveQuery) {
@@ -335,14 +365,14 @@ const filterMatchingClasses = (
                 isSectionMatch = subjectMatches && targetSections.has(sectionNum);
             } else if (mode === "student") {
                 isSectionMatch = evaluate(effectiveQuery, [
-                    ...activeStudents.map((s: any) => s.stuId),
-                    ...activeStudents.map((s: any) => s.name),
+                    ...activeStudents.map((s) => s.stuId),
+                    ...activeStudents.map((s) => s.name),
                 ]);
             } else if (mode === "teacher") {
                 isSectionMatch = evaluate(effectiveQuery, [sec.teacher]);
             } else if (mode === "room") {
                 const searchRoom = effectiveQuery.toLowerCase();
-                isSectionMatch = [sec.room, ...(sec.times || []).map((t: any) => t.room)]
+                isSectionMatch = [sec.room, ...(sec.times || []).map((t) => t.room)]
                     .filter(Boolean)
                     .some(r => matchesItem(r, searchRoom));
             } else {
@@ -355,6 +385,7 @@ const filterMatchingClasses = (
                 matchingClasses.push({
                     ...sec,
                     subject: subjectName,
+                    subject_id: subject.subject_id,
                     students: activeStudents,
                     student_count: activeStudents.length,
                 });
@@ -365,64 +396,95 @@ const filterMatchingClasses = (
     return matchingClasses;
 };
 
+/**
+ * 걸린 분반들에서 **사람·강의실을 뽑아 모읍니다.**
+ *
+ * 셋(강의실·교사·학생)이 모으는 방식이 같아서 — 없으면 만들고, 과목·분반을 더하고,
+ * 시간을 겹치지 않게 붙이고 — 그 셋을 아래 세 헬퍼로 두었습니다. 예전엔 같은 20줄이
+ * 세 번 반복돼 있었고, 그중 강의실 쪽만 시간에 조건이 붙어 있어서 **차이가 어디인지
+ * 읽어 내려면 세 덩이를 나란히 놓고 비교해야 했습니다.**
+ */
 const extractEntities = (
-    matchingClasses: any[],
+    matchingClasses: MatchedSection[],
     flatTerms: string[],
-    mode: "general" | "student" | "teacher" | "room",
+    mode: SearchMode,
     effectiveQuery: string,
-) => {
-    const entityMap = new Map<string, any>();
+): SearchEntity[] => {
+    const entityMap = new Map<string, EntityDraft>();
+
+    /** 있으면 그것, 없으면 만들어 넣고 그것 */
+    const ensure = (
+        key: string,
+        type: EntityDraft["type"],
+        name: string,
+        id: string,
+    ): EntityDraft => {
+        const found = entityMap.get(key);
+        if (found) return found;
+        const made: EntityDraft = {
+            type,
+            name,
+            id,
+            subjectsRaw: new Map<string, Set<string>>(),
+            times: [],
+        };
+        entityMap.set(key, made);
+        return made;
+    };
+
+    /** `"교사|과목"` 아래에 분반을 더합니다 */
+    const addSection = (entity: EntityDraft, subKey: string, section: string) => {
+        const found = entity.subjectsRaw.get(subKey);
+        if (found) found.add(section);
+        else entity.subjectsRaw.set(subKey, new Set([section]));
+    };
+
+    /**
+     * 수업 시간을 붙입니다 — **같은 요일·교시는 한 번만**.
+     *
+     * `keep` 은 강의실 엔티티에만 씁니다. 한 분반이 요일마다 다른 방을 쓸 수 있어서,
+     * 찾는 방에서 열리는 교시만 골라야 합니다.
+     */
+    const addTimes = (
+        entity: EntityDraft,
+        cls: MatchedSection,
+        keep?: (t: SectionTime) => boolean,
+    ) => {
+        (cls.times || []).forEach((t) => {
+            if (keep && !keep(t)) return;
+            if (entity.times.some((et) => et.day === t.day && et.period === t.period))
+                return;
+            entity.times.push({
+                ...t,
+                subject: cls.subject,
+                section: cls.section,
+                teacher: cls.teacher,
+            });
+        });
+    };
 
     matchingClasses.forEach((cls) => {
         const searchRoom = effectiveQuery.toLowerCase();
         const matchingRooms = new Set<string>();
-        
+
         if (matchesItem(cls.room, searchRoom)) {
             matchingRooms.add(cls.room);
         }
-        (cls.times || []).forEach((t: any) => {
+        (cls.times || []).forEach((t) => {
             if (matchesItem(t.room, searchRoom)) {
                 matchingRooms.add(t.room);
             }
         });
 
         if (mode === "room" || (mode === "general" && matchingRooms.size > 0)) {
-            matchingRooms.forEach(roomName => {
-                const key = `room_${roomName}`;
-                if (!entityMap.has(key)) {
-                    entityMap.set(key, {
-                        type: "room",
-                        name: roomName,
-                        id: "Classroom",
-                        subjectsRaw: new Map<string, Set<string>>(),
-                        times: [],
-                    });
-                }
-                const roomEntity = entityMap.get(key);
-                const subKey = `${cls.teacher}|${cls.subject}`;
-                if (!roomEntity.subjectsRaw.has(subKey)) {
-                    roomEntity.subjectsRaw.set(subKey, new Set());
-                }
-                roomEntity.subjectsRaw.get(subKey).add(cls.section);
-
-                if (cls.times) {
-                    cls.times.forEach((t: any) => {
-                        if (matchesItem(t.room, searchRoom)) {
-                            if (!roomEntity.times.some((et: any) => et.day === t.day && et.period === t.period)) {
-                                roomEntity.times.push({ 
-                                    ...t, 
-                                    subject: cls.subject,
-                                    section: cls.section,
-                                    teacher: cls.teacher
-                                });
-                            }
-                        }
-                    });
-                }
+            matchingRooms.forEach((roomName) => {
+                const entity = ensure(`room_${roomName}`, "room", roomName, "Classroom");
+                addSection(entity, `${cls.teacher}|${cls.subject}`, cls.section);
+                addTimes(entity, cls, (t) => matchesItem(t.room, searchRoom));
             });
         }
 
-        const classTimeStrings = (cls.times || []).flatMap((t: any) => [
+        const classTimeStrings = (cls.times || []).flatMap((t) => [
             `${t.day}${t.period}`.toLowerCase(),
             `${dayMap[t.day]}${t.period}`.toLowerCase(),
         ]);
@@ -434,43 +496,12 @@ const extractEntities = (
         );
 
         if (isTeacherMatch) {
-            const key = `t_${cls.teacher}`;
-            if (!entityMap.has(key)) {
-                entityMap.set(key, {
-                    type: "teacher",
-                    name: cls.teacher,
-                    id: "Teacher",
-                    subjectsRaw: new Map<string, Set<string>>(),
-                    times: [],
-                });
-            }
-            const entity = entityMap.get(key);
-            const subKey = `${cls.room}|${cls.subject}`;
-            if (!entity.subjectsRaw.has(subKey)) {
-                entity.subjectsRaw.set(subKey, new Set());
-            }
-            entity.subjectsRaw.get(subKey).add(cls.section);
-
-            if (cls.times) {
-                cls.times.forEach((t: any) => {
-                    if (
-                        !entity.times.some(
-                            (et: any) =>
-                                et.day === t.day && et.period === t.period,
-                        )
-                    ) {
-                        entity.times.push({ 
-                            ...t, 
-                            subject: cls.subject,
-                            section: cls.section,
-                            teacher: cls.teacher
-                        });
-                    }
-                });
-            }
+            const entity = ensure(`t_${cls.teacher}`, "teacher", cls.teacher, "Teacher");
+            addSection(entity, `${cls.room}|${cls.subject}`, cls.section);
+            addTimes(entity, cls);
         }
 
-        cls.students.forEach((s: any) => {
+        cls.students.forEach((s: StudentInfo) => {
             const isStudentMatch = flatTerms.some(
                 (t) =>
                     matchesItem(s.stuId, t) ||
@@ -479,73 +510,53 @@ const extractEntities = (
             );
 
             if (isStudentMatch) {
-                if (!entityMap.has(s.stuId)) {
-                    entityMap.set(s.stuId, {
-                        type: "student",
-                        name: s.name,
-                        id: s.stuId,
-                        subjectsRaw: new Map<string, Set<string>>(),
-                        times: [],
-                    });
-                }
-                const entity = entityMap.get(s.stuId);
-                const subKey = `${cls.teacher}|${cls.subject}`;
-                if (!entity.subjectsRaw.has(subKey)) {
-                    entity.subjectsRaw.set(subKey, new Set());
-                }
-                entity.subjectsRaw.get(subKey).add(cls.section);
-
-                if (cls.times) {
-                    cls.times.forEach((t: any) => {
-                        if (
-                            !entity.times.some(
-                                (et: any) =>
-                                    et.day === t.day && et.period === t.period,
-                            )
-                        ) {
-                            entity.times.push({ 
-                                ...t, 
-                                subject: cls.subject,
-                                section: cls.section,
-                                teacher: cls.teacher
-                            });
-                        }
-                    });
-                }
+                const entity = ensure(s.stuId, "student", s.name, s.stuId);
+                addSection(entity, `${cls.teacher}|${cls.subject}`, cls.section);
+                addTimes(entity, cls);
             }
         });
     });
 
-    return Array.from(entityMap.values()).map((e) => {
-        const formattedSubjects: string[] = [];
-        e.subjectsRaw.forEach((sections: Set<string>, key: string) => {
-            const [extra, subject] = key.split("|");
-            const position = e.type === "room" ? "prefix" : "suffix";
-            formattedSubjects.push(
-                formatSubjectWithSection(subject, Array.from(sections), extra, position)
-            );
-        });
+    /** 사람 먼저(교사 → 학생), 강의실은 뒤. 같은 종류면 이름·학번 순 */
+    const priority: Record<EntityDraft["type"], number> = {
+        teacher: 1,
+        student: 2,
+        room: 3,
+    };
 
-        return {
-            ...e,
-            subject_count: formattedSubjects.length,
-            subjects: formattedSubjects.sort(),
-        };
-    }).sort((a, b) => {
-        const priority: Record<string, number> = { teacher: 1, student: 2, room: 3 };
-        if (priority[a.type] !== priority[b.type]) {
-            return priority[a.type] - priority[b.type];
-        }
-        if (a.type === "teacher" || a.type === "room") {
-            return a.name.localeCompare(b.name, "ko");
-        } else {
-            return a.id.localeCompare(b.id);
-        }
-    });
+    return Array.from(entityMap.values())
+        .map(({ subjectsRaw, ...rest }): SearchEntity => {
+            const subjects: string[] = [];
+            subjectsRaw.forEach((sections, key) => {
+                const [extra, subject] = key.split("|");
+                const position = rest.type === "room" ? "prefix" : "suffix";
+                subjects.push(
+                    formatSubjectWithSection(
+                        subject,
+                        Array.from(sections),
+                        extra,
+                        position,
+                    ),
+                );
+            });
+            return {
+                ...rest,
+                subject_count: subjects.length,
+                subjects: subjects.sort(),
+            };
+        })
+        .sort((a, b) => {
+            if (priority[a.type] !== priority[b.type]) {
+                return priority[a.type] - priority[b.type];
+            }
+            return a.type === "teacher" || a.type === "room"
+                ? a.name.localeCompare(b.name, "ko")
+                : a.id.localeCompare(b.id);
+        });
 };
 
 export const searchInClient = (
-    allData: any[],
+    allData: SubjectData[],
     searchTerm: string,
     selectedYears: string[],
 ): SearchResult => {
@@ -554,14 +565,14 @@ export const searchInClient = (
             .map((subject) => ({
                 ...subject,
                 sections: subject.sections
-                    .filter((sec: any) =>
-                        sec.students.some((s: any) =>
+                    .filter((sec) =>
+                        sec.students.some((s) =>
                             selectedYears.includes(s.stuId.split("-")[0]),
                         ),
                     )
-                    .map((sec: any) => ({
+                    .map((sec) => ({
                         ...sec,
-                        students: sec.students.filter((s: any) =>
+                        students: sec.students.filter((s) =>
                             selectedYears.includes(s.stuId.split("-")[0]),
                         ),
                     })),
@@ -570,7 +581,7 @@ export const searchInClient = (
 
         const totalMatchedStudents = new Set(
             filteredData.flatMap((sub) =>
-                sub.sections.flatMap((sec: any) => sec.students.map((s: any) => s.stuId)),
+                sub.sections.flatMap((sec) => sec.students.map((s) => s.stuId)),
             ),
         ).size;
 
@@ -590,7 +601,7 @@ export const searchInClient = (
         };
     }
 
-    const queryParams = parseQuery(searchTerm, allData);
+    const queryParams = parseQuery(searchTerm);
     const matchingClasses = filterMatchingClasses(
         allData,
         queryParams,
@@ -603,7 +614,7 @@ export const searchInClient = (
         queryParams.effectiveQuery,
     );
 
-    const grouped: Record<string, any[]> = {};
+    const grouped: Record<string, MatchedSection[]> = {};
     matchingClasses.forEach((cls) => {
         if (!grouped[cls.subject]) grouped[cls.subject] = [];
         grouped[cls.subject].push(cls);
@@ -618,10 +629,13 @@ export const searchInClient = (
                 return aNum - bNum;
             });
             const subStus = new Set(
-                secs.flatMap((s) => s.students.map((st: any) => st.stuId)),
+                secs.flatMap((s) => s.students.map((st) => st.stuId)),
             );
             return {
                 subject: sub,
+                // 같은 이름이면 같은 과목입니다 — 영어강의는 이름에 `(EC)` 가 붙어
+                // 애초에 다른 키로 묶입니다
+                subject_id: secs[0].subject_id,
                 subject_student_count: subStus.size,
                 section_count: secs.length,
                 sections: secs,
@@ -629,7 +643,7 @@ export const searchInClient = (
         });
 
     const totalMatchedStudents = new Set(
-        matchingClasses.flatMap((cls) => cls.students.map((s: any) => s.stuId))
+        matchingClasses.flatMap((cls) => cls.students.map((s) => s.stuId))
     ).size;
 
     return {

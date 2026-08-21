@@ -58,8 +58,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router-dom";
 import { CalendarRange, Check, Download } from "lucide-react";
 import { toPng } from "html-to-image";
-import type { BreakTime, HomeData, TodayClass } from "../../lib/friendsApi";
+import type { HomeData, TodayClass } from "../../lib/friendsApi";
 import { deriveHomeView } from "../../lib/homeView";
+import { gapName, isBreakGap, isSameClass } from "../../lib/schedule";
 import {
     DAY_MAP,
     DAYS_ORDER,
@@ -75,14 +76,6 @@ import {
 } from "../../lib/searchEngine";
 import RetroCard from "../atoms/RetroCard";
 import RetroSubTitle from "../atoms/RetroSubTitle";
-
-/**
- * 교시 사이가 이보다 벌어지면 쉬는시간이 아니라 **구멍**입니다.
- *
- * 평소 쉬는시간은 10분이고, 점심(70분)·저녁(60분)만 크게 벌어집니다. 20분이면 둘
- * 사이 어디를 잘라도 같은 답이 나옵니다 — 교시 시각표가 조금 바뀌어도 안 흔들립니다.
- */
-const GAP_MINUTES = 20;
 
 /**
  * 고정(sticky)된 요일 머리의 배경 — **흰 바탕에 미리 섞어 둔 값**입니다.
@@ -174,40 +167,18 @@ const buildBlocks = (
             const touching =
                 prevEnd === undefined || hereStart === undefined
                     ? true
-                    : hereStart - prevEnd <= GAP_MINUTES;
+                    : isBreakGap(prevEnd, hereStart);
             const continues =
                 last !== undefined &&
                 last.day === day &&
                 last.period + last.span === klass.period &&
                 touching &&
-                last.klass.subject === klass.subject &&
-                last.klass.section === klass.section &&
-                last.klass.room === klass.room;
+                isSameClass(last.klass, klass);
             if (continues) last.span += 1;
             else blocks.push({ day, period: klass.period, span: 1, klass });
         });
     });
     return blocks;
-};
-
-/**
- * 구멍에 이름을 붙입니다 — `breaks` 중 **가장 많이 겹치는** 것을 고릅니다.
- *
- * 점심 구멍(12:30~13:40)에는 `점심`(40분)과 `학급모임`(20분)이 둘 다 걸칩니다.
- * 처음 찾은 걸 쓰면 순서에 따라 답이 달라지므로 긴 쪽을 고릅니다.
- */
-const gapName = (from: number, to: number, breaks: BreakTime[]): string => {
-    let name = "";
-    let longest = 0;
-    for (const item of breaks) {
-        const overlap =
-            Math.min(to, item.end_minute) - Math.max(from, item.start_minute);
-        if (overlap > longest) {
-            longest = overlap;
-            name = item.name;
-        }
-    }
-    return name;
 };
 
 interface WeekTimetableProps {
@@ -263,11 +234,7 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
             if (index > 0) {
                 const before = byPeriod.get(rows[index - 1]);
                 const here = byPeriod.get(period);
-                if (
-                    before &&
-                    here &&
-                    here.start_minute - before.end_minute > GAP_MINUTES
-                ) {
+                if (before && here && !isBreakGap(before.end_minute, here.start_minute)) {
                     out.push({
                         kind: "gap",
                         name: gapName(before.end_minute, here.start_minute, breaks),

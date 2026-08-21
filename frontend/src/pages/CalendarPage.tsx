@@ -8,6 +8,7 @@ import {
     Trash2,
 } from "lucide-react";
 import api from "../lib/api";
+import { authHeader } from "../lib/session";
 import type { CalendarEvent, EventRequest, Role } from "../types";
 import { hasRole } from "../lib/utils";
 import {
@@ -33,13 +34,6 @@ import EventFormModal, {
     type EventDraft,
     type FormPurpose,
 } from "../components/EventFormModal";
-
-const SESSION_TOKEN_KEY = "ksa_session_token";
-
-const authHeader = () => {
-    const token = localStorage.getItem(SESSION_TOKEN_KEY);
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 interface CalendarPageProps {
     role: Role;

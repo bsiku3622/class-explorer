@@ -12,6 +12,8 @@ src/
 │   └── index.ts              → 공통 TypeScript 인터페이스
 ├── lib/
 │   ├── api.ts                → axios 인스턴스 (VITE_API_BASE_URL 기반 baseURL)
+│   ├── session.ts            → 세션 토큰 + 인증 헤더 (여기 말고 어디서도 키를 쓰지 않습니다)
+│   ├── schedule.ts           → 연강·쉬는시간 판정 규칙 (시간표를 그리는 넷이 같이 씁니다)
 │   ├── utils.ts              → 공통 상수 + 유틸 함수
 │   ├── searchEngine.ts       → 클라이언트 검색 엔진 (논리 연산 + 유사도 매칭)
 │   ├── tradeEngine.ts        → 수강 변경 조합 탐색 (슬롯 충돌 기반)
@@ -101,6 +103,15 @@ src/
 - `fetchInitialData` 401 응답 → `handleLogout()` 자동 호출 → LoginPage로
 - localStorage 키: `ksa_session_token`
 - 로그아웃 시 캐시(`ksa_class_finder_cache`)도 함께 삭제
+
+⚠️ **토큰을 직접 읽지 마세요 — `lib/session.ts` 만 씁니다.**
+`getSessionToken()` · `setSessionToken()` · `clearSessionToken()` · `authHeader()`.
+
+한동안 키 문자열이 **열 곳**에 박혀 있었습니다 — 여섯 파일이 각자 상수로 다시
+선언하고, 넷(`sessionsApi`·`friendsApi`·`TradePage`)은 아예 인라인. `authHeader()` 는
+여덟 번 복붙돼 있었고 그 사이 **토큰이 없을 때 돌려주는 값이 갈렸습니다**(`undefined`
+vs `{}`). axios 가 둘 다 받아 줘서 아무도 못 알아챘지만, 키를 바꾸는 날에는 열 곳을
+다 찾아야 했습니다. 지금은 `{}` 로 통일돼 있어 스프레드로도 씁니다.
 
 ### 기기는 여럿입니다
 
@@ -307,8 +318,9 @@ src/
 ⚠️ **V3 는 `WeekTimetable` 을 자기가 그립니다.** 오늘과 나란히 놓아야 해서, `HomePage`
 에서 아래에 따로 붙이면 자리가 어긋납니다 (V1·V2 는 종전대로 아래에 붙습니다).
 
-**연강은 세 자리가 같은 조건으로 잇습니다** — 과목·분반·**교실**이 같고 시간이 인접
-(20분 이내). 자·오늘 목록·주간 격자 중 하나만 안 이으면 같은 하루가 자리마다 다르게
+**연강은 네 자리가 같은 함수로 잇습니다** (`lib/schedule.ts` 의 `continuesClass`) —
+과목·분반·**교실**이 같고 교시가 이어지고 시간이 인접(`BREAK_MINUTES` = 20분 이내).
+자·오늘 목록·주간 격자·히어로 중 하나만 안 이으면 같은 하루가 자리마다 다르게
 세어집니다. 히어로도 `deriveHomeView` 의 `currentPeriods` 로 덩어리를 받습니다 — 안
 그러면 20:20 에 끝난다고 말하면서 NEXT 에 **같은 과목**을 또 겁니다.
 
@@ -525,7 +537,7 @@ src/
 
 ### 쉬는시간은 공강이 아닙니다
 
-셋을 구별해야 합니다 — 파생은 `lib/homeView.ts` 한 곳에서 합니다.
+셋을 구별해야 합니다 — 판정 규칙은 `lib/schedule.ts`, 파생은 `lib/homeView.ts` 한 곳입니다.
 
 | 상태 | 뜻 | 화면 |
 |---|---|---|
@@ -543,6 +555,20 @@ src/
 ⚠️ **자(`DayRuler`)와 오늘 목록은 원래 덩어리로 보고 있었습니다** — 연강 전체가 진행
 중으로 칠해졌는데 히어로만 교시 번호로 판정해서 혼자 어긋났습니다. 주간 격자도 같은
 이유로 `livePeriod` 대신 `currentPeriods` 를 봅니다. **네 자리가 같은 값을 봐야 합니다.**
+
+⚠️ **임계값을 파일마다 다시 적지 마세요 — `lib/schedule.ts` 만 고칩니다.**
+한동안 넷이 각자 들고 있었고 값이 `20`·`20`·`20`·**`15`**(`DayRuler` 의 축 눈금)로
+어긋나 있었습니다. 실제 교시 간격이 10·60·70분뿐이라 결과는 같았지만, 위 버그를
+고칠 때 `homeView.ts` 하나만 고치면 나머지 셋이 옛 규칙을 그대로 쓰는 구조였습니다.
+
+| `schedule.ts` | 하는 일 |
+|---|---|
+| `BREAK_MINUTES` | 교시 사이가 이보다 짧으면 쉬는시간 (20) |
+| `isBreakGap(prevEnd, nextStart)` | 그 틈이 쉬는시간인가. ⚠️ **교시 번호로 판단하지 않습니다** |
+| `isSameClass(a, b)` | 과목·분반·**교실**이 같은가 |
+| `continuesClass(prev, next)` | 이어지는 연강인가 (위 둘 + 교시 번호 인접) |
+| `gapName(from, to, breaks)` | 구멍 이름 — 가장 많이 겹치는 것 (점심 구멍엔 `점심`·`학급모임`이 둘 다 걸칩니다) |
+| `mergeSpans(spans)` | 붙어 있는 교시를 덩어리로 (자의 축 눈금용) |
 
 ### 수업이 없는 날
 
