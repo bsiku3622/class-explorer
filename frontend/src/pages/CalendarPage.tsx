@@ -194,7 +194,7 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId }) => {
     const selectedWeek = selected ? weekOf(fromKey(selected), markers) : null;
 
     return (
-        <div className="space-y-6 md:pr-12">
+        <div className="space-y-6 pr-12">
             <PageHeader
                 title="Calendar"
                 subtitle="Schedule"

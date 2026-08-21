@@ -676,9 +676,18 @@ const App: React.FC = () => {
                                     element={<InventoryPage />}
                                 />
                             )}
+                            {/* 역할·학기에 따라 붙는 라우트가 있어서, `/auth/me` 가 아직
+                                안 왔을 때 여기로 떨어집니다. 그때 곧장 홈으로 보내면
+                                주소창으로 들어온 admin·trade 가 replace 로 지워집니다 */}
                             <Route
                                 path="*"
-                                element={<Navigate to="/" replace />}
+                                element={
+                                    currentUser ? (
+                                        <Navigate to="/" replace />
+                                    ) : (
+                                        pageFallback
+                                    )
+                                }
                             />
                         </Routes>
                         </Suspense>

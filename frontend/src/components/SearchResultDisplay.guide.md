@@ -24,6 +24,9 @@
 - `EntityCard` → `TimetableGrid` → `SubjectAccordionItem` 순서
 - 상단에 검색 요약 + 경고 메시지
 
+- `Grid`(시간표) / `List`(수강 목록) 토글이 붙습니다. **List 는 좁은 화면에서 한 줄씩**
+  놓입니다(`grid-cols-1` → `sm:grid-cols-2`) — `EntityCard` 와 같은 이유입니다
+
 ### 그리드 뷰 (`isConsolidatedView=false`)
 - 일반 검색으로 복수 엔티티 발견 시
 - `EntityCard` 격자 배열 (2~3열)

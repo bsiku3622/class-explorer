@@ -492,7 +492,7 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                     {!seeded && (
                         <RetroCard shadow="sm" className="bg-retro-accent-light">
                             <div className="flex flex-wrap items-center gap-3 p-4">
-                                <div className="min-w-0 flex-1">
+                                <div className="min-w-0 flex-1 basis-64">
                                     <p className="text-sm font-black">자몽을 채워 둘까요?</p>
                                     <p className="mt-1 text-[11px] font-bold leading-relaxed text-black/55">
                                         쓰던 <b>Zamong 엑셀</b>이 있으면 그대로 올리세요 —

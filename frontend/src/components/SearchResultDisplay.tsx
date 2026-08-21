@@ -550,7 +550,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                             ({primaryEntity.subject_count})
                                         </span>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 overflow-y-auto pr-2 custom-scrollbar">
+                                    <div className="grid grid-cols-1 gap-y-2.5 sm:grid-cols-2 sm:gap-x-6 overflow-y-auto pr-2 custom-scrollbar">
                                         {primaryEntity.subjects.map(
                                             (sub, i) => (
                                                 <button

@@ -20,8 +20,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     className = "",
 }) => (
     <RetroCard className={`bg-white p-6 md:p-8 overflow-hidden flex flex-col gap-6 md:gap-8 ${className}`}>
-        <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 min-w-0">
+        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4 min-w-0 max-w-full">
                 <div className="w-10 h-10 md:w-12 md:h-12 bg-black flex items-center justify-center shrink-0">
                     <Icon size={20} className="text-white" strokeWidth={2.5} />
                 </div>

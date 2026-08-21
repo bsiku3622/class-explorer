@@ -600,7 +600,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                         </div>
                     )}
                     {stuId && (
-                        <div className="flex items-center gap-2 pt-1">
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
                             <span className="text-[10px] font-black uppercase tracking-widest text-black/40">
                                 Planning for
                             </span>

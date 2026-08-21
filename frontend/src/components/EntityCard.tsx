@@ -62,7 +62,7 @@ const EntityCard: React.FC<EntityCardProps> = ({
                 <div
                     className={`grid ${
                         isSingleEntity
-                            ? "grid-cols-2 gap-x-6 gap-y-2"
+                            ? "grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-2"
                             : "grid-cols-1 gap-2"
                     }`}
                 >
