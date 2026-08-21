@@ -103,6 +103,8 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | ------------------------- | ------------------------------------------------------------------------------- |
 | `App.tsx`                 | 전역 상태 + 라우터 + fetch + 학기 전환 + 검색 오케스트레이터 (context/store 없음) |
 | `src/lib/searchEngine.ts` | 검색 전체 로직 (prefix 파싱, 불린 연산, 초성 매칭)                              |
+| `src/lib/schedule.ts`     | 연강·쉬는시간 판정 규칙 — 시간표를 그리는 넷이 같이 씁니다                       |
+| `src/lib/session.ts`      | 세션 토큰 + 인증 헤더 — 토큰 키를 쓰는 유일한 자리                              |
 | `src/lib/utils.ts`        | `DAY_MAP`, `DAYS_ORDER`, `PERIODS`, `extractSearchTerms()`, `getStudentColor()` |
 | `src/lib/api.ts`          | axios 인스턴스 (`VITE_API_BASE_URL` 기반 baseURL)                               |
 | `src/lib/curriculum.ts`   | 졸업 요건 진척도 + 선수관계 그래프 배치                                          |
@@ -118,6 +120,8 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 
 - 비즈니스 로직은 `lib/` 또는 커스텀 훅으로 분리. 컴포넌트 내 직접 작성 금지
 - `DAY_MAP`, `DAYS_ORDER`, `PERIODS` — `src/lib/utils.ts`에서 import, 로컬 재정의 금지
+- 연강·쉬는시간 판정 — `src/lib/schedule.ts`. **임계값을 파일마다 다시 적지 마세요**
+- 세션 토큰 — `src/lib/session.ts` (`authHeader()`). `localStorage` 를 직접 읽지 마세요
 - 하이라이트 키워드 추출: `extractSearchTerms()` 단일 사용
 - `searchTerm` ↔ URL `?q=` 동기화는 `App.tsx`에서만 관리
 - 한글 IME Enter 중복 방지: `e.nativeEvent.isComposing` 체크 필수

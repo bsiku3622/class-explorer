@@ -6,15 +6,9 @@
  */
 
 import api from "./api";
-
-const SESSION_TOKEN_KEY = "ksa_session_token";
+import { authHeader } from "./session";
 
 export type StateKey = "plan" | "trade";
-
-const authHeader = () => {
-    const token = localStorage.getItem(SESSION_TOKEN_KEY);
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 /**
  * 계정에 저장된 상태를 읽습니다.

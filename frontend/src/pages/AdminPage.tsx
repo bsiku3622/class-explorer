@@ -1,19 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera } from "lucide-react";
 import api from "../lib/api";
+import { authHeader } from "../lib/session";
 import axios from "axios";
 import type { Role } from "../types";
 import RetroButton from "../components/atoms/RetroButton";
 import RetroSubTitle from "../components/atoms/RetroSubTitle";
 import AccordionSection from "../components/molecules/AccordionSection";
 import PageHeader from "../components/molecules/PageHeader";
-
-const SESSION_TOKEN_KEY = "ksa_session_token";
-
-function authHeader() {
-    const token = localStorage.getItem(SESSION_TOKEN_KEY);
-    return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 interface UserRow {
     id: number;

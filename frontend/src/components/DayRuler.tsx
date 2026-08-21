@@ -23,6 +23,7 @@
 import React, { useLayoutEffect, useRef } from "react";
 import type { BreakTime, PeriodTime, TodayClass } from "../lib/friendsApi";
 import { getDepartmentColor, hhmm, withAlpha } from "../lib/utils";
+import { continuesClass, gapName, mergeSpans } from "../lib/schedule";
 
 /** 자 위에서 뭔가를 가리킬 때. 양 끝은 카드 밖으로 삐져나가지 않게 붙입니다 */
 const anchor = (percent: number): React.CSSProperties =>
@@ -78,26 +79,13 @@ const DayRuler: React.FC<DayRulerProps> = ({
     const mine = new Map(today.map((c) => [c.period, c]));
 
     // 축 눈금은 **덩어리의 양 끝**에만. 교시마다 시각을 달면 열한 개가 겹칩니다
-    const blocks: { start: number; end: number }[] = [];
-    for (const p of periods) {
-        const tail = blocks[blocks.length - 1];
-        if (tail && p.start_minute - tail.end <= 15) tail.end = p.end_minute;
-        else blocks.push({ start: p.start_minute, end: p.end_minute });
-    }
+    const blocks = mergeSpans(periods);
 
     // 덩어리 사이의 큰 구멍이 무엇인지. 한 구멍에 여러 시간대가 걸치므로
     // (점심 + 학급모임) **가장 많이 겹치는 것**을 씁니다
     const voids = blocks.slice(0, -1).map((block, index) => {
         const gap = { start: block.end, end: blocks[index + 1].start };
-        const best = breaks
-            .map((b) => ({
-                name: b.name,
-                overlap:
-                    Math.min(gap.end, b.end_minute) - Math.max(gap.start, b.start_minute),
-            }))
-            .filter((b) => b.overlap > 0)
-            .sort((a, b) => b.overlap - a.overlap)[0];
-        return { ...gap, name: best?.name ?? null };
+        return { ...gap, name: gapName(gap.start, gap.end, breaks) || null };
     });
 
     // 교시 사이 쉬는시간(10분). 빗금을 이만큼 안쪽으로 물려서 칸과 칸 사이 간격과
@@ -106,8 +94,8 @@ const DayRuler: React.FC<DayRulerProps> = ({
         periods.length > 1 ? periods[1].start_minute - periods[0].end_minute : 10;
 
     /**
-     * **연강은 한 칸입니다** — 목록·주간 격자와 같은 조건(과목·분반·교실·시간 인접).
-     * 10·11교시가 같은 생활음악인데 칸이 둘이면, 자에서만 하루가 다르게 세어집니다.
+     * **연강은 한 칸입니다** — 판정은 `lib/schedule.ts` 가 합니다. 10·11교시가 같은
+     * 생활음악인데 칸이 둘이면, 자에서만 하루가 다르게 세어집니다.
      *
      * 사이의 쉬는시간 10분까지 덮습니다. 이동이 없는 연속 수업이라 그 틈이 곧
      * 수업의 일부입니다 — 교실이 다르면 애초에 안 묶입니다.
@@ -124,11 +112,10 @@ const DayRuler: React.FC<DayRulerProps> = ({
         const last = classBlocks[classBlocks.length - 1];
         if (
             last &&
-            last.klass.subject === klass.subject &&
-            last.klass.section === klass.section &&
-            last.klass.room === klass.room &&
-            last.end.period + 1 === time.period &&
-            time.start_minute - last.end.end_minute <= 20
+            continuesClass(
+                { klass: last.klass, period: last.end.period, end_minute: last.end.end_minute },
+                { klass, period: time.period, start_minute: time.start_minute },
+            )
         ) {
             last.end = time;
             last.periods.push(time.period);

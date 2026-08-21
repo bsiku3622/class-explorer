@@ -8,11 +8,7 @@
  */
 
 import api from "./api";
-
-const authHeader = () => {
-    const token = localStorage.getItem("ksa_session_token");
-    return token ? { Authorization: `Bearer ${token}` } : undefined;
-};
+import { authHeader } from "./session";
 
 export interface DeviceSession {
     id: number;

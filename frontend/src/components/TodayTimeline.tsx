@@ -17,6 +17,7 @@ import { Link } from "react-router-dom";
 import type { PeriodTime, TodayClass } from "../lib/friendsApi";
 import { getDepartmentColor, getKoreanName } from "../lib/utils";
 import { duration } from "../lib/homeView";
+import { continuesClass } from "../lib/schedule";
 import {
     searchHref,
     sectionQuery,
@@ -63,19 +64,15 @@ type Row =
  * 보게 됩니다.
  */
 /**
- * 앞 줄에 잇는가 — **주간 격자와 같은 조건**입니다. 과목·분반·**교실**이 같고 교시가
- * 붙어 있어야 합니다.
- *
- * ⚠️ 교실을 보는 건 사이에 이동이 있으면 묶으면 안 되기 때문이고, **시각을 보는 건
- * 4교시와 5교시가 번호는 이어져도 사이에 점심이 70분 있어서**입니다.
+ * 앞 줄에 잇는가 — 판정은 `lib/schedule.ts` 가 합니다. 주간 격자·자·히어로가 같은
+ * 함수를 씁니다.
  */
 const joins = (last: Row | undefined, item: TodayClass, time: PeriodTime): boolean =>
     last?.kind === "class" &&
-    last.item.subject === item.subject &&
-    last.item.section === item.section &&
-    last.item.room === item.room &&
-    last.endTime.period + 1 === time.period &&
-    time.start_minute - last.endTime.end_minute <= 20;
+    continuesClass(
+        { klass: last.item, period: last.endTime.period, end_minute: last.endTime.end_minute },
+        { klass: item, period: time.period, start_minute: time.start_minute },
+    );
 
 const buildAllPeriods = (today: TodayClass[], periods: PeriodTime[]): Row[] => {
     const byPeriod = new Map(today.map((c) => [c.period, c]));

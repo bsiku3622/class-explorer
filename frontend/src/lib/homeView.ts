@@ -10,9 +10,7 @@
  */
 
 import type { HomeData, TodayClass } from "./friendsApi";
-
-/** 교시 사이가 이보다 짧으면 **쉬는시간**입니다 (그보다 길면 점심·저녁 같은 구간) */
-const BREAK_MINUTES = 20;
+import { isBreakGap, isSameClass } from "./schedule";
 import { DAYS_ORDER } from "./utils";
 
 export interface HomeView {
@@ -57,17 +55,15 @@ export const deriveHomeView = (home: HomeData, liveMinute: number): HomeView => 
         : null;
 
     /**
-     * 앞뒤 교시가 **한 수업인가** — 과목·분반·교실이 같고 시간이 붙어 있어야 합니다.
-     * 목록·주간 격자가 쓰는 조건과 같습니다.
+     * 앞뒤 교시가 **한 수업인가**. 규칙은 `lib/schedule.ts` 에 있습니다 — 목록·주간
+     * 격자·자가 같은 함수를 씁니다.
      *
-     * ⚠️ 시간을 같이 보는 건 4교시와 5교시가 번호는 이어져도 사이에 점심이 70분
-     * 있어서입니다. 번호만 보면 점심을 가로지르는 연강이 생깁니다.
+     * 여기서만 따로 받는 건 `gapFrom`/`gapTo` 입니다. 연강을 앞뒤로 펼칠 때 두 교시가
+     * 인접하지 않은 경우도 물어보게 되어서, 교시 번호 조건이 붙은 `continuesClass`
+     * 대신 조각 둘을 직접 조합합니다.
      */
     const joined = (a: TodayClass, b: TodayClass, gapFrom: number, gapTo: number) =>
-        a.subject === b.subject &&
-        a.section === b.section &&
-        a.room === b.room &&
-        gapTo - gapFrom <= BREAK_MINUTES;
+        isSameClass(a, b) && isBreakGap(gapFrom, gapTo);
 
     let current =
         livePeriod !== null
@@ -88,11 +84,7 @@ export const deriveHomeView = (home: HomeData, liveMinute: number): HomeView => 
     if (isSchoolDay && livePeriod === null) {
         const before = [...periods].reverse().find((p) => p.end_minute <= liveMinute);
         const after = periods.find((p) => p.start_minute > liveMinute);
-        if (
-            before &&
-            after &&
-            after.start_minute - before.end_minute <= BREAK_MINUTES
-        ) {
+        if (before && after && isBreakGap(before.end_minute, after.start_minute)) {
             inBreak = true;
             const beforeClass = home.today.find((c) => c.period === before.period);
             const afterClass = home.today.find((c) => c.period === after.period);

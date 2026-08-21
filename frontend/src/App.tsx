@@ -3,6 +3,12 @@ import axios from "axios";
 import api from "./lib/api";
 import { clearCache } from "./lib/cache";
 import {
+    authHeader,
+    clearSessionToken,
+    getSessionToken,
+    setSessionToken as persistSessionToken,
+} from "./lib/session";
+import {
     useLocation,
     useNavigate,
     Routes,
@@ -34,7 +40,6 @@ const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
 // 개발 전용 — funky-ui 토큰 작업용 컴포넌트 표본집. 메뉴에 올리지 않습니다
 const InventoryPage = React.lazy(() => import("./pages/InventoryPage"));
 
-const SESSION_TOKEN_KEY = "ksa_session_token";
 const CACHE_PREFIX = "ksa_class_finder_cache";
 /**
  * 캐시된 응답의 스키마 버전. API 응답에 필드가 늘면 올려야 합니다.
@@ -72,7 +77,7 @@ const App: React.FC = () => {
     const navigate = useNavigate();
 
     const [sessionToken, setSessionToken] = useState<string | null>(
-        () => localStorage.getItem(SESSION_TOKEN_KEY),
+        getSessionToken,
     );
     const [currentUser, setCurrentUser] = useState<{
         id: number;
@@ -121,19 +126,14 @@ const App: React.FC = () => {
     const tradeAvailable = isTradeAvailable(term);
 
     const handleLogout = useCallback(async () => {
-        const token = localStorage.getItem(SESSION_TOKEN_KEY);
-        if (token) {
+        if (getSessionToken()) {
             try {
-                await api.post(
-                    "/auth/logout",
-                    {},
-                    { headers: { Authorization: `Bearer ${token}` } },
-                );
+                await api.post("/auth/logout", {}, { headers: authHeader() });
             } catch (_) {
                 // 서버 오류여도 로컬 세션은 정리
             }
         }
-        localStorage.removeItem(SESSION_TOKEN_KEY);
+        clearSessionToken();
         clearDataCache();
         // 교육과정·급식·교시 캐시도 같이 비웁니다 — 다음 사람이 앞사람이 보던 걸
         // 이어 보면 안 됩니다 (`lib/cache.ts`)
@@ -146,7 +146,7 @@ const App: React.FC = () => {
     }, []);
 
     const handleLogin = useCallback((token: string) => {
-        localStorage.setItem(SESSION_TOKEN_KEY, token);
+        persistSessionToken(token);
         setSessionToken(token);
     }, []);
 
@@ -216,8 +216,7 @@ const App: React.FC = () => {
     }, [allClassesData]);
 
     const fetchInitialData = async (force: boolean = false, targetTerm?: Term) => {
-        const token = localStorage.getItem(SESSION_TOKEN_KEY);
-        if (!token) return;
+        if (!getSessionToken()) return;
         // 학기 미지정(최초 진입)이면 서버가 최신 학기를 골라 응답합니다
         const requestedTerm = targetTerm ?? term;
         try {
@@ -240,7 +239,7 @@ const App: React.FC = () => {
                 }
             }
             const response = await api.get("/", {
-                headers: { Authorization: `Bearer ${token}` },
+                headers: authHeader(),
                 params: requestedTerm
                     ? { year: requestedTerm.year, semester: requestedTerm.semester }
                     : undefined,
@@ -311,8 +310,8 @@ const App: React.FC = () => {
             const filteredByYear = result.data
                 .map((subject) => ({
                     ...subject,
-                    sections: subject.sections.filter((sec: any) =>
-                        sec.students.some((s: any) =>
+                    sections: subject.sections.filter((sec) =>
+                        sec.students.some((s) =>
                             selectedYears.includes(s.stuId.split("-")[0]),
                         ),
                     ),
@@ -335,8 +334,8 @@ const App: React.FC = () => {
             const filteredData = allClassesData
                 .map((subject) => ({
                     ...subject,
-                    sections: subject.sections.filter((sec: any) =>
-                        sec.students.some((s: any) =>
+                    sections: subject.sections.filter((sec) =>
+                        sec.students.some((s) =>
                             selectedYears.includes(s.stuId.split("-")[0]),
                         ),
                     ),
@@ -350,7 +349,7 @@ const App: React.FC = () => {
             const activeStus = new Set(
                 filteredData.flatMap((sub) =>
                     sub.sections.flatMap((sec) =>
-                        sec.students.map((s: any) => s.stuId),
+                        sec.students.map((s) => s.stuId),
                     ),
                 ),
             );
@@ -388,8 +387,7 @@ const App: React.FC = () => {
 
     useEffect(() => {
         if (!sessionToken) { setLoading(false); return; }
-        const token = localStorage.getItem(SESSION_TOKEN_KEY);
-        api.get("/auth/me", { headers: { Authorization: `Bearer ${token}` } })
+        api.get("/auth/me", { headers: authHeader() })
             .then((res) => setCurrentUser(res.data))
             .catch(() => handleLogout());
         fetchInitialData();

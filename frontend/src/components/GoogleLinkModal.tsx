@@ -2,11 +2,10 @@ import React, { useState, useCallback, useEffect } from "react";
 import axios from "axios";
 import { IdCard, LogOut } from "lucide-react";
 import api from "../lib/api";
+import { authHeader } from "../lib/session";
 import { GOOGLE_LOGIN_READY, takeGoogleRedirect } from "../lib/googleAuth";
 import RetroButton from "./atoms/RetroButton";
 import GoogleLoginButton from "./GoogleLoginButton";
-
-const SESSION_TOKEN_KEY = "ksa_session_token";
 
 interface GoogleLinkModalProps {
     username: string;
@@ -34,11 +33,11 @@ const GoogleLinkModal: React.FC<GoogleLinkModalProps> = ({ username, onLinked, o
             setError(null);
             setBusy(true);
             try {
-                const token = localStorage.getItem(SESSION_TOKEN_KEY);
+
                 const res = await api.post(
                     "/auth/link-google",
                     { credential, nonce },
-                    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+                    { headers: authHeader() },
                 );
                 onLinked(res.data);
             } catch (e: unknown) {
