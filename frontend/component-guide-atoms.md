@@ -72,7 +72,8 @@
   className=""
 />
 ```
-- HeroUI `Input` 래퍼 (border-radius 0 오버라이드 적용됨)
+- 아이콘 + `<input>` 을 직접 조합합니다. 예전에는 HeroUI `Input` 이었는데, 히스토리·
+  지우기·포커스를 원래부터 이 파일이 직접 다루고 있어서 남길 이유가 없었습니다
 - 높이 `h-16`, 좌측 Search 아이콘, 값 있을 때 X 버튼 (절대위치 우측)
 - 스타일 고정: `border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.1)]`
 

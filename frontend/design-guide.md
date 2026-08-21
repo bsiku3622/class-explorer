@@ -355,18 +355,18 @@ PNG 내보내기:    `html-to-image` 의 `toPng` · **스크롤 상자가 아니
 ⚠️ 움직임 **하나에만** 기대지 않습니다. `prefers-reduced-motion` 이면 애니메이션이 꺼지
 므로, 맞는 배지는 면을 조금 더 채우고 그림자를 세게 둬서 정지 화면에서도 구분됩니다.
 
-### HeroUI 전역 오버라이드
-```css
-/* index.css — 네 개의 slot 을 한꺼번에 직각으로 만듭니다 */
-[data-slot="base"],
-[data-slot="trigger"],
-[data-slot="content"],
-[data-slot="input-wrapper"] {
-    @apply rounded-none! border!;
-}
-```
-⚠️ **건드리지 마세요.** HeroUI 가 기본으로 주는 둥근 모서리를 여기서 한 번에 눌러
-놓은 것이라, 빼면 앱 곳곳의 드롭다운·인풋만 둥글어집니다.
+### UI 라이브러리를 두지 않습니다
+
+HeroUI 를 쓰다가 2026-08-21 에 걷어냈습니다. `Tooltip`·`Input`·`Chip`·`Divider`·
+`Navbar` 뼈대까지 일곱 개를 쓰자고 **첫 로딩 JS 의 절반(gzip 103KB)** 을 모든 페이지가
+받고 있었는데, 그중 로직이 있는 건 툴팁과 인풋뿐이었습니다.
+
+게다가 이 문서가 정하는 생김새 — 직각 모서리, 굵은 검정 테두리, 딱딱한 그림자 — 는
+HeroUI 가 주는 것과 정반대라, **모서리를 전역으로 눌러 없애는 오버라이드까지 얹고**
+있었습니다. 라이브러리를 쓰면서 그 라이브러리를 계속 무효화하고 있었던 셈입니다.
+
+지금은 필요한 것을 `atoms/` 에 직접 만듭니다 (`RetroTooltip`, `RetroChip`).
+**새 UI 라이브러리를 들이지 마세요** — 같은 일이 반복됩니다.
 
 ## 넘치는 한 줄
 
@@ -397,7 +397,7 @@ whitespace-nowrap        ← 좁아지는 순간 글자가 접혀 아래로 삐�
 
 ## 로딩 표시
 
-`RetroSpinner` 를 씁니다. **HeroUI `<Spinner />` 는 이 프로젝트에서 동작하지 않습니다** —
+`RetroSpinner` 를 씁니다. (예전에 쓰던 HeroUI `<Spinner />` 도 이 프로젝트에서는 동작하지 않았습니다 —
 `animate-spinner-ease-spin`·`w-5` 같은 클래스가 `node_modules` 안에만 있어서 Tailwind v4
 가 유틸리티를 생성하지 않고, 회전 없는 **4px 세로선**으로 그려집니다. 원형 스피너는
 전역 `rounded-none!` 오버라이드와도 싸웁니다.

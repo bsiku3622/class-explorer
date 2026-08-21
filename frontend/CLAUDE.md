@@ -6,7 +6,7 @@
 ```
 src/
 ├── App.tsx                   → 라우터 + 전역 상태 관리 (prop drilling 허브)
-├── main.tsx                  → React 앱 진입점 (HeroUIProvider + BrowserRouter)
+├── main.tsx                  → React 앱 진입점 (BrowserRouter)
 ├── index.css                 → Tailwind v4 테마 + 전역 스타일
 ├── types/
 │   └── index.ts              → 공통 TypeScript 인터페이스
@@ -28,6 +28,7 @@ src/
 │   └── motion.ts             → Framer Motion 설정값
 ├── hooks/
 │   ├── useModifierKey.ts     → Cmd/Ctrl 키 감지 훅
+│   ├── useVirtualGrid.ts     → 보이는 줄만 그리기 (창 스크롤 기준)
 │   └── useTradePlan.ts       → 홈에서 `/trade` 계획 읽기 (읽기 전용)
 ├── pages/
 │   ├── LoginPage.tsx         → 로그인 폼 (미인증 시 전체 화면 대체)
@@ -95,7 +96,7 @@ src/
 ## 코드 스플리팅
 모든 페이지는 `React.lazy()` + `Suspense`로 동적 로드됩니다.
 - 로딩 중: "Loading..." 풀스크린 폴백
-- 빌드 청크: `heroui` (HeroUI), `vendor` (React/router), 페이지별 개별 청크
+- 빌드 청크: `vendor` (React/router), 페이지별 개별 청크
 
 ## 인증 흐름
 - `sessionToken === null` → `<LoginPage onLogin={handleLogin} />` 렌더 (전체 앱 대체)
@@ -219,6 +220,20 @@ vs `{}`). axios 가 둘 다 받아 줘서 아무도 못 알아챘지만, 키를 
 ⚠️ `api.get("/curriculum")` 을 직접 부르지 말고 `fetchCurriculum()` 을 쓰세요.
 
 로그아웃하면 `clearCache()` 로 통째로 비웁니다.
+
+## 긴 목록은 보이는 줄만 그립니다
+
+`/browse` 는 전교생을 한 번에 그려서 DOM 이 **7,397 노드**였습니다. 다른 페이지가
+286~1,438 인 걸 감안하면 이 페이지만 5~25배였고, 스크롤이 무거웠습니다.
+
+`useVirtualGrid` 를 쓰면 화면에 걸치는 줄만 남습니다(약 510 노드). 스크롤 컨테이너가
+따로 없고 문서 전체가 스크롤되는 구조라 `window.scrollY` 를 기준으로 잽니다.
+
+⚠️ **ref 는 부르는 쪽이 만들어 넘깁니다.** 훅이 돌려주면 React 컴파일러가 반환값 전체를
+ref 로 보고 `visible` 을 읽는 것까지 "렌더 중 ref 접근" 으로 막습니다.
+
+⚠️ **줄 높이가 들쭉날쭉한 목록에는 쓰지 마세요.** 한 줄 높이를 하나로 보고 계산하므로
+스크롤 막대가 튑니다. `/browse` 의 카드는 365장 중 347장이 정확히 같은 높이입니다.
 
 ## 데이터 캐싱
 - 키: `ksa_class_finder_cache_{year}_{semester}` — **학기별로 분리**

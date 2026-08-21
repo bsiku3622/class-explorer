@@ -3,7 +3,7 @@
 ## Project
 
 KSA 학생/교사/강의실 기반 수업 탐색 웹 앱.  
-**Stack**: React 19 + TypeScript + Vite + Tailwind v4 + HeroUI / FastAPI + SQLAlchemy (SQLite)
+**Stack**: React 19 + TypeScript + Vite + Tailwind v4 / FastAPI + SQLAlchemy (SQLite)
 / Kotlin + Jetpack Glance (안드로이드 위젯)
 
 ### 프론트가 둘입니다
@@ -148,7 +148,9 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 - atom 컴포넌트 인라인 재구현 금지: `RetroButton`, `RetroCard`, `RetroSubTitle`, `StudentBadge` 사용
 - `RetroSubTitle` 스타일 고정: `text-sm font-bold text-black/40 uppercase tracking-widest`
 - 학생 색상: 반드시 `getStudentColor()` 사용 (23=Purple, 24=Orange, 25=Green, 26=Cyan)
-- HeroUI 전역 `border-radius: 0` 오버라이드 (`index.css`) — 건드리지 말 것
+- **UI 라이브러리를 새로 들이지 마세요.** HeroUI 를 걷어낸 자리입니다 — 컴포넌트
+  일곱 개를 쓰자고 첫 로딩 JS 의 절반(103KB)을 얹고 있었고, 생김새는 어차피 `Retro*`
+  로 따로 만들어 쓰고 있었습니다. 필요한 것은 `atoms/` 에 직접 만듭니다
 - Tailwind v4 `@theme` / `@custom-variant` LSP 경고는 정상 — 수정 시도 금지
 
 ---
