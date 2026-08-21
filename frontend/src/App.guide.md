@@ -91,8 +91,15 @@ sessionToken=null → LoginPage (라우터 밖, 전체 화면 대체)
 /browse           → BrowsePage (allClassesData, studentCounts, lastUpdated, fetchInitialData, handleSearch=handleSearchSelect)
 /about            → SettingsPage (props 없음)
 /admin            → AdminPage (is_admin=true일 때만 라우트 등록)
-/*                → Navigate to /
+/*                → currentUser 가 있으면 Navigate to /, 없으면 로딩 화면
 ```
+
+**`/*` 가 곧장 홈으로 보내면 안 됩니다.** `/admin` 과 `/trade` 는 역할·학기에 따라
+**나중에** 등록되는 라우트라, `/auth/me` 가 도착하기 전 첫 렌더에서는 존재하지
+않습니다. 그 순간 `/*` 이 걸려 `replace` 로 홈에 덮어쓰면 주소창으로 들어오거나
+그 페이지에서 새로고침한 사람이 홈으로 튕기고 뒤로 가기도 막힙니다. 그래서
+`currentUser` 가 정해질 때까지 판단을 미룹니다 — 권한이 없는 사람은 역할이
+확인된 뒤 그대로 홈으로 갑니다.
 
 ## 레이아웃 구조
 ```

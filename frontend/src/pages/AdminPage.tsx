@@ -592,29 +592,33 @@ const AdminPage: React.FC = () => {
                         <RetroSubTitle title="Accounts" />
                         <div className="space-y-2">
                             {users.map((u) => (
-                                <div key={u.id} className="flex items-center gap-3 border-2 border-black bg-white px-4 py-3 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
-                                    <span className="font-black text-sm flex-1">{u.username}</span>
-                                    <span className="text-[10px] font-black text-black/40 uppercase">
+                                <div key={u.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-2 border-black bg-white px-4 py-3 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
+                                    <span className="font-black text-sm flex-1 min-w-0 truncate">{u.username}</span>
+                                    <span className="shrink-0 text-[10px] font-black text-black/40 uppercase">
                                         {u.session_count > 0 ? "● ONLINE" : "○ OFFLINE"}
                                     </span>
-                                    <div className="flex">
-                                        {ROLE_OPTIONS.map((opt) => (
-                                            <button
-                                                key={opt.value}
-                                                onClick={() => handleSetRole(u.id, opt.value)}
-                                                className={`text-[10px] font-black uppercase px-2 py-1 border-2 -ml-0.5 first:ml-0 transition-all duration-100 ${
-                                                    u.role === opt.value
-                                                        ? "bg-black text-white border-black relative z-10"
-                                                        : "bg-white text-black/40 border-black/30 hover:border-black hover:text-black"
-                                                }`}
-                                            >
-                                                {opt.label}
-                                            </button>
-                                        ))}
+                                    {/* 좁은 화면에서는 한 줄을 통째로 씁니다 — 한 줄에 다 넣으면
+                                        아이디가 잘리거나 지우기 버튼이 카드 밖으로 나갑니다 */}
+                                    <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+                                        <div className="flex">
+                                            {ROLE_OPTIONS.map((opt) => (
+                                                <button
+                                                    key={opt.value}
+                                                    onClick={() => handleSetRole(u.id, opt.value)}
+                                                    className={`text-[10px] font-black uppercase px-2 py-1 border-2 -ml-0.5 first:ml-0 transition-all duration-100 ${
+                                                        u.role === opt.value
+                                                            ? "bg-black text-white border-black relative z-10"
+                                                            : "bg-white text-black/40 border-black/30 hover:border-black hover:text-black"
+                                                    }`}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <button onClick={() => handleDeleteUser(u.id)} className="shrink-0 text-red-500 hover:text-red-700 transition-colors">
+                                            <Trash2 size={15} strokeWidth={2.5} />
+                                        </button>
                                     </div>
-                                    <button onClick={() => handleDeleteUser(u.id)} className="text-red-500 hover:text-red-700 transition-colors">
-                                        <Trash2 size={15} strokeWidth={2.5} />
-                                    </button>
                                 </div>
                             ))}
                             {users.length === 0 && <p className="text-sm font-bold text-black/40">No users found.</p>}
@@ -715,8 +719,8 @@ const AdminPage: React.FC = () => {
             <AccordionSection title="Data Management" icon={GraduationCap} isOpen={openSections.data} onToggle={() => toggle("data")}>
                 <div className="space-y-4">
                     {/* 탭 + Refresh / Sync 버튼 */}
-                    <div className="flex items-center justify-between gap-2">
-                        <div className="flex gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap gap-2">
                             {dataTabBtn("students", "Students")}
                             {dataTabBtn("teachers", "Teachers")}
                             {dataTabBtn("subjects", "Subjects")}
@@ -914,7 +918,7 @@ const AdminPage: React.FC = () => {
                                 <li key={row.version} className="border-2 border-black">
                                     <button
                                         onClick={() => setOpenVersion(openVersion === row.version ? null : row.version)}
-                                        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-retro-accent-light transition-all duration-100"
+                                        className="w-full flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-3 py-2 text-left hover:bg-retro-accent-light transition-all duration-100"
                                     >
                                         <span className="flex items-center gap-2 min-w-0">
                                             <span className="text-sm font-black shrink-0">v{row.version}</span>

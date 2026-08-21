@@ -172,7 +172,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
             <PageHeader title="Browse" subtitle={subtitle} icon={Library} />
 
             {/* Mode toggle */}
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2 md:gap-3">
                 <RetroButton
                     size="sm"
                     isSelected={mode === "students"}

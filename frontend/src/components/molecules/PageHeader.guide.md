@@ -26,6 +26,11 @@
 └─────────────────────────────────────────┘
 ```
 
+**`sm` 미만에서는 세로로 쌓입니다** (`flex-col` → `sm:flex-row`). 제목과 액션을 한 줄에
+두면 좁은 화면에서 액션 버튼이 제목 위를 덮습니다 — `title` 이 한 단어라 줄바꿈으로
+비켜설 수 없고, 카드의 `overflow-hidden` 이 밖으로 나간 글자를 잘라 내기 때문입니다.
+`Rooms` + `Reset Selection` 조합이 실제로 그랬습니다.
+
 ## 타이포그래피
 - `subtitle`: `text-[10px] font-black text-black/40 uppercase tracking-widest`
 - `title`: `text-2xl md:text-3xl font-black tracking-tight uppercase leading-tight`
