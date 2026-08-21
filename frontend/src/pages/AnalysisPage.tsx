@@ -10,11 +10,10 @@ import {
     Calendar,
     BookOpen,
 } from "lucide-react";
-import { Tooltip } from "@heroui/react";
+import RetroTooltip from "../components/atoms/RetroTooltip";
 import RetroSpinner from "../components/atoms/RetroSpinner";
 import type { SubjectData } from "../types";
 import { getStudentColor, getKoreanName } from "../lib/utils";
-import { tooltipMotionProps } from "../constants/motion";
 import RetroButton from "../components/atoms/RetroButton";
 import RetroCard from "../components/atoms/RetroCard";
 import FilterSection from "../components/FilterSection";
@@ -591,7 +590,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                                                 ?.schedule[key],
                                                     );
                                             return (
-                                                <Tooltip
+                                                                                                <RetroTooltip
                                                     key={day}
                                                     isOpen={
                                                         activeCellKey === key
@@ -639,13 +638,6 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                                             )}
                                                         </div>
                                                     }
-                                                    classNames={{
-                                                        content:
-                                                            "p-0 rounded-none border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]",
-                                                    }}
-                                                    motionProps={
-                                                        tooltipMotionProps
-                                                    }
                                                 >
                                                     <div
                                                         onClick={() =>
@@ -658,7 +650,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                                         }
                                                         className={`h-10 transition-all duration-300 relative cursor-pointer ${activeCellKey === key ? "ring-2 ring-inset ring-black z-10" : "hover:bg-black/[0.03]"} ${isConflict ? "bg-orange-100" : isCommonClass ? "bg-retro-primary/20" : isFree ? "bg-retro-green/20" : "bg-white"}`}
                                                     />
-                                                </Tooltip>
+                                                </RetroTooltip>
                                             );
                                         })}
                                     </div>

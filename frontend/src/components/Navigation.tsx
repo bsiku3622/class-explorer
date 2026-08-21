@@ -8,7 +8,6 @@
  */
 
 import React from "react";
-import { Navbar, NavbarBrand, NavbarContent } from "@heroui/react";
 import { LogOut, ShieldCheck } from "lucide-react";
 import TermSwitcher from "./TermSwitcher";
 import type { Term } from "../types";
@@ -33,20 +32,16 @@ const Navigation: React.FC<NavigationProps> = ({
     onTermChange,
 }) => {
     return (
-        <Navbar
-            isBordered={false}
-            className="fixed top-0 left-0 right-0 bg-retro-secondary border-b border-black h-20 shadow-[0_4px_0_0_rgba(0,0,0,0.2)] z-1000"
-            maxWidth="full"
-        >
-            <NavbarBrand>
+        <nav className="fixed top-0 left-0 right-0 z-1000 flex h-20 items-center justify-between gap-4 border-b border-black bg-retro-secondary px-6 shadow-[0_4px_0_0_rgba(0,0,0,0.2)]">
+            <div className="flex items-center">
                 <button
                     onClick={onLogoClick}
                     className="transform text-2xl font-black uppercase -skew-x-6 tracking-tighter text-white transition-transform hover:scale-105 active:scale-95"
                 >
                     Class Explorer
                 </button>
-            </NavbarBrand>
-            <NavbarContent justify="end" className="gap-3 sm:gap-6">
+            </div>
+            <div className="flex items-center justify-end gap-3 sm:gap-6">
                 {onTermChange && (
                     <TermSwitcher
                         terms={terms}
@@ -70,8 +65,8 @@ const Navigation: React.FC<NavigationProps> = ({
                         Logout
                     </span>
                 </button>
-            </NavbarContent>
-        </Navbar>
+            </div>
+        </nav>
     );
 };
 

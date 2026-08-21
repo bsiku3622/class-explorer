@@ -1,9 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { Tooltip } from "@heroui/react";
+import RetroTooltip from "./atoms/RetroTooltip";
 import { User, MapPin, Users, Clock } from "lucide-react";
 import { getStudentColor, getKoreanName, DAY_MAP, DAYS_ORDER, extractSearchTerms } from "../lib/utils";
 import type { Section } from "../types";
-import { tooltipMotionProps } from "../constants/motion";
 import StudentCard from "./atoms/StudentCard";
 import TeacherCard from "./atoms/TeacherCard";
 
@@ -76,21 +75,12 @@ const SectionCard: React.FC<SectionCardProps> = ({
                     {section.section}
                 </h3>
                 <div className="space-y-1.5">
-                    <Tooltip
+                                        <RetroTooltip
                         isOpen={
                             isModifierPressed &&
                             hoveredItemId === `teacher-${section.id}`
                         }
-                        placement="top"
                         offset={15}
-                        delay={0}
-                        closeDelay={0}
-                        motionProps={tooltipMotionProps}
-                        classNames={{
-                            base: "!transition-none",
-                            content:
-                                "p-0 rounded-none border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
-                        }}
                         content={
                             <TeacherCard
                                 name={section.teacher}
@@ -122,7 +112,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
                             />
                             <span>{section.teacher}</span>
                         </div>
-                    </Tooltip>
+                    </RetroTooltip>
 
                     <div
                         className={`flex items-center gap-3 text-sm font-black h-8 px-3 py-0 -ml-2 border transition-all cursor-pointer ${
@@ -218,22 +208,13 @@ const SectionCard: React.FC<SectionCardProps> = ({
                             studentSubjectMap[student.stuId] || [];
 
                         return (
-                            <Tooltip
+                                                        <RetroTooltip
                                 key={student.stuId}
                                 isOpen={
                                     isModifierPressed &&
                                     hoveredItemId === student.stuId
                                 }
-                                placement="top"
                                 offset={15}
-                                delay={0}
-                                closeDelay={0}
-                                motionProps={tooltipMotionProps}
-                                classNames={{
-                                    base: "!transition-none",
-                                    content:
-                                        "p-0 rounded-none border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] overflow-hidden !transition-none",
-                                }}
                                 content={
                                     <StudentCard
                                         stuId={student.stuId}
@@ -277,7 +258,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                 >
                                     {student.stuId.split("-")[0]} {student.name}
                                 </div>
-                            </Tooltip>
+                            </RetroTooltip>
                         );
                     })}
                 </div>

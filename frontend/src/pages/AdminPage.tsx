@@ -94,6 +94,7 @@ const versionHeadline = (row: VersionRow): string => {
     }
     if (sum.classes.moved.length) parts.push(`교실 ${sum.classes.moved.length}`);
     if (sum.classes.swapped?.length) parts.push(`교사 ${sum.classes.swapped.length}`);
+    if (sum.classes.assigned) parts.push(`교실배정 ${sum.classes.assigned}`);
     return parts.join(" ") || "변화 없음";
 };
 
@@ -190,9 +191,11 @@ const AdminPage: React.FC = () => {
     const [syncTerm, setSyncTerm] = useState<TermRow | null>(null);
     const [customTerm, setCustomTerm] = useState<TermRow | null>(null);
 
-    // 회차 이력
+    // 회차 이력 — 수집 대상 학기와 **따로 고릅니다**. 지난 학기 이력을 보려고
+    // 수집 대상까지 바꿔 놓으면, 그 상태로 Fetch 를 눌렀을 때 엉뚱한 학기를 긁습니다
     const [versions, setVersions] = useState<VersionRow[]>([]);
     const [openVersion, setOpenVersion] = useState<number | null>(null);
+    const [versionTerm, setVersionTerm] = useState<TermRow | null>(null);
 
     // Backups
     const [backups, setBackups] = useState<BackupRow[]>([]);
@@ -269,6 +272,7 @@ const AdminPage: React.FC = () => {
             const rows: TermRow[] = res.data.terms ?? [];
             setTerms(rows);
             setSyncTerm((prev) => prev ?? rows[0] ?? null);
+            setVersionTerm((prev) => prev ?? rows[0] ?? null);
         } catch (e) {
             if (axios.isAxiosError(e)) setError(e.response?.data?.detail || "Failed to load terms");
         }
@@ -395,6 +399,7 @@ const AdminPage: React.FC = () => {
             // 새 학기를 처음 받았으면 목록에 없던 학기가 생깁니다
             fetchTerms();
             fetchBackups();
+            setVersionTerm(targetTerm);
             fetchVersions(targetTerm);
         } catch (e) {
             if (axios.isAxiosError(e)) setSyncResult({ ok: false });
@@ -418,7 +423,7 @@ const AdminPage: React.FC = () => {
             if (teachers.length === 0) fetchTeachers();
             if (subjects.length === 0) fetchSubjects();
         }
-        if (key === "versions" && !openSections.versions && versions.length === 0) fetchVersions(targetTerm);
+        if (key === "versions" && !openSections.versions && versions.length === 0) fetchVersions(versionTerm ?? targetTerm);
         if (key === "backups" && !openSections.backups && backups.length === 0) fetchBackups();
         setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
     };
@@ -877,9 +882,23 @@ const AdminPage: React.FC = () => {
             <AccordionSection title="Data Versions" icon={History} isOpen={openSections.versions} onToggle={() => toggle("versions")}>
                 <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2">
-                        <RetroSubTitle title={targetTerm ? termLabel(targetTerm) : "학기 미선택"} />
+                        <div className="flex flex-wrap items-center gap-2">
+                            {terms.map((t) => (
+                                <button
+                                    key={termLabel(t)}
+                                    onClick={() => {
+                                        setVersionTerm(t);
+                                        setOpenVersion(null);
+                                        fetchVersions(t);
+                                    }}
+                                    className={chipClass(!!versionTerm && termLabel(versionTerm) === termLabel(t))}
+                                >
+                                    {termLabel(t)}
+                                </button>
+                            ))}
+                        </div>
                         <button
-                            onClick={() => fetchVersions(targetTerm)}
+                            onClick={() => fetchVersions(versionTerm ?? targetTerm)}
                             className="flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1.5 border-2 border-black/30 text-black/50 hover:border-black hover:text-black transition-all duration-100"
                         >
                             <RefreshCw size={11} strokeWidth={2.5} />

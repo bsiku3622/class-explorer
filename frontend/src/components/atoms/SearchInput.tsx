@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Search, X, Clock } from "lucide-react";
-import { Input } from "@heroui/react";
 
 const HISTORY_KEY = "ksa_search_history";
 const MAX_HISTORY = 8;
@@ -101,22 +100,23 @@ const SearchInput: React.FC<SearchInputProps> = ({
 
     return (
         <div ref={wrapperRef} className={`relative flex flex-col ${className}`}>
-            <Input
-                classNames={{
-                    base: "w-full",
-                    innerWrapper: "flex flex-row items-center gap-2",
-                    input: style.input,
-                    inputWrapper: `${style.wrapper} bg-white border-2 border-black rounded-none data-[hover=true]:border-black group-data-[focus=true]:border-black`,
-                }}
-                placeholder={placeholder}
-                startContent={
-                    <Search className="text-black/40 ml-2" size={style.icon} />
-                }
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                onFocus={handleFocus}
-                autoFocus={autoFocus}
-            />
+            {/* HeroUI `Input` 이 있던 자리입니다. 히스토리·지우기·포커스는 원래부터
+                아래에서 직접 다루고 있었고, 이 컴포넌트가 해 주던 건 아이콘 옆에 입력칸을
+                두는 것뿐이라 남길 이유가 없었습니다 */}
+            <div
+                className={`${style.wrapper} flex w-full flex-row items-center gap-2 border-2 border-black bg-white`}
+            >
+                <Search className="ml-2 shrink-0 text-black/40" size={style.icon} />
+                <input
+                    type="text"
+                    className={`${style.input} h-full min-w-0 flex-1 bg-transparent placeholder:text-black/30`}
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    onFocus={handleFocus}
+                    autoFocus={autoFocus}
+                />
+            </div>
             {value && (
                 <button
                     onClick={() => onChange("")}
