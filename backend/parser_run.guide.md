@@ -30,14 +30,39 @@ GET https://keis.ksa.hs.kr/restapi/v1/schedule/{stuId}/{year}/{semester}
       ↓
 parse_schedule() → 수업 목록
       ↓
-[반영 직전] backup.create_backup(f"sync-{year}-{semester}") — backups/ 에 스냅샷
+[읽기만] live_state() vs desired_state() → diff_terms() — 정말 바뀌었는지 판정
+      ↓  바뀐 게 없으면 여기서 끝. 백업도 회차도 만들지 않고 DB 를 건드리지 않습니다
       ↓
-[전원 수집 완료 후] replace_term_data() — 학기 단위 원자적 교체
+[반영 직전] backup.create_backup(f"sync-{year}-{semester}-v{version}") — backups/ 에 스냅샷
+      ↓
+[전원 수집 완료 후] replace_term_data(..., version) — 회차를 하나 올립니다
   - Class: (subject_id, section, teacher) 로 찾아 재사용 — id 보존, 교실만 갱신
-           이번 수집에 없는 분반만 삭제(폐강), 새로 나온 분반만 추가(신설)
-  - ClassTime / Enrollment: 해당 학기 전량 삭제 후 재삽입
+           이번 수집에 없는 분반은 version_to 를 찍어 **닫습니다** (지우지 않음)
+  - ClassTime / Enrollment: 사라진 행은 닫고, 새로 생긴 행만 추가
   - Student: 다른 학기가 참조하므로 삭제하지 않음 (신규 추가 + 이름 갱신만)
   - 다른 학기 데이터는 건드리지 않음
+      ↓
+record_version() — 회차 + 변경 요약을 term_versions 에 기록
+
+## 바뀐 게 없으면 아무것도 남기지 않습니다
+
+예전에는 돌릴 때마다 백업을 떴습니다. 그래서 서버에 8월 11일부터 19일까지 **내용이
+완전히 같은 백업 다섯 개**가 쌓여 있었고, 파일 이름의 날짜는 백업을 뜬 날짜지 데이터가
+바뀐 날짜가 아니라 "언제 달라졌나" 를 이름만 보고는 알 수 없었습니다.
+
+지금은 수집 결과를 **먼저 현재 상태와 맞대어 보고**, 다르지 않으면 백업도 회차도 만들지
+않습니다. 판정은 읽기만 하므로 DB 에 아무 흔적도 남기지 않습니다.
+
+`SYNC_RESULT` 줄에 `version=` 과 `changed=` 가 붙습니다 — 웹에서 누른 수집은
+`admin_router` 가 이 줄을 파싱해 화면에 띄웁니다.
+
+## 변경 요약
+
+`diff_terms()` 가 직전 회차와의 차이를 만듭니다. **개인 이름은 담지 않습니다** — 분반별
+인원 증감까지가 끝입니다. 관리자만 보는 화면이라도 명단이 새는 통로를 늘릴 이유가 없습니다.
+
+담당 교사만 바뀐 분반은 `swapped` 로 따로 뺍니다. 분반을 `(과목, EC, 분반, 교사)` 로 잡기
+때문에 그냥 두면 "폐강 + 신설" 로 보이는데, 사람에게는 한 사건입니다.
 ```
 
 ## ⚠️ Class.id 는 재수집해도 그대로입니다

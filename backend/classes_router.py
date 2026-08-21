@@ -9,12 +9,13 @@
 
 import re
 
-from fastapi import APIRouter, Depends, Query, Response
-from sqlalchemy.orm import Session, selectinload, joinedload
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from sqlalchemy.orm import Session, joinedload
 
 from backend import models
 from backend.auth import get_current_user, get_db
 from backend.terms import list_terms, resolve_term
+from backend.versioning import at_version, current_version
 
 terms_router = APIRouter(tags=["terms"])
 router = APIRouter(tags=["classes"])
@@ -39,25 +40,62 @@ async def get_all_data(
     response: Response,
     year: int | None = Query(default=None, ge=2000, le=2100),
     semester: int | None = Query(default=None, ge=1, le=2),
+    version: int | None = Query(default=None, ge=1),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """지정 학기의 수업/학생/별칭 데이터 반환 (인증 필요). 학기 미지정 시 최신 학기."""
+    """
+    지정 학기의 수업/학생/별칭 데이터 반환 (인증 필요). 학기 미지정 시 최신 학기.
+
+    `version` 을 주면 그 회차 시점으로 답합니다. 안 주면 지금 상태입니다.
+    """
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     response.headers["Pragma"] = "no-cache"
 
     target_year, target_semester = resolve_term(db, year, semester)
 
+    latest = current_version(db, target_year, target_semester)
+    if version is not None and version > latest:
+        raise HTTPException(status_code=404, detail=f"No such version (latest is {latest})")
+
     # 1. 수업 및 수강 정보 조회
     all_classes = db.query(models.Class).filter(
         models.Class.year == target_year,
         models.Class.semester == target_semester,
+        at_version(models.Class, version),
     ).options(
-        selectinload(models.Class.enrollments).joinedload(models.Enrollment.student),
-        selectinload(models.Class.times),
         joinedload(models.Class.subject).joinedload(models.Subject.course)
         .joinedload(models.Course.department),
     ).all()
+
+    # 명단과 시간은 관계로 읽지 않고 직접 물어봅니다.
+    #
+    # `cls.enrollments` · `cls.times` 는 **지금 열려 있는 행만** 보도록 막혀 있어서
+    # (`models.py`) 과거 회차를 물어도 현재 값이 나옵니다. 회차를 지정할 수 있는 자리는
+    # 여기뿐이라, 이 두 줄만 관계를 안 씁니다.
+    class_ids = [cls.id for cls in all_classes]
+    roster: dict[int, list[dict]] = {}
+    slots: dict[int, list[dict]] = {}
+    if class_ids:
+        for stu_id, name, cid in (
+            db.query(models.Student.stuId, models.Student.name, models.Enrollment.classId)
+            .join(models.Enrollment, models.Enrollment.stuId == models.Student.stuId)
+            .filter(models.Enrollment.classId.in_(class_ids))
+            .filter(at_version(models.Enrollment, version))
+            .all()
+        ):
+            roster.setdefault(cid, []).append({"stuId": stu_id, "name": name})
+
+        for cid, day, period, room in (
+            db.query(
+                models.ClassTime.class_id, models.ClassTime.day,
+                models.ClassTime.period, models.ClassTime.room,
+            )
+            .filter(models.ClassTime.class_id.in_(class_ids))
+            .filter(at_version(models.ClassTime, version))
+            .all()
+        ):
+            slots.setdefault(cid, []).append({"day": day, "period": period, "room": room})
 
     # 과목 단위로 묶습니다. 영어강의와 한국어강의는 이름이 같아도 별개 과목이라
     # subject_id 로 나눠야 합니다 — 이름으로 묶으면 두 과목이 한 덩어리가 됩니다
@@ -70,7 +108,7 @@ async def get_all_data(
         return stu_id.split("-")[0] if "-" in stu_id else "Unknown"
 
     for cls in all_classes:
-        students = [{"stuId": e.student.stuId, "name": e.student.name} for e in cls.enrollments]
+        students = roster.get(cls.id, [])
         subjects.setdefault(cls.subject_id, cls.subject)
         grouped.setdefault(cls.subject_id, [])
 
@@ -92,7 +130,7 @@ async def get_all_data(
             "student_count": len(students),
             "year_counts": dict(sorted(year_counts.items())),
             "times": sorted(
-                [{"day": t.day, "period": t.period, "room": t.room} for t in cls.times],
+                slots.get(cls.id, []),
                 key=lambda x: (["MON", "TUE", "WED", "THU", "FRI"].index(x["day"]), x["period"])
             )
         })
@@ -140,6 +178,8 @@ async def get_all_data(
 
     return {
         "term": {"year": target_year, "semester": target_semester},
+        "version": version if version is not None else latest,
+        "latest_version": latest,
         "available_terms": list_terms(db),
         "stats": {
             "total_subjects": len(final_data),

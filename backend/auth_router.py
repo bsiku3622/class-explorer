@@ -26,6 +26,7 @@ from backend.auth import (
     MAX_SESSIONS_PER_USER,
     SESSION_EXPIRE_DAYS,
 )
+from backend.versioning import version_map
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -376,6 +377,12 @@ def me(
         "stu_id": current_user.stu_id,
         "student_name": student.name if student else None,
         "email": current_user.email,
+        # 학기별 데이터 회차. 프론트가 자기 캐시와 대 봐서 다르면 버립니다.
+        #
+        # 여기 얹은 이유는 이 응답이 **앱을 열 때마다 캐시 없이 한 번은 나가는 유일한
+        # 요청**이기 때문입니다. 학기 데이터가 캐시에 맞으면 서버로 아무것도 안 나가서,
+        # 따로 물어볼 자리를 만들면 요청이 하나 더 늘어납니다.
+        "data_versions": version_map(db),
     }
 
 

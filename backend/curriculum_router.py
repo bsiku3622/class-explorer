@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from backend import models
 from backend.auth import get_current_user, get_db
 from backend.zamong_import import parse_workbook
+from backend.versioning import at_version
 
 # 워크북은 원본이 700KB 쯤입니다. 넉넉히 잡되, 아무 파일이나 통째로 메모리에 올리는
 # 일은 막습니다
@@ -185,7 +186,11 @@ def fetch_progress(db: Session, stu_id: str) -> dict:
         .join(models.Enrollment, models.Enrollment.classId == models.Class.id)
         .join(models.Subject, models.Subject.id == models.Class.subject_id)
         .outerjoin(models.Course, models.Course.id == models.Subject.course_id)
-        .filter(models.Enrollment.stuId == stu_id)
+        .filter(
+            models.Enrollment.stuId == stu_id,
+            at_version(models.Class),
+            at_version(models.Enrollment),
+        )
         .order_by(models.Class.year, models.Class.semester)
         .all()
     )

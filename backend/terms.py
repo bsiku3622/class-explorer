@@ -5,6 +5,7 @@ import datetime
 from sqlalchemy.orm import Session
 
 from backend import models, periods
+from backend.versioning import at_version
 
 
 def current_term(today: datetime.date | None = None) -> tuple[int, int]:
@@ -24,6 +25,7 @@ def list_terms(db: Session) -> list[dict[str, int]]:
     """DB에 데이터가 존재하는 학기 목록 (최신순)."""
     rows = (
         db.query(models.Class.year, models.Class.semester)
+        .filter(at_version(models.Class))
         .distinct()
         .order_by(models.Class.year.desc(), models.Class.semester.desc())
         .all()
@@ -35,6 +37,7 @@ def latest_term(db: Session) -> tuple[int, int]:
     """데이터가 있는 가장 최근 학기. 없으면 오늘 기준 학기."""
     row = (
         db.query(models.Class.year, models.Class.semester)
+        .filter(at_version(models.Class))
         .order_by(models.Class.year.desc(), models.Class.semester.desc())
         .first()
     )

@@ -20,6 +20,7 @@ import time
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from sqlalchemy import and_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from backend import models
@@ -27,6 +28,7 @@ from backend.auth import get_current_user, get_db
 from backend.classes_router import get_section_num
 from backend.curriculum_router import fetch_progress
 from backend.terms import list_terms, resolve_term
+from backend.versioning import at_version
 
 router = APIRouter(tags=["bench"])
 
@@ -106,10 +108,15 @@ async def get_enrollment_stats(
             models.ClassTime.period,
         )
         .join(models.Class, models.Class.id == models.Enrollment.classId)
-        .outerjoin(models.ClassTime, models.ClassTime.class_id == models.Class.id)
+        .outerjoin(
+            models.ClassTime,
+            and_(models.ClassTime.class_id == models.Class.id, at_version(models.ClassTime)),
+        )
         .filter(
             models.Class.year == target_year,
             models.Class.semester == target_semester,
+            at_version(models.Class),
+            at_version(models.Enrollment),
         )
         .all()
     )
@@ -214,6 +221,8 @@ async def get_student_timetable(
             models.Enrollment.stuId == stu_id,
             models.Class.year == target_year,
             models.Class.semester == target_semester,
+            at_version(models.Class),
+            at_version(models.Enrollment),
         )
         .options(
             selectinload(models.Class.times),

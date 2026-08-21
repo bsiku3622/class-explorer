@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, Suspense } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import axios from "axios";
 import api from "./lib/api";
 import { clearCache } from "./lib/cache";
@@ -46,12 +46,15 @@ const CACHE_PREFIX = "ksa_class_finder_cache";
  * 안 올리면 예전 응답을 든 브라우저가 최대 1시간 동안 새 필드를 못 받아
  * 학점이 0으로 보이는 식의 문제가 생깁니다.
  */
-const CACHE_VERSION = 4;   // 4 = 학번 분포(year_counts / subject_year_counts) 추가
+const CACHE_VERSION = 5;   // 5 = 데이터 회차(version) 동봉
 const TERM_KEY = "ksa_selected_term";
 const CACHE_EXPIRY = 60 * 60 * 1000;
 
 /** 데이터 캐시는 학기별로 분리 보관 */
 const cacheKeyFor = (term: Term) => `${CACHE_PREFIX}_${term.year}_${term.semester}`;
+
+/** `/auth/me` 가 돌려주는 회차 뭉치의 키 */
+const termKey = (term: Term) => `${term.year}-${term.semester}`;
 
 const clearDataCache = () => {
     Object.keys(localStorage)
@@ -121,6 +124,15 @@ const App: React.FC = () => {
     const [hoveredEntityId, setHoveredEntityId] = useState<string | null>(null);
     const [term, setTerm] = useState<Term | null>(loadSavedTerm);
     const [availableTerms, setAvailableTerms] = useState<Term[]>([]);
+
+    // 데이터 회차 — 캐시를 계속 써도 되는지 판단하는 유일한 근거입니다.
+    //
+    // 서버 값은 `/auth/me` 가 실어 줍니다. 앱을 열 때 캐시 없이 한 번은 나가는 요청이라
+    // 여기 얹으면 추가 왕복이 없습니다. ref 를 같이 두는 이유는 `fetchInitialData` 가
+    // 캐시를 읽는 순간 최신 값을 봐야 하는데, state 만으로는 닫힌 값이 잡히기 때문입니다
+    const [dataVersion, setDataVersion] = useState<number | null>(null);
+    const dataVersionsRef = useRef<Record<string, number> | null>(null);
+    const [serverVersions, setServerVersions] = useState<Record<string, number> | null>(null);
 
     const isModifierPressed = useModifierKey();
     const tradeAvailable = isTradeAvailable(term);
@@ -226,14 +238,21 @@ const App: React.FC = () => {
                     ? localStorage.getItem(cacheKeyFor(requestedTerm))
                     : null;
             if (cached) {
-                const { v, timestamp, student_counts, data, available_terms } =
+                const { v, timestamp, student_counts, data, available_terms, version } =
                     JSON.parse(cached);
-                if (v === CACHE_VERSION && Date.now() - timestamp < CACHE_EXPIRY) {
+                // 서버가 알려 준 회차와 다르면 아무리 최근이어도 버립니다. TTL 은 이제
+                // 백스톱일 뿐이고, 데이터가 갈렸는지는 회차가 말해 줍니다
+                const serverVersion = requestedTerm
+                    ? dataVersionsRef.current?.[termKey(requestedTerm)]
+                    : undefined;
+                const stale = serverVersion !== undefined && serverVersion !== version;
+                if (v === CACHE_VERSION && !stale && Date.now() - timestamp < CACHE_EXPIRY) {
                     setStudentCounts(student_counts);
                     setSelectedYears(Object.keys(student_counts));
                     setAllClassesData(data);
                     if (available_terms) setAvailableTerms(available_terms);
                     setLastUpdated(timestamp);
+                    setDataVersion(typeof version === "number" ? version : null);
                     setLoading(false);
                     return;
                 }
@@ -249,8 +268,10 @@ const App: React.FC = () => {
                 data,
                 term: resolvedTerm,
                 available_terms,
+                version: resolvedVersion,
             } = response.data;
             const now = Date.now();
+            setDataVersion(typeof resolvedVersion === "number" ? resolvedVersion : null);
             if (resolvedTerm) {
                 localStorage.setItem(
                     cacheKeyFor(resolvedTerm),
@@ -260,6 +281,7 @@ const App: React.FC = () => {
                         student_counts,
                         data,
                         available_terms,
+                        version: resolvedVersion,
                     }),
                 );
                 localStorage.setItem(TERM_KEY, JSON.stringify(resolvedTerm));
@@ -388,10 +410,27 @@ const App: React.FC = () => {
     useEffect(() => {
         if (!sessionToken) { setLoading(false); return; }
         api.get("/auth/me", { headers: authHeader() })
-            .then((res) => setCurrentUser(res.data))
+            .then((res) => {
+                setCurrentUser(res.data);
+                const versions = res.data.data_versions ?? {};
+                dataVersionsRef.current = versions;
+                setServerVersions(versions);
+            })
             .catch(() => handleLogout());
         fetchInitialData();
     }, [sessionToken]);
+
+    // 캐시를 먼저 그리고 `/auth/me` 가 나중에 오는 순서가 정상입니다 — 둘을 나란히
+    // 보내야 첫 화면이 빠릅니다. 그래서 회차가 늦게 도착해 어긋나는 경우를 여기서 받습니다.
+    // 맞으면 아무 일도 안 일어나므로, 추가 요청은 정말 갈렸을 때만 나갑니다
+    useEffect(() => {
+        if (!serverVersions || !term || dataVersion === null) return;
+        const latest = serverVersions[termKey(term)];
+        if (latest !== undefined && latest !== dataVersion) {
+            fetchInitialData(true, term);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [serverVersions, term, dataVersion]);
 
     useEffect(() => {
         const handler = setTimeout(() => {

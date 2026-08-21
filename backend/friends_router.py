@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from backend import models, periods
 from backend.auth import get_current_user, get_db
 from backend.terms import resolve_term
+from backend.versioning import at_version
 
 router = APIRouter(tags=["friends"])
 
@@ -57,6 +58,9 @@ def _busy_by_student(
             models.Enrollment.stuId.in_(stu_ids),
             models.Class.year == year,
             models.Class.semester == semester,
+            at_version(models.Class),
+            at_version(models.ClassTime),
+            at_version(models.Enrollment),
         )
         .all()
     )
