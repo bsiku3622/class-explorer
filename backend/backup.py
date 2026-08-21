@@ -15,7 +15,6 @@ import sqlite3
 
 from backend.database import engine
 
-BACKUP_DIR = os.path.join(os.path.dirname(__file__), "backups")
 
 # `ksa_timetable-20260818-143012-sync-2026-2.db`
 _NAME_PATTERN = re.compile(r"^ksa_timetable-(\d{8})-(\d{6})-(.+)\.db$")
@@ -28,6 +27,30 @@ _LEGACY_PREFIX = "ksa_timetable.db.bak-"
 def db_path() -> str:
     """앱이 실제로 열고 있는 DB 파일 경로."""
     return os.path.abspath(engine.url.database or "")
+
+
+def _backup_dir() -> str:
+    """
+    백업은 **DB 옆**에 둡니다 — 코드 옆이 아닙니다.
+
+    두 가지 때문입니다.
+
+    1. **쓸 수 있어야 합니다.** 배포된 서버에서 `backend/` 는 `baeks:baeks 755` 라
+       서비스 계정(`ksaclass`)이 디렉토리를 만들 수 없습니다. 코드 옆에 두면 첫 수집이
+       백업을 못 만들어 그대로 멈춥니다 — 되돌릴 곳 없이 덮어쓰지 않으려고 그렇게
+       해 뒀기 때문입니다
+    2. **저장소 안이면 위험합니다.** `backend/` 는 git 작업 트리라 `git clean -fdx`
+       한 번에 백업이 통째로 날아갑니다. DB 는 어차피 저장소 밖에 있습니다
+
+    서버의 DB 는 symlink(`backend/ksa_timetable.db` → `../data/ksa_timetable.db`)여서
+    실제 위치를 따라갑니다. 로컬은 진짜 파일이라 `backend/backups/` 그대로입니다.
+    """
+    resolved = os.path.realpath(db_path()) if db_path() else ""
+    base = os.path.dirname(resolved) or os.path.dirname(__file__)
+    return os.path.join(base, "backups")
+
+
+BACKUP_DIR = _backup_dir()
 
 
 def _describe(path: str, label_override: str | None = None) -> dict:
