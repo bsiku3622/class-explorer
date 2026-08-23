@@ -399,19 +399,13 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                 {/* ⚠️ **DOM 은 오늘이 먼저입니다.** 좁은 화면에서는 1열로 쌓이는데,
                     거기서 한 주가 오늘보다 위에 오면 안 됩니다 — 넓을 때만 자리를
                     바꿉니다(`xl:order-2`) */}
-                {/* 수업이 없는 날(주말·방학)에는 이 칸이 통째로 빕니다.
-                    ⚠️ **빈 `RetroCard` 를 남기면 안 됩니다** — 내용이 없어도 테두리와
-                    그림자는 그대로 그려져서, 높이 0 짜리 **검은 줄 하나**가 화면에
-                    박힙니다. 넓은 화면에서는 자리(1fr)를 지켜야 옆의 주간 격자가
-                    27rem 을 유지하므로 칸 자체는 두고, 세로로 쌓이는 좁은 화면에서만
-                    간격까지 걷어냅니다 */}
-                <div
-                    className={`flex min-w-0 flex-col gap-4 md:gap-5 xl:order-2 ${
-                        hasTimetable ? "" : "hidden xl:flex"
-                    }`}
-                >
-                    {hasTimetable && (
-                        <RetroCard className="flex flex-col overflow-hidden bg-white xl:min-h-0 xl:flex-1">
+                {/* ⚠️ **조건을 카드 바깥에 두지 마세요.** 수업이 없는 날에도 이 칸은
+                    남아야 합니다 — 카드째 지우면 옆의 주간 격자만 덩그러니 남고,
+                    조건을 `RetroCard` 안에 두면 테두리와 그림자만 그려져 높이 0 짜리
+                    검은 줄이 박힙니다. 둘 다 아니고 **빈 상태를 그리는 것**이 답입니다 */}
+                <div className="flex min-w-0 flex-col gap-4 md:gap-5 xl:order-2">
+                    <RetroCard className="flex flex-col overflow-hidden bg-white xl:min-h-0 xl:flex-1">
+                        {hasTimetable ? (
                             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4 md:p-5">
                                 <div className="flex items-baseline justify-between gap-3">
                                     <RetroSubTitle
@@ -456,8 +450,22 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                                     </div>
                                 </div>
                             </div>
-                        </RetroCard>
-                    )}
+                        ) : (
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col p-4 md:p-5">
+                                <RetroSubTitle
+                                    title="Today"
+                                    icon={CalendarDays}
+                                    iconSize={15}
+                                />
+                                <div className="flex flex-1 items-center justify-center py-12">
+                                    <p className="flex items-center gap-2 text-[12px] font-bold text-black/25">
+                                        <CalendarOff size={16} className="shrink-0" />
+                                        오늘은 정해진 일정이 없습니다
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </RetroCard>
                 </div>
 
                 {/* 위 카드가 **오늘**이라면 여기는 **이 학기**입니다 */}
