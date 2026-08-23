@@ -2,6 +2,7 @@
 # 어차피 로그인 화면만 나오고, 그게 색인에 남으면 "빈 페이지" 로 읽힙니다.
 User-agent: *
 Allow: /$
+Allow: /privacy
 Disallow: /search
 Disallow: /browse
 Disallow: /trade

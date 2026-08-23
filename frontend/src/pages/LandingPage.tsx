@@ -231,9 +231,11 @@ const FAQ = [
 interface LandingPageProps {
     /** 로그인 화면으로 넘깁니다 */
     onStart: () => void;
+    /** 개인정보처리방침으로 넘깁니다 */
+    onPrivacy: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => (
+const LandingPage: React.FC<LandingPageProps> = ({ onStart, onPrivacy }) => (
     <div className="min-h-screen bg-retro-bg text-retro-fg">
         {/* ── 머리띠 ── */}
         <header className="border-b-2 border-black bg-retro-secondary">
@@ -457,18 +459,32 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => (
         </section>
 
         <footer className="border-t-2 border-black bg-black px-5 py-8 text-white md:px-8">
-            <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3">
+            <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3">
                 <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40">
                     Class Explorer · KSA
                 </span>
-                <a
-                    href="https://github.com/bsiku3622/class-explorer"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40 transition-colors duration-100 hover:text-white"
-                >
-                    GitHub
-                </a>
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                    <button
+                        onClick={onPrivacy}
+                        className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40 transition-colors duration-100 hover:text-white"
+                    >
+                        개인정보처리방침
+                    </button>
+                    <a
+                        href="mailto:contact@bsiku.dev"
+                        className="text-[11px] font-black tracking-[0.15em] text-white/40 transition-colors duration-100 hover:text-white"
+                    >
+                        contact@bsiku.dev
+                    </a>
+                    <a
+                        href="https://github.com/bsiku3622/class-explorer"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40 transition-colors duration-100 hover:text-white"
+                    >
+                        GitHub
+                    </a>
+                </div>
             </div>
         </footer>
     </div>

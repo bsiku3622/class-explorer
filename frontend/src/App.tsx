@@ -33,6 +33,7 @@ const BrowsePage = React.lazy(() => import("./pages/BrowsePage"));
 const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
 const LoginPage = React.lazy(() => import("./pages/LoginPage"));
 const LandingPage = React.lazy(() => import("./pages/LandingPage"));
+const PrivacyPage = React.lazy(() => import("./pages/PrivacyPage"));
 const AdminPage = React.lazy(() => import("./pages/AdminPage"));
 const TradePage = React.lazy(() => import("./pages/TradePage"));
 const HomePage = React.lazy(() => import("./pages/HomePage"));
@@ -494,12 +495,18 @@ const App: React.FC = () => {
 
     // 로그인 안 한 사람. 주소가 `/` 면 **무엇을 하는 앱인지부터** 보여 줍니다 —
     // 곧장 로그인 창을 띄우면 밖에서 볼 때 이 주소에는 아무 내용도 없습니다.
-    // 다른 주소로 바로 들어온 사람은 이미 앱을 아는 사람이라 로그인으로 보냅니다
+    // `/privacy` 도 열어 둡니다. 개인정보처리방침은 로그인해야 읽히면 뜻이 없습니다.
+    // 그 밖의 주소로 바로 들어온 사람은 이미 앱을 아는 사람이라 로그인으로 보냅니다
     if (!sessionToken) {
         return (
             <Suspense fallback={pageFallback}>
-                {location.pathname === "/" ? (
-                    <LandingPage onStart={() => navigate("/login")} />
+                {location.pathname === "/privacy" ? (
+                    <PrivacyPage onBack={() => navigate("/")} />
+                ) : location.pathname === "/" ? (
+                    <LandingPage
+                        onStart={() => navigate("/login")}
+                        onPrivacy={() => navigate("/privacy")}
+                    />
                 ) : (
                     <LoginPage onLogin={handleLogin} />
                 )}
@@ -679,6 +686,10 @@ const App: React.FC = () => {
                             <Route
                                 path="/about"
                                 element={<SettingsPage />}
+                            />
+                            <Route
+                                path="/privacy"
+                                element={<PrivacyPage onBack={() => navigate("/")} />}
                             />
                             {hasRole(currentUser?.role, "admin") && (
                                 <Route

@@ -104,8 +104,9 @@ handleSearchSelect: 항상 해당 값으로 설정
 
 ## 라우팅
 ```tsx
-sessionToken=null · 주소 `/`   → LandingPage (공개 소개 화면, 라우터 밖)
-sessionToken=null · 그 외 주소  → LoginPage (라우터 밖, 전체 화면 대체)
+sessionToken=null · 주소 `/`         → LandingPage (공개 소개 화면, 라우터 밖)
+sessionToken=null · 주소 `/privacy`  → PrivacyPage (계정 없이 열립니다)
+sessionToken=null · 그 외 주소        → LoginPage (라우터 밖, 전체 화면 대체)
 /                 → SearchPage (전역 상태 대부분 props 전달)
 /emptyroomfinder  → RoomsPage (allClassesData, onRoomSearch)
 /analysis         → AnalysisPage (allClassesData, studentCounts, lastUpdated, fetchInitialData, handleSearch=handleSearchToggle)
