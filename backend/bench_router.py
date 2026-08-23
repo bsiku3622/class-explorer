@@ -268,9 +268,10 @@ async def get_my_progress(
     current_user: models.User = Depends(get_current_user),
 ):
     """내 누적 이수 현황. class-explorer 는 아무 학번이나 조회할 수 있지만 여기는 본인뿐입니다."""
-    if not current_user.stu_id:
+    stu_id = current_user.effective_stu_id
+    if not stu_id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="계정에 학번이 등록되어 있지 않습니다.",
         )
-    return fetch_progress(db, current_user.stu_id)
+    return fetch_progress(db, stu_id)

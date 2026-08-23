@@ -81,7 +81,8 @@ def _names(db: Session, stu_ids: list[str]) -> dict[str, str]:
 def _me_first(db: Session, user: models.User) -> list[str]:
     """친구 목록 앞에 본인을 붙입니다 — 겹쳐 보려면 내 시간표가 있어야 합니다"""
     stu_ids = _friend_stu_ids(db, user.id)
-    return ([user.stu_id] if user.stu_id else []) + stu_ids
+    me = user.effective_stu_id
+    return ([me] if me else []) + stu_ids
 
 
 # ─── 교시 시각표 ─────────────────────────────────────────────────────────────
@@ -113,7 +114,7 @@ async def add_friend(
     student = db.query(models.Student).filter(models.Student.stuId == body.stu_id).first()
     if not student:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="학생을 찾을 수 없습니다.")
-    if student.stuId == current_user.stu_id:
+    if student.stuId == current_user.effective_stu_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="본인은 추가할 수 없습니다.")
 
     exists = (
@@ -163,7 +164,7 @@ async def friends_busy_slots(
             {
                 "stuId": stu_id,
                 "name": names.get(stu_id, stu_id),
-                "is_me": stu_id == current_user.stu_id,
+                "is_me": stu_id == current_user.effective_stu_id,
                 "busy": sorted(busy.get(stu_id, set())),
             }
             for stu_id in stu_ids
@@ -204,7 +205,7 @@ async def friends_now(
         {
             "stuId": stu_id,
             "name": names.get(stu_id, stu_id),
-            "is_me": stu_id == current_user.stu_id,
+            "is_me": stu_id == current_user.effective_stu_id,
             # 수업 시간이 아니면 판단하지 않습니다
             "free": None if slot is None else slot not in busy.get(stu_id, set()),
         }

@@ -609,6 +609,10 @@ def run_migrations(engine: Engine) -> None:
         "CREATE INDEX IF NOT EXISTS ix_users_stu_id ON users (stu_id)",
         "ALTER TABLE users ADD COLUMN email VARCHAR",
         "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)",
+        # 시연용 계정이 대신 볼 학번. `stu_id` 와 달리 **유니크가 아닙니다** — 한 학번
+        # 한 계정 원칙은 그대로 두고, 보는 눈만 빌려 주는 칸이라서요
+        "ALTER TABLE users ADD COLUMN demo_stu_id VARCHAR REFERENCES students(stuId)",
+        "CREATE INDEX IF NOT EXISTS ix_users_demo_stu_id ON users (demo_stu_id)",
         "ALTER TABLE sessions ADD COLUMN ip_address VARCHAR",
         # 다중 기기 로그인 — 세션 목록에서 어느 게 내 폰인지 가리는 이름
         # ("Chrome · Android"). 이전 세션은 NULL 이고 화면이 대신 표시합니다

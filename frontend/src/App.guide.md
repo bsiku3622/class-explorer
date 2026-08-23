@@ -82,6 +82,16 @@ handleSearchToggle: 동일 값이면 검색어 초기화, 다르면 설정
 handleSearchSelect: 항상 해당 값으로 설정
 ```
 
+## 학교 계정 연결 게이트
+
+`currentUser.email` 이 비면 `GoogleLinkModal` 이 화면 전체를 덮습니다 — 누구 계정인지
+모르면 이수 기록을 남길 수 없어서입니다.
+
+**예외는 `is_demo` 하나입니다.** 학교 구글 계정이 아예 없는 사람에게 주는 시연 계정이라
+여기서 막으면 영영 못 들어옵니다. 누구로 보일지는 계정을 만들 때 이미 정해져 있고,
+`/auth/me` 의 `stu_id` 에 그 학번이 실려 옵니다 — 그래서 화면 쪽은 시연인지 아닌지
+따로 알 필요가 없습니다.
+
 ## 라우팅
 ```tsx
 sessionToken=null → LoginPage (라우터 밖, 전체 화면 대체)

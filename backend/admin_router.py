@@ -25,6 +25,10 @@ class CreateUserRequest(BaseModel):
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=5, max_length=128)
     role: Literal["user", "manager", "admin"] = "user"
+    # 시연용 계정으로 만들지. 켜면 **만드는 사람 본인의 학번**을 빌려 줍니다 —
+    # 학번을 고르게 두지 않는 건 그래야 "내 것만 보여 줄 수 있다" 가 지켜지기
+    # 때문입니다. 남의 시간표를 열어 주는 계정은 여기서 못 만듭니다
+    demo: bool = False
 
 
 class SetRoleRequest(BaseModel):
@@ -44,6 +48,8 @@ def list_users(
             "username": u.username,
             "role": u.role,
             "session_count": len(u.sessions),
+            # 시연 계정은 지울 때 헷갈리면 안 되므로 목록에서 구분해 둡니다
+            "demo_stu_id": u.demo_stu_id,
         }
         for u in users
     ]
@@ -53,20 +59,38 @@ def list_users(
 def create_user(
     body: CreateUserRequest,
     db: Session = Depends(get_db),
-    _: models.User = Depends(get_current_admin),
+    current: models.User = Depends(get_current_admin),
 ):
     if not _USERNAME_PATTERN.match(body.username):
         raise HTTPException(status_code=422, detail="Username must contain only letters, numbers, _, ., or -")
     if db.query(models.User).filter(models.User.username == body.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
+
+    demo_stu_id = None
+    if body.demo:
+        # 빌려 줄 수 있는 건 자기 학번뿐입니다. 만드는 사람이 아직 학번을 등록하지
+        # 않았으면 빌려 줄 것이 없으니 거절합니다
+        if not current.stu_id:
+            raise HTTPException(
+                status_code=409,
+                detail="시연 계정은 본인 학번을 빌려 줍니다 — 계정에 학번이 등록되어 있어야 합니다.",
+            )
+        demo_stu_id = current.stu_id
+
     user = models.User(
         username=body.username,
         hashed_password=hash_password(body.password),
         role=body.role,
+        demo_stu_id=demo_stu_id,
     )
     db.add(user)
     db.commit()
-    return {"id": user.id, "username": user.username, "role": user.role}
+    return {
+        "id": user.id,
+        "username": user.username,
+        "role": user.role,
+        "demo_stu_id": user.demo_stu_id,
+    }
 
 
 @router.patch("/users/{user_id}/role")

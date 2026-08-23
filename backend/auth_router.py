@@ -365,18 +365,23 @@ def me(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    # 시연 계정은 빌린 학번으로 보입니다 — 화면 전체가 이 값 하나를 받아 씁니다
+    stu_id = current_user.effective_stu_id
     student = (
-        db.query(models.Student).filter(models.Student.stuId == current_user.stu_id).first()
-        if current_user.stu_id
+        db.query(models.Student).filter(models.Student.stuId == stu_id).first()
+        if stu_id
         else None
     )
     return {
         "id": current_user.id,
         "username": current_user.username,
         "role": current_user.role,
-        "stu_id": current_user.stu_id,
+        "stu_id": stu_id,
         "student_name": student.name if student else None,
         "email": current_user.email,
+        # 학교 구글 계정을 붙일 수 없는 계정(시연용)이라는 표시. 화면이 이걸 보고
+        # 연동 창을 건너뜁니다 — `email` 이 비었다는 이유로 막으면 안 되는 유일한 경우
+        "is_demo": current_user.is_demo,
         # 학기별 데이터 회차. 프론트가 자기 캐시와 대 봐서 다르면 버립니다.
         #
         # 여기 얹은 이유는 이 응답이 **앱을 열 때마다 캐시 없이 한 번은 나가는 유일한

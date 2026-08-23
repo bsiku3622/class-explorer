@@ -221,3 +221,24 @@ export const readableInk = (hex: string): string => {
     });
     return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.35 ? "#000000" : "#ffffff";
 };
+
+/**
+ * 앞 낱말에 맞는 `로` / `으로`.
+ *
+ * 이름과 학번을 문장에 끼워 넣는 자리가 여럿인데, 받침을 안 보고 하나로 고정하면
+ * "정진우으로" 나 "백재원로" 가 나옵니다. 받침이 없거나 `ㄹ` 이면 `로` 입니다.
+ *
+ * 한글이 아닌 글자로 끝나면 **읽는 소리**를 기준으로 삼습니다 — 학번만 있고 이름이
+ * 없을 때 `25-106` 은 "육" 으로 끝나 `으로` 가 맞습니다.
+ */
+export const particleRo = (word: string): "로" | "으로" => {
+    const last = word.trim().slice(-1);
+    const code = last.charCodeAt(0);
+    if (code >= 0xac00 && code <= 0xd7a3) {
+        const jong = (code - 0xac00) % 28;
+        return jong === 0 || jong === 8 ? "로" : "으로";
+    }
+    // 영/일/이/삼/사/오/육/칠/팔/구 — 받침 없거나 ㄹ 인 것만 `로`
+    if (/[0-9]/.test(last)) return "1245789".includes(last) ? "로" : "으로";
+    return "으로";
+};

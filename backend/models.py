@@ -276,11 +276,36 @@ class User(Base):
     stu_id = Column(
         String, ForeignKey("students.stuId"), nullable=True, index=True, unique=True
     )
+    # 시연용 계정이 **대신 들여다볼** 학번. 여기 값이 있으면 그 계정은 시연용입니다.
+    #
+    # `stu_id` 를 그대로 못 쓰는 이유는 그쪽이 유니크이기 때문입니다 — 한 학번은 한
+    # 계정이라는 원칙을 시연 때문에 풀 수는 없어서, 보는 눈만 따로 뒀습니다. 그래서
+    # 여기에는 유니크가 없고, 같은 학번을 보는 시연 계정이 여럿 있어도 됩니다.
+    #
+    # ⚠️ **본인 확인을 대신하지 않습니다.** 자몽·트레이드처럼 계정이 적어 두는 기록은
+    # `user_id` 에 붙으므로 원래 계정 것과 섞이지 않습니다. 반대로 말하면 시연 계정이
+    # 남긴 기록은 그 계정의 것이지 학번 주인의 것이 아닙니다.
+    demo_stu_id = Column(String, ForeignKey("students.stuId"), nullable=True, index=True)
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
 
     def has_role(self, minimum: str) -> bool:
         """`minimum` 이상인지. 위계라서 admin 은 manager 검사도 통과합니다."""
         return _ROLE_RANK.get(self.role, 0) >= _ROLE_RANK[minimum]
+
+    @property
+    def is_demo(self) -> bool:
+        return self.demo_stu_id is not None
+
+    @property
+    def effective_stu_id(self) -> str | None:
+        """
+        **화면이 누구로 보이는지.** 학번으로 무언가를 읽는 자리는 전부 이걸 씁니다.
+
+        `stu_id` 를 직접 읽으면 시연 계정이 빈 화면을 보게 됩니다 — 등록된 학번이
+        없으니까요. 반대로 **누구인지를 확정하는 자리**(구글 연동)는 이걸 쓰면 안 되고
+        `stu_id` 를 그대로 봐야 합니다.
+        """
+        return self.demo_stu_id or self.stu_id
 
     @property
     def is_admin(self) -> bool:

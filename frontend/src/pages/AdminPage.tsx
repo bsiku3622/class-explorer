@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera, History } from "lucide-react";
+import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera, History, FlaskConical } from "lucide-react";
 import api from "../lib/api";
 import { authHeader } from "../lib/session";
 import axios from "axios";
 import type { Role } from "../types";
+import { particleRo } from "../lib/utils";
 import RetroButton from "../components/atoms/RetroButton";
 import RetroSubTitle from "../components/atoms/RetroSubTitle";
 import AccordionSection from "../components/molecules/AccordionSection";
@@ -16,6 +17,14 @@ interface UserRow {
     username: string;
     role: Role;
     session_count: number;
+    /** 시연 계정이 빌려 보는 학번. 평범한 계정은 null */
+    demo_stu_id: string | null;
+}
+
+interface AdminPageProps {
+    /** 만드는 사람의 학번 — 시연 계정에 빌려 줄 수 있는 유일한 학번입니다 */
+    myStuId: string | null;
+    myName: string | null;
 }
 
 /** 권한은 위계라서 한 줄에 하나만 고릅니다 — 위 단계가 아래 것을 다 포함합니다 */
@@ -164,7 +173,7 @@ const EditableRow: React.FC<EditableRowProps> = ({
     );
 };
 
-const AdminPage: React.FC = () => {
+const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
     const [openSections, setOpenSections] = useState({ users: true, sessions: true, data: false, versions: false, backups: false });
 
     // Users
@@ -172,6 +181,7 @@ const AdminPage: React.FC = () => {
     const [newUsername, setNewUsername] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [newRole, setNewRole] = useState<Role>("user");
+    const [newDemo, setNewDemo] = useState(false);
     const [createError, setCreateError] = useState("");
     const [createLoading, setCreateLoading] = useState(false);
 
@@ -332,13 +342,16 @@ const AdminPage: React.FC = () => {
     };
 
     // ── user handlers ─────────────────────────────────────────────────────────
+    /** 시연 계정이 누구로 보이는지 — 화면 문구와 조사에 함께 씁니다 */
+    const demoLabel = `${myStuId ?? ""}${myName ? ` ${myName}` : ""}`;
+
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
         setCreateError("");
         setCreateLoading(true);
         try {
-            await api.post("/admin/users", { username: newUsername, password: newPassword, role: newRole }, { headers: authHeader() });
-            setNewUsername(""); setNewPassword(""); setNewRole("user");
+            await api.post("/admin/users", { username: newUsername, password: newPassword, role: newRole, demo: newDemo }, { headers: authHeader() });
+            setNewUsername(""); setNewPassword(""); setNewRole("user"); setNewDemo(false);
             fetchUsers();
         } catch (e) {
             if (axios.isAxiosError(e)) setCreateError(e.response?.data?.detail || "Failed to create user");
@@ -594,6 +607,14 @@ const AdminPage: React.FC = () => {
                             {users.map((u) => (
                                 <div key={u.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-2 border-black bg-white px-4 py-3 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
                                     <span className="font-black text-sm flex-1 min-w-0 truncate">{u.username}</span>
+                                    {u.demo_stu_id && (
+                                        <span
+                                            className="shrink-0 border-2 border-retro-accent4 px-1.5 py-0.5 text-[10px] font-black uppercase text-retro-accent4"
+                                            title={`${u.demo_stu_id} 으로 보이는 시연 계정입니다`}
+                                        >
+                                            Demo {u.demo_stu_id}
+                                        </span>
+                                    )}
                                     <span className="shrink-0 text-[10px] font-black text-black/40 uppercase">
                                         {u.session_count > 0 ? "● ONLINE" : "○ OFFLINE"}
                                     </span>
@@ -654,6 +675,30 @@ const AdminPage: React.FC = () => {
                                         <p className="text-[11px] font-bold text-orange-600">⚠ {passwordWarning}</p>
                                     )}
                                 </div>
+                            </div>
+                            {/* 시연 계정 — 학교 구글 계정이 없는 사람에게 주는 통로입니다.
+                                누구로 보일지는 여기서 정해지고, 고를 수 있는 건 본인뿐입니다 */}
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setNewDemo((v) => !v)}
+                                    disabled={!myStuId}
+                                    className={`flex shrink-0 items-center gap-1.5 border-2 px-2.5 py-1.5 text-[10px] font-black uppercase transition-all duration-100 disabled:cursor-not-allowed disabled:opacity-40 ${
+                                        newDemo
+                                            ? "border-retro-accent4 bg-retro-accent4 text-white"
+                                            : "border-black/30 bg-white text-black/40 hover:border-black hover:text-black"
+                                    }`}
+                                >
+                                    <FlaskConical size={11} strokeWidth={2.5} />
+                                    Demo
+                                </button>
+                                <span className="min-w-0 flex-1 text-[11px] font-bold text-black/45">
+                                    {!myStuId
+                                        ? "내 계정에 학번이 등록되어 있어야 만들 수 있습니다."
+                                        : newDemo
+                                          ? `구글 연동 없이 바로 들어오고, ${demoLabel}${particleRo(demoLabel)} 보입니다.`
+                                          : "학교 구글 계정 없이 쓸 계정이면 켜세요."}
+                                </span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <div className="flex">

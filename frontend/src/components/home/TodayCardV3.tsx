@@ -399,59 +399,65 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                 {/* ⚠️ **DOM 은 오늘이 먼저입니다.** 좁은 화면에서는 1열로 쌓이는데,
                     거기서 한 주가 오늘보다 위에 오면 안 됩니다 — 넓을 때만 자리를
                     바꿉니다(`xl:order-2`) */}
-                <div className="flex min-w-0 flex-col gap-4 md:gap-5 xl:order-2">
-                <RetroCard className="flex flex-col overflow-hidden bg-white xl:min-h-0 xl:flex-1">
+                {/* 수업이 없는 날(주말·방학)에는 이 칸이 통째로 빕니다.
+                    ⚠️ **빈 `RetroCard` 를 남기면 안 됩니다** — 내용이 없어도 테두리와
+                    그림자는 그대로 그려져서, 높이 0 짜리 **검은 줄 하나**가 화면에
+                    박힙니다. 넓은 화면에서는 자리(1fr)를 지켜야 옆의 주간 격자가
+                    27rem 을 유지하므로 칸 자체는 두고, 세로로 쌓이는 좁은 화면에서만
+                    간격까지 걷어냅니다 */}
+                <div
+                    className={`flex min-w-0 flex-col gap-4 md:gap-5 xl:order-2 ${
+                        hasTimetable ? "" : "hidden xl:flex"
+                    }`}
+                >
                     {hasTimetable && (
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4 md:p-5">
-                            <div className="flex items-baseline justify-between gap-3">
-                                <RetroSubTitle
-                                    title="Today"
-                                    icon={CalendarDays}
-                                    iconSize={15}
-                                />
-                                <span className="shrink-0 text-[11px] font-bold tabular-nums text-black/35">
-                                    수업 {today.length}개
-                                    {freeMinutes > 0 && ` · 공강 ${duration(freeMinutes)}`}
-                                </span>
-                            </div>
-
-                            {/* 하루를 가로로 한 번 훑고(자), 그다음 줄로 읽습니다(목록).
-                                자는 시각에 비례해서 그려지므로 점심·저녁이 구멍으로
-                                남고, 목록은 그 구멍을 줄로 펴서 보여 줍니다 */}
-                            <DayRuler
-                                periods={periods}
-                                breaks={breaks}
-                                today={today}
-                                nowMinute={isSchoolDay ? liveMinute : null}
-                            />
-
-                            {/* 좁은 화면에선 세로로 쌓여 `flex-1` 이 0 이 됩니다 —
-                                그때만 높이를 직접 줍니다.
-
-                                ⚠️ **경계선은 스크롤 상자 바깥에 둡니다.** 안쪽 목록이
-                                제 테두리를 갖고 있으면 그게 같이 스크롤돼서, 잘린
-                                첫 줄이 **글자가 반쯤 지워진 것처럼** 보입니다 — 선이
-                                고정돼 있어야 "여기서 잘린다" 로 읽힙니다 */}
-                            <div className="relative mt-5 h-60 min-h-0 border-y-2 border-black/10 lg:h-auto lg:min-h-[17rem] lg:flex-1 xl:min-h-[12rem]">
-                                <div ref={boxRef} className="absolute inset-0 overflow-y-auto">
-                                    <TodayTimeline
-                                        today={today}
-                                        periods={periods}
-                                        nowMinute={isSchoolDay ? liveMinute : null}
-                                        showFree
-                                        bleed={false}
-                                        focusPeriod={focusPeriod}
-                                        focusRef={rowRef}
+                        <RetroCard className="flex flex-col overflow-hidden bg-white xl:min-h-0 xl:flex-1">
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4 md:p-5">
+                                <div className="flex items-baseline justify-between gap-3">
+                                    <RetroSubTitle
+                                        title="Today"
+                                        icon={CalendarDays}
+                                        iconSize={15}
                                     />
+                                    <span className="shrink-0 text-[11px] font-bold tabular-nums text-black/35">
+                                        수업 {today.length}개
+                                        {freeMinutes > 0 && ` · 공강 ${duration(freeMinutes)}`}
+                                    </span>
+                                </div>
+
+                                {/* 하루를 가로로 한 번 훑고(자), 그다음 줄로 읽습니다(목록).
+                                    자는 시각에 비례해서 그려지므로 점심·저녁이 구멍으로
+                                    남고, 목록은 그 구멍을 줄로 펴서 보여 줍니다 */}
+                                <DayRuler
+                                    periods={periods}
+                                    breaks={breaks}
+                                    today={today}
+                                    nowMinute={isSchoolDay ? liveMinute : null}
+                                />
+
+                                {/* 좁은 화면에선 세로로 쌓여 `flex-1` 이 0 이 됩니다 —
+                                    그때만 높이를 직접 줍니다.
+
+                                    ⚠️ **경계선은 스크롤 상자 바깥에 둡니다.** 안쪽 목록이
+                                    제 테두리를 갖고 있으면 그게 같이 스크롤돼서, 잘린
+                                    첫 줄이 **글자가 반쯤 지워진 것처럼** 보입니다 — 선이
+                                    고정돼 있어야 "여기서 잘린다" 로 읽힙니다 */}
+                                <div className="relative mt-5 h-60 min-h-0 border-y-2 border-black/10 lg:h-auto lg:min-h-[17rem] lg:flex-1 xl:min-h-[12rem]">
+                                    <div ref={boxRef} className="absolute inset-0 overflow-y-auto">
+                                        <TodayTimeline
+                                            today={today}
+                                            periods={periods}
+                                            nowMinute={isSchoolDay ? liveMinute : null}
+                                            showFree
+                                            bleed={false}
+                                            focusPeriod={focusPeriod}
+                                            focusRef={rowRef}
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        </RetroCard>
                     )}
-
-                    {/* 테두리 없이 카드 안의 한 칸으로 — 따로 카드를 두면 한 행이
-                        아니라 "큰 상자 + 작은 상자" 로 읽힙니다 */}
-                </RetroCard>
-
                 </div>
 
                 {/* 위 카드가 **오늘**이라면 여기는 **이 학기**입니다 */}

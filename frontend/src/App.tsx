@@ -87,11 +87,13 @@ const App: React.FC = () => {
         username: string;
         /** user < manager < admin — 위계라서 admin 은 manager 가 하는 일도 다 합니다 */
         role: Role;
-        /** 계정에 등록된 본인 학번 — 등록 전에는 null */
+        /** 화면이 누구로 보이는지. 시연 계정이면 빌린 학번이 옵니다 */
         stu_id: string | null;
         student_name: string | null;
         /** 학교 구글 계정. 옛 계정은 비어 있고, 연결하기 전에는 앱을 쓸 수 없습니다 */
         email: string | null;
+        /** 시연용 계정. 구글 계정을 붙일 수 없으니 연동 창을 건너뜁니다 */
+        is_demo?: boolean;
     } | null>(null);
 
     const initialSearch = useMemo(
@@ -498,8 +500,11 @@ const App: React.FC = () => {
     }
 
     // 아이디·비밀번호로 들어온 옛 계정은 학교 구글 계정을 붙이기 전까지 막습니다 —
-    // 누구 계정인지 모르면 이수 기록을 남길 수 없습니다
-    if (currentUser && !currentUser.email) {
+    // 누구 계정인지 모르면 이수 기록을 남길 수 없습니다.
+    //
+    // 시연 계정만 예외입니다. 붙일 학교 계정이 아예 없는 사람에게 주는 것이라
+    // 여기서 막으면 영영 못 들어옵니다 — 대신 누구로 보일지는 만들 때 정해집니다
+    if (currentUser && !currentUser.email && !currentUser.is_demo) {
         return (
             <GoogleLinkModal
                 username={currentUser.username}
@@ -668,7 +673,15 @@ const App: React.FC = () => {
                                 element={<SettingsPage />}
                             />
                             {hasRole(currentUser?.role, "admin") && (
-                                <Route path="/admin" element={<AdminPage />} />
+                                <Route
+                                    path="/admin"
+                                    element={
+                                        <AdminPage
+                                            myStuId={currentUser?.stu_id ?? null}
+                                            myName={currentUser?.student_name ?? null}
+                                        />
+                                    }
+                                />
                             )}
                             {import.meta.env.DEV && (
                                 <Route

@@ -286,13 +286,13 @@ async def get_home(
     # 예전엔 오늘 것만 물어봤는데, 홈에 주간 격자가 생기면서 요일 조건만 뺐습니다.
     # 한 사람의 한 학기는 30줄 남짓이라 오늘치를 따로 물어볼 이유가 없습니다.
     week: dict[str, list[dict]] = {d: [] for d in periods.DAYS}
-    if current_user.stu_id:
+    if current_user.effective_stu_id:
         rows = (
             db.query(models.Class, models.ClassTime)
             .join(models.Enrollment, models.Enrollment.classId == models.Class.id)
             .join(models.ClassTime, models.ClassTime.class_id == models.Class.id)
             .filter(
-                models.Enrollment.stuId == current_user.stu_id,
+                models.Enrollment.stuId == current_user.effective_stu_id,
                 models.Class.year == target_year,
                 models.Class.semester == target_semester,
                 at_version(models.Class),

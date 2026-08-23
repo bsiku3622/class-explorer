@@ -63,3 +63,14 @@ formatSubjectWithSection("수학(Math)", ["제1분반"], "형설202", "suffix")
 formatSectionTimes([{day:"TUE",period:2}, {day:"WED",period:3}])
 // → "화2, 수3"
 ```
+
+### `particleRo(word): "로" | "으로"`
+앞 낱말 받침에 맞는 조사. 받침이 없거나 `ㄹ` 이면 `로`.
+
+```ts
+`${name}${particleRo(name)} 보입니다`   // 정진우로 / 백재원으로
+```
+
+이름·학번을 문장에 끼워 넣는 자리가 여럿이라 하나로 고정하면 "정진우으로" 가 나옵니다.
+한글이 아닌 글자로 끝나면 **읽는 소리**를 기준으로 삼습니다 — `25-106` 은 "육" 으로 끝나
+`으로` 입니다.

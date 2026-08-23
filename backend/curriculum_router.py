@@ -240,12 +240,13 @@ class GradesRequest(BaseModel):
 
 def _require_linked(user: models.User) -> str:
     """이수 기록은 본인 것만 다루므로 학번이 등록돼 있어야 합니다."""
-    if not user.stu_id:
+    stu_id = user.effective_stu_id
+    if not stu_id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="계정에 학번이 등록되어 있지 않습니다.",
         )
-    return user.stu_id
+    return stu_id
 
 
 @router.get("/grades")
