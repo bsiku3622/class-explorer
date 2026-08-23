@@ -1,0 +1,15 @@
+# 크롤러가 읽을 것은 소개 화면 하나뿐입니다. 나머지 주소는 계정을 요구해서
+# 어차피 로그인 화면만 나오고, 그게 색인에 남으면 "빈 페이지" 로 읽힙니다.
+User-agent: *
+Allow: /$
+Disallow: /search
+Disallow: /browse
+Disallow: /trade
+Disallow: /zamong
+Disallow: /calendar
+Disallow: /analysis
+Disallow: /emptyroomfinder
+Disallow: /admin
+Disallow: /login
+
+Sitemap: https://classes.bsiku.dev/sitemap.xml

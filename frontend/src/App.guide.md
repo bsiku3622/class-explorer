@@ -82,6 +82,16 @@ handleSearchToggle: 동일 값이면 검색어 초기화, 다르면 설정
 handleSearchSelect: 항상 해당 값으로 설정
 ```
 
+## 로그인 전 화면이 둘인 이유
+
+주소 `/` 로 처음 온 사람에게 로그인 창부터 띄우면, **밖에서 볼 때 이 주소에는 아무
+내용도 없습니다** — 검색 엔진도 로그인 폼만 봅니다. 그래서 `/` 는 무엇을 하는 앱인지
+설명하는 `LandingPage` 가 받고, 로그인은 `/login` 으로 한 걸음 미뤘습니다.
+
+다른 주소로 바로 들어온 사람은 이미 앱을 아는 사람이라 곧장 `LoginPage` 입니다.
+로그인하고 나면 주소가 `/login` 이라 어느 라우트에도 안 맞고, 아래 `/*` 규칙이 홈으로
+보냅니다.
+
 ## 학교 계정 연결 게이트
 
 `currentUser.email` 이 비면 `GoogleLinkModal` 이 화면 전체를 덮습니다 — 누구 계정인지
@@ -94,7 +104,8 @@ handleSearchSelect: 항상 해당 값으로 설정
 
 ## 라우팅
 ```tsx
-sessionToken=null → LoginPage (라우터 밖, 전체 화면 대체)
+sessionToken=null · 주소 `/`   → LandingPage (공개 소개 화면, 라우터 밖)
+sessionToken=null · 그 외 주소  → LoginPage (라우터 밖, 전체 화면 대체)
 /                 → SearchPage (전역 상태 대부분 props 전달)
 /emptyroomfinder  → RoomsPage (allClassesData, onRoomSearch)
 /analysis         → AnalysisPage (allClassesData, studentCounts, lastUpdated, fetchInitialData, handleSearch=handleSearchToggle)
