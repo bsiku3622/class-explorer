@@ -18,7 +18,7 @@ import {
 import type { SubjectData, Stats, SearchResultStats, Term, Role } from "./types";
 import { hasRole } from "./lib/utils";
 import { searchInClient } from "./lib/searchEngine";
-import { isTradeAvailable } from "./lib/features";
+import { isTradeAvailable, type TradeConfig } from "./lib/features";
 import { useModifierKey } from "./hooks/useModifierKey";
 import Navigation from "./components/Navigation";
 import Sidebar from "./components/Sidebar";
@@ -96,8 +96,8 @@ const App: React.FC = () => {
         email: string | null;
         /** 시연용 계정. 구글 계정을 붙일 수 없으니 연동 창을 건너뜁니다 */
         is_demo?: boolean;
-        /** 수강 변경 탐색을 열어도 되는지 — **서버 시계로** 잰 값입니다 */
-        trade_open?: boolean;
+        /** 수강 변경 탐색 설정 — 여는지·어느 학기인지 **전부 서버가** 정합니다 */
+        trade?: TradeConfig;
     } | null>(null);
 
     const initialSearch = useMemo(
@@ -141,7 +141,7 @@ const App: React.FC = () => {
     const [serverVersions, setServerVersions] = useState<Record<string, number> | null>(null);
 
     const isModifierPressed = useModifierKey();
-    const tradeAvailable = isTradeAvailable(term, currentUser?.trade_open);
+    const tradeAvailable = isTradeAvailable(term, currentUser?.trade);
 
     const handleLogout = useCallback(async () => {
         if (getSessionToken()) {
@@ -579,7 +579,7 @@ const App: React.FC = () => {
                                 element={
                                     <HomePage
                                         term={term}
-                                        tradeOpen={currentUser?.trade_open}
+                                        tradeConfig={currentUser?.trade}
                                         allClassesData={allClassesData}
                                         myStuId={currentUser?.stu_id ?? null}
                                         studentSubjectMap={studentSubjectMap}

@@ -514,3 +514,23 @@ class Friend(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "friend_stu_id", name="_friend_uc"),
     )
+
+
+class Setting(Base):
+    """
+    운영자가 **화면에서 바꾸는 값**. 코드에 박아 두면 배포해야 바뀌는 것들입니다.
+
+    지금 담는 건 수강 변경 탐색(Trade)의 기간 하나뿐입니다. 정정 기간은 학기마다
+    날짜가 달라서 그때마다 상수를 고쳐 배포하는 건 사람이 잊습니다 — 마감을 지나
+    기능이 열려 있는 쪽이 더 나쁩니다.
+
+    ⚠️ **여기 없으면 코드의 기본값을 씁니다** (`features.py`). 표가 비어 있어도 앱이
+    돌아야 하고, 값을 지우는 것이 "기본으로 되돌리기" 여야 합니다.
+
+    ⚠️ **비밀은 넣지 마세요.** 관리자 화면에서 읽고 쓰는 값이고 암호화하지 않습니다 —
+    API 키 같은 건 환경변수에 둡니다.
+    """
+    __tablename__ = "settings"
+    key = Column(String, primary_key=True)
+    value = Column(JSON, nullable=False)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)

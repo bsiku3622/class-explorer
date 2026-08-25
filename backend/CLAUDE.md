@@ -10,7 +10,7 @@ backend/
 ├── friends_router.py→ 친구(단방향) + 교시 시각표 — **두 앱 공통**
 ├── home_router.py   → 홈 대시보드 (`GET /home` 한 번에) + 급식(ksain API)
 ├── periods.py       → 교시별 시각표 **원본** (프론트는 GET /periods 로 받아 씁니다)
-├── features.py      → 한시적 기능의 **마감 시각** — 시각 판정은 서버가 합니다
+├── features.py      → 한시적 기능의 **기간** (`settings` 표) — 시각 판정은 서버가 합니다
 ├── main.py          → 진입점 (하나) — 두 프론트가 같이 씁니다
 ├── classes_router.py→ GET / (학기 전체 + 분반 명단) + GET /terms
 ├── models.py        → SQLAlchemy ORM 모델 (16개 테이블)
@@ -150,6 +150,13 @@ source (pdf|manual)            decided_by_id / decided_at
 owner_id (FK→User, NULL=공용)   event_id (FK→CalendarEvent)
 series_id (반복 묶음)
 note
+
+Setting
+─────────────────────────────
+key (PK)   "trade"
+value (JSON)  {enabled, year, semester, until}
+updated_at
+⚠️ 비어 있으면 `features.py` 의 기본값
 
 UserState                      CourseGrade
 ─────────────────────────────  ─────────────────────────────
@@ -411,6 +418,7 @@ python -m backend.create_user <username> <password>
 | `POST` | `/admin/sync` | 데이터 재수집 (`{"year": 2026, "semester": 2}` 선택, 생략 시 DB 최신 학기) |
 | `GET` | `/admin/backups` | DB 스냅샷 목록 + 총 용량 |
 | `POST` | `/admin/backups` | 지금 상태로 스냅샷 하나 (수집과 무관하게 손으로) |
+| `GET·PATCH` | `/admin/features/trade` | 수강 변경 탐색을 언제까지 열지 (`settings` 표) |
 
 `/admin/sync` 에 학기를 주면 **DB에 아직 없는 학기도** 받아옵니다 — 새 학기가 열리면
 그렇게 첫 회를 채웁니다. 화면에서는 학기 칩과 `새 학기` 직접 입력으로 고릅니다.

@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from backend import backup, models
+from backend import backup, features, models
 from backend.auth import get_current_admin, get_db, hash_password
 from backend.terms import list_terms, resolve_term
 from backend.versioning import at_version, bump_terms, terms_of_student, terms_of_teacher
@@ -33,6 +33,42 @@ class CreateUserRequest(BaseModel):
 
 class SetRoleRequest(BaseModel):
     role: Literal["user", "manager", "admin"]
+
+
+class TradeConfigRequest(BaseModel):
+    """준 칸만 바뀝니다 — 스위치만 내리려고 마감까지 다시 보내지 않아도 됩니다."""
+
+    enabled: bool | None = None
+    year: int | None = Field(default=None, ge=2000, le=2100)
+    semester: Literal[1, 2] | None = None
+    #: 마감(시간대를 붙인 ISO). `null` 이면 기한 없음 — 스위치로만 여닫습니다
+    until: str | None = None
+
+
+# ─── 기능 기간 ────────────────────────────────────────────────────────────────
+@router.get("/features/trade")
+def get_trade_config(
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    """지금 설정 + 지금 열려 있는지."""
+    return features.trade_config(db)
+
+
+@router.patch("/features/trade")
+def set_trade_config(
+    body: TradeConfigRequest,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    patch = body.model_dump(exclude_unset=True)
+    if "until" in patch and patch["until"]:
+        # 못 읽는 값을 저장하면 그 뒤로 마감이 조용히 사라집니다 — 여기서 거릅니다
+        try:
+            datetime.datetime.fromisoformat(patch["until"])
+        except ValueError:
+            raise HTTPException(status_code=422, detail="마감 시각을 읽을 수 없습니다.")
+    return features.save_trade_config(db, patch)
 
 
 # ─── 사용자 관리 ──────────────────────────────────────────────────────────────

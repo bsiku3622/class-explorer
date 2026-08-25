@@ -60,7 +60,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Repeat, WifiOff } from "lucide-react";
 import type { SubjectData, Term } from "../types";
 import { fetchHome, type HomeData } from "../lib/friendsApi";
-import { isTradeAvailable } from "../lib/features";
+import { isTradeAvailable, type TradeConfig } from "../lib/features";
 import { applyHomeDemo, HOME_DEMOS, type HomeDemoKey } from "../lib/homeDemo";
 import { applyPlanToHome, buildDepartmentMap } from "../lib/plannedHome";
 import { useTradePlan } from "../hooks/useTradePlan";
@@ -129,7 +129,7 @@ const loadSavedView = (): View => {
 interface HomePageProps {
     term: Term | null;
     /** `/auth/me` 가 준 값 — 수강 변경 탐색을 열어도 되는지 */
-    tradeOpen?: boolean;
+    tradeConfig?: TradeConfig;
     /** 계획 시간표를 짜고, 맨 아래 과목 아코디언을 채우는 데 씁니다 */
     allClassesData: SubjectData[];
     myStuId: string | null;
@@ -146,7 +146,7 @@ interface HomePageProps {
 
 const HomePage: React.FC<HomePageProps> = ({
     term,
-    tradeOpen,
+    tradeConfig,
     allClassesData,
     myStuId,
     studentSubjectMap,
@@ -168,7 +168,7 @@ const HomePage: React.FC<HomePageProps> = ({
     /** 기존 시간표 ↔ 트레이드 계획. 지난번에 고른 쪽으로 엽니다 */
     const [view, setView] = useState<View>(loadSavedView);
 
-    const tradeAvailable = isTradeAvailable(term, tradeOpen);
+    const tradeAvailable = isTradeAvailable(term, tradeConfig);
     /** `/trade` 에 저장해 둔 계획. 볼 게 없으면 null 이고 전환도 안 뜹니다 */
     const plannedSections = useTradePlan(tradeAvailable, allClassesData, myStuId);
 

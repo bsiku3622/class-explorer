@@ -193,7 +193,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | `/emptyroomfinder`  | RoomsPage       | 빈 강의실 탐색                    |
 | `/analysis`         | AnalysisPage    | 학사 통계 대시보드                |
 | `/browse`           | BrowsePage      | 학생·교사 목록 + 교육과정 그래프  |
-| `/trade`            | TradePage       | 수강 변경 탐색 (2026-2 한정, 플래그) |
+| `/trade`            | TradePage       | 수강 변경 탐색 — 기간·학기는 **admin 화면**에서 (`settings` 표) |
 | `/zamong`           | ZamongPage      | 자몽 — 학교 Zamong 워크북 이식 (학번 등록 필요) |
 | `/calendar`         | CalendarPage    | 학사일정 달력 + 개인 일정 + 일정 제안 |
 | `/about`            | SettingsPage    | 기능 가이드북 + About             |

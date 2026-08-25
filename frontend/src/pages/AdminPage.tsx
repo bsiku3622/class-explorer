@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera, History, FlaskConical } from "lucide-react";
+import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera, History, FlaskConical, ArrowLeftRight } from "lucide-react";
 import api from "../lib/api";
 import { authHeader } from "../lib/session";
 import axios from "axios";
@@ -19,6 +19,50 @@ interface UserRow {
     session_count: number;
     /** 시연 계정이 빌려 보는 학번. 평범한 계정은 null */
     demo_stu_id: string | null;
+}
+
+/**
+ * 저장된 마감(시간대 붙은 ISO) → `datetime-local` 이 먹는 문자열.
+ *
+ * ⚠️ **입력칸은 보는 사람의 시간대로 씁니다.** 같은 순간을 서울에서 보면 오후 5시,
+ * 다른 데서 보면 다른 시각입니다 — 그래서 칸 옆에 KST 로 한 번 더 적어 둡니다.
+ */
+const toLocalInput = (iso: string | null): string => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/** 입력칸 값(보는 사람의 시간대) → 저장할 절대 시각 */
+const fromLocalInput = (value: string): string | null => {
+    if (!value) return null;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+};
+
+/** 마감을 **서울 시각**으로 한 줄 — 어느 시간대에서 열어도 같은 문장이 나옵니다 */
+const kstLabel = (iso: string | null): string => {
+    if (!iso) return "기한 없음";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "읽을 수 없는 값";
+    return d.toLocaleString("ko-KR", {
+        timeZone: "Asia/Seoul",
+        dateStyle: "full",
+        timeStyle: "short",
+    });
+};
+
+/** `/admin/features/trade` 가 돌려주는 모양 */
+interface TradeConfig {
+    /** 지금 열려 있는가 — 스위치와 마감을 **서버 시계로** 잰 결과 */
+    open: boolean;
+    enabled: boolean;
+    year: number | null;
+    semester: number | null;
+    /** 시간대를 붙인 ISO. null 이면 기한 없음 */
+    until: string | null;
 }
 
 interface AdminPageProps {
@@ -174,7 +218,7 @@ const EditableRow: React.FC<EditableRowProps> = ({
 };
 
 const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
-    const [openSections, setOpenSections] = useState({ users: true, sessions: true, data: false, versions: false, backups: false });
+    const [openSections, setOpenSections] = useState({ users: true, sessions: true, data: false, versions: false, backups: false, trade: false });
 
     // Users
     const [users, setUsers] = useState<UserRow[]>([]);
@@ -182,6 +226,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
     const [newPassword, setNewPassword] = useState("");
     const [newRole, setNewRole] = useState<Role>("user");
     const [newDemo, setNewDemo] = useState(false);
+    const [trade, setTrade] = useState<TradeConfig | null>(null);
+    const [tradeBusy, setTradeBusy] = useState(false);
+    const [tradeError, setTradeError] = useState("");
     const [createError, setCreateError] = useState("");
     const [createLoading, setCreateLoading] = useState(false);
 
@@ -309,6 +356,30 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
             if (axios.isAxiosError(e)) setError(e.response?.data?.detail || "Failed to load backups");
         }
     }, []);
+
+    const fetchTrade = useCallback(async () => {
+        try {
+            const res = await api.get("/admin/features/trade", { headers: authHeader() });
+            setTrade(res.data);
+        } catch (e) {
+            if (axios.isAxiosError(e)) setError(e.response?.data?.detail || "Failed to load trade config");
+        }
+    }, []);
+
+    /**
+     * 준 칸만 보냅니다 — 스위치만 내리려고 마감까지 다시 보내면, 그 사이 다른 자리에서
+     * 바꾼 값을 덮어씁니다.
+     */
+    const saveTrade = async (patch: Record<string, unknown>) => {
+        setTradeError("");
+        setTradeBusy(true);
+        try {
+            const res = await api.patch("/admin/features/trade", patch, { headers: authHeader() });
+            setTrade(res.data);
+        } catch (e) {
+            if (axios.isAxiosError(e)) setTradeError(e.response?.data?.detail || "저장하지 못했습니다");
+        } finally { setTradeBusy(false); }
+    };
 
     useEffect(() => {
         fetchUsers();
@@ -438,6 +509,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
         }
         if (key === "versions" && !openSections.versions && versions.length === 0) fetchVersions(versionTerm ?? targetTerm);
         if (key === "backups" && !openSections.backups && backups.length === 0) fetchBackups();
+        if (key === "trade" && !openSections.trade && !trade) fetchTrade();
         setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
     };
 
@@ -999,6 +1071,137 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                         </ul>
                     )}
                 </div>
+            </AccordionSection>
+
+            {/* Trade — 수강 변경 탐색을 언제까지 열어 둘지 */}
+            <AccordionSection title="Trade" icon={ArrowLeftRight} isOpen={openSections.trade} onToggle={() => toggle("trade")}>
+                {trade === null ? (
+                    <p className="text-sm font-bold text-black/40">불러오는 중…</p>
+                ) : (
+                    <div className="space-y-5">
+                        {/* 지금 어떤 상태인지부터. 켜고 끄는 값들이 아래 있어도,
+                            결과는 스위치·마감·서버 시각이 함께 정합니다 */}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                            <span
+                                className={`border-2 border-black px-2 py-1 text-[11px] font-black uppercase tracking-widest ${
+                                    trade.open ? "bg-retro-green text-white" : "bg-black/[0.04] text-black/40"
+                                }`}
+                            >
+                                {trade.open ? "열림" : "닫힘"}
+                            </span>
+                            <span className="text-xs font-bold text-black/45">
+                                {trade.enabled
+                                    ? `${kstLabel(trade.until)} 까지`
+                                    : "스위치가 내려가 있습니다"}
+                            </span>
+                        </div>
+
+                        <p className="text-[11px] font-bold leading-relaxed text-black/40">
+                            홈 배너, 하단 네비·사이드바 메뉴, <code>/trade</code> 주소, 홈의
+                            «기존 시간표 | 트레이드 계획» 전환이 <b>전부 이 설정 하나로</b>{" "}
+                            갈립니다. 열려 있는지는 <b>서버 시계</b>가 정합니다 — 보는 기기의
+                            시계가 틀어져 있어도 같은 때에 닫힙니다.
+                        </p>
+
+                        {/* 스위치 */}
+                        <div className="space-y-2">
+                            <RetroSubTitle title="On / Off" />
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex">
+                                    {[
+                                        { value: true, label: "켜짐" },
+                                        { value: false, label: "꺼짐" },
+                                    ].map((opt) => (
+                                        <button
+                                            key={String(opt.value)}
+                                            type="button"
+                                            disabled={tradeBusy}
+                                            onClick={() => saveTrade({ enabled: opt.value })}
+                                            className={`text-[10px] font-black uppercase px-2.5 py-1.5 border-2 -ml-0.5 first:ml-0 transition-all duration-100 disabled:opacity-40 ${
+                                                trade.enabled === opt.value
+                                                    ? "bg-black text-white border-black relative z-10"
+                                                    : "bg-white text-black/40 border-black/30 hover:border-black hover:text-black"
+                                            }`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <span className="text-[11px] font-bold text-black/40">
+                                    기간과 무관하게 지금 내리고 싶을 때
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* 마감 */}
+                        <div className="space-y-2">
+                            <RetroSubTitle title="Deadline" />
+                            <div className="flex flex-wrap items-center gap-2">
+                                <input
+                                    type="datetime-local"
+                                    value={toLocalInput(trade.until)}
+                                    disabled={tradeBusy}
+                                    onChange={(e) =>
+                                        saveTrade({ until: fromLocalInput(e.target.value) })
+                                    }
+                                    className={`${inputClass} disabled:opacity-40`}
+                                />
+                                <RetroButton
+                                    size="sm"
+                                    disabled={tradeBusy || !trade.until}
+                                    onClick={() => saveTrade({ until: null })}
+                                >
+                                    기한 없음
+                                </RetroButton>
+                            </div>
+                            <p className="text-[11px] font-bold text-black/40">
+                                입력칸은 <b>이 브라우저의 시간대</b>로 보입니다. 저장되는 값은{" "}
+                                <b>{kstLabel(trade.until)}</b> (서울) 입니다.
+                            </p>
+                        </div>
+
+                        {/* 학기 */}
+                        <div className="space-y-2">
+                            <RetroSubTitle title="Term" />
+                            <div className="flex flex-wrap items-center gap-2">
+                                <input
+                                    type="number"
+                                    value={trade.year ?? ""}
+                                    disabled={tradeBusy}
+                                    onChange={(e) => {
+                                        const year = Number(e.target.value);
+                                        if (year >= 2000 && year <= 2100) saveTrade({ year });
+                                    }}
+                                    className={`${inputClass} w-24 disabled:opacity-40`}
+                                />
+                                <div className="flex">
+                                    {[1, 2].map((sem) => (
+                                        <button
+                                            key={sem}
+                                            type="button"
+                                            disabled={tradeBusy}
+                                            onClick={() => saveTrade({ semester: sem })}
+                                            className={`text-[10px] font-black uppercase px-2.5 py-1.5 border-2 -ml-0.5 first:ml-0 transition-all duration-100 disabled:opacity-40 ${
+                                                trade.semester === sem
+                                                    ? "bg-black text-white border-black relative z-10"
+                                                    : "bg-white text-black/40 border-black/30 hover:border-black hover:text-black"
+                                            }`}
+                                        >
+                                            {sem}학기
+                                        </button>
+                                    ))}
+                                </div>
+                                <span className="text-[11px] font-bold text-black/40">
+                                    이 학기를 보고 있는 사람에게만 뜹니다
+                                </span>
+                            </div>
+                        </div>
+
+                        {tradeError && (
+                            <p className="text-xs font-bold text-red-600">{tradeError}</p>
+                        )}
+                    </div>
+                )}
             </AccordionSection>
 
             <AccordionSection title="Backups" icon={Archive} isOpen={openSections.backups} onToggle={() => toggle("backups")}>
