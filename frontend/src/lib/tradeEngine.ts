@@ -615,9 +615,23 @@ export const buildPlannedSchedule = (
         ).forEach((b) => conflicting.add(b.subject));
     });
 
+    /**
+     * ⚠️ **이미 듣고 있는 과목은 추가가 아닙니다.**
+     *
+     * 추가 후보 목록은 수강 중인 과목을 빼고 보여 주지만, **계획은 저장돼 남습니다.**
+     * 넣어 둔 과목이 그 뒤 실제 수강으로 잡히면(정정이 통과하고 수집이 그걸 물어 오면)
+     * 같은 분반이 `staying` 과 `added` 양쪽에 앉아 시간표에 **두 번 그려집니다** —
+     * 연강이면 `9/span1` + `9/span2` + `10/span1` 처럼 세 조각으로 어긋납니다.
+     *
+     * 저장된 값을 지우지는 않습니다. 사용자가 지운 적 없는 계획을 화면이 말없이
+     * 바꾸면, 정정이 되돌아갔을 때 되살릴 방법이 없습니다.
+     */
+    const stayingSubjects = new Set(staying.map((s) => s.subject));
+
     const added: SectionInfo[] = [];
     addSelections.forEach(({ subject, sectionId }) => {
         if (sectionId === null) return; // 분반 미정이면 그릴 수 없습니다
+        if (stayingSubjects.has(subject)) return;
         const section = (index.get(subject) ?? []).find((s) => s.id === sectionId);
         if (!section) return;
         added.push(section);
