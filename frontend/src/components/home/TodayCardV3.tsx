@@ -36,12 +36,13 @@
  * 나가고, 그러면 위에서 아낀 세로가 아무 의미가 없습니다.
  */
 
-import React, { useLayoutEffect, useRef } from "react";
+import React, { useCallback, useLayoutEffect, useRef } from "react";
 import {
     ArrowRight,
     CalendarDays,
     CalendarOff,
     Footprints,
+    LocateFixed,
     MapPin,
 } from "lucide-react";
 import type { HomeData } from "../../lib/friendsApi";
@@ -129,21 +130,45 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
     const hasEvents = events.length > 0;
 
     /**
-     * 지금 줄이 가운데 오게 **스크롤 상자만** 움직입니다 — `scrollIntoView` 는 페이지
-     * 까지 끌고 내려갑니다. `useLayoutEffect` + `rAF` 인 이유는 높이가 잡히기 전에
-     * 재면 0 이 나와서입니다 (목록이 맨 위에 그대로 남습니다).
+     * 지금 줄을 상자 가운데로. **스크롤 상자만** 움직입니다 — `scrollIntoView` 는
+     * 페이지까지 끌고 내려갑니다. 높이가 아직 0 이면 실패를 알리고 물러납니다.
      */
+    const placeNow = useCallback((smooth: boolean) => {
+        const box = boxRef.current;
+        const row = rowRef.current;
+        if (!box || !row || box.clientHeight === 0) return false;
+        box.scrollTo({
+            top: row.offsetTop - box.clientHeight / 2 + row.clientHeight / 2,
+            behavior: smooth ? "smooth" : "auto",
+        });
+        return true;
+    }, []);
+
+    /**
+     * **처음 한 번만 맞춥니다.**
+     *
+     * ⚠️ 예전에는 `focusPeriod` 가 바뀔 때마다 다시 맞췄는데, 그러면 목록을 위로 밀어
+     * 놓고 읽는 동안 교시가 넘어가면 화면이 제멋대로 돌아갑니다. 스크롤은 사용자가
+     * 마지막으로 정한 자리이므로 앱이 되돌리면 안 됩니다 — 돌아가고 싶으면 머리의
+     * `지금` 을 누릅니다.
+     *
+     * 날짜가 넘어가거나 계획↔기존을 갈아 끼우면 목록이 통째로 다른 하루라서 그때는
+     * 다시 맞춥니다. `rAF` 는 높이가 잡히기 전에 재면 0 이 나와서입니다.
+     */
+    const placedFor = useRef<string | null>(null);
+    const placeKey = `${home.now.date}:${planned ? "plan" : "real"}`;
+
     useLayoutEffect(() => {
-        const place = () => {
-            const box = boxRef.current;
-            const row = rowRef.current;
-            if (!box || !row || box.clientHeight === 0) return;
-            box.scrollTop = row.offsetTop - box.clientHeight / 2 + row.clientHeight / 2;
-        };
-        place();
-        const frame = requestAnimationFrame(place);
+        if (!hasTimetable || placedFor.current === placeKey) return;
+        if (placeNow(false)) {
+            placedFor.current = placeKey;
+            return;
+        }
+        const frame = requestAnimationFrame(() => {
+            if (placeNow(false)) placedFor.current = placeKey;
+        });
         return () => cancelAnimationFrame(frame);
-    }, [focusPeriod, hasTimetable, today]);
+    }, [hasTimetable, placeKey, placeNow]);
 
     /**
      * 큰 글씨 한 줄 — 수업 중이면 과목명, 아니면 지금이 무슨 상태인지.
@@ -407,15 +432,29 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                     <RetroCard className="flex flex-col overflow-hidden bg-white xl:min-h-0 xl:flex-1">
                         {hasTimetable ? (
                             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4 md:p-5">
-                                <div className="flex items-baseline justify-between gap-3">
+                                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                                     <RetroSubTitle
                                         title="Today"
                                         icon={CalendarDays}
                                         iconSize={15}
                                     />
-                                    <span className="shrink-0 text-[11px] font-bold tabular-nums text-black/35">
-                                        수업 {today.length}개
-                                        {freeMinutes > 0 && ` · 공강 ${duration(freeMinutes)}`}
+                                    <span className="flex items-baseline gap-3">
+                                        <span className="text-[11px] font-bold tabular-nums text-black/35">
+                                            수업 {today.length}개
+                                            {freeMinutes > 0 &&
+                                                ` · 공강 ${duration(freeMinutes)}`}
+                                        </span>
+                                        {/* 되돌아가는 길. 스크롤을 앱이 되돌리지 않는
+                                            대신, 여기로 언제든 돌아올 수 있어야 합니다 */}
+                                        <button
+                                            type="button"
+                                            onClick={() => placeNow(true)}
+                                            title="지금 교시가 가운데 오도록 목록을 되돌립니다"
+                                            className="flex shrink-0 items-center gap-1 text-[11px] font-black text-black/45 transition-colors duration-100 hover:text-black"
+                                        >
+                                            <LocateFixed size={12} strokeWidth={2.5} />
+                                            지금
+                                        </button>
                                     </span>
                                 </div>
 
