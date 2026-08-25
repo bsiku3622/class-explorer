@@ -10,6 +10,7 @@ backend/
 ├── friends_router.py→ 친구(단방향) + 교시 시각표 — **두 앱 공통**
 ├── home_router.py   → 홈 대시보드 (`GET /home` 한 번에) + 급식(ksain API)
 ├── periods.py       → 교시별 시각표 **원본** (프론트는 GET /periods 로 받아 씁니다)
+├── features.py      → 한시적 기능의 **마감 시각** — 시각 판정은 서버가 합니다
 ├── main.py          → 진입점 (하나) — 두 프론트가 같이 씁니다
 ├── classes_router.py→ GET / (학기 전체 + 분반 명단) + GET /terms
 ├── models.py        → SQLAlchemy ORM 모델 (16개 테이블)

@@ -96,6 +96,8 @@ const App: React.FC = () => {
         email: string | null;
         /** 시연용 계정. 구글 계정을 붙일 수 없으니 연동 창을 건너뜁니다 */
         is_demo?: boolean;
+        /** 수강 변경 탐색을 열어도 되는지 — **서버 시계로** 잰 값입니다 */
+        trade_open?: boolean;
     } | null>(null);
 
     const initialSearch = useMemo(
@@ -139,7 +141,7 @@ const App: React.FC = () => {
     const [serverVersions, setServerVersions] = useState<Record<string, number> | null>(null);
 
     const isModifierPressed = useModifierKey();
-    const tradeAvailable = isTradeAvailable(term);
+    const tradeAvailable = isTradeAvailable(term, currentUser?.trade_open);
 
     const handleLogout = useCallback(async () => {
         if (getSessionToken()) {
@@ -577,6 +579,7 @@ const App: React.FC = () => {
                                 element={
                                     <HomePage
                                         term={term}
+                                        tradeOpen={currentUser?.trade_open}
                                         allClassesData={allClassesData}
                                         myStuId={currentUser?.stu_id ?? null}
                                         studentSubjectMap={studentSubjectMap}
