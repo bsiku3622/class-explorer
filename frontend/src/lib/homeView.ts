@@ -9,8 +9,8 @@
  * 어긋납니다.
  */
 
-import type { HomeData, TodayClass } from "./friendsApi";
-import { isBreakGap, isSameClass } from "./schedule";
+import type { HomeData, PeriodTime, TodayClass } from "./friendsApi";
+import { continuesClass, isBreakGap, isSameClass } from "./schedule";
 import { DAYS_ORDER } from "./utils";
 
 export interface HomeView {
@@ -175,6 +175,58 @@ export const deriveHomeView = (home: HomeData, liveMinute: number): HomeView => 
         periodLabel,
         freeMinutes,
     };
+};
+
+// ─── 하루를 덩어리로 ────────────────────────────────────────────────────────
+
+/** 오늘 수업 하나 — **연강이면 여러 교시가 한 덩어리**입니다 */
+export interface DayBlock {
+    klass: TodayClass;
+    /** 이 덩어리가 걸친 교시들. 연강이면 둘 이상 */
+    periods: number[];
+    /** 첫 교시 */
+    start: PeriodTime;
+    /** 마지막 교시 — 연강이면 `start` 와 다릅니다 */
+    end: PeriodTime;
+}
+
+/**
+ * 오늘 수업을 **연강 단위로** 묶습니다. 히어로가 앞뒤로 넘기는 단위입니다.
+ *
+ * ⚠️ 묶는 규칙은 `schedule.ts` 의 `continuesClass` 를 그대로 씁니다 — `currentPeriods`
+ * 도 `TodayTimeline` 도 같은 규칙이라, 여기서 조건을 따로 적으면 히어로만 10·11교시를
+ * 두 수업으로 세는 일이 생깁니다.
+ */
+export const dayBlocks = (home: HomeData): DayBlock[] => {
+    const byPeriod = new Map((home.periods ?? []).map((p) => [p.period, p]));
+    const blocks: DayBlock[] = [];
+
+    [...home.today]
+        .sort((a, b) => a.period - b.period)
+        .forEach((klass) => {
+            const time = byPeriod.get(klass.period);
+            if (!time) return;
+
+            const last = blocks[blocks.length - 1];
+            if (
+                last &&
+                continuesClass(
+                    {
+                        klass: last.klass,
+                        period: last.periods[last.periods.length - 1],
+                        end_minute: last.end.end_minute,
+                    },
+                    { klass, period: klass.period, start_minute: time.start_minute },
+                )
+            ) {
+                last.periods.push(klass.period);
+                last.end = time;
+                return;
+            }
+            blocks.push({ klass, periods: [klass.period], start: time, end: time });
+        });
+
+    return blocks;
 };
 
 /** `250` → `"4시간 10분"` */

@@ -214,13 +214,13 @@ const TodayTimeline: React.FC<TodayTimelineProps> = ({
                                 className="-mb-2 -mt-2 w-1 shrink-0 self-stretch"
                                 style={live ? { backgroundColor: NOW_PINK } : undefined}
                             />
-                            <span className="w-16 shrink-0 whitespace-nowrap leading-none">
+                            <span className="w-[5.5rem] shrink-0 whitespace-nowrap leading-none">
                                 <span
                                     className={`block text-[13px] font-black tabular-nums ${
                                         live ? "text-black" : "text-black/35"
                                     }`}
                                 >
-                                    {row.time.start}
+                                    {row.time.start}–{row.time.end}
                                 </span>
                                 <span
                                     className={`mt-1 block text-[12px] font-bold tabular-nums ${
@@ -306,9 +306,11 @@ const TodayTimeline: React.FC<TodayTimelineProps> = ({
                             className="-mb-2 -mt-2 w-1 shrink-0 self-stretch"
                             style={{ backgroundColor: live ? NOW_PINK : color }}
                         />
-                        <span className="w-16 shrink-0 whitespace-nowrap leading-none">
+                        {/* 끝 시각은 **덩어리의 끝**입니다 — 연강이면 마지막 교시의
+                            끝(`endTime`)이라야 "10–11교시 19:30–21:10" 이 맞습니다 */}
+                        <span className="w-[5.5rem] shrink-0 whitespace-nowrap leading-none">
                             <span className="block text-[13px] font-black tabular-nums">
-                                {time.start}
+                                {time.start}–{row.endTime.end}
                             </span>
                             <span className="mt-1 block text-[12px] font-bold tabular-nums text-black/35">
                                 {row.periods.length > 1

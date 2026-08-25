@@ -36,17 +36,25 @@
  * 나가고, 그러면 위에서 아낀 세로가 아무 의미가 없습니다.
  */
 
-import React, { useCallback, useLayoutEffect, useRef } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
     ArrowRight,
     CalendarDays,
     CalendarOff,
+    ChevronLeft,
+    ChevronRight,
     Footprints,
     LocateFixed,
     MapPin,
 } from "lucide-react";
 import type { HomeData } from "../../lib/friendsApi";
-import { dateLabel, deriveHomeView, duration } from "../../lib/homeView";
+import {
+    dateLabel,
+    dayBlocks,
+    deriveHomeView,
+    duration,
+    periodLabel as periodsLabel,
+} from "../../lib/homeView";
 import { getDepartmentColor, getKoreanName, hhmm } from "../../lib/utils";
 import { CATEGORY_STYLE, timeLabel } from "../../lib/calendar";
 import RetroCard from "../atoms/RetroCard";
@@ -113,13 +121,7 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
         ? (periods.find((p) => p.period === next.period)?.start_minute ?? null)
         : null;
 
-    const remain = blockEnd ? blockEnd.end_minute - liveMinute : null;
     const untilNext = nextStart !== null ? nextStart - liveMinute : null;
-    /**
-     * 교실이 다르면 쉬는시간에 **걸어야 합니다.** 목록은 교실을 줄마다 적어 두지만
-     * 두 줄을 비교해 주지는 않습니다 — 히어로가 대신 봐 주는 말입니다.
-     */
-    const moving = Boolean(current && next && current.room !== next.room);
 
     const boxRef = useRef<HTMLDivElement>(null);
     const rowRef = useRef<HTMLLIElement>(null);
@@ -128,6 +130,88 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
         livePeriod ?? next?.period ?? today[today.length - 1]?.period ?? null;
     const hasTimetable = today.length > 0;
     const hasEvents = events.length > 0;
+
+    /* ── 앞뒤로 넘겨 보기 ────────────────────────────────────────────────
+       히어로는 "지금" 을 말하는 자리지만, 하루 전체를 같은 얼굴로 훑고 싶을 때가
+       있습니다. 화살표를 누르면 **카드 전체**가 그 수업이 되고, `지금으로` 가 돌아옵니다.
+       ⚠️ 넘겨 보는 중에는 이 카드가 현재를 말하지 않으므로, 그 사실이 화면에
+       드러나야 합니다 — 뱃지가 핑크를 잃고 `지금으로` 가 나타나는 것이 그 신호입니다 */
+
+    /** 오늘 수업을 연강 단위로. 화살표가 넘기는 단위입니다 */
+    const blocks = useMemo(() => dayBlocks(home), [home]);
+
+    /** 지금 덩어리가 몇 번째인가. 수업 중이 아니면 `-1` */
+    const liveIndex = currentPeriods.length
+        ? blocks.findIndex((b) => b.periods[0] === currentPeriods[0])
+        : -1;
+
+    /** null 이면 "지금" 을 그립니다 */
+    const [browseIndex, setBrowseIndex] = useState<number | null>(null);
+
+    /**
+     * 응답이 갈리면 **넘겨 보던 것을 접습니다** — 몇 번째냐만 들고 있어서, 목록이
+     * 달라지면 같은 번째가 다른 수업입니다.
+     *
+     * ⚠️ 날짜만 보면 모자랍니다. 계획↔기존 전환·깨어난 뒤 재요청·회차 변경이 전부
+     * 목록을 바꾸는데 날짜는 그대로입니다. `home` 은 그 넷이 있을 때만 새로 만들어지고
+     * (15초 시계 틱에는 안 바뀝니다) 그래서 이것을 그대로 신호로 씁니다.
+     *
+     * 효과가 아니라 렌더 중에 맞추는 이유는, 효과로 두면 한 번은 **옛 수업이 그려진
+     * 뒤에** 지워져서 화면이 깜빡이기 때문입니다 (React 가 권하는 방식이기도 합니다).
+     */
+    const [browsedHome, setBrowsedHome] = useState(home);
+    if (browsedHome !== home) {
+        setBrowsedHome(home);
+        setBrowseIndex(null);
+    }
+
+    const browsing = browseIndex === null ? null : (blocks[browseIndex] ?? null);
+
+    /**
+     * 화살표의 출발점. 수업 중이면 지금 덩어리, 공강·일과 종료면 **다음 수업 직전**을
+     * 가리켜서 `›` 한 번에 다음 수업이 나오게 합니다.
+     */
+    const anchorIndex =
+        liveIndex >= 0
+            ? liveIndex
+            : next
+              ? blocks.findIndex((b) => b.periods.includes(next.period)) - 1
+              : blocks.length - 1;
+    const cursor = browseIndex ?? anchorIndex;
+
+    const step = (delta: number) => {
+        const to = cursor + delta;
+        if (to < 0 || to >= blocks.length) return;
+        setBrowseIndex(to === liveIndex ? null : to);
+    };
+
+    /** 카드가 지금 말하는 수업 — 넘겨 보는 중이면 그 덩어리입니다 */
+    const shown = browsing ? browsing.klass : current;
+    const shownStart = browsing ? browsing.start : blockStart;
+    const shownEnd = browsing ? browsing.end : blockEnd;
+    const shownNext = browsing
+        ? (blocks[browseIndex! + 1]?.klass ?? null)
+        : next;
+    const shownNextStart = browsing
+        ? (blocks[browseIndex! + 1]?.start.start_minute ?? null)
+        : nextStart;
+    /**
+     * 교실이 다르면 쉬는시간에 **걸어야 합니다.** 목록은 교실을 줄마다 적어 두지만
+     * 두 줄을 비교해 주지는 않습니다 — 히어로가 대신 봐 주는 말입니다.
+     */
+    const shownMoving = Boolean(shown && shownNext && shown.room !== shownNext.room);
+
+    /**
+     * 진행바 옆 글자. 지난 수업은 "이미 끝남", 아직 안 온 수업은 "n분 뒤" 입니다 —
+     * 지난 수업에 "0분 남음" 을 적으면 지금 끝난 것처럼 읽힙니다.
+     */
+    const shownRemain = (() => {
+        if (!shownStart || !shownEnd) return null;
+        if (liveMinute >= shownEnd.end_minute) return "이미 끝남";
+        if (liveMinute < shownStart.start_minute)
+            return `${duration(shownStart.start_minute - liveMinute)} 뒤`;
+        return `${duration(Math.max(0, shownEnd.end_minute - liveMinute))} 남음`;
+    })();
 
     /**
      * 지금 줄을 상자 가운데로. **스크롤 상자만** 움직입니다 — `scrollIntoView` 는
@@ -208,8 +292,8 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                 <div
                     className="flex min-w-0 flex-col border-l-[6px] p-5 md:p-6"
                     style={{
-                        borderLeftColor: current
-                            ? getDepartmentColor(current.department)
+                        borderLeftColor: shown
+                            ? getDepartmentColor(shown.department)
                             : "transparent",
                     }}
                 >
@@ -233,41 +317,85 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                         </span>
                         {/* 시계는 두지 않습니다 — 이 화면의 단위는 교시이고, 시각은
                             아래 목록의 줄마다 이미 붙어 있습니다 */}
-                        {periodLabel && (
+                        {/* ⚠️ **핑크는 "지금" 이라는 뜻입니다.** 앞뒤로 넘겨 보는
+                            중이면 그 칠을 빼야 합니다 — 안 그러면 지난 수업을 보면서
+                            지금이라고 읽습니다 */}
+                        {(browsing ? true : periodLabel) && (
                             <span
                                 className={`shrink-0 text-[11px] font-black ${
-                                    current
+                                    current && !browsing
                                         ? "border-2 border-black bg-retro-primary px-1.5 py-0.5"
                                         : "text-black/40"
                                 }`}
                             >
-                                {periodLabel}
+                                {browsing
+                                    ? periodsLabel(browsing.periods)
+                                    : periodLabel}
                             </span>
                         )}
                     </div>
+
+                    {/* ── 앞뒤로 넘기기 ────────────────────────────────
+                        하루를 히어로와 같은 얼굴로 훑습니다. 넘겨 보는 중에만
+                        `지금으로` 가 붙어서, 카드가 현재를 말하고 있지 않다는 걸
+                        되돌릴 방법과 함께 알려 줍니다 */}
+                    {blocks.length > 0 && (
+                        <div className="mt-3 flex items-center gap-1.5">
+                            <button
+                                type="button"
+                                onClick={() => step(-1)}
+                                disabled={cursor <= 0}
+                                title="이전 수업"
+                                aria-label="이전 수업"
+                                className="flex h-7 w-7 items-center justify-center border-2 border-black/20 bg-white transition-colors duration-100 hover:border-black disabled:cursor-not-allowed disabled:opacity-25 disabled:hover:border-black/20"
+                            >
+                                <ChevronLeft size={14} strokeWidth={3} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => step(1)}
+                                disabled={cursor >= blocks.length - 1}
+                                title="다음 수업"
+                                aria-label="다음 수업"
+                                className="flex h-7 w-7 items-center justify-center border-2 border-black/20 bg-white transition-colors duration-100 hover:border-black disabled:cursor-not-allowed disabled:opacity-25 disabled:hover:border-black/20"
+                            >
+                                <ChevronRight size={14} strokeWidth={3} />
+                            </button>
+                            {browsing && (
+                                <button
+                                    type="button"
+                                    onClick={() => setBrowseIndex(null)}
+                                    className="ml-1 flex items-center gap-1 border-2 border-black bg-black px-2 py-1 text-[10px] font-black uppercase tracking-widest text-white transition-colors duration-100 hover:bg-black/80"
+                                >
+                                    <LocateFixed size={11} strokeWidth={3} />
+                                    지금으로
+                                </button>
+                            )}
+                        </div>
+                    )}
 
                     {/* 화면에서 제일 큰 글자 — 여기가 시선이 처음 닿는 자리입니다.
                         **과목명 자체가 학과색을 입습니다** — 왼쪽 띠와 같은 색이라
                         띠가 무슨 뜻인지 따로 설명하지 않아도 읽힙니다 */}
                     <p
                         className={`mt-2.5 text-[28px] font-black leading-[1.05] tracking-tight md:text-[34px] ${
-                            current ? "" : !isSchoolDay ? "text-black" : "text-black/40"
+                            shown ? "" : !isSchoolDay ? "text-black" : "text-black/40"
                         }`}
                         style={
-                            current
-                                ? { color: getDepartmentColor(current.department) }
+                            shown
+                                ? { color: getDepartmentColor(shown.department) }
                                 : undefined
                         }
                     >
-                        {headline}
+                        {browsing ? getKoreanName(browsing.klass.subject) : headline}
                     </p>
 
-                    {current ? (
+                    {shown ? (
                         <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-bold text-black/45">
                             <MapPin size={14} strokeWidth={2.75} className="shrink-0" />
-                            <span className="font-black text-black">{current.room}</span>
-                            <span>· {current.teacher}</span>
-                            <span>· {current.section.replace(/[^0-9]/g, "")}분반</span>
+                            <span className="font-black text-black">{shown.room}</span>
+                            <span>· {shown.teacher}</span>
+                            <span>· {shown.section.replace(/[^0-9]/g, "")}분반</span>
                         </p>
                     ) : (
                         <p className="mt-2 text-[13px] font-bold text-black/45">
@@ -289,14 +417,16 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                     {/* ── 남은 시간 ─────────────────────────────────
                         목록이 못 하는 말 ①. 줄은 "14:40 일반지구과학" 까지만 알지
                         지금 그 수업이 얼마나 남았는지는 모릅니다 */}
-                    {blockStart && blockEnd && remain !== null && (
+                    {shownStart && shownEnd && shownRemain !== null && (
                         <div className="mt-4">
                             <div className="flex items-baseline justify-between gap-3 text-[11px] font-black tabular-nums">
                                 <span className="text-black/40">
-                                    {hhmm(blockStart.start_minute)} –{" "}
-                                    {hhmm(blockEnd.end_minute)}
+                                    {hhmm(shownStart.start_minute)} –{" "}
+                                    {hhmm(shownEnd.end_minute)}
                                 </span>
-                                <span>{duration(Math.max(0, remain))} 남음</span>
+                                <span className={browsing ? "text-black/45" : ""}>
+                                    {shownRemain}
+                                </span>
                             </div>
                             {/* 채우는 색은 핑크 하나 — 이것도 "지금" 입니다 */}
                             <div className="mt-1.5 h-3 border-2 border-black bg-white">
@@ -307,9 +437,9 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                                             100,
                                             Math.max(
                                                 0,
-                                                ((liveMinute - blockStart.start_minute) /
-                                                    (blockEnd.end_minute -
-                                                        blockStart.start_minute)) *
+                                                ((liveMinute - shownStart.start_minute) /
+                                                    (shownEnd.end_minute -
+                                                        shownStart.start_minute)) *
                                                     100,
                                             ),
                                         )}%`,
@@ -323,7 +453,7 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                         목록이 못 하는 말 ②③. 수업 중에도 늘 보입니다 — V2 는 공강일
                         때만 다음을 말해서, 정작 "이거 끝나고 어디로 가지" 에는 답이
                         없었습니다 */}
-                    {next && (
+                    {shownNext && (
                         <div className="mt-4 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t-2 border-black/10 pt-3">
                             <span className="text-[10px] font-black uppercase tracking-widest text-black/30">
                                 Next
@@ -334,19 +464,19 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                                 className="shrink-0 text-black/25"
                             />
                             <span className="min-w-0 truncate text-[13px] font-black">
-                                {next.period}교시 {getKoreanName(next.subject)}
+                                {shownNext.period}교시 {getKoreanName(shownNext.subject)}
                             </span>
                             <span className="text-[11px] font-bold text-black/40">
-                                {next.room}
+                                {shownNext.room}
                             </span>
-                            {nextStart !== null && (
+                            {shownNextStart !== null && (
                                 <span className="text-[11px] font-black tabular-nums text-black/40">
-                                    {hhmm(nextStart)}
+                                    {hhmm(shownNextStart)}
                                 </span>
                             )}
                             {/* 건물을 옮겨야 하는지 — 쉬는시간 10분을 어떻게 쓸지가
                                 여기서 갈립니다 */}
-                            {moving && (
+                            {shownMoving && (
                                 <span className="flex items-center gap-1 border-2 border-black px-1.5 py-0.5 text-[10px] font-black">
                                     <Footprints size={11} strokeWidth={3} />
                                     교실 이동
