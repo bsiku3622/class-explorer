@@ -76,7 +76,7 @@
 | `zamong/CourseCard` | — | 과목 카드 — 학기·평어를 바로 고릅니다 (체크박스 없음) |
 | `CalendarPage` | `/calendar` | 학사일정 달력 — 월 격자 + 날짜 상세 + 개인 일정(반복 가능) + 제안 서랍 |
 | `SettingsPage` | `/about` | 기능 가이드북 + About |
-| `InventoryPage` | `/inventory` | **개발 전용** (`import.meta.env.DEV`) — 이 앱이 실제로 그리는 버튼·인풋·카드·색의 표본집. funky-ui 토큰 재설계용 작업대라 메뉴에 올리지 않습니다. 표본마다 원본 `파일:줄` 이 붙어 있습니다. 이관이 끝나면 삭제합니다 |
+| `InventoryPage` | `/inventory` | **개발 전용** (`import.meta.env.DEV`) — 이 앱이 실제로 그리는 버튼·인풋·카드·색의 표본집. funky-ui 토큰 재설계용 작업대라 메뉴에 올리지 않습니다. 표본마다 원본 `파일:줄` 이 붙어 있고, 숫자 옆에 지난 회차 값이 같이 놓입니다. ⚠️ **다시 셀 때 숫자만 고치지 마세요** — 줄 번호가 어긋나면 대조가 안 되므로 `src` 도 같이 갱신합니다. 회차: 1회 2026-08-01 · 2회 2026-08-30. 이관이 끝나면 삭제합니다 |
 
 ## 상세 가이드
 - [component-guide-atoms.md](component-guide-atoms.md) — Atoms props 상세 + 사용 예시
