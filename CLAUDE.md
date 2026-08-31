@@ -60,6 +60,9 @@ API 는 같은 것을 씁니다. 친구는 **단방향 등록**이고, 친구 �
 ## Commands
 
 ```bash
+# 개발 서버 둘을 한 번에 (repo root) — Ctrl+C 로 같이 내려갑니다
+./dev-start.sh    # [api] uvicorn 8000 + [web] vite 5188, 로그에 이름표가 붙습니다
+
 # Frontend — class-explorer (frontend/)
 npm run dev       # Vite dev server (https://localhost:5188) — /api → localhost:8000 프록시
 npm run build     # TypeScript check + Vite build
