@@ -92,7 +92,7 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
     const {
         isSchoolDay,
         livePeriod,
-        inBreak,
+        breakKind,
         current,
         currentPeriods,
         next,
@@ -257,9 +257,12 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
     /**
      * 큰 글씨 한 줄 — 수업 중이면 과목명, 아니면 지금이 무슨 상태인지.
      *
-     * ⚠️ **공강과 쉬는시간을 가릅니다.** 공강은 수업이 아예 없는 교시, 쉬는시간은
-     * 수업과 수업 사이 10분입니다. 연강 사이라면 `current` 가 살아 있어서 여기까지
-     * 오지도 않습니다 — 그 10분은 수업이 끝난 게 아니니까요 (`homeView.ts`).
+     * ⚠️ **쉬는시간에 "쉬는시간" 이라고 쓰지 않습니다.** 그건 시각표가 이미 아는
+     * 사실이고, 이 자리는 **지금 뭘 해야 하는지**를 묻는 자리입니다 — 다음 교시에
+     * 수업이 있으면 `이동`, 없으면 `공강` (`breakKind`, `homeView.ts`).
+     *
+     * 연강 사이 10분은 `current` 가 살아 있어서 여기까지 오지도 않습니다 — 그 10분은
+     * 수업이 끝난 게 아니고, 교실이 같아 옮길 데도 없습니다.
      */
     const headline = current
         ? getKoreanName(current.subject)
@@ -269,7 +272,7 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
             ? "수업 없는 날"
             : !next
               ? "일과 종료"
-              : (now.break_name ?? (inBreak ? "쉬는시간" : "공강"));
+              : (now.break_name ?? breakKind);
 
     return (
         <div className="flex flex-col gap-4 md:gap-5">
