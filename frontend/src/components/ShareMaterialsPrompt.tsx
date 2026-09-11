@@ -65,8 +65,8 @@ const ShareMaterialsPrompt: React.FC<ShareMaterialsPromptProps> = ({
                 if (event.target === event.currentTarget) dismiss();
             }}
         >
-            <div className="w-full max-w-lg border-2 border-black bg-white shadow-[8px_8px_0_0_var(--color-retro-accent1)]">
-                <header className="flex items-center justify-between border-b-2 border-black bg-retro-accent1 px-4 py-3">
+            <div className="w-full max-w-lg border-2 border-black bg-white shadow-[8px_8px_0_0_rgba(0,0,0,0.22)]">
+                <header className="flex items-center justify-between border-b-2 border-black bg-retro-secondary px-4 py-3 text-white">
                     <p className="text-xs font-black uppercase tracking-widest">2026-2 Syllabus Wanted</p>
                     <button
                         type="button"
@@ -78,17 +78,17 @@ const ShareMaterialsPrompt: React.FC<ShareMaterialsPromptProps> = ({
                     </button>
                 </header>
                 <div className="p-6 text-center sm:p-8">
-                    <div className="mx-auto grid size-16 place-items-center border-2 border-black bg-retro-accent2 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]">
+                    <div className="mx-auto grid size-16 place-items-center border-2 border-black bg-white text-retro-secondary shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]">
                         <FileHeart size={30} strokeWidth={2.4} />
                     </div>
-                    <h2 id="share-materials-title" className="mt-6 text-2xl font-black tracking-tight">
+                    <h2 id="share-materials-title" className="mt-6 text-2xl font-black tracking-tight text-retro-secondary">
                         실라버스를 공유해주세요
                     </h2>
                     <p className="mx-auto mt-3 max-w-sm text-sm font-bold leading-relaxed text-black/55">
                         가지고 있는 2026-2 강의계획서나 수업 자료를 올려주시면 검수 후 같은 과목을 듣는 학생들과 나눌게요.
                     </p>
                 </div>
-                <footer className="grid gap-3 border-t-2 border-black bg-retro-bg p-4 sm:grid-cols-2">
+                <footer className="grid gap-3 border-t-2 border-black bg-white p-4 sm:grid-cols-2">
                     <button
                         type="button"
                         onClick={dismiss}
@@ -99,7 +99,7 @@ const ShareMaterialsPrompt: React.FC<ShareMaterialsPromptProps> = ({
                     <button
                         type="button"
                         onClick={goUpload}
-                        className="flex items-center justify-center gap-2 border-2 border-black bg-retro-primary px-4 py-3 text-xs font-black uppercase shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-1 hover:translate-y-1 hover:shadow-none"
+                        className="flex items-center justify-center gap-2 border-2 border-black bg-retro-secondary px-4 py-3 text-xs font-black uppercase text-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-1 hover:translate-y-1 hover:shadow-none"
                     >
                         <UploadCloud size={17} /> 자료 공유하기
                     </button>
