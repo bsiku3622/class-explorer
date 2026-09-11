@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Search, Link } from "lucide-react";
 import RetroSpinner from "../components/atoms/RetroSpinner";
 import SearchInput from "../components/atoms/SearchInput";
-import type { SubjectData, Stats, SearchResultStats } from "../types";
+import type { SubjectData, Stats, SearchResultStats, Term } from "../types";
 import FilterSection from "../components/FilterSection";
 import SearchResultDisplay from "../components/SearchResultDisplay";
 import StatsCards from "../components/StatsCards";
@@ -10,6 +10,7 @@ import SubjectAccordionItem from "../components/SubjectAccordionItem";
 import PageHeader from "../components/molecules/PageHeader";
 
 interface SearchPageProps {
+    term: Term | null;
     searchInput: string;
     setSearchInput: (v: string) => void;
     searchTerm: string;
@@ -37,6 +38,7 @@ interface SearchPageProps {
 }
 
 const SearchPage: React.FC<SearchPageProps> = ({
+    term,
     searchInput,
     setSearchInput,
     searchTerm,
@@ -137,6 +139,7 @@ const SearchPage: React.FC<SearchPageProps> = ({
                               <SubjectAccordionItem
                                   key={subject.subject}
                                   subject={subject}
+                                  term={term}
                                   searchTerm={searchTerm}
                                   handleSearchToggle={handleSearchToggle}
                                   studentSubjectMap={studentSubjectMap}

@@ -522,6 +522,7 @@ const HomePage: React.FC<HomePageProps> = ({
             {/* 맨 아래 — "언제" 를 다 본 다음의 **"무엇을"** 입니다. 격자 위로 올리면
                 하루·한 주를 보러 온 사람이 목록부터 지나가게 됩니다 */}
             <MySubjects
+                term={term}
                 week={home.week ?? {}}
                 allClassesData={allClassesData}
                 myStuId={myStuId}

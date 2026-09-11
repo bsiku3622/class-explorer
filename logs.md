@@ -2365,3 +2365,13 @@ localStorage 쓰기를 전수 확인했습니다 — 세션 토큰·선택 학�
 
 - 변경 파일: `components/BottomNav.tsx` (신규), `App.tsx`, `components/TimetableGrid.tsx`, `components/SearchResultDisplay.tsx`, `components/molecules/PageHeader.tsx`, `pages/RoomsPage.tsx`, `pages/AnalysisPage.tsx`
 - 요약: 모바일용 하단 네비게이션(BottomNav) 추가, 시간표 그리드에 overflow-x-auto 적용, PageHeader/SearchResultDisplay 텍스트·패딩 반응형 조정
+## 2026-09-11 — 2026-1 강의계획서 preview
+
+- 변경 파일: `frontend/src/assets/syllabi/`, `frontend/src/lib/syllabi.ts`,
+  `frontend/src/components/SyllabusPanel.tsx`, `frontend/src/components/SubjectAccordionItem.tsx`,
+  `frontend/src/components/home/MySubjects.tsx`, `frontend/src/pages/SearchPage.tsx`,
+  `frontend/src/pages/HomePage.tsx`, `frontend/src/App.tsx` 및 관련 가이드
+- 요약: 전달받은 PDF 105개와 DOCX 22개를 보관하고 DOCX에는 preview PDF를 함께 생성했습니다.
+  운영 DB의 2026-1 개설 과목 97개 중 명확히 대응되는 75개 과목에 80개 원본을 연결해,
+  검색·홈 과목 아코디언에서 modal PDF preview와 원본 다운로드를 제공합니다. 다른 학기와
+  유사명 과목에는 잘못 노출되지 않으며, ZIP의 중복 법과학 문서는 한 번만 표시합니다.

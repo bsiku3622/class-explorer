@@ -9,6 +9,7 @@
 | prop | 설명 |
 |------|------|
 | `subject` | `SubjectData` (과목 전체 데이터) |
+| `term` | 현재 선택 학기. syllabus 표시 범위 결정 |
 | `isExpanded` | 현재 펼침 상태 |
 | `onToggle` | 토글 핸들러 |
 | `searchTerms` | 하이라이팅 검색어 배열 |
@@ -25,6 +26,7 @@
 교사별로 색상 구분된 미니 바 차트. 각 교사가 담당하는 분반 비율 시각화.
 
 ## 펼침 컨텐츠
+- 2026-1 연결 강의계획서가 있으면 `SyllabusPanel`을 가장 먼저 렌더링
 - 각 분반마다 `SectionCard` 렌더링
 - `isExpanded=false`일 때 `hidden`으로 숨김
 

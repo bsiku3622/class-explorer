@@ -2,13 +2,15 @@ import React, { useState, useMemo } from "react";
 import RetroChip from "./atoms/RetroChip";
 import RetroTooltip from "./atoms/RetroTooltip";
 import { ChevronDown, Users } from "lucide-react";
-import type { SubjectData, Section } from "../types";
+import type { SubjectData, Section, Term } from "../types";
 import { extractSearchTerms, getKoreanName } from "../lib/utils";
 import SectionCard from "./SectionCard";
 import TeacherCard from "./atoms/TeacherCard";
+import SyllabusPanel from "./SyllabusPanel";
 
 interface SubjectAccordionItemProps {
     subject: SubjectData;
+    term: Term | null;
     searchTerm: string;
     handleSearchToggle: (v: string, isT?: boolean, isR?: boolean) => void;
     studentSubjectMap: Record<string, string[]>;
@@ -23,6 +25,7 @@ interface SubjectAccordionItemProps {
 
 const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
     subject,
+    term,
     searchTerm,
     handleSearchToggle,
     studentSubjectMap,
@@ -103,6 +106,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
             {isOpen && (
                 <div className="overflow-hidden border-t-2 border-black bg-retro-bg/10">
                     <div className="px-4 pb-4 pt-4 space-y-6">
+                        <SyllabusPanel subject={subject} term={term} />
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-white/50 border-2 border-black p-2.5 mb-4 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
                             <span className="text-sm font-black uppercase text-black/50 flex items-center gap-2">
                                 <Users size={16} /> Teachers :

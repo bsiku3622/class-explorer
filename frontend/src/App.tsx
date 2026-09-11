@@ -594,6 +594,7 @@ const App: React.FC = () => {
                                 path="/search"
                                 element={
                                     <SearchPage
+                                        term={term}
                                         searchInput={searchInput}
                                         setSearchInput={setSearchInput}
                                         searchTerm={searchTerm}

@@ -21,7 +21,7 @@
  */
 
 import React, { useMemo, useState } from "react";
-import type { SubjectData } from "../../types";
+import type { SubjectData, Term } from "../../types";
 import type { TodayClass } from "../../lib/friendsApi";
 import { DAYS_ORDER } from "../../lib/utils";
 import RetroSubTitle from "../atoms/RetroSubTitle";
@@ -29,6 +29,7 @@ import { BookMarked } from "lucide-react";
 import SubjectAccordionItem from "../SubjectAccordionItem";
 
 interface MySubjectsProps {
+    term: Term | null;
     /** 주간 시간표. **계획을 보는 중이면 계획의 과목이 옵니다** */
     week: Record<string, TodayClass[]>;
     allClassesData: SubjectData[];
@@ -42,6 +43,7 @@ interface MySubjectsProps {
 }
 
 const MySubjects: React.FC<MySubjectsProps> = ({
+    term,
     week,
     allClassesData,
     myStuId,
@@ -99,6 +101,7 @@ const MySubjects: React.FC<MySubjectsProps> = ({
                     <SubjectAccordionItem
                         key={subject.subject}
                         subject={subject}
+                        term={term}
                         // 내 배지를 튀게 하는 값입니다 (파일 머리의 표 참고)
                         searchTerm={myStuId ?? ""}
                         handleSearchToggle={handleSearchToggle}
