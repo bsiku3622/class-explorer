@@ -520,7 +520,7 @@ const data = await api.get('/', {
 `POST /materials`는 PDF·PNG·JPG/JPEG·WEBP·DOCX·PPTX·XLSX와 이 파일들이 든
 ZIP을 받습니다. 파일당 50MB, 요청당 90MB, ZIP 압축 해제 300MB까지입니다.
 ZIP 원본은 남기지 않고 내부 경로를 검사한 뒤 파일만 보관합니다.
-Office 문서는 서버에서 PDF로 변환해 preview합니다.
+Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 preview합니다.
 
 ## 기능 기간 엔드포인트 (admin)
 

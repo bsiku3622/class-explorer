@@ -40,6 +40,7 @@ interface UploadPageProps {
 const ACCEPTED = ".pdf,.png,.jpg,.jpeg,.webp,.docx,.pptx,.xlsx,.zip";
 const extensionOf = (name: string): string => `.${name.split(".").pop()?.toLowerCase() ?? ""}`;
 const ACCEPTED_EXTENSIONS = new Set(ACCEPTED.split(","));
+const OFFICE_EXTENSIONS = new Set([".docx", ".pptx", ".xlsx"]);
 
 const statusStyle: Record<Material["status"], string> = {
     pending: "bg-retro-accent2",
@@ -106,6 +107,10 @@ const UploadPage: React.FC<UploadPageProps> = ({ term }) => {
         });
         if (next.length > 20) {
             setError("한 번에 최대 20개 파일을 선택할 수 있습니다.");
+            return;
+        }
+        if (next.filter((file) => OFFICE_EXTENSIONS.has(extensionOf(file.name))).length > 10) {
+            setError("PDF preview로 변환할 Office 문서는 한 번에 10개까지 가능합니다.");
             return;
         }
         if (next.reduce((total, file) => total + file.size, 0) > 90 * 1024 * 1024) {

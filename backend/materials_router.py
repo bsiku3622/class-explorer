@@ -40,6 +40,7 @@ MAX_REQUEST_BYTES = 90 * 1024 * 1024
 MAX_EXTRACTED_BYTES = 300 * 1024 * 1024
 MAX_DIRECT_FILES = 20
 MAX_BUNDLE_FILES = 100
+MAX_OFFICE_FILES = 10
 MAX_COMPRESSION_RATIO = 100
 
 ALLOWED_EXTENSIONS = {
@@ -215,20 +216,20 @@ def _validate_file(path: Path, extension: str) -> None:
         raise HTTPException(status_code=422, detail=f"확장자와 실제 파일 형식이 다릅니다: {path.name}")
 
 
-def _scan_file(path: Path) -> None:
+def _scan_files(paths: list[Path]) -> None:
     scanner = shutil.which("clamscan")
     if scanner is None:
         return
     result = subprocess.run(
-        [scanner, "--no-summary", str(path)],
+        [scanner, "--no-summary", *(str(path) for path in paths)],
         capture_output=True,
         text=True,
-        timeout=180,
+        timeout=300,
     )
     if result.returncode == 1:
         raise HTTPException(status_code=422, detail="악성 파일로 의심되어 업로드를 중단했습니다.")
     if result.returncode != 0:
-        logger.error("ClamAV failed for %s: %s", path.name, result.stderr)
+        logger.error("ClamAV failed: %s", result.stderr)
         raise HTTPException(status_code=503, detail="파일 보안 검사를 완료하지 못했습니다.")
 
 
@@ -326,10 +327,23 @@ def _prepare_files(
     prepared: list[dict] = []
     if len(source_files) > MAX_BUNDLE_FILES:
         raise HTTPException(status_code=413, detail="자료 하나에는 최대 100개 파일을 담을 수 있습니다.")
+    office_count = sum(
+        path.suffix.lower() in {".docx", ".pptx", ".xlsx"}
+        for path, _ in source_files
+    )
+    if office_count > MAX_OFFICE_FILES:
+        raise HTTPException(
+            status_code=413,
+            detail="preview 변환이 필요한 Office 문서는 한 번에 10개까지 가능합니다.",
+        )
+
     for path, relative_name in source_files:
         extension = path.suffix.lower()
         _validate_file(path, extension)
-        _scan_file(path)
+    _scan_files([path for path, _ in source_files])
+
+    for path, relative_name in source_files:
+        extension = path.suffix.lower()
         preview_path: Path | None = None
         preview_media_type: str | None = None
         if extension in {".docx", ".pptx", ".xlsx"}:
