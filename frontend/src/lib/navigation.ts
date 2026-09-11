@@ -21,9 +21,11 @@ import {
     House,
     Info,
     Library,
+    FolderOpen,
     Map,
     Search,
     ShieldCheck,
+    Upload,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -47,6 +49,9 @@ export const NAV_ITEMS: NavItem[] = [
     // 전교생·통계 — 남을 보는 화면
     { id: "browse", label: "Browse", icon: Library },
     { id: "analysis", label: "Analysis", icon: BarChart3 },
+    // 과목 자료 — 열람과 제출을 분리해 업로드 폼이 자료 목록을 밀어내지 않게 합니다
+    { id: "materials", label: "Files", icon: FolderOpen },
+    { id: "upload", label: "Upload", icon: Upload },
     // 내 것
     { id: "zamong", label: "Zamong", icon: GraduationCap },
     { id: "trade", label: "Trade", icon: ArrowLeftRight, temporary: true },

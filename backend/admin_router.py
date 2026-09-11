@@ -4,6 +4,7 @@ import subprocess
 import datetime
 import logging
 import re
+import shutil
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -157,8 +158,22 @@ def delete_user(
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    # 소유자만 지우고 자료를 남겨 두면 uploader 관계가 깨집니다. 계정과
+    # 그 계정이 올린 원본·preview를 같이 삭제합니다.
+    from backend.materials_router import storage_root
+
+    materials = (
+        db.query(models.Material)
+        .filter(models.Material.uploader_id == user_id)
+        .all()
+    )
+    material_directories = [storage_root() / item.storage_key for item in materials]
+    for material in materials:
+        db.delete(material)
     db.delete(user)
     db.commit()
+    for directory in material_directories:
+        shutil.rmtree(directory, ignore_errors=True)
     return {"detail": "Deleted"}
 
 

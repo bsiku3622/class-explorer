@@ -1,0 +1,9 @@
+[Unit]
+Description=Back up class-explorer material files
+
+[Service]
+Type=oneshot
+User=baeks
+Group=baeks
+WorkingDirectory=/srv/class-explorer
+ExecStart=/usr/bin/env python3.14 -m backend.material_backup

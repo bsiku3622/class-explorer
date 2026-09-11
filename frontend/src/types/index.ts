@@ -131,3 +131,51 @@ export interface SearchResultStats {
     total_matched_students: number;
     warning?: string;
 }
+
+export type MaterialCategory =
+    | "syllabus"
+    | "lecture_note"
+    | "worksheet"
+    | "assignment"
+    | "reference"
+    | "other";
+
+export type MaterialStatus = "pending" | "approved" | "rejected";
+
+export interface MaterialSubject {
+    id: number;
+    name: string;
+    label: string;
+    english: string | null;
+    is_ec: boolean;
+}
+
+export interface MaterialFile {
+    id: number;
+    name: string;
+    media_type: string;
+    size_bytes: number;
+    preview_available: boolean;
+    preview_media_type: string | null;
+}
+
+export interface Material {
+    id: number;
+    term: Term;
+    subject: MaterialSubject;
+    title: string;
+    category: MaterialCategory;
+    description: string | null;
+    status: MaterialStatus;
+    rejection_reason: string | null;
+    primary_syllabus: boolean;
+    files: MaterialFile[];
+    created_at: string;
+    updated_at: string;
+    uploader?: {
+        id: number;
+        username: string;
+        stu_id: string | null;
+    };
+    decided_at?: string | null;
+}

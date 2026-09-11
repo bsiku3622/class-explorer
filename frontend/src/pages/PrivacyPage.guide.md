@@ -34,7 +34,7 @@
 여기 적힌 것과 실제가 어긋나면 방침이 아니라 거짓말이 됩니다. 특히 아래를 건드렸으면
 같이 보세요.
 
-- 수집 항목 — `models.py` 의 `User`·`Session` 컬럼
+- 수집 항목 — `models.py` 의 `User`·`Session`·`Material` 컬럼과 자료 파일
 - 세션 보관 기간 — `auth.py` 의 `SESSION_EXPIRE_DAYS` (지금 30일, 화면 4절에 적혀 있음)
 - 국외 이전 대상 — 호스팅이나 외부 서비스를 바꿨을 때 6절
 

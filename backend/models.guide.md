@@ -3,7 +3,7 @@
 > [← Backend Guide](CLAUDE.md)
 
 ## 역할
-SQLAlchemy ORM 모델 정의. 4개 테이블.
+SQLAlchemy ORM 모델 정의. 시간표·계정·개인 기록·과목 자료를 같은 DB에 보관합니다.
 
 ## 모델
 
@@ -55,6 +55,19 @@ UniqueConstraint: `(stuId, classId)` — 중복 수강 방지
 ## 관계 다이어그램
 ```
 Student ──< Enrollment >── Class ──< ClassTime
+```
+
+### `Material` · `MaterialFile`
+
+`Material`은 학기와 `Subject`에 필수로 연결된 자료 묶음입니다. `pending →
+approved/rejected` 검수 상태, 제출자, 거절 사유, Primary syllabus 여부를
+담습니다. `MaterialFile`은 묶음 안의 원본 경로·저장명·preview·MIME·크기를
+담습니다. 실제 바이너리는 DB가 아닌 `materials/` 디렉터리에 있으며,
+`storage_key`로 같은 묶음을 찾습니다.
+
+```text
+User ──< Material >── Subject
+              └──< MaterialFile
 ```
 
 
