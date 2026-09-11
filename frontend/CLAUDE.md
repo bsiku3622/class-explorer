@@ -22,6 +22,7 @@ src/
 │   ├── features.ts           → 한시 기능 노출 플래그 (TRADE_FEATURE)
 │   ├── navigation.ts         → 메뉴 순서 (사이드바·하단 바가 같이 씁니다)
 │   ├── plannedHome.ts        → 홈 응답의 시간표만 트레이드 계획으로 갈아 끼우기
+│   ├── syllabi.ts            → 2026-1 과목과 syllabus asset 연결
 │   ├── friendsApi.ts         → 홈·친구·교시 시각표 질의 (백엔드는 두 앱 공용)
 │   └── sessionsApi.ts        → 로그인한 기기 목록·폐기 (다중 기기 로그인)
 ├── constants/
@@ -45,7 +46,7 @@ src/
 └── components/
     ├── atoms/                → 재사용 원자 컴포넌트 9종
     ├── molecules/            → 복합 컴포넌트 3종
-    └── (root)                → 오거니즘 컴포넌트 15종
+    └── (root)                → 오거니즘 컴포넌트 16종 (`SyllabusPanel` 포함)
 ```
 
 ## 상태 관리 (App.tsx)

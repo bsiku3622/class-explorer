@@ -9,6 +9,7 @@
 | prop | 타입 | 설명 |
 |------|------|------|
 | `searchInput` / `setSearchInput` | `string` | 입력 필드 값 |
+| `term` | `Term \| null` | syllabus 표시 범위를 포함한 현재 학기 |
 | `searchTerm` | `string` | 실제 검색 실행 값 |
 | `studentCounts` | `Record<string, number>` | 학년별 학생 수 |
 | `selectedYears` / `setSelectedYears` | `string[]` | 선택된 학년 |
