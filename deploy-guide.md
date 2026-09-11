@@ -29,6 +29,9 @@ ssh server
 cd /srv/class-explorer
 cp backend/ksa_timetable.db backend/ksa_timetable.db.bak-$(date +%Y%m%d)   # DB는 서버에만 있습니다
 git pull --ff-only
+sudo cp deploy/class-explorer-materials-backup.service deploy/class-explorer-materials-backup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now class-explorer-materials-backup.timer
 sudo systemctl restart class-explorer.service
 systemctl is-active class-explorer.service
 ```
@@ -87,19 +90,20 @@ WantedBy=multi-user.target
 
 로그는 `journalctl -u class-explorer -f`로 봅니다.
 
-### nginx — `/etc/nginx/sites-available/ksa-fastapi.conf`
+### nginx — `/etc/nginx/sites-available/class-explorer.conf`
 
 ```nginx
 server {
-    listen 80;
+    listen 443 ssl;
     server_name classesapi.bsiku.dev;
+
+    # 인증서·TLS·보안 설정은 기존 include를 그대로 사용합니다.
+    client_max_body_size 100M;
 
     location / {
         proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;          # Rate Limiter가 이 값을 봅니다
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        include snippets/proxy-common.conf;
+        proxy_read_timeout 180s;
     }
 
     # /docs 는 CDN에서 스크립트를 받아 와서 CSP를 따로 풀어 줍니다
@@ -118,6 +122,18 @@ server {
 ```bash
 sudo nginx -t && sudo systemctl reload nginx
 ```
+
+자료 업로드의 DOCX/PPTX/XLSX preview와 악성 파일 검사는 서버 패키지를 사용합니다. 처음 한 번
+설치한 뒤 ClamAV signature가 갱신되는지 확인해주세요.
+
+```bash
+sudo apt update
+sudo apt install -y libreoffice-writer libreoffice-impress libreoffice-calc clamav clamav-freshclam
+sudo freshclam
+```
+
+자료 원본은 DB 파일 옆의 `materials/`에 저장합니다. 위 timer는 변경 사항이 있을 때만
+DB snapshot과 자료 파일을 같이 `material-backups/`에 압축하고 최근 30개를 남깁니다.
 
 ### 프론트 환경변수 (Netlify → Site configuration → Environment variables)
 

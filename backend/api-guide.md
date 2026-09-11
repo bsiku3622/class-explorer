@@ -502,6 +502,26 @@ const data = await api.get('/', {
 
 ---
 
+## 과목 자료실 엔드포인트
+
+모든 자료 API는 로그인이 필요합니다. 제출자 정보는 admin 목록에만 나갑니다.
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| `GET` | `/materials/subjects?year=&semester=` | 해당 학기 개설 과목 |
+| `GET` | `/materials` | 승인된 자료 목록 |
+| `GET` | `/materials/mine` | 내 제출과 검수 상태 |
+| `POST` | `/materials` | multipart 자료 제출 |
+| `PATCH·DELETE` | `/materials/{id}` | 내 자료 수정·철회 |
+| `GET` | `/materials/files/{id}/preview` | 인증된 inline preview |
+| `GET` | `/materials/files/{id}/download` | 인증된 원본 download |
+| `GET·PATCH·DELETE` | `/admin/materials[/{id}]` | admin 검수·삭제 |
+
+`POST /materials`는 PDF·PNG·JPG/JPEG·WEBP·DOCX·PPTX·XLSX와 이 파일들이 든
+ZIP을 받습니다. 파일당 50MB, 요청당 90MB, ZIP 압축 해제 300MB까지입니다.
+ZIP 원본은 남기지 않고 내부 경로를 검사한 뒤 파일만 보관합니다.
+Office 문서는 서버에서 PDF로 변환해 preview합니다.
+
 ## 기능 기간 엔드포인트 (admin)
 
 ### `GET·PATCH /admin/features/trade` *(admin)*

@@ -17,6 +17,8 @@ backend/ksa_timetable.db
 backend/ksa_timetable.db.bak-*
 backend/backups/
 backend/archive/
+backend/materials/
+backend/material-backups/
 backend/students.txt
 backend/__pycache__/
 

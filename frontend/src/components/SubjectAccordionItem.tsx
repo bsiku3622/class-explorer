@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import RetroChip from "./atoms/RetroChip";
 import RetroTooltip from "./atoms/RetroTooltip";
-import { ChevronDown, Users } from "lucide-react";
+import { ChevronDown, FolderOpen, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import type { SubjectData, Section, Term } from "../types";
 import { extractSearchTerms, getKoreanName } from "../lib/utils";
 import SectionCard from "./SectionCard";
@@ -37,6 +38,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
     onToggle,
     isSingleStudentSearch,
 }) => {
+    const navigate = useNavigate();
     const [hoveredTeacher, setHoveredTeacher] = useState<string | null>(null);
 
     const effectiveSearchTerms = useMemo(
@@ -172,6 +174,13 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                                     },
                                 )}
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => navigate(`/materials?subject=${subject.subject_id}`)}
+                                className="ml-auto flex shrink-0 items-center gap-1.5 border-2 border-black bg-retro-accent1 px-3 py-1.5 text-[10px] font-black uppercase shadow-[3px_3px_0_0_rgba(0,0,0,0.16)] transition-all duration-100 hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none"
+                            >
+                                <FolderOpen size={13} strokeWidth={2.5} /> 자료실 가기
+                            </button>
                         </div>
 
                         {subject.sections.map(

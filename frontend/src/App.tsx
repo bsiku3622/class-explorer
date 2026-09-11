@@ -24,6 +24,7 @@ import Navigation from "./components/Navigation";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
 import GoogleLinkModal from "./components/GoogleLinkModal";
+import ShareMaterialsPrompt from "./components/ShareMaterialsPrompt";
 
 // Pages (lazy loaded for code splitting)
 const SearchPage = React.lazy(() => import("./pages/SearchPage"));
@@ -39,6 +40,8 @@ const TradePage = React.lazy(() => import("./pages/TradePage"));
 const HomePage = React.lazy(() => import("./pages/HomePage"));
 const ZamongPage = React.lazy(() => import("./pages/ZamongPage"));
 const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
+const MaterialsPage = React.lazy(() => import("./pages/MaterialsPage"));
+const UploadPage = React.lazy(() => import("./pages/UploadPage"));
 // 개발 전용 — funky-ui 토큰 작업용 컴포넌트 표본집. 메뉴에 올리지 않습니다
 const InventoryPage = React.lazy(() => import("./pages/InventoryPage"));
 
@@ -688,6 +691,19 @@ const App: React.FC = () => {
                                 }
                             />
                             <Route
+                                path="/materials"
+                                element={
+                                    <MaterialsPage
+                                        term={term}
+                                        allClassesData={allClassesData}
+                                    />
+                                }
+                            />
+                            <Route
+                                path="/upload"
+                                element={<UploadPage term={term} />}
+                            />
+                            <Route
                                 path="/about"
                                 element={<SettingsPage />}
                             />
@@ -743,6 +759,13 @@ const App: React.FC = () => {
                 showTrade={tradeAvailable}
                 onLogout={handleLogout}
             />
+            {currentUser && (
+                <ShareMaterialsPrompt
+                    term={term}
+                    pathname={location.pathname}
+                    onUpload={() => navigate("/upload")}
+                />
+            )}
         </div>
     );
 };

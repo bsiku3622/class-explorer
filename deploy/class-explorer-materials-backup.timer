@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the class-explorer material backup daily
+
+[Timer]
+OnCalendar=*-*-* 03:35:00 Asia/Seoul
+Persistent=true
+RandomizedDelaySec=10m
+Unit=class-explorer-materials-backup.service
+
+[Install]
+WantedBy=timers.target

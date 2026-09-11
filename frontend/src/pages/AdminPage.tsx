@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera, History, FlaskConical, ArrowLeftRight } from "lucide-react";
+import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera, History, FlaskConical, ArrowLeftRight, FileCheck2 } from "lucide-react";
 import api from "../lib/api";
 import { authHeader } from "../lib/session";
 import axios from "axios";
@@ -11,6 +11,7 @@ import AccordionSection from "../components/molecules/AccordionSection";
 import PageHeader from "../components/molecules/PageHeader";
 import ChangeSummary from "../components/admin/ChangeSummary";
 import type { ChangeSummaryData } from "../components/admin/ChangeSummary";
+import MaterialReviewPanel from "../components/MaterialReviewPanel";
 
 interface UserRow {
     id: number;
@@ -218,7 +219,7 @@ const EditableRow: React.FC<EditableRowProps> = ({
 };
 
 const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
-    const [openSections, setOpenSections] = useState({ users: true, sessions: true, data: false, versions: false, backups: false, trade: false });
+    const [openSections, setOpenSections] = useState({ materials: false, users: true, sessions: true, data: false, versions: false, backups: false, trade: false });
 
     // Users
     const [users, setUsers] = useState<UserRow[]>([]);
@@ -671,6 +672,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
             )}
 
             {/* Users */}
+            <AccordionSection title="Material Review" icon={FileCheck2} isOpen={openSections.materials} onToggle={() => toggle("materials")}>
+                <MaterialReviewPanel />
+            </AccordionSection>
+
             <AccordionSection title="User Management" icon={Users} isOpen={openSections.users} onToggle={() => toggle("users")}>
                 <div className="space-y-6">
                     <div className="space-y-2">

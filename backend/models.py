@@ -470,6 +470,74 @@ class MealMenu(Base):
     fetched_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
+# ─── 과목 자료실 ──────────────────────────────────────────────────────────────
+
+class Material(Base):
+    """한 과목·학기에 연결된 자료 묶음. 파일은 인증된 API를 통해서만 나갑니다."""
+    __tablename__ = "materials"
+    id = Column(Integer, primary_key=True, index=True)
+    storage_key = Column(String, unique=True, nullable=False)
+    subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False, index=True)
+    year = Column(Integer, nullable=False, index=True)
+    semester = Column(Integer, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    category = Column(String, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    status = Column(String, default="pending", nullable=False, index=True)
+    rejection_reason = Column(String, nullable=True)
+    primary_syllabus = Column(Boolean, default=False, nullable=False)
+    uploader_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    decided_by_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    decided_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=datetime.datetime.utcnow,
+        onupdate=datetime.datetime.utcnow,
+        nullable=False,
+    )
+
+    subject = relationship("Subject")
+    uploader = relationship("User", foreign_keys=[uploader_id])
+    decided_by = relationship("User", foreign_keys=[decided_by_id])
+    files = relationship(
+        "MaterialFile",
+        back_populates="material",
+        cascade="all, delete-orphan",
+        order_by="MaterialFile.id",
+    )
+
+
+class MaterialFile(Base):
+    """자료 묶음 안의 안전 검사를 통과한 파일 하나."""
+    __tablename__ = "material_files"
+    id = Column(Integer, primary_key=True, index=True)
+    material_id = Column(
+        Integer,
+        ForeignKey("materials.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    relative_name = Column(String, nullable=False)
+    stored_name = Column(String, nullable=False)
+    preview_name = Column(String, nullable=True)
+    media_type = Column(String, nullable=False)
+    preview_media_type = Column(String, nullable=True)
+    size_bytes = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    material = relationship("Material", back_populates="files")
+
+
 class Session(Base):
     """
     로그인한 기기 하나. **한 계정에 여럿입니다** (`auth.MAX_SESSIONS_PER_USER`).
