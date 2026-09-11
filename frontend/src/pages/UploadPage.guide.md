@@ -5,6 +5,7 @@
 - 경로: `/upload`, 사이드바와 모바일 More에서 접근합니다.
 - 선택된 학기의 개설 과목을 반드시 고릅니다.
 - PDF, PNG, JPG/JPEG, WEBP, DOCX, PPTX, XLSX, ZIP을 최대 20개 선택합니다.
+- 서버에서 PDF preview로 변환하는 DOCX/PPTX/XLSX는 자료 하나에 10개까지입니다.
 - ZIP의 실제 검사·추출 제한은 backend가 최종 책임집니다.
 - My Uploads에서 pending/approved/rejected와 거절 사유를 확인합니다.
 - pending과 approved metadata를 수정할 수 있고, approved 수정은 재검수됩니다.
