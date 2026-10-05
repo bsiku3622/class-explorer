@@ -1,3 +1,9 @@
+## 2026-10-05 — 날짜별 대체시간표 이벤트
+- 변경 파일: `backend/models.py`, `backend/admin_router.py`, `backend/home_router.py`, `backend/migrations.py`, `frontend/src/pages/AdminPage.tsx`, `frontend/src/components/home/TodayCardV3.tsx` 및 가이드 문서
+- 요약: 날짜별 대체시간표 CRUD를 추가하고, 이벤트 날짜에는 지정 요일 시간표를 홈 오늘 목록에 적용했습니다. 10월 6일 월요일표·10월 8일 금요일표 이벤트를 초기 등록합니다.
+
+대체는 학기별 기본 시간표(`week`)를 수정하지 않고, 날짜를 아는 홈의 `today` 결과에서만 처리합니다. 달력의 휴업 표시가 대체수업 이벤트를 무효화하지 않도록 대체 이벤트를 우선 적용합니다.
+
 ## 2026-09-02 — 학급모임 10분으로 정정 + 쉬는시간을 `이동`·`공강` 으로 가르기
 
 - 변경 파일: `backend/periods.py`, `frontend/src/lib/homeView.ts`,

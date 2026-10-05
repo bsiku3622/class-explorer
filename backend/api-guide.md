@@ -33,6 +33,11 @@
 휴업일은 `CalendarEvent.category='holiday'` 중 **공용 일정만**(`owner_id IS NULL`)
 봅니다 — 개인 일정이 남의 수업까지 없애면 안 됩니다.
 
+Admin의 `Timetable Overrides`에서 날짜와 가져올 요일을 등록하면 해당 날짜의 `/home`
+`today`가 그 요일 시간표로 바뀝니다. 이 예외 이벤트는 해당 날짜의 휴업일·주말 처리보다
+우선하며, 주간 격자는 학기 기본 요일표를 유지합니다. `/admin/timetable-overrides`는
+관리자 전용 GET/POST, `/admin/timetable-overrides/{id}`는 PUT/DELETE입니다.
+
 `today` 의 각 항목에는 **`department`** 가 붙습니다 (`Subject → Course → Department`).
 교육과정에 없는 과목(외국인 전형 등 26개)은 `null` 입니다. 지금 홈 화면은 이 값을
 그리지 않습니다 — 과목마다 색을 달리해 봤다가 화면이 색표처럼 보여 걷어냈습니다.

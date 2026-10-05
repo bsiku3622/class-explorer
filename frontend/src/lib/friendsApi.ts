@@ -97,6 +97,7 @@ export interface HomeData {
         off_reason: "vacation" | "weekend" | "holiday" | null;
         /** "여름방학"·"주말"·"추석" — 화면에 그대로 씁니다 */
         off_label: string | null;
+        timetable_override?: { title: string; source_day: string } | null;
     };
     today: TodayClass[];
     /**

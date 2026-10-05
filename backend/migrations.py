@@ -602,6 +602,25 @@ def _seed_term_versions(conn) -> None:
         print(f"[migration] 학기 {seeded}개에 1회차 기록 생성")
 
 
+def _seed_october_timetable_overrides(conn) -> None:
+    """2026-10-06(월요일표)·10-08(금요일표) 학교 공용 대체수업일."""
+    if not _has_table(conn, "timetable_overrides"):
+        return
+    conn.execute(text("CREATE TABLE IF NOT EXISTS migration_flags (key VARCHAR PRIMARY KEY)"))
+    if conn.execute(text("SELECT 1 FROM migration_flags WHERE key='october_2026_timetable_overrides'")).first():
+        return
+    for day, source_day, title in (
+        ("2026-10-06", "MON", "월요일 시간표 운영"),
+        ("2026-10-08", "FRI", "금요일 시간표 운영"),
+    ):
+        conn.execute(
+            text("INSERT OR IGNORE INTO timetable_overrides (date, source_day, title, created_at) VALUES (:date, :source_day, :title, CURRENT_TIMESTAMP)"),
+            {"date": day, "source_day": source_day, "title": title},
+        )
+    conn.execute(text("INSERT INTO migration_flags (key) VALUES ('october_2026_timetable_overrides')"))
+    conn.commit()
+
+
 def run_migrations(engine: Engine) -> None:
     # 단순 컬럼 추가 — 이미 있으면 무시
     simple = [
@@ -648,3 +667,4 @@ def run_migrations(engine: Engine) -> None:
         _migrate_admin_flag_to_role(conn)
         _add_version_ranges(conn)
         _seed_term_versions(conn)
+        _seed_october_timetable_overrides(conn)

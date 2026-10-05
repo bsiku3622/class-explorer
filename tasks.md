@@ -1,5 +1,7 @@
 # Tasks
 
+- [x] admin에서 날짜별 대체시간표 이벤트를 관리하고 홈 오늘 시간표에 적용
+
 - [x] 모바일 반응형 디자인 적용: BottomNav, 레이아웃 조정, 텍스트/패딩 반응형
 - [x] JWT 인증 시스템 구현: SQLite User/Session 테이블, 기기당 최대 2세션, admin CLI
 - [x] 세션 기반 인증으로 전환: JWT 제거, 1계정 1세션, session_token DB 조회

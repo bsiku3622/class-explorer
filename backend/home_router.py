@@ -281,6 +281,15 @@ async def get_home(
     else:
         off_reason, off_label = None, None
 
+    timetable_override = db.query(models.TimetableOverride).filter_by(date=today).first()
+    effective_day = timetable_override.source_day if timetable_override else day
+    if timetable_override:
+        # 대체수업일은 휴업·주말 판정보다 우선합니다. 해당 날짜에 지정한 정규 요일의
+        # 수업을 오늘 목록에 놓고, 시간표 위젯에서 일반 수업일로 다룹니다.
+        off_reason, off_label = None, None
+        period = periods.current_period(minute)
+        upcoming = periods.next_period(minute)
+
     # ── 내 시간표 — **한 주를 한 번에** 받아 옵니다
     #
     # 예전엔 오늘 것만 물어봤는데, 홈에 주간 격자가 생기면서 요일 조건만 뺐습니다.
@@ -329,7 +338,7 @@ async def get_home(
     # ⚠️ **`today` 만 학사일정으로 거릅니다.** 학기 데이터는 요일 단위라 방학 중
     # 월요일에도 "월요일 시간표" 가 그대로 나오는데, `week` 는 오늘이 아니라 **이 학기**
     # 를 말하는 값이라 방학에도 그대로 둡니다 — 비우면 방학에 시간표를 볼 길이 없습니다.
-    my_classes = week[day] if off_reason is None and day else []
+    my_classes = week[effective_day] if off_reason is None and effective_day else []
 
     by_period = {c["period"]: c for c in my_classes}
     current = by_period.get(period) if period else None
@@ -359,6 +368,10 @@ async def get_home(
             "off_reason": off_reason,
             # "여름방학" · "주말" · "추석" — 화면에 그대로 씁니다
             "off_label": off_label,
+            "timetable_override": (
+                {"title": timetable_override.title, "source_day": timetable_override.source_day}
+                if timetable_override else None
+            ),
         },
         # 교시 시각표. 화면이 상수를 따로 들면 한쪽만 고쳤을 때 어긋나고, 홈은 어차피
         # 한 요청으로 다 받는 자리라 여기 실어 보냅니다 (11줄뿐입니다)
