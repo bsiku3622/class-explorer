@@ -419,6 +419,16 @@ class CalendarEvent(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
+class TimetableOverride(Base):
+    """한 날짜의 수업을 정규 요일 시간표로 대체하는 공용 이벤트."""
+    __tablename__ = "timetable_overrides"
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False, unique=True, index=True)
+    source_day = Column(String, nullable=False)  # MON ~ FRI
+    title = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+
 class EventRequest(Base):
     """
     일반 계정이 "이건 다들 알아야 할 것 같은데요" 하고 올리는 공용 일정 제안.

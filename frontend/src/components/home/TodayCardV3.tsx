@@ -308,6 +308,11 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                                 히어로 안에서 부연은 한 크기로 통일합니다 */}
                             <span className="truncate text-[13px] font-bold text-black/45">
                                 {dateLabel(now.date)}
+                                {session.timetable_override && (
+                                    <span className="ml-2 inline-block border border-black/30 px-1.5 py-0.5 align-middle text-[9px] font-black uppercase tracking-wide">
+                                        {session.timetable_override.title}
+                                    </span>
+                                )}
                             </span>
                             {/* 계획을 보는 중이라는 말은 **날짜 옆**에 붙습니다 —
                                 이 줄이 "언제·무엇을 보고 있는가" 를 말하는 자리입니다.

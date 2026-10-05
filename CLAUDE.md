@@ -160,6 +160,9 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 
 ## Rules — 작업 절차
 
+날짜별 대체시간표는 `TimetableOverride`에 날짜와 원본 요일을 저장하고, `/home`의 오늘
+시간표만 해당 요일 데이터로 교체합니다. Admin에서 일정을 추가·삭제합니다.
+
 ### 시작 전
 
 1. 작업을 `/tasks.md`에 추가: `- [ ] <작업 내용>`

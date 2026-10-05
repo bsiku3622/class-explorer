@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera, History, FlaskConical, ArrowLeftRight, FileCheck2 } from "lucide-react";
+import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera, History, FlaskConical, ArrowLeftRight, FileCheck2, CalendarDays } from "lucide-react";
 import api from "../lib/api";
 import { authHeader } from "../lib/session";
 import axios from "axios";
@@ -111,6 +111,8 @@ interface VersionRow {
     summary: ChangeSummaryData | null;
 }
 interface BackupRow { name: string; label: string; created: string; bytes: number; }
+interface TimetableOverrideRow { id: number; date: string; source_day: string; title: string; }
+const WEEKDAYS = [{ value: "MON", label: "월요일" }, { value: "TUE", label: "화요일" }, { value: "WED", label: "수요일" }, { value: "THU", label: "목요일" }, { value: "FRI", label: "금요일" }];
 
 const formatBytes = (n: number) =>
     n >= 1_048_576 ? `${(n / 1_048_576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -219,7 +221,7 @@ const EditableRow: React.FC<EditableRowProps> = ({
 };
 
 const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
-    const [openSections, setOpenSections] = useState({ materials: false, users: true, sessions: true, data: false, versions: false, backups: false, trade: false });
+    const [openSections, setOpenSections] = useState({ materials: false, users: true, sessions: true, data: false, versions: false, backups: false, trade: false, timetable: false });
 
     // Users
     const [users, setUsers] = useState<UserRow[]>([]);
@@ -275,6 +277,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
     const [teacherSaving, setTeacherSaving] = useState(false);
 
     const [subjects, setSubjects] = useState<SubjectRow[]>([]);
+    const [overrides, setOverrides] = useState<TimetableOverrideRow[]>([]);
+    const [overrideDate, setOverrideDate] = useState("");
+    const [overrideDay, setOverrideDay] = useState("MON");
+    const [overrideTitle, setOverrideTitle] = useState("");
 
     const [error, setError] = useState("");
 
@@ -364,6 +370,15 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
             setTrade(res.data);
         } catch (e) {
             if (axios.isAxiosError(e)) setError(e.response?.data?.detail || "Failed to load trade config");
+        }
+    }, []);
+
+    const fetchOverrides = useCallback(async () => {
+        try {
+            const res = await api.get("/admin/timetable-overrides", { headers: authHeader() });
+            setOverrides(res.data);
+        } catch (e) {
+            if (axios.isAxiosError(e)) setError(e.response?.data?.detail || "Failed to load timetable overrides");
         }
     }, []);
 
@@ -511,7 +526,29 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
         if (key === "versions" && !openSections.versions && versions.length === 0) fetchVersions(versionTerm ?? targetTerm);
         if (key === "backups" && !openSections.backups && backups.length === 0) fetchBackups();
         if (key === "trade" && !openSections.trade && !trade) fetchTrade();
+        if (key === "timetable" && !openSections.timetable) fetchOverrides();
         setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const saveOverride = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await api.post("/admin/timetable-overrides", { date: overrideDate, source_day: overrideDay, title: overrideTitle }, { headers: authHeader() });
+            setOverrideDate(""); setOverrideTitle("");
+            fetchOverrides();
+        } catch (err) {
+            if (axios.isAxiosError(err)) setError(err.response?.data?.detail || "Failed to create timetable override");
+        }
+    };
+
+    const deleteOverride = async (id: number) => {
+        if (!confirm("이 대체시간표를 삭제하시겠습니까?")) return;
+        try {
+            await api.delete(`/admin/timetable-overrides/${id}`, { headers: authHeader() });
+            fetchOverrides();
+        } catch (err) {
+            if (axios.isAxiosError(err)) setError(err.response?.data?.detail || "Failed to delete timetable override");
+        }
     };
 
     const handleDataTabChange = (tab: DataTab) => {
@@ -1079,6 +1116,22 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
             </AccordionSection>
 
             {/* Trade — 수강 변경 탐색을 언제까지 열어 둘지 */}
+            <AccordionSection title="Timetable Overrides" icon={CalendarDays} isOpen={openSections.timetable} onToggle={() => toggle("timetable")}>
+                <div className="space-y-4">
+                    <p className="text-xs font-bold text-black/50">특정 날짜에 선택한 요일의 정규 시간표를 적용합니다. 날짜마다 한 이벤트만 등록할 수 있습니다.</p>
+                    <form onSubmit={saveOverride} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+                        <label className="text-[10px] font-black uppercase">날짜<input required type="date" value={overrideDate} onChange={(e) => setOverrideDate(e.target.value)} className={inputClass + " block w-full text-xs"} /></label>
+                        <label className="text-[10px] font-black uppercase">가져올 시간표<select value={overrideDay} onChange={(e) => setOverrideDay(e.target.value)} className={inputClass + " block w-full text-xs"}>{WEEKDAYS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}</select></label>
+                        <label className="text-[10px] font-black uppercase">이벤트 이름<input required maxLength={100} value={overrideTitle} onChange={(e) => setOverrideTitle(e.target.value)} placeholder="월요일 시간표 운영" className={inputClass + " block w-full text-xs"} /></label>
+                        <button type="submit" className="flex items-center justify-center gap-1.5 border-2 border-black bg-black text-white px-3 py-2 text-xs font-black uppercase"><Plus size={14} /> Create</button>
+                    </form>
+                    <div className="space-y-2">
+                        {overrides.map((event) => <div key={event.id} className="flex items-center justify-between gap-3 border-2 border-black bg-white px-3 py-2 shadow-[3px_3px_0_0_rgba(0,0,0,0.1)]"><div><strong className="block text-sm">{event.date} · {event.title}</strong><span className="text-xs font-bold text-black/50">{WEEKDAYS.find((d) => d.value === event.source_day)?.label ?? event.source_day} 시간표</span></div><button aria-label="대체시간표 삭제" onClick={() => deleteOverride(event.id)} className="p-2 text-red-600 hover:bg-red-50"><Trash2 size={16} /></button></div>)}
+                        {overrides.length === 0 && <p className="text-sm font-bold text-black/40">등록된 대체시간표 이벤트가 없습니다.</p>}
+                    </div>
+                </div>
+            </AccordionSection>
+
             <AccordionSection title="Trade" icon={ArrowLeftRight} isOpen={openSections.trade} onToggle={() => toggle("trade")}>
                 {trade === null ? (
                     <p className="text-sm font-bold text-black/40">불러오는 중…</p>

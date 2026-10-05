@@ -46,6 +46,12 @@ class TradeConfigRequest(BaseModel):
     until: str | None = None
 
 
+class TimetableOverrideRequest(BaseModel):
+    date: datetime.date
+    source_day: Literal["MON", "TUE", "WED", "THU", "FRI"]
+    title: str = Field(min_length=1, max_length=100)
+
+
 # ─── 기능 기간 ────────────────────────────────────────────────────────────────
 @router.get("/features/trade")
 def get_trade_config(
@@ -70,6 +76,73 @@ def set_trade_config(
         except ValueError:
             raise HTTPException(status_code=422, detail="마감 시각을 읽을 수 없습니다.")
     return features.save_trade_config(db, patch)
+
+
+# ─── 날짜별 대체시간표 ────────────────────────────────────────────────────────
+def _override_out(row: models.TimetableOverride) -> dict:
+    return {"id": row.id, "date": row.date.isoformat(), "source_day": row.source_day, "title": row.title}
+
+
+@router.get("/timetable-overrides")
+def list_timetable_overrides(
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    return [_override_out(row) for row in db.query(models.TimetableOverride).order_by(models.TimetableOverride.date).all()]
+
+
+@router.post("/timetable-overrides", status_code=201)
+def create_timetable_override(
+    body: TimetableOverrideRequest,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    if not body.title.strip():
+        raise HTTPException(status_code=422, detail="제목을 입력해주세요.")
+    if db.query(models.TimetableOverride).filter_by(date=body.date).first():
+        raise HTTPException(status_code=409, detail="해당 날짜에 대체시간표가 이미 있습니다.")
+    row = models.TimetableOverride(date=body.date, source_day=body.source_day, title=body.title.strip())
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _override_out(row)
+
+
+@router.put("/timetable-overrides/{override_id}")
+def update_timetable_override(
+    override_id: int,
+    body: TimetableOverrideRequest,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    row = db.get(models.TimetableOverride, override_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="대체시간표를 찾을 수 없습니다.")
+    if not body.title.strip():
+        raise HTTPException(status_code=422, detail="제목을 입력해주세요.")
+    conflict = db.query(models.TimetableOverride).filter(
+        models.TimetableOverride.date == body.date,
+        models.TimetableOverride.id != override_id,
+    ).first()
+    if conflict:
+        raise HTTPException(status_code=409, detail="해당 날짜에 대체시간표가 이미 있습니다.")
+    row.date, row.source_day, row.title = body.date, body.source_day, body.title.strip()
+    db.commit()
+    return _override_out(row)
+
+
+@router.delete("/timetable-overrides/{override_id}")
+def delete_timetable_override(
+    override_id: int,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    row = db.get(models.TimetableOverride, override_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="대체시간표를 찾을 수 없습니다.")
+    db.delete(row)
+    db.commit()
+    return {"detail": "Deleted"}
 
 
 # ─── 사용자 관리 ──────────────────────────────────────────────────────────────
