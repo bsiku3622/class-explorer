@@ -1,0 +1,1529 @@
+{
+  "period": {
+    "key": "2026-2-midterm",
+    "year": 2026,
+    "semester": 2,
+    "kind": "midterm",
+    "title": "2026학년도 2학기 중간고사",
+    "start_date": "2026-10-12",
+    "end_date": "2026-10-16",
+    "visible_from": "2026-10-05",
+    "visible_until": "2026-10-16",
+    "source_name": "2026학년도 2학기 중간고사 시간표(Mid-term Exam Timetable for 2026 Fall Semester)_최종(학생공지).xlsx",
+    "source_sha256": "d6c264d6e86aeae495d4af8ad99c82ff3b5c4e3b05ebccd2457c672800f10d98"
+  },
+  "exams": [
+    {
+      "subject": "기초전자기학",
+      "subject_english": "Introduction to Electrodynamics",
+      "date": "2026-10-12",
+      "start_minute": 580,
+      "end_minute": 690,
+      "subject_name": "기초전자기학",
+      "is_ec": false,
+      "source_rooms": "형3306",
+      "room_rules": [
+        {
+          "room": "형3306",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "B12",
+        "B18"
+      ],
+      "note": null,
+      "key": "exam-001"
+    },
+    {
+      "subject": "미적분학2(EC포함)",
+      "subject_english": "Calculus2(KC&EC)",
+      "date": "2026-10-12",
+      "start_minute": 580,
+      "end_minute": 750,
+      "subject_name": "미적분학2",
+      "is_ec": null,
+      "source_rooms": "예6201(KC 1,2반, EC 1,2반)\n예6202(EC 3,4,5반)",
+      "room_rules": [
+        {
+          "room": "예6201",
+          "is_ec": false,
+          "sections": [
+            "1",
+            "2"
+          ]
+        },
+        {
+          "room": "예6201",
+          "is_ec": true,
+          "sections": [
+            "1",
+            "2"
+          ]
+        },
+        {
+          "room": "예6202",
+          "is_ec": true,
+          "sections": [
+            "3",
+            "4",
+            "5"
+          ]
+        }
+      ],
+      "source_cells": [
+        "B10",
+        "B16",
+        "B22"
+      ],
+      "note": null,
+      "key": "exam-002"
+    },
+    {
+      "subject": "수학1(국내반)",
+      "subject_english": "Mathematics1(Korean)",
+      "date": "2026-10-12",
+      "start_minute": 580,
+      "end_minute": 750,
+      "subject_name": "수학1",
+      "is_ec": false,
+      "source_rooms": "형3405",
+      "room_rules": [
+        {
+          "room": "형3405",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "B11",
+        "B17",
+        "B23"
+      ],
+      "note": null,
+      "key": "exam-003"
+    },
+    {
+      "subject": "화학및실험Ⅱ",
+      "subject_english": "Chemistry & Exp.Ⅱ",
+      "date": "2026-10-12",
+      "start_minute": 580,
+      "end_minute": 690,
+      "subject_name": "화학및실험Ⅱ",
+      "is_ec": false,
+      "source_rooms": "탐2106",
+      "room_rules": [
+        {
+          "room": "탐2106",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "B13",
+        "B19"
+      ],
+      "note": null,
+      "key": "exam-004"
+    },
+    {
+      "subject": "글로벌문화와영어",
+      "subject_english": "Intercultural Literacy",
+      "date": "2026-10-12",
+      "start_minute": 820,
+      "end_minute": 910,
+      "subject_name": "글로벌문화와영어",
+      "is_ec": false,
+      "source_rooms": "대강당",
+      "room_rules": [
+        {
+          "room": "대강당",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "B30",
+        "B36"
+      ],
+      "note": null,
+      "key": "exam-005"
+    },
+    {
+      "subject": "창의적문제해결기법",
+      "subject_english": "Creative Problem Solving",
+      "date": "2026-10-12",
+      "start_minute": 820,
+      "end_minute": 930,
+      "subject_name": "창의적문제해결기법",
+      "is_ec": false,
+      "source_rooms": "창5702",
+      "room_rules": [
+        {
+          "room": "창5702",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "B29",
+        "B35"
+      ],
+      "note": null,
+      "key": "exam-006"
+    },
+    {
+      "subject": "일반생물학2(EC)",
+      "subject_english": "General Biology2(EC)",
+      "date": "2026-10-12",
+      "start_minute": 940,
+      "end_minute": 1050,
+      "subject_name": "일반생물학2",
+      "is_ec": true,
+      "source_rooms": "창5408",
+      "room_rules": [
+        {
+          "room": "창5408",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "B41",
+        "B47"
+      ],
+      "note": null,
+      "key": "exam-007"
+    },
+    {
+      "subject": "미적분학3(EC)",
+      "subject_english": "Calculus3(EC)",
+      "date": "2026-10-12",
+      "start_minute": 1170,
+      "end_minute": 1410,
+      "subject_name": "미적분학3",
+      "is_ec": true,
+      "source_rooms": "형3402(1반), 형3403(2반)",
+      "room_rules": [
+        {
+          "room": "형3402",
+          "is_ec": null,
+          "sections": [
+            "1"
+          ]
+        },
+        {
+          "room": "형3403",
+          "is_ec": null,
+          "sections": [
+            "2"
+          ]
+        }
+      ],
+      "source_cells": [
+        "B57"
+      ],
+      "note": null,
+      "key": "exam-008"
+    },
+    {
+      "subject": "미분방정식",
+      "subject_english": "Differential Equations",
+      "date": "2026-10-13",
+      "start_minute": 580,
+      "end_minute": 750,
+      "subject_name": "미분방정식",
+      "is_ec": false,
+      "source_rooms": "형3402",
+      "room_rules": [
+        {
+          "room": "형3402",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "E12",
+        "E18",
+        "E24"
+      ],
+      "note": null,
+      "key": "exam-009"
+    },
+    {
+      "subject": "미적분학1",
+      "subject_english": "Calculus1",
+      "date": "2026-10-13",
+      "start_minute": 580,
+      "end_minute": 750,
+      "subject_name": "미적분학1",
+      "is_ec": false,
+      "source_rooms": "형3306(1반)\n예6202(2,3반)",
+      "room_rules": [
+        {
+          "room": "형3306",
+          "is_ec": null,
+          "sections": [
+            "1"
+          ]
+        },
+        {
+          "room": "예6202",
+          "is_ec": null,
+          "sections": [
+            "2",
+            "3"
+          ]
+        }
+      ],
+      "source_cells": [
+        "E11",
+        "E17",
+        "E23"
+      ],
+      "note": null,
+      "key": "exam-010"
+    },
+    {
+      "subject": "수학2",
+      "subject_english": "Mathematics2",
+      "date": "2026-10-13",
+      "start_minute": 580,
+      "end_minute": 750,
+      "subject_name": "수학2",
+      "is_ec": false,
+      "source_rooms": "예6201(1,2,3반)\n대강당(4,5,6,7반)",
+      "room_rules": [
+        {
+          "room": "예6201",
+          "is_ec": null,
+          "sections": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        {
+          "room": "대강당",
+          "is_ec": null,
+          "sections": [
+            "4",
+            "5",
+            "6",
+            "7"
+          ]
+        }
+      ],
+      "source_cells": [
+        "E10",
+        "E16",
+        "E22"
+      ],
+      "note": null,
+      "key": "exam-011"
+    },
+    {
+      "subject": "생물학의활용",
+      "subject_english": "Use of Life Science",
+      "date": "2026-10-13",
+      "start_minute": 640,
+      "end_minute": 750,
+      "subject_name": "생물학의활용",
+      "is_ec": false,
+      "source_rooms": "형3307",
+      "room_rules": [
+        {
+          "room": "형3307",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "E20",
+        "E26"
+      ],
+      "note": null,
+      "key": "exam-012"
+    },
+    {
+      "subject": "중급물리학특강(물리학을위한수학적도구들)",
+      "subject_english": "Special Topics in Intermediate Physics(Mathematical Tools for Physics)",
+      "date": "2026-10-13",
+      "start_minute": 640,
+      "end_minute": 750,
+      "subject_name": "중급물리학특강(물리학을위한수학적도구들)",
+      "is_ec": false,
+      "source_rooms": "형3404",
+      "room_rules": [
+        {
+          "room": "형3404",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "E21",
+        "E27"
+      ],
+      "note": null,
+      "key": "exam-013"
+    },
+    {
+      "subject": "화학의활용",
+      "subject_english": "Use of Chemistry",
+      "date": "2026-10-13",
+      "start_minute": 640,
+      "end_minute": 750,
+      "subject_name": "화학의활용",
+      "is_ec": false,
+      "source_rooms": "형3305",
+      "room_rules": [
+        {
+          "room": "형3305",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "E19",
+        "E25"
+      ],
+      "note": null,
+      "key": "exam-014"
+    },
+    {
+      "subject": "고급알고리즘",
+      "subject_english": "Advanced Algorithms",
+      "date": "2026-10-13",
+      "start_minute": 820,
+      "end_minute": 930,
+      "subject_name": "고급알고리즘",
+      "is_ec": false,
+      "source_rooms": "창5702",
+      "room_rules": [
+        {
+          "room": "창5702",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "E34",
+        "E40"
+      ],
+      "note": null,
+      "key": "exam-015"
+    },
+    {
+      "subject": "물리학및실험2(국내반)",
+      "subject_english": "Physics and Exp.2(Korean)",
+      "date": "2026-10-13",
+      "start_minute": 820,
+      "end_minute": 930,
+      "subject_name": "물리학및실험2",
+      "is_ec": false,
+      "source_rooms": "예6202",
+      "room_rules": [
+        {
+          "room": "예6202",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "E30",
+        "E36"
+      ],
+      "note": null,
+      "key": "exam-016"
+    },
+    {
+      "subject": "물리학및실험Ⅱ",
+      "subject_english": "Physics and Exp.Ⅱ",
+      "date": "2026-10-13",
+      "start_minute": 820,
+      "end_minute": 930,
+      "subject_name": "물리학및실험Ⅱ",
+      "is_ec": false,
+      "source_rooms": "예6202",
+      "room_rules": [
+        {
+          "room": "예6202",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "E31",
+        "E37"
+      ],
+      "note": null,
+      "key": "exam-017"
+    },
+    {
+      "subject": "수학1(국제반)",
+      "subject_english": "Mathematics2(Foreign)",
+      "date": "2026-10-13",
+      "start_minute": 820,
+      "end_minute": 990,
+      "subject_name": "수학1",
+      "is_ec": false,
+      "source_rooms": "형3305",
+      "room_rules": [
+        {
+          "room": "형3305",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "E29",
+        "E35",
+        "E41"
+      ],
+      "note": null,
+      "key": "exam-018"
+    },
+    {
+      "subject": "우주생물학",
+      "subject_english": "Astrobiology",
+      "date": "2026-10-13",
+      "start_minute": 820,
+      "end_minute": 930,
+      "subject_name": "우주생물학",
+      "is_ec": false,
+      "source_rooms": "형3307",
+      "room_rules": [
+        {
+          "room": "형3307",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "E32",
+        "E38"
+      ],
+      "note": null,
+      "key": "exam-019"
+    },
+    {
+      "subject": "중급물리학특강(물리학을위한인공지능)",
+      "subject_english": "Special Topics in Intermediate Physic (Artificial Intelligence for Physics)",
+      "date": "2026-10-13",
+      "start_minute": 820,
+      "end_minute": 930,
+      "subject_name": "중급물리학특강(물리학을위한인공지능)",
+      "is_ec": false,
+      "source_rooms": "창5510",
+      "room_rules": [
+        {
+          "room": "창5510",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "E33",
+        "E39"
+      ],
+      "note": null,
+      "key": "exam-020"
+    },
+    {
+      "subject": "일반지구과학",
+      "subject_english": "General Earth Science",
+      "date": "2026-10-13",
+      "start_minute": 940,
+      "end_minute": 1040,
+      "subject_name": "일반지구과학",
+      "is_ec": false,
+      "source_rooms": "대강당",
+      "room_rules": [
+        {
+          "room": "대강당",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "E42",
+        "E47"
+      ],
+      "note": null,
+      "key": "exam-021"
+    },
+    {
+      "subject": "수학적모델링",
+      "subject_english": "Mathematical Modeling",
+      "date": "2026-10-13",
+      "start_minute": 1170,
+      "end_minute": 1410,
+      "subject_name": "수학적모델링",
+      "is_ec": false,
+      "source_rooms": "형3402(1반), 형3403(2반)",
+      "room_rules": [
+        {
+          "room": "형3402",
+          "is_ec": null,
+          "sections": [
+            "1"
+          ]
+        },
+        {
+          "room": "형3403",
+          "is_ec": null,
+          "sections": [
+            "2"
+          ]
+        }
+      ],
+      "source_cells": [
+        "E57"
+      ],
+      "note": null,
+      "key": "exam-022"
+    },
+    {
+      "subject": "선형대수(EC포함)",
+      "subject_english": "Linear Algebra(KC&EC)",
+      "date": "2026-10-14",
+      "start_minute": 580,
+      "end_minute": 690,
+      "subject_name": "선형대수",
+      "is_ec": null,
+      "source_rooms": "대강당",
+      "room_rules": [
+        {
+          "room": "대강당",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "H11",
+        "H17"
+      ],
+      "note": null,
+      "key": "exam-023"
+    },
+    {
+      "subject": "유전자의이해",
+      "subject_english": "DNA Science",
+      "date": "2026-10-14",
+      "start_minute": 580,
+      "end_minute": 690,
+      "subject_name": "유전자의이해",
+      "is_ec": false,
+      "source_rooms": "창5408",
+      "room_rules": [
+        {
+          "room": "창5408",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "H12",
+        "H18"
+      ],
+      "note": null,
+      "key": "exam-024"
+    },
+    {
+      "subject": "정보과학2(국제반)",
+      "subject_english": "Computer Science2(Foreign)",
+      "date": "2026-10-14",
+      "start_minute": 580,
+      "end_minute": 690,
+      "subject_name": "정보과학2",
+      "is_ec": false,
+      "source_rooms": "창5701",
+      "room_rules": [
+        {
+          "room": "창5701",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "H13",
+        "H19"
+      ],
+      "note": null,
+      "key": "exam-025"
+    },
+    {
+      "subject": "화학특강(계산화학과화학반응)",
+      "subject_english": "Special Topics in Chemistry (Computational Chemistry and Chemical Reactions)",
+      "date": "2026-10-14",
+      "start_minute": 580,
+      "end_minute": 750,
+      "subject_name": "화학특강(계산화학과화학반응)",
+      "is_ec": false,
+      "source_rooms": "형3305",
+      "room_rules": [
+        {
+          "room": "형3305",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "H10",
+        "H16",
+        "H22"
+      ],
+      "note": null,
+      "key": "exam-026"
+    },
+    {
+      "subject": "일반물리학2(EC포함)",
+      "subject_english": "General Physics2(KC&EC)",
+      "date": "2026-10-14",
+      "start_minute": 820,
+      "end_minute": 930,
+      "subject_name": "일반물리학2",
+      "is_ec": null,
+      "source_rooms": "예6201",
+      "room_rules": [
+        {
+          "room": "예6201",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "H29",
+        "H35"
+      ],
+      "note": null,
+      "key": "exam-027"
+    },
+    {
+      "subject": "전자회로의이해와응용",
+      "subject_english": "Understanding and Applications of Basic Electronics",
+      "date": "2026-10-14",
+      "start_minute": 820,
+      "end_minute": 930,
+      "subject_name": "전자회로의이해와응용",
+      "is_ec": false,
+      "source_rooms": "예6202",
+      "room_rules": [
+        {
+          "room": "예6202",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "H30",
+        "H36"
+      ],
+      "note": null,
+      "key": "exam-028"
+    },
+    {
+      "subject": "확률및통계(EC)",
+      "subject_english": "Probability and Statistics(EC)",
+      "date": "2026-10-14",
+      "start_minute": 820,
+      "end_minute": 930,
+      "subject_name": "확률및통계",
+      "is_ec": true,
+      "source_rooms": "형3307",
+      "room_rules": [
+        {
+          "room": "형3307",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "H31",
+        "H37"
+      ],
+      "note": null,
+      "key": "exam-029"
+    },
+    {
+      "subject": "기초유기화학(EC)",
+      "subject_english": "Fundamentals of Organic Chemistry(EC)",
+      "date": "2026-10-14",
+      "start_minute": 940,
+      "end_minute": 1050,
+      "subject_name": "기초유기화학",
+      "is_ec": true,
+      "source_rooms": "형3306",
+      "room_rules": [
+        {
+          "room": "형3306",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "H44",
+        "H50"
+      ],
+      "note": null,
+      "key": "exam-030"
+    },
+    {
+      "subject": "별과우주",
+      "subject_english": "Stars and Universe",
+      "date": "2026-10-14",
+      "start_minute": 940,
+      "end_minute": 1050,
+      "subject_name": "별과우주",
+      "is_ec": false,
+      "source_rooms": "창5510",
+      "room_rules": [
+        {
+          "room": "창5510",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "H45",
+        "H51"
+      ],
+      "note": null,
+      "key": "exam-031"
+    },
+    {
+      "subject": "생물학및실험(국내반)",
+      "subject_english": "Biology and Exp.(Korean)",
+      "date": "2026-10-14",
+      "start_minute": 940,
+      "end_minute": 1050,
+      "subject_name": "생물학및실험",
+      "is_ec": false,
+      "source_rooms": "예6201(1,2반)\n예6202(3,4반)",
+      "room_rules": [
+        {
+          "room": "예6201",
+          "is_ec": null,
+          "sections": [
+            "1",
+            "2"
+          ]
+        },
+        {
+          "room": "예6202",
+          "is_ec": null,
+          "sections": [
+            "3",
+            "4"
+          ]
+        }
+      ],
+      "source_cells": [
+        "H41",
+        "H47"
+      ],
+      "note": null,
+      "key": "exam-032"
+    },
+    {
+      "subject": "생물학및실험Ⅱ",
+      "subject_english": "Biology and Exp.Ⅰ(Foreign)",
+      "date": "2026-10-14",
+      "start_minute": 940,
+      "end_minute": 1050,
+      "subject_name": "생물학및실험Ⅱ",
+      "is_ec": false,
+      "source_rooms": "예6202",
+      "room_rules": [
+        {
+          "room": "예6202",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "H42",
+        "H48"
+      ],
+      "note": null,
+      "key": "exam-033"
+    },
+    {
+      "subject": "한국사의이해",
+      "subject_english": "Understanding of Korean History",
+      "date": "2026-10-14",
+      "start_minute": 940,
+      "end_minute": 1050,
+      "subject_name": "한국사의이해",
+      "is_ec": false,
+      "source_rooms": "대강당",
+      "room_rules": [
+        {
+          "room": "대강당",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "H43",
+        "H49"
+      ],
+      "note": null,
+      "key": "exam-034"
+    },
+    {
+      "subject": "지구과학입문",
+      "subject_english": "Introduction to Earth Science",
+      "date": "2026-10-14",
+      "start_minute": 1170,
+      "end_minute": 1260,
+      "subject_name": "지구과학입문",
+      "is_ec": false,
+      "source_rooms": "탐2403",
+      "room_rules": [
+        {
+          "room": "탐2403",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "H57"
+      ],
+      "note": null,
+      "key": "exam-035"
+    },
+    {
+      "subject": "기초학술영어",
+      "subject_english": "English for Academic Purposes",
+      "date": "2026-10-15",
+      "start_minute": 520,
+      "end_minute": 620,
+      "subject_name": "기초학술영어",
+      "is_ec": false,
+      "source_rooms": "형3307",
+      "room_rules": [
+        {
+          "room": "형3307",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K5",
+        "K11"
+      ],
+      "note": null,
+      "key": "exam-036"
+    },
+    {
+      "subject": "일반화학2(EC포함)",
+      "subject_english": "General Chemistry2(KC&EC)",
+      "date": "2026-10-15",
+      "start_minute": 520,
+      "end_minute": 630,
+      "subject_name": "일반화학2",
+      "is_ec": null,
+      "source_rooms": "예6201",
+      "room_rules": [
+        {
+          "room": "예6201",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K4",
+        "K10"
+      ],
+      "note": null,
+      "key": "exam-037"
+    },
+    {
+      "subject": "탐구물리",
+      "subject_english": "Project Physics",
+      "date": "2026-10-15",
+      "start_minute": 520,
+      "end_minute": 600,
+      "subject_name": "탐구물리",
+      "is_ec": false,
+      "source_rooms": "형3305",
+      "room_rules": [
+        {
+          "room": "형3305",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K6",
+        "K12"
+      ],
+      "note": null,
+      "key": "exam-038"
+    },
+    {
+      "subject": "기초해석학",
+      "subject_english": "Elementary Real Analysis",
+      "date": "2026-10-15",
+      "start_minute": 580,
+      "end_minute": 750,
+      "subject_name": "기초해석학",
+      "is_ec": false,
+      "source_rooms": "형3404",
+      "room_rules": [
+        {
+          "room": "형3404",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K15",
+        "K18",
+        "K24"
+      ],
+      "note": null,
+      "key": "exam-039"
+    },
+    {
+      "subject": "수학특강(위상수학)",
+      "subject_english": "Special Topics in Mathematics(Topology)",
+      "date": "2026-10-15",
+      "start_minute": 580,
+      "end_minute": 750,
+      "subject_name": "수학특강(위상수학)",
+      "is_ec": false,
+      "source_rooms": "형3405",
+      "room_rules": [
+        {
+          "room": "형3405",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K14",
+        "K17",
+        "K23"
+      ],
+      "note": null,
+      "key": "exam-040"
+    },
+    {
+      "subject": "화학및실험(국내반)",
+      "subject_english": "Chemistry and Exp.(Korean)",
+      "date": "2026-10-15",
+      "start_minute": 580,
+      "end_minute": 750,
+      "subject_name": "화학및실험",
+      "is_ec": false,
+      "source_rooms": "대강당",
+      "room_rules": [
+        {
+          "room": "대강당",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K13",
+        "K16",
+        "K22"
+      ],
+      "note": null,
+      "key": "exam-041"
+    },
+    {
+      "subject": "물리학기초Ⅱ",
+      "subject_english": "Basics of PhysicsⅡ",
+      "date": "2026-10-15",
+      "start_minute": 640,
+      "end_minute": 750,
+      "subject_name": "물리학기초Ⅱ",
+      "is_ec": false,
+      "source_rooms": "형3306",
+      "room_rules": [
+        {
+          "room": "형3306",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K21",
+        "K27"
+      ],
+      "note": null,
+      "key": "exam-042"
+    },
+    {
+      "subject": "물리학및실험1",
+      "subject_english": "Physics and Exp.1",
+      "date": "2026-10-15",
+      "start_minute": 640,
+      "end_minute": 750,
+      "subject_name": "물리학및실험1",
+      "is_ec": false,
+      "source_rooms": "예6201(1,2반)\n예6202(3,4반)",
+      "room_rules": [
+        {
+          "room": "예6201",
+          "is_ec": null,
+          "sections": [
+            "1",
+            "2"
+          ]
+        },
+        {
+          "room": "예6202",
+          "is_ec": null,
+          "sections": [
+            "3",
+            "4"
+          ]
+        }
+      ],
+      "source_cells": [
+        "K19",
+        "K25"
+      ],
+      "note": null,
+      "key": "exam-043"
+    },
+    {
+      "subject": "정보과학3",
+      "subject_english": "Computer Science3",
+      "date": "2026-10-15",
+      "start_minute": 640,
+      "end_minute": 750,
+      "subject_name": "정보과학3",
+      "is_ec": false,
+      "source_rooms": "창5702",
+      "room_rules": [
+        {
+          "room": "창5702",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K20",
+        "K26"
+      ],
+      "note": null,
+      "key": "exam-044"
+    },
+    {
+      "subject": "영어특강(Advanced Speaking & Writing)",
+      "subject_english": "Special Topics in English(Advanced Speaking & Writing)",
+      "date": "2026-10-15",
+      "start_minute": 820,
+      "end_minute": 910,
+      "subject_name": "영어특강(Advanced Speaking & Writing)",
+      "is_ec": false,
+      "source_rooms": "도서관 4층 세미나실",
+      "room_rules": [
+        {
+          "room": "도서관 4층 세미나실",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K32",
+        "K38"
+      ],
+      "note": null,
+      "key": "exam-045"
+    },
+    {
+      "subject": "일반물리학1(EC포함)",
+      "subject_english": "General Physics1(KC&EC)",
+      "date": "2026-10-15",
+      "start_minute": 820,
+      "end_minute": 930,
+      "subject_name": "일반물리학1",
+      "is_ec": null,
+      "source_rooms": "예6201",
+      "room_rules": [
+        {
+          "room": "예6201",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K29",
+        "K35"
+      ],
+      "note": null,
+      "key": "exam-046"
+    },
+    {
+      "subject": "일반화학1(EC포함)",
+      "subject_english": "General Chemistry1(KC&EC)",
+      "date": "2026-10-15",
+      "start_minute": 820,
+      "end_minute": 930,
+      "subject_name": "일반화학1",
+      "is_ec": null,
+      "source_rooms": "예6202",
+      "room_rules": [
+        {
+          "room": "예6202",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K30",
+        "K36"
+      ],
+      "note": null,
+      "key": "exam-047"
+    },
+    {
+      "subject": "한국어2",
+      "subject_english": "Korean2(Foreign)",
+      "date": "2026-10-15",
+      "start_minute": 820,
+      "end_minute": 930,
+      "subject_name": "한국어2",
+      "is_ec": false,
+      "source_rooms": "형3306",
+      "room_rules": [
+        {
+          "room": "형3306",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K31",
+        "K37"
+      ],
+      "note": null,
+      "key": "exam-048"
+    },
+    {
+      "subject": "TOPIK한국어",
+      "subject_english": "TOPIK Korean",
+      "date": "2026-10-15",
+      "start_minute": 940,
+      "end_minute": 1050,
+      "subject_name": "TOPIK한국어",
+      "is_ec": false,
+      "source_rooms": "형3306",
+      "room_rules": [
+        {
+          "room": "형3306",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K42",
+        "K48"
+      ],
+      "note": null,
+      "key": "exam-049"
+    },
+    {
+      "subject": "문학",
+      "subject_english": "Literature",
+      "date": "2026-10-15",
+      "start_minute": 940,
+      "end_minute": 1050,
+      "subject_name": "문학",
+      "is_ec": false,
+      "source_rooms": "대강당",
+      "room_rules": [
+        {
+          "room": "대강당",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "K41",
+        "K47"
+      ],
+      "note": null,
+      "key": "exam-050"
+    },
+    {
+      "subject": "물리학문제의해결과소통",
+      "subject_english": "Physics Problem Solving and Communication",
+      "date": "2026-10-16",
+      "start_minute": 520,
+      "end_minute": 630,
+      "subject_name": "물리학문제의해결과소통",
+      "is_ec": false,
+      "source_rooms": "창5510",
+      "room_rules": [
+        {
+          "room": "창5510",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "N7",
+        "N13"
+      ],
+      "note": null,
+      "key": "exam-051"
+    },
+    {
+      "subject": "소통과작문",
+      "subject_english": "Communication and Composition",
+      "date": "2026-10-16",
+      "start_minute": 520,
+      "end_minute": 630,
+      "subject_name": "소통과작문",
+      "is_ec": false,
+      "source_rooms": "예6201(1,2,3반)\n예6202(4,5,6반)",
+      "room_rules": [
+        {
+          "room": "예6201",
+          "is_ec": null,
+          "sections": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        {
+          "room": "예6202",
+          "is_ec": null,
+          "sections": [
+            "4",
+            "5",
+            "6"
+          ]
+        }
+      ],
+      "source_cells": [
+        "N4",
+        "N10"
+      ],
+      "note": null,
+      "key": "exam-052"
+    },
+    {
+      "subject": "수학특강(인공지능수학)",
+      "subject_english": "Special topics in mathematics (Mathematics for AI)",
+      "date": "2026-10-16",
+      "start_minute": 520,
+      "end_minute": 630,
+      "subject_name": "수학특강(인공지능수학)",
+      "is_ec": false,
+      "source_rooms": "형3305",
+      "room_rules": [
+        {
+          "room": "형3305",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "N6",
+        "N12"
+      ],
+      "note": null,
+      "key": "exam-053"
+    },
+    {
+      "subject": "일반생물학1(EC)",
+      "subject_english": "General Biology1(EC)",
+      "date": "2026-10-16",
+      "start_minute": 520,
+      "end_minute": 630,
+      "subject_name": "일반생물학1",
+      "is_ec": true,
+      "source_rooms": "형3307",
+      "room_rules": [
+        {
+          "room": "형3307",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "N5",
+        "N11"
+      ],
+      "note": null,
+      "key": "exam-054"
+    },
+    {
+      "subject": "일반천문학",
+      "subject_english": "General Astronomy",
+      "date": "2026-10-16",
+      "start_minute": 640,
+      "end_minute": 750,
+      "subject_name": "일반천문학",
+      "is_ec": false,
+      "source_rooms": "예6201",
+      "room_rules": [
+        {
+          "room": "예6201",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "N16",
+        "N22"
+      ],
+      "note": null,
+      "key": "exam-055"
+    },
+    {
+      "subject": "과학기술과사회",
+      "subject_english": "Science, Technology and Society",
+      "date": "2026-10-16",
+      "start_minute": 700,
+      "end_minute": 750,
+      "subject_name": "과학기술과사회",
+      "is_ec": false,
+      "source_rooms": "예6202",
+      "room_rules": [
+        {
+          "room": "예6202",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "N23"
+      ],
+      "note": null,
+      "key": "exam-056"
+    },
+    {
+      "subject": "융합특강(물리학의역사와철학)",
+      "subject_english": "Special Topics in Convergence(History and Philosophy of Physics)",
+      "date": "2026-10-16",
+      "start_minute": 700,
+      "end_minute": 750,
+      "subject_name": "융합특강(물리학의역사와철학)",
+      "is_ec": false,
+      "source_rooms": "예6202",
+      "room_rules": [
+        {
+          "room": "예6202",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "N24"
+      ],
+      "note": null,
+      "key": "exam-057"
+    },
+    {
+      "subject": "국어2",
+      "subject_english": "Korean2(Korean)",
+      "date": "2026-10-16",
+      "start_minute": 820,
+      "end_minute": 900,
+      "subject_name": "국어2",
+      "is_ec": false,
+      "source_rooms": "대강당(4,5,6,7,8반)\n예6201(1,2,3반)",
+      "room_rules": [
+        {
+          "room": "대강당",
+          "is_ec": null,
+          "sections": [
+            "4",
+            "5",
+            "6",
+            "7",
+            "8"
+          ]
+        },
+        {
+          "room": "예6201",
+          "is_ec": null,
+          "sections": [
+            "1",
+            "2",
+            "3"
+          ]
+        }
+      ],
+      "source_cells": [
+        "N30",
+        "N36"
+      ],
+      "note": null,
+      "key": "exam-058"
+    },
+    {
+      "subject": "뉴스와미디어",
+      "subject_english": "News and Media",
+      "date": "2026-10-16",
+      "start_minute": 820,
+      "end_minute": 870,
+      "subject_name": "뉴스와미디어",
+      "is_ec": false,
+      "source_rooms": "형3306",
+      "room_rules": [
+        {
+          "room": "형3306",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "N31"
+      ],
+      "note": null,
+      "key": "exam-059"
+    },
+    {
+      "subject": "법과학",
+      "subject_english": "Forensic Science",
+      "date": "2026-10-16",
+      "start_minute": 820,
+      "end_minute": 930,
+      "subject_name": "법과학",
+      "is_ec": false,
+      "source_rooms": "예6202",
+      "room_rules": [
+        {
+          "room": "예6202",
+          "is_ec": null,
+          "sections": []
+        }
+      ],
+      "source_cells": [
+        "N29",
+        "N35"
+      ],
+      "note": null,
+      "key": "exam-060"
+    },
+    {
+      "subject": "융합특강(AI시대의인간기술)",
+      "subject_english": null,
+      "subject_name": "융합특강(AI시대의인간기술)",
+      "is_ec": false,
+      "date": null,
+      "start_minute": null,
+      "end_minute": null,
+      "source_rooms": null,
+      "room_rules": [],
+      "source_cells": [
+        "A60"
+      ],
+      "note": "중간고사 별도 실시 — 시험 일시와 장소는 별도 안내를 확인하세요.",
+      "key": "exam-061"
+    }
+  ]
+}

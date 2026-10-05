@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from backend import models, periods
 from backend.auth import get_current_user, get_db
 from backend.calendar_router import event_out
+from backend.exams import active_period
 from backend.terms import resolve_term
 from backend.versioning import at_version
 
@@ -346,6 +347,7 @@ async def get_home(
 
     return {
         "term": {"year": target_year, "semester": target_semester},
+        "exam_period": active_period(db, target_year, target_semester),
         "now": {
             "time": now.strftime("%H:%M"),
             # 자정 기준 분. 화면이 하루를 시간 축으로 그려서 캐럿을 여기에 세웁니다

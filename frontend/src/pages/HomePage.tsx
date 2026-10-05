@@ -57,7 +57,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Repeat, WifiOff } from "lucide-react";
+import { ArrowRight, Repeat, WifiOff, ClipboardList } from "lucide-react";
 import type { SubjectData, Term } from "../types";
 import { fetchHome, type HomeData } from "../lib/friendsApi";
 import { isTradeAvailable, type TradeConfig } from "../lib/features";
@@ -417,6 +417,16 @@ const HomePage: React.FC<HomePageProps> = ({
                         다시 시도
                     </button>
                 </div>
+            )}
+
+            {home.exam_period?.open && (
+                <Link to="/exams" className="group flex items-center justify-between gap-3 border-2 border-black bg-retro-accent2 px-4 py-3 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-1 hover:translate-y-1 hover:shadow-none">
+                    <span className="flex items-center gap-2.5 min-w-0">
+                        <ClipboardList size={18} strokeWidth={2.75} className="shrink-0" />
+                        <span className="min-w-0"><span className="block text-[13px] font-black">{home.exam_period.kind === "midterm" ? "중간고사" : "시험"} 시간표 보러가기</span><span className="block text-xs font-bold text-black/60">{home.exam_period.start_date.slice(5).replace("-", "/")}–{home.exam_period.end_date.slice(5).replace("-", "/")}</span></span>
+                    </span>
+                    <ArrowRight size={18} strokeWidth={2.75} className="shrink-0" />
+                </Link>
             )}
 
             {/* ── 수강 변경 기간에만 ─────────────────────────────────────

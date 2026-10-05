@@ -110,3 +110,11 @@ UNIQUE 제약에 `version_from` 이 들어갑니다. 한 학생이 수업을 뺐
 `date` 하나에 유일한 공용 이벤트입니다. `source_day`(`MON`~`FRI`)의 수업을 그 날짜의
 홈 `today` 목록에 적용하고, `title`은 Admin 목록과 API 응답에 표시합니다. 주간 격자는
 요일별 학기 기본 시간표를 계속 나타냅니다.
+
+## `ExamPeriod` · `Exam` · `ExamRegistration`
+
+시험 회차 → 개별 시험 → 학생별 응시 대상으로 이어집니다. 회차의 `key`는 유일하고,
+시험은 `(period_id, source_key)`, 응시 행은 `(exam_id, stu_id)`로 중복을 막습니다.
+응시 행의 `class_id`는 시험실을 해석한 수강 분반의 선택적 연결이며, `room`은
+평소 수업 강의실이 아닌 공지의 시험실입니다. 자세한 적재·조회 절차는
+[exams.guide.md](exams.guide.md)를 따릅니다.

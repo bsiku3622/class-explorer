@@ -29,6 +29,7 @@ from backend.state_router import router as state_router
 from backend.calendar_router import router as calendar_router
 from backend.friends_router import router as friends_router
 from backend.home_router import router as home_router
+from backend.exams_router import router as exams_router
 from backend.classes_router import router as classes_router, terms_router
 from backend.bench_router import router as bench_router
 from backend.materials_router import router as materials_router, admin_router as admin_materials_router
@@ -50,6 +51,7 @@ app.include_router(state_router)
 app.include_router(calendar_router)
 app.include_router(friends_router)      # 친구 + 교시 시각표
 app.include_router(home_router)         # 홈 대시보드 (한 요청으로 다)
+app.include_router(exams_router)
 app.include_router(terms_router)
 app.include_router(classes_router)      # GET / — 학기 전체 + 분반 명단
 app.include_router(bench_router)        # 사람 1명 조회 · 수강 분포 · 본인 이수
