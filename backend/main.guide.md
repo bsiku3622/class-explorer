@@ -25,6 +25,8 @@ Trade(수강 변경 탐색)가 "이 분반 수강생 중 내 분반을 받을 �
 `materials_router`는 로그인 사용자의 자료 목록·업로드·preview·download를,
 `admin_materials_router`는 admin 전용 검수·삭제를 등록합니다.
 
+`exams_router`는 인증한 계정 본인의 시험 목록(`GET /exams/me`)을 등록합니다.
+
 두 프론트의 차이는 **UI 와 캐시**입니다. ksa-bench 에는 전교생을 늘어놓는 화면이 없고,
 학기 데이터를 localStorage 에 캐시하지 않습니다(명단이 브라우저에 파일로 남지 않도록).
 

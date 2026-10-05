@@ -112,6 +112,7 @@ sessionToken=null · 그 외 주소        → LoginPage (라우터 밖, 전체 
 /analysis         → AnalysisPage (allClassesData, studentCounts, lastUpdated, fetchInitialData, handleSearch=handleSearchToggle)
 /browse           → BrowsePage (allClassesData, studentCounts, lastUpdated, fetchInitialData, handleSearch=handleSearchSelect)
 /about            → SettingsPage (props 없음)
+/exams            → ExamsPage (선택 학기의 본인 시험 시간표)
 /admin            → AdminPage (is_admin=true일 때만 라우트 등록)
 /*                → currentUser 가 있으면 Navigate to /, 없으면 로딩 화면
 ```

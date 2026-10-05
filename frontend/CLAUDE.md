@@ -41,6 +41,7 @@ src/
 │   ├── TradePage.tsx         → 수강 변경 탐색 (2026-2 한정, features 플래그)
 │   ├── ZamongPage.tsx        → 교육과정 이수 현황 + 평점 (학번 등록 필요)
 │   ├── HomePage.tsx          → 홈 — 지금 교시·가야 할 교실·오늘 시간표·급식·공강 친구
+│   ├── ExamsPage.tsx         → 본인 시험 시간표 — 실제 시각·분반별 시험실·별도 실시
 │   ├── CalendarPage.tsx      → 학사일정 달력 + 개인 일정 + 일정 제안
 │   └── SettingsPage.tsx      → 기능 가이드북 + About
 └── components/

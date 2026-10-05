@@ -66,6 +66,7 @@ export interface TodayClass {
 }
 
 export interface HomeData {
+    exam_period?: import("./examsApi").ExamPeriod | null;
     term: Term;
     now: {
         time: string;

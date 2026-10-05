@@ -38,6 +38,7 @@ const PrivacyPage = React.lazy(() => import("./pages/PrivacyPage"));
 const AdminPage = React.lazy(() => import("./pages/AdminPage"));
 const TradePage = React.lazy(() => import("./pages/TradePage"));
 const HomePage = React.lazy(() => import("./pages/HomePage"));
+const ExamsPage = React.lazy(() => import("./pages/ExamsPage"));
 const ZamongPage = React.lazy(() => import("./pages/ZamongPage"));
 const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
 const MaterialsPage = React.lazy(() => import("./pages/MaterialsPage"));
@@ -672,6 +673,7 @@ const App: React.FC = () => {
                                     }
                                 />
                             )}
+                            <Route path="/exams" element={<ExamsPage term={term} />} />
                             <Route
                                 path="/zamong"
                                 element={

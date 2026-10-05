@@ -429,6 +429,51 @@ class TimetableOverride(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
 
+class ExamPeriod(Base):
+    """시험 회차와 홈 배너 노출 기간. 원본 공지의 출처도 회차에 보관합니다."""
+    __tablename__ = "exam_periods"
+    id = Column(Integer, primary_key=True)
+    key = Column(String, nullable=False, unique=True)
+    year = Column(Integer, nullable=False, index=True)
+    semester = Column(Integer, nullable=False)
+    kind = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    visible_from = Column(Date, nullable=False)
+    visible_until = Column(Date, nullable=False)
+    source_name = Column(String, nullable=False)
+    source_sha256 = Column(String, nullable=False)
+
+
+class Exam(Base):
+    """실제 시험 한 건. 별도 실시 과목은 날짜·시각 없이 note를 저장합니다."""
+    __tablename__ = "exams"
+    id = Column(Integer, primary_key=True)
+    period_id = Column(Integer, ForeignKey("exam_periods.id"), nullable=False, index=True)
+    source_key = Column(String, nullable=False)
+    subject = Column(String, nullable=False)
+    subject_english = Column(String, nullable=True)
+    date = Column(Date, nullable=True, index=True)
+    start_minute = Column(Integer, nullable=True)
+    end_minute = Column(Integer, nullable=True)
+    source_rooms = Column(Text, nullable=True)
+    room_rules = Column(JSON, nullable=False, default=list)
+    note = Column(Text, nullable=True)
+    __table_args__ = (UniqueConstraint("period_id", "source_key", name="_exam_source_uc"),)
+
+
+class ExamRegistration(Base):
+    """학교 공지의 응시 대상 스냅샷. 수강 데이터는 분반별 시험실 해석에만 씁니다."""
+    __tablename__ = "exam_registrations"
+    id = Column(Integer, primary_key=True)
+    exam_id = Column(Integer, ForeignKey("exams.id"), nullable=False, index=True)
+    stu_id = Column(String, ForeignKey("students.stuId"), nullable=False, index=True)
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=True)
+    room = Column(String, nullable=True)
+    __table_args__ = (UniqueConstraint("exam_id", "stu_id", name="_exam_registration_uc"),)
+
+
 class EventRequest(Base):
     """
     일반 계정이 "이건 다들 알아야 할 것 같은데요" 하고 올리는 공용 일정 제안.

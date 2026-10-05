@@ -523,5 +523,7 @@ python-multipart>=0.0.12
 → `requirements.txt` (repo root) 참조
 
 ## 관련 가이드
+
+- [exams.guide.md](exams.guide.md) — 시험 회차·응시 대상 DB 적재와 본인 시간표
 - [api-guide.md](api-guide.md) — API 엔드포인트 명세
 - [../frontend/CLAUDE.md](../frontend/CLAUDE.md) — 프론트엔드 연동 방식

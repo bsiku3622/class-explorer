@@ -20,6 +20,7 @@ backend/archive/
 backend/materials/
 backend/material-backups/
 backend/students.txt
+/data/
 backend/__pycache__/
 
 # Node / Frontend
