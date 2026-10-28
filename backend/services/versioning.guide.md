@@ -1,6 +1,6 @@
-# backend/versioning.py Guide
+# backend/services/versioning.py Guide
 
-> [← Backend Guide](CLAUDE.md)
+> [← Backend Guide](../CLAUDE.md)
 
 ## 역할
 데이터 회차 — 수집이 한 학기를 갈아 끼운 이력. **회차 조건을 아는 유일한 자리**입니다.
@@ -18,7 +18,7 @@
 ## 읽기
 
 ```python
-from backend.versioning import at_version
+from backend.services.versioning import at_version
 
 db.query(models.Class).filter(at_version(models.Class))       # 지금 유효한 것
 db.query(models.Class).filter(at_version(models.Class, 5))    # 5회차 시점
@@ -34,7 +34,7 @@ db.query(models.Class).filter(at_version(models.Class, 5))    # 5회차 시점
 없이 부르면 끝납니다.
 
 관계(`Class.times` 등)는 `models.py` 에서 이미 막혀 있어 조건이 필요 없습니다. 대신
-**과거 회차는 관계로 못 읽습니다** — `classes_router` 의 `roster`/`slots` 처럼 직접
+**과거 회차는 관계로 못 읽습니다** — `routers/classes.py` 의 `roster`/`slots` 처럼 직접
 물어야 합니다.
 
 ## 함수

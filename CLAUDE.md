@@ -73,10 +73,10 @@ npm run dev       # https://localhost:5189 — 같은 백엔드(8000)를 봅니�
 
 # Backend (repo root) — 서버 하나가 두 프론트를 다 받습니다
 uvicorn backend.main:app --reload   # FastAPI (port 8000)
-python -m backend.parser_run                       # KEIS API → SQLite 동기화 (오늘 기준 학기)
-python -m backend.parser_run -y 2026 -s 2          # 학기 지정
-python -m backend.parse_calendar_pdf <학사일정.pdf>  # 연간 학사일정 PDF → calendar_seed.json
-python -m backend.import_calendar                  # seed → DB (source='pdf' 만 교체)
+python -m backend.cli.parser_run                       # KEIS API → SQLite 동기화 (오늘 기준 학기)
+python -m backend.cli.parser_run -y 2026 -s 2          # 학기 지정
+python -m backend.cli.parse_calendar_pdf <학사일정.pdf>  # 연간 학사일정 PDF → calendar_seed.json
+python -m backend.cli.import_calendar                  # seed → DB (source='pdf' 만 교체)
 ```
 
 테스트 미구현. 검증은 `npm run build` + `npm run lint` 통과로 대체. **테스트 파일 생성 금지.**
@@ -86,7 +86,7 @@ python -m backend.import_calendar                  # seed → DB (source='pdf' �
 ## Architecture
 
 ```
-KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
+KEIS API → cli/parser_run.py (학기 단위) → ksa_timetable.db
                                   ↓
               FastAPI (GET /?year=&semester=, /terms, /auth/*, /admin/*)
                                   ↓
@@ -101,7 +101,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 
 **데이터 회차**: 수집은 행을 지우지 않고 `version_from`/`version_to` 로 **닫습니다**.
 `(year, semester)` 마다 1부터 오르고 **바뀐 게 있을 때만** 늘어납니다. 읽을 때는
-`backend/versioning.py` 의 `at_version()` 을 거치세요 — 손으로 조건을 적으면 폐강된
+`backend/services/versioning.py` 의 `at_version()` 을 거치세요 — 손으로 조건을 적으면 폐강된
 분반이 조회에 섞입니다. 회차는 `/auth/me` 에 실려 나가 **전교생 브라우저 캐시를
 무효화**합니다.
 
@@ -114,7 +114,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | `src/lib/searchEngine.ts` | 검색 전체 로직 (prefix 파싱, 불린 연산, 초성 매칭)                              |
 | `src/lib/schedule.ts`     | 연강·쉬는시간 판정 규칙 — 시간표를 그리는 넷이 같이 씁니다                       |
 | `src/lib/session.ts`      | 세션 토큰 + 인증 헤더 — 토큰 키를 쓰는 유일한 자리                              |
-| `backend/versioning.py`   | 회차 필터·기록 — 수업/시간/수강을 읽는 모든 자리가 같이 씁니다                    |
+| `backend/services/versioning.py` | 회차 필터·기록 — 수업/시간/수강을 읽는 모든 자리가 같이 씁니다             |
 | `src/lib/utils.ts`        | `DAY_MAP`, `DAYS_ORDER`, `PERIODS`, `extractSearchTerms()`, `getStudentColor()` |
 | `src/lib/api.ts`          | axios 인스턴스 (`VITE_API_BASE_URL` 기반 baseURL)                               |
 | `src/lib/curriculum.ts`   | 졸업 요건 진척도 + 선수관계 그래프 배치                                          |
@@ -132,7 +132,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 - `DAY_MAP`, `DAYS_ORDER`, `PERIODS` — `src/lib/utils.ts`에서 import, 로컬 재정의 금지
 - 연강·쉬는시간 판정 — `src/lib/schedule.ts`. **임계값을 파일마다 다시 적지 마세요**
 - 세션 토큰 — `src/lib/session.ts` (`authHeader()`). `localStorage` 를 직접 읽지 마세요
-- 수업·시간·수강 조회 — `backend/versioning.py` 의 `at_version()`. **조건을 손으로 적지 마세요**
+- 수업·시간·수강 조회 — `backend/services/versioning.py` 의 `at_version()`. **조건을 손으로 적지 마세요**
 - `Class.enrollments` · `Class.times` 등 관계는 **지금 열려 있는 행만** 봅니다. 과거 회차는
   관계로 못 읽습니다 — `at_version(model, version)` 으로 직접 물어야 합니다
 - 하이라이트 키워드 추출: `extractSearchTerms()` 단일 사용
@@ -215,6 +215,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | 디자인 변경   | `frontend/design-guide.md`    |
 | 컴포넌트 추가 | `frontend/component-guide.md` |
 | API 수정      | `backend/api-guide.md`        |
+| 백엔드 구조·DB 두 파일 | `backend/CLAUDE.md`, `backend/core/db.guide.md` |
 | ksa-bench 작업 | `bench-frontend/CLAUDE.md` (가이드 사본이 그 안에 따로 있습니다) |
 | 안드로이드 앱·위젯 | `android/CLAUDE.md` |
 | ksain 수집·분석·학사일정 자동 반영 | `backend/ksain.guide.md` |

@@ -14,14 +14,14 @@
 
 ## 적재
 
-`backend/import_exams.py`는 이미 정규화한 JSON 두 파일을 읽습니다. 엑셀 양식은 매번
+`backend/cli/import_exams.py`는 이미 정규화한 JSON 두 파일을 읽습니다. 엑셀 양식은 매번
 다르므로 앱에는 범용 파서나 Admin 업로드를 넣지 않습니다. 공개 일정은
 `backend/exam_seed.json`, 비공개 명단은 서버 `data/exams/`에 보관합니다.
 
 적재 전 확인 명령입니다.
 
 ```bash
-python3.14 -m backend.import_exams --registrations data/exams/2026-2-midterm-registrations.json --dry-run
+python3.14 -m backend.cli.import_exams --registrations data/exams/2026-2-midterm-registrations.json --dry-run
 ```
 
 확인 후 `--dry-run`을 빼면 SQLite backup API로 복사본을 남기고 해당 회차만
@@ -39,7 +39,7 @@ python3.14 -m backend.import_exams --registrations data/exams/2026-2-midterm-reg
 고릅니다.
 
 ```bash
-python3.14 -m backend.import_exams --seed data/exams/exam_seed_2026-2-final.json \
+python3.14 -m backend.cli.import_exams --seed data/exams/exam_seed_2026-2-final.json \
   --registrations data/exams/2026-2-final-registrations.json --dry-run
 ```
 
@@ -60,11 +60,13 @@ python3.14 -m backend.import_exams --seed data/exams/exam_seed_2026-2-final.json
 
 ## 조회와 배너
 
-`exams_router.py`의 `GET /exams/me?year=&semester=`는 인증한 계정의
+`routers/exams.py`의 `GET /exams/me?year=&semester=`는 인증한 계정의
 `effective_stu_id`만 조회합니다. 학번을 외부 파라미터로 받지 않습니다.
 선택 학기의 최신 시험 회차와 날짜별 개인 시험·별도 실시 안내를 반환합니다.
+조회는 `services/exams.py`의 `exams_for()`가 하고, Ask의 `my_exams` 도구도 같은 함수를
+씁니다 — 본인 것만 나간다는 경계를 한 곳에 두려는 것입니다.
 
-`exams.py`의 `active_period()`는 서버 KST 날짜와 선택 학기로 노출 여부를
+`services/exams.py`의 `active_period()`는 서버 KST 날짜와 선택 학기로 노출 여부를
 판정합니다. `/home`의 `exam_period`가 활성 회차의 요약을 보내며, 배너가 `/exams`로
 연결됩니다. 2026-2 중간고사의 배너는 10월 5~16일, 시험은 10월 12~16일입니다.
 배너 기간이 끝나도 저장한 시험 시간표는 주소로 조회합니다.

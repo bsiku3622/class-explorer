@@ -1,3 +1,69 @@
+## 2026-10-28 — 백엔드 재배치 + ksain 검색 색인 + 기억(facts) — 브랜치 `feat/backend-overhaul`
+
+- 변경 파일: `backend/` 전체 재배치(`core/`·`routers/`·`services/`·`cli/`·`agent/`·`knowledge/` — 신규 `core/config.py`·`clock.py`·`ratelimit.py`, `services/calendar.py`·`schoolday.py`·`meals.py`·`timetable.py`·`curriculum.py`·`materials.py`, `agent/chat.py`, `knowledge/*`, `routers/facts.py`), `backend/models.py`(`Fact`), `backend/ksain/`(analyze v4·apply·sync·models), `deploy/class-explorer-*.service`, `frontend/src/lib/agentChat.ts`·`agentDemo.ts`, `frontend/src/pages/PrivacyPage.tsx`, Admin 기억 패널, 가이드 전반(`core/db.guide.md` 신규, `ksain.guide.md`·`agent.guide.md`·`deploy-guide.md` …)
+- 요약: 평평하던 `backend/` 를 패키지로 나누고 라우터끼리 import 하던 로직을 `services/` 로 내렸습니다. ksain 글·첨부를 한글 바이그램 FTS5 로 색인해 BM25 + 희소도 재정렬 + 근거 발췌로 찾고, 분석기 v4 가 글마다 사실을 뽑아 본 DB `facts` 에 쌓으면 Ask 가 질문에 맞는 사실을 시스템 프롬프트에 싣습니다. DB 파일은 둘 그대로 둡니다.
+
+**DB 는 합치지 않았습니다.** 처음 요청은 "쪼개진 DB 합치기" 였는데, 사용자와 다시 정리하고 둘로 남겼습니다.
+본 DB 스냅샷은 자동으로 지우지 않아서 합치면 ksain 에서 지워진 글(시험 명단 첨부 등)이 백업 속에 영영
+남고 — 개인정보처리방침 4항 위반입니다 — 서버에서는 API 가 `ksaclass`, 수집 타이머가 `baeks` 로 돌아서
+한 파일을 WAL 로 같이 쓰려면 `-wal`·`-shm` 의 주인·그룹 문제로 `data/` 권한부터 다시 짜야 했습니다(서버에서
+`systemctl show` 로 확인). 대신 연결 코드를 `core/db.py` 하나로 모으고 경계를 규칙으로 적었습니다: **사람이
+보고 고치는 결과물(자동 일정·기억)은 본 DB, 다시 만들 수 있는 원료(글·첨부·분석·색인)는 ksain.db.**
+
+- ⚠️ **기억(facts)을 ksain.db 에 두면 안 됩니다.** 처음엔 "글의 요약 DB" 라 ksain.db 가 자연스러워 보였지만,
+  API 는 `ProtectSystem=strict` 로 `data/` 밖에 못 쓰고 ksain.db 는 `backend/` 의 `baeks` 파일이라 Admin
+  패널의 숨기기·고치기가 운영에서 막힙니다
+- ⚠️ **API 는 ksain.db 스키마를 맞추지 않습니다**(`init_ksain_schema` 를 안 부름). 새 칼럼
+  `ksain_analyses.facts` 는 `deferred` 로, 새 색인 표는 없으면 LIKE 로 비켜 가게 했습니다 — 배포 직후 수집이
+  한 번 돌기 전까지 API 가 옛 ksain.db 를 봅니다. 하네스로 옛 ksain.db 를 물린 채 API 가 멀쩡한 것을 확인했습니다
+- ⚠️ 본 DB 를 WAL 로 바꾸지 마세요 — 같은 계정 문제입니다(`core/db.guide.md`)
+
+**재배치는 동작을 바꾸지 않았다는 걸 스냅샷으로 확인했습니다.** 테스트 파일을 만들지 않는 프로젝트라,
+`~/Bufs/Claude Files/2026-10-28/backend-overhaul/harness/` 에 하네스를 두고(저장소 밖) 재배치 전후의 DB 사본에서
+시각을 2026-10-28 14:05 로 고정한 채 GET 전부·쓰기 흐름·agent 도구 24개를 떠서 비교했습니다. 다른 건 백업
+폴더 경로(트리 위치) 하나였습니다. ⚠️ freezegun 은 `pydantic.v1` 을 먼저 불러야 메타클래스가 안 꼬입니다.
+
+- `auth.get_current_session` 이 주석("쓰기를 줄이려고 절반이 지났을 때만")과 달리 **매 요청마다
+  `last_used_at` 을 적고 커밋**하고 있었습니다. 5분 간격으로 줄였습니다 — 읽기만 하는 요청이 전부 쓰기가 되면
+  수집 타이머의 자동 일정 쓰기와 잠금을 다툽니다
+- 라우터끼리 import 하던 다섯 곳(home→calendar, bench→classes·curriculum, admin·material_backup→materials,
+  agent→calendar·home·exams)을 `services/` 로 내렸고, 공개 범위 필터 3벌·`(EC)` 표기 12곳·로그인/ksa-bench
+  요청 제한 2벌을 하나씩으로 합쳤습니다. 홈과 Agent 가 따로 하던 "그날 판정" 도 `services/schoolday.day_status`
+  하나입니다
+- `datetime.utcnow()`(3.12 폐기 경고)를 `core/clock.utcnow()` 로 바꿨고, `periods.now()/today()` 는 `core/clock`
+  으로 옮겼습니다. ⚠️ CLI 경로가 `python -m backend.cli.<이름>` 으로 바뀌어 **materials-backup 유닛도 바뀌었습니다**
+  — 배포 때 유닛을 다시 복사하지 않으면 그날 밤 타이머가 죽습니다(deploy-guide 에 박아 둠)
+- 기존부터 있던 죽은 코드는 그대로 뒀습니다: `core/app.py` 의 주석 처리된 CORS 블록, `routers/friends.py` 의
+  안 쓰는 `import datetime`
+
+**검색은 한글 바이그램 FTS5 입니다**(`knowledge/`). 예전 LIKE 검색이 FTS5 를 피한 이유는 trigram 이 두 글자
+낱말("필참")을 못 찾아서였는데, 바이그램을 띄어 쓴 문자열을 `unicode61 remove_diacritics 0` 에 넣으면 두 글자도
+찾고 구문 질의(`"기말 말고 고사"`)로 정확히 걸립니다. 서버 SQLite 3.37 에서 확인했습니다. 글 2,400건·조각
+2만 7천 개 색인에 5초, 질의 200ms 안팎, ksain.db 35 → 57MB.
+
+- ⚠️ **contentless FTS5 는 3.43 전에는 행을 못 지웁니다**(서버 3.37). 조각 행만 지우고 토큰은 고아로 두며,
+  조각 id 는 `AUTOINCREMENT` 라 고아가 새 조각에 붙지 않습니다. 고아가 30% 를 넘으면 다시 만듭니다
+- 처음 순위는 낱말을 같은 무게로 셌더니 "외출 신청 방법" 에 "HP 참가 신청" 이 1등이었습니다 — **희소도(IDF)**
+  로 무게를 주고, 최신성·중요도 가산점은 **관련도를 곱해** 관련 있는 글끼리만 순서를 정하게 했습니다
+- 발췌가 흔한 낱말 쪽으로 쏠렸습니다(100109 에서 "연구노트 … 제출" 이 "최종보고서 … 11월 29일" 을 이김).
+  발췌 창도 희소도 무게로 고르고, 후보 조각은 **상위 글 안에서 다시** 뽑습니다
+- 질문 말("언제까지"·"내야"·"하려면")이 검색어로 남으면 희소도가 높게 잡혀 맞는 사실을 밀어냅니다 — 조사·용언
+  꼬리 떼기와 불용어를 늘렸습니다
+
+**기억은 글에 묶인 요약 DB 입니다**(사용자 요청 — "따로 markdown 파일을 만든다거나는 별로"). 분석기 v4 가
+글마다 사실을 최대 6개 뽑고(일정과 겹치지 않는 방법·대상·규칙·결과), 날짜는 글에 있어야(`grounded`), 학번 꼴은
+버리고 전화·이메일은 걷어냅니다. 실제 gemma4:12b 로 R&E·외출·귀가·수강 정정·규정 글을 돌려 보니 문장이 혼자
+읽히고 일정과 겹치지 않았습니다. Ask 는 질문 전에 사실을 골라 시스템 프롬프트에 싣는데, 외출 승인·R&E 마감·멘토
+자격 질문이 **도구 없이 2~4초**에 답했습니다(도구를 거치면 6~8초). `[F12]` 표시는 걷어내고 그 글을 근거 맨
+앞에 겁니다. 숨기거나 고친 사실은 재분석이 덮어쓰지 않습니다(사본 DB 로 흐름 확인).
+
+- ⚠️ **사실을 뽑으면서 글 하나가 15~30초**가 됐습니다(전엔 5~10초). 타이머 유닛이 50분에 죽이므로 분석에
+  `--minutes 40` 시간 예산을 넣었습니다. 버전업 재분석은 **최근 1년·중요도 1 이상**(약 600건, 사용자 선택)만 —
+  배포 뒤 데스크탑 GPU 로 서너 시간입니다
+- 중요도 0(잡담·감사 이벤트) 글에서도 사실이 나와서(이벤트 종료 안내 3건) 버리게 했습니다
+- 개인정보처리방침에 정리한 사실(목적·지워지는 범위·OpenAI 로 가는 항목)을 넣었습니다. ⚠️ **시행일과 7일 전
+  공지는 손대지 않았습니다** — 배포 시점에 어떻게 할지 사용자가 정합니다
+
 ## 2026-10-28 — Ask: `/ai` 페이지 + 플로팅 버튼 (데스크탑 미니 창 · 모바일 전체 화면 창)
 
 - 변경 파일: `frontend/src/components/agent/`(신규 — AgentDock·AgentPanel·AgentEmpty·AgentThread·AgentComposer), `frontend/src/pages/AiPage.tsx`, `frontend/src/hooks/`(useAgentChat·useFollowBottom·useMediaQuery), `frontend/src/lib/`(agentChat·agentDemo·askMotion·imageAttach·agentApi), `frontend/src/App.tsx`, `frontend/src/index.css`, `frontend/src/pages/PrivacyPage.tsx`, `backend/agent_router.py`·`agent_tools.py`, 가이드(`frontend/CLAUDE.md` 의 `Ask` 절·`agent.guide.md`·`api-guide.md`)

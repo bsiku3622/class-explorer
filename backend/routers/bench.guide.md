@@ -1,6 +1,6 @@
-# backend/bench_router.py Guide
+# backend/routers/bench.py Guide
 
-> [← Backend Guide](CLAUDE.md) · [← 진입점 Guide](main.guide.md)
+> [← Backend Guide](../CLAUDE.md) · [← 진입점 Guide](../main.guide.md)
 
 ksa-bench 화면이 주로 쓰는 엔드포인트 모음입니다. **서버는 하나뿐이라
 class-explorer 도 부를 수 있습니다** — 라우터 등록으로 가르던 시절의 흔적이 아니라,
@@ -64,7 +64,7 @@ rate limit 으로 충분히 비쌉니다.
 `25-001+25-002+…` 같은 다중 질의를 허용하면 한 방에 전교생이 긁힙니다.
 
 ### `GET /me/progress` — 본인 누적 이수
-`curriculum_router.fetch_progress()` 를 본인 학번으로 부릅니다. 학번 미등록이면 409.
+`services/curriculum.py` 의 `fetch_progress()` 를 본인 학번으로 부릅니다. 학번 미등록이면 409.
 
 ### `GET·POST /friends`, `DELETE /friends/{stu_id}` — 친구
 **단방향입니다.** 내가 추가하면 끝이고 상대의 수락이 없습니다. 남의 시간표는 어차피
@@ -89,8 +89,8 @@ rate limit 으로 충분히 비쌉니다.
 전교생이 700명 남짓이니 상세 30회/분이면 전원을 훑는 데 20분이 넘습니다. 사람이 손으로
 하는 조회는 여기 안 걸립니다.
 
-메모리 정리는 `_maybe_cleanup()` 이 5분마다 합니다 — `auth_router` 의 로그인 제한과
-같은 방식입니다.
+세는 건 `core/ratelimit.py` 의 `SlidingWindow` 이고, 로그인 제한(`routers/auth.py`)도 같은 것을
+씁니다 — 한때 두 라우터가 거의 같은 코드를 따로 들고 있었습니다. 만료된 키는 5분마다 걷어냅니다.
 
 ## 고칠 때 주의
 

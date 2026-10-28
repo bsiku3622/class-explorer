@@ -3,7 +3,9 @@
 > [← Backend Guide](CLAUDE.md)
 
 ## 역할
-SQLAlchemy ORM 모델 정의. 시간표·계정·개인 기록·과목 자료를 같은 DB에 보관합니다.
+SQLAlchemy ORM 모델 정의. 시간표·계정·개인 기록·과목 자료·기억을 **본 DB** 한 곳에 보관합니다.
+`Base` 는 `core/db.py` 에서 가져옵니다. ksain 글·첨부·분석은 다른 파일(ksain.db)이라 여기가 아니라
+`ksain/models.py`(`KsainBase`)에 있습니다 — 나눈 이유는 [core/db.guide.md](core/db.guide.md).
 
 ## 모델
 
@@ -30,7 +32,7 @@ SQLAlchemy ORM 모델 정의. 시간표·계정·개인 기록·과목 자료를
 UniqueConstraint: `(subject, section, teacher, year, semester)`
 
 > 학기별 데이터가 한 DB에 공존합니다. 수업 조회 시 **항상 `year`/`semester`로 필터**하세요.
-> 조회 기준 학기 결정은 `backend/terms.py`의 `resolve_term()`을 사용합니다.
+> 조회 기준 학기 결정은 `backend/services/terms.py`의 `resolve_term()`을 사용합니다.
 
 ### `ClassTime`
 | 컬럼 | 타입 | 설명 |
@@ -94,7 +96,7 @@ UNIQUE 제약에 `version_from` 이 들어갑니다. 한 학생이 수업을 뺐
 `Student.enrollments` · `Subject.classes` · `Class.enrollments` · `Class.times` 는
 `primaryjoin` 에 `version_to IS NULL` 이 박혀 있고 `viewonly` 입니다. 읽는 쪽이 조건을
 기억하지 않아도 되게 하려는 것입니다. **과거 회차를 읽을 때는 이 관계를 쓸 수 없습니다**
-— `at_version()` 으로 직접 물어야 합니다 (`classes_router` 의 `roster`/`slots` 참고).
+— `at_version()` 으로 직접 물어야 합니다 (`routers/classes.py` 의 `roster`/`slots` 참고).
 
 ## `TermVersion`
 
@@ -118,3 +120,29 @@ UNIQUE 제약에 `version_from` 이 들어갑니다. 한 학생이 수업을 뺐
 응시 행의 `class_id`는 시험실을 해석한 수강 분반의 선택적 연결이며, `room`은
 평소 수업 강의실이 아닌 공지의 시험실입니다. 자세한 적재·조회 절차는
 [exams.guide.md](exams.guide.md)를 따릅니다.
+
+## `Fact` — Ask 의 기억
+
+ksain 글에서 분석(`ksain.analyze`)이 뽑은 사실 한 줄입니다. Ask 가 질문에 맞는 것을 골라 시스템
+프롬프트에 싣습니다(`knowledge/facts.py`). 사실마다 출처 글이 있고, 손으로 지어 넣는 사실은 없습니다.
+
+| 컬럼 | 뜻 |
+|------|-----|
+| `post_id` | ksain 글 번호. **외래키가 없습니다** — 글은 다른 파일(ksain.db)에 있습니다 |
+| `post_title` · `posted_on` | 출처 표시용 사본 — 화면과 Agent 가 ksain.db 를 따로 열지 않아도 됩니다 |
+| `seq` | 그 글에서 몇 번째 사실인지 |
+| `statement` | 글을 안 읽은 사람도 뜻이 통하는 한 문장 |
+| `topic` | 같은 주제를 묶는 짧은 이름 — 해마다 오는 공지는 새 글의 사실이 앞섭니다 |
+| `target_grades` | `"1,2"`. 비어 있으면 전학년 (학사일정과 같은 꼴) |
+| `valid_until` | 지나면 기억에서 뺍니다. 비어 있으면 계속 유효한 사실(규칙·방법) |
+| `confidence` | 분석기가 매긴 확신 — 0.6 미만은 옮겨 적지 않습니다 |
+| `status` | `active` \| `hidden` |
+| `edited` · `edited_by_id` · `edited_at` | 사람이 고쳤는지, 누가 언제 |
+
+**본 DB 에 있는 이유**는 매니저가 고치고 숨기는 결과물이라서입니다(학사일정의 자동 일정과 같습니다) —
+서버에서 API 가 쓸 수 있는 DB 는 본 DB 뿐입니다. 숨긴 사실과 고친 사실은 글을 다시 분석해도 그대로
+두고, 글이 ksain 에서 지워지면 고친 것까지 지웁니다(개인정보처리방침 4항).
+
+검색은 FTS5 표 `facts_fts`(rowid = `facts.id`, 바이그램 토큰)로 합니다. 모델이 아니라서
+`core/migrations.py` 가 만듭니다. ⚠️ **`facts` 는 `knowledge/facts.py` 를 거쳐서만 고치세요** — 거기서
+`facts_fts` 를 같이 맞춥니다. 다른 곳에서 행을 직접 고치면 검색이 옛 문장으로 걸립니다.
