@@ -23,8 +23,8 @@ import datetime
 import re
 
 from backend import models as core
-from backend import periods
-from backend.database import SessionLocal as CoreSession, init_schema
+from backend.core import clock
+from backend.core.db import SessionLocal as CoreSession, init_schema
 from backend.ksain.models import Analysis, Post
 
 MIN_CONFIDENCE = 0.6
@@ -161,7 +161,7 @@ def apply_post(post: Post, analysis: Analysis) -> int:
         db.flush()
 
         applied = []
-        for index, item in enumerate(desired(analysis, periods.today())):
+        for index, item in enumerate(desired(analysis, clock.today())):
             sig = signature(item)
             if sig in suppressed or duplicate(db, item, post.id):
                 continue

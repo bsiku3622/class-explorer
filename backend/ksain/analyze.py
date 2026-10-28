@@ -19,8 +19,9 @@ import datetime
 import json
 import re
 
-from backend import llm
-from backend.ksain.db import SessionLocal, init_ksain_schema
+from backend.agent import llm
+from backend.core import clock
+from backend.core.db import KsainSession, init_ksain_schema
 from backend.ksain.models import Analysis, Attachment, Post
 
 ANALYZER_VERSION = 3  # 2: 날짜 근거 검사(grounded) · 3: 시트별 첨부 발췌, 요약에도 근거 없는 날짜 금지
@@ -273,7 +274,7 @@ def save(db, post: Post, result: dict, model: llm.Model) -> Analysis:
     row.target_grades = result["target_grades"]
     row.items = result["items"]
     row.error = None
-    row.analyzed_at = datetime.datetime.utcnow()
+    row.analyzed_at = clock.utcnow()
     if post.analysis is None:
         db.add(row)
     return row
@@ -285,7 +286,7 @@ def run(limit: int, model_id: str | None, post_id: int | None = None, dry_run: b
 
     init_ksain_schema()
     model = llm.resolve(model_id, "analyze")
-    db = SessionLocal()
+    db = KsainSession()
     counts = {"analyzed": 0, "failed": 0, "events": 0, "model": model.id}
     try:
         posts = [db.get(Post, post_id)] if post_id else pending(db, limit)
@@ -340,7 +341,7 @@ def reapply(fresh: bool = False) -> dict:
     from backend.ksain import apply
 
     init_ksain_schema()
-    db = SessionLocal()
+    db = KsainSession()
     created = 0
     try:
         rows = db.query(Analysis).join(Post).filter(Post.missing_since.is_(None)).all()

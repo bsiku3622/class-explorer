@@ -6,4 +6,4 @@ Type=oneshot
 User=baeks
 Group=baeks
 WorkingDirectory=/srv/class-explorer
-ExecStart=/usr/bin/env python3.14 -m backend.material_backup
+ExecStart=/usr/bin/env python3.14 -m backend.cli.material_backup
