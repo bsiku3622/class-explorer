@@ -19,4 +19,5 @@
 | `materials.py` | `/materials/*` · `/admin/materials/*` — 자료실 |
 | `agent.py` | `/agent/*` — Ask (질문창) |
 | `facts.py` | `/facts/*` — Ask 의 기억 고치기·숨기기 (manager) |
+| `majors.py` | `/majors/*` — 내 전공(심화필수 전공 트랙) 묻고 고치기 |
 """

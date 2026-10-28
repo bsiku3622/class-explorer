@@ -286,6 +286,11 @@ class User(Base):
     # `user_id` 에 붙으므로 원래 계정 것과 섞이지 않습니다. 반대로 말하면 시연 계정이
     # 남긴 기록은 그 계정의 것이지 학번 주인의 것이 아닙니다.
     demo_stu_id = Column(String, ForeignKey("students.stuId"), nullable=True, index=True)
+    # 전공(심화필수 전공 트랙) — 본인이 고릅니다(`services/majors.py`). 학과 **이름**을 적습니다:
+    # 교육과정을 다시 적재하면 학과 id 가 바뀝니다. 3학년 2학기까지 바꿀 수 있는 값이라 언제든 고칩니다
+    major = Column(String, nullable=True)
+    # 전공을 묻는 팝업에 답한 때 — "아직 정하지 않았어요" 도 답입니다(`major` 는 비고 이 칸만 찹니다)
+    major_answered_at = Column(DateTime, nullable=True)
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
 
     def has_role(self, minimum: str) -> bool:
@@ -410,6 +415,8 @@ class CalendarEvent(Base):
     category = Column(String, default="event", nullable=False)
     # 대상 학년. "1,2" 처럼 적고 비어 있으면 전학년입니다.
     target_grades = Column(String, nullable=True)
+    # 대상 전공 트랙. "물리학,지구과학" 처럼 적고 비어 있으면 전공 무관입니다 (services/majors.py)
+    target_majors = Column(String, nullable=True)
     # pdf = 학사일정 문서에서 온 것. 개정판을 다시 파싱할 때 이것만 갈아끼웁니다
     # ksain = ksain 게시글 분석으로 자동 등록된 것 (backend/ksain/apply.py 가 관리)
     source = Column(String, default="manual", nullable=False)
@@ -498,6 +505,8 @@ class EventRequest(Base):
     end_period = Column(Integer, nullable=True)
     category = Column(String, default="event", nullable=False)
     target_grades = Column(String, nullable=True)
+    # 대상 전공 트랙. "물리학,지구과학" 처럼 적고 비어 있으면 전공 무관입니다 (services/majors.py)
+    target_majors = Column(String, nullable=True)
     note = Column(Text, nullable=True)
 
     status = Column(String, default="pending", nullable=False, index=True)  # pending | approved | rejected
@@ -683,6 +692,9 @@ class Fact(Base):
     # ksain 글 번호 — 다른 DB 라 외래키는 없습니다
     post_id = Column(Integer, nullable=False, index=True)
     post_title = Column(String, nullable=False, default="")
+    # 출처 게시판과 말머리("공지사항 · 교무연구부") — 학교 공지인지 동아리 홍보인지 모델이 가려 읽게
+    # 기억 줄에 같이 싣습니다 (ksain `Post.board_label`)
+    board = Column(String, nullable=True)
     posted_on = Column(Date, nullable=True)
     # 그 글에서 몇 번째 사실인지 (분석 결과의 순서)
     seq = Column(Integer, nullable=False, default=0)
@@ -692,6 +704,8 @@ class Fact(Base):
     topic = Column(String, nullable=False, default="")
     # 대상 학년. "1,2" 처럼 적고 비어 있으면 전학년입니다 (학사일정과 같은 꼴)
     target_grades = Column(String, nullable=True)
+    # 대상 전공 트랙. "물리학,지구과학" 처럼 적고 비어 있으면 전공 무관입니다 (services/majors.py)
+    target_majors = Column(String, nullable=True)
     # 이 날이 지나면 기억에서 뺍니다. 비어 있으면 계속 유효한 사실(규칙·방법)
     valid_until = Column(Date, nullable=True, index=True)
     confidence = Column(Float, nullable=False, default=0.0)

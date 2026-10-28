@@ -31,6 +31,7 @@ from backend.routers import (
     facts,
     friends,
     home,
+    majors,
     materials,
     state,
 )
@@ -61,3 +62,4 @@ app.include_router(materials.router)        # 인증된 과목 자료실 + 업�
 app.include_router(materials.admin_router)  # 자료 검수
 app.include_router(agent.router)            # Ask — 도구를 부르는 LLM Agent
 app.include_router(facts.router)            # Ask 의 기억 — 매니저가 고치고 숨깁니다
+app.include_router(majors.router)           # 내 전공(심화필수 전공 트랙)

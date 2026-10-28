@@ -10,6 +10,7 @@ from sqlalchemy import or_
 from sqlalchemy.sql.elements import ColumnElement
 
 from backend import models
+from backend.services import majors
 
 
 def visible_to(user: models.User) -> ColumnElement[bool]:
@@ -35,6 +36,7 @@ def event_out(event: models.CalendarEvent) -> dict:
         "end_period": event.end_period,
         "category": event.category,
         "target_grades": grades(event.target_grades),
+        "target_majors": majors.split(event.target_majors),
         "source": event.source,
         "is_personal": event.owner_id is not None,
         "series_id": event.series_id,
@@ -55,6 +57,7 @@ def request_out(req: models.EventRequest, username: str) -> dict:
         "end_period": req.end_period,
         "category": req.category,
         "target_grades": grades(req.target_grades),
+        "target_majors": majors.split(req.target_majors),
         "note": req.note,
         "status": req.status,
         "reason": req.reason,
