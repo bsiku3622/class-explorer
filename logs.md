@@ -1,3 +1,35 @@
+## 2026-10-28 — Ask: `/ai` 페이지 + 플로팅 버튼 (데스크탑 미니 창 · 모바일 전체 화면 창)
+
+- 변경 파일: `frontend/src/components/agent/`(신규 — AgentDock·AgentPanel·AgentEmpty·AgentThread·AgentComposer), `frontend/src/pages/AiPage.tsx`, `frontend/src/hooks/`(useAgentChat·useFollowBottom·useMediaQuery), `frontend/src/lib/`(agentChat·agentDemo·askMotion·imageAttach·agentApi), `frontend/src/App.tsx`, `frontend/src/index.css`, `frontend/src/pages/PrivacyPage.tsx`, `backend/agent_router.py`·`agent_tools.py`, 가이드(`frontend/CLAUDE.md` 의 `Ask` 절·`agent.guide.md`·`api-guide.md`)
+- 요약: 홈 맨 위 질문창을 걷어내고 `/ai` 페이지와 오른쪽 아래 플로팅 버튼으로 옮겼습니다. 데스크탑은 버튼 자리에서 미니 창이 뜨고(바깥을 눌러도 안 닫힘, ⤢ 로 `/ai`), 모바일은 전체 화면 창이 덮었다가 보내는 순간 모션과 함께 `/ai` 로 넘어갑니다. 답이 도는 동안 단계가 보이고(`thinking`·`tool_done` 이벤트), 이미지를 3장까지 붙입니다.
+
+배치를 네 번 갈았습니다 — 홈 맨 위 질문창 → 탑 바 패널(dock·drawer·spotlight 세 안) → `/ai` + 탑 바
+버튼 → `/ai` + 플로팅 버튼. 질문창은 홈의 주인공("지금 몇 교시")을 밀어냈고, 패널은 셋 다 홈과 자리를
+다퉜고(1440px 에서 400px 을 밀면 주간 격자가 찌그러짐), 탑 바 버튼은 누르면 보던 화면을 떠나야 했습니다.
+지금은 큰 화면은 페이지가, 보던 화면 위에서 잠깐 묻는 일은 플로팅 버튼의 창이 맡습니다. 대화는 `App` 에
+한 벌이라 넷(버튼·미니 창·모바일 창·페이지)이 같은 대화를 봅니다.
+
+- ⚠️ **미니 창은 바깥 클릭으로 닫지 않습니다** (사용자 요청). 시간표를 옆에 두고 묻는 창이라 옆을 누를
+  때마다 닫히면 못 씁니다. 페이지를 옮겨도 떠 있고, `/ai` 에 들어서면 닫습니다
+- ⚠️ **모바일 창은 열 때 방문 기록을 하나 남깁니다.** 처음엔 ✕ 만 뒀는데, 휴대폰 뒤로가기가 창은 둔 채
+  뒤 페이지만 넘기고 홈에서 열었으면 사이트를 떠났습니다. ✕ 는 `history.back()`, `/ai` 로는 replace —
+  그래야 뒤로가기가 한 번 헛돌지 않습니다. 그래서 ⌘K 는 열기만 합니다(닫기까지 맡기면 기록을 안 거칩니다)
+- ⚠️ **모션의 새 화면은 `/ai` 가 그려졌다고 알릴 때 찍습니다**(`askPageReady`). `BrowserRouter` 가 주소
+  변경을 `startTransition` 으로 넘겨서 `flushSync` 로는 안 그려지고, 페이지가 lazy 라 청크도 기다립니다.
+  입력창에 같은 `view-transition-name` 을 달아 창 가운데 → 페이지 바닥으로 옮기고, 그래서 모바일 창의 빈
+  화면은 `/ai` 첫 화면과 같은 모양입니다
+- ⚠️ **창은 lazy 입니다.** 대화 본문·입력창·이미지 첨부가 딸려 와서 버튼과 같이 실었더니 첫 로딩이 gzip
+  10KB(88.7 → 98.6KB) 늘었습니다. 버튼에 손이 가는 순간 미리 받고, 지금 증가분은 대화 상태뿐(+3.9KB)
+- 입력창의 모델 이름은 화면 폭(`sm:`)이 아니라 **입력창 폭**(`@container`)으로 가립니다 — 미니 창은
+  데스크탑 화면 안의 400px 이라 이름이 붙으면 입력칸이 반으로 줄었습니다
+- 개인정보처리방침에 첨부 이미지를 넣었습니다(수집 항목·목적·보관·OpenAI 이전·국내 처리). 13항은 중요
+  변경을 30일 전에 알린다고 약속하는데, 방침 첫 판이 오늘 시행됐고 이미지 기능도 오늘 함께 나가서 첫 판을
+  바로잡는 것으로 보고 시행일을 그대로 뒀습니다 — 개정으로 다룰지는 아직 정하지 않았습니다
+
+확인은 Claude in Chrome 으로 했습니다. 창이 macOS 전체 화면이라 크기 조절이 안 먹어서, 모바일은 같은 출처
+iframe(390×844) 안에 앱을 띄워 봤습니다(같은 출처라 로그인 토큰도 그대로 공유됩니다). 380ms 모션은
+확인용으로만 3초로 늘려 몇 장 찍었습니다.
+
 ## 2026-10-28 — ksain 수집·분석, 학사일정 자동 관리, 홈 질문창(Agent), 기말고사 적재
 
 - 변경 파일: `backend/ksain/`(신규), `backend/llm.py`, `backend/agent_router.py`, `backend/agent_tools.py`, `backend/models.py`·`migrations.py`(`calendar_events.source_ref`), `backend/calendar_router.py`, `backend/exam_seed_2026-2-final.json`, `frontend/src/components/home/AgentBox.tsx`, `frontend/src/lib/agentApi.ts`, `frontend/src/pages/HomePage.tsx`, `deploy/llm-gateway/`, `deploy/class-explorer-ksain.*`, 가이드(`ksain.guide.md`·`agent.guide.md`·`exams.guide.md`·`deploy-guide.md`)
