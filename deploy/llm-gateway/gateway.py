@@ -35,6 +35,9 @@ KEEP_ALIVE = os.environ.get("GATEWAY_KEEP_ALIVE", "15m")
 # ⚠️ Ollama 기본 컨텍스트는 4096 토큰이고, 넘치면 프롬프트 **앞부분을 조용히 잘라** 시스템
 # 지시문이 사라집니다. 도구 명세 + 검색 결과만으로 4천을 넘어서 답이 중간에 끊겼습니다
 CONTEXT_LENGTH = os.environ.get("GATEWAY_CONTEXT_LENGTH", "16384")
+# 밀린 ksain 분석이 도는 동안 질문창 요청이 그 뒤에 줄을 서서 답이 1분 가까이 걸렸습니다.
+# 둘을 나란히 받습니다 (컨텍스트 캐시가 두 배 — 12B + 16k×2 가 16GB 에 들어갑니다)
+NUM_PARALLEL = os.environ.get("GATEWAY_NUM_PARALLEL", "2")
 OLLAMA_EXE = os.environ.get(
     "GATEWAY_OLLAMA_EXE",
     str(Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Ollama" / "ollama.exe"),
@@ -76,6 +79,7 @@ class Ollama:
                 env["OLLAMA_HOST"] = f"{UPSTREAM_HOST}:{UPSTREAM_PORT}"
                 env["OLLAMA_KEEP_ALIVE"] = KEEP_ALIVE
                 env["OLLAMA_CONTEXT_LENGTH"] = CONTEXT_LENGTH
+                env["OLLAMA_NUM_PARALLEL"] = NUM_PARALLEL
                 log.info("starting ollama: %s", OLLAMA_EXE)
                 self.proc = subprocess.Popen(
                     [OLLAMA_EXE, "serve"], env=env,

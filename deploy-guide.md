@@ -237,6 +237,8 @@ ssh server 'curl -s http://10.8.10.1:11434/gateway/status'   # {"running": false
   프롬프트의 앞부분(시스템 지시문)이 잘립니다. 게이트웨이를 고쳐 올릴 때는 **먼저
   `POST /gateway/stop`** 으로 Ollama 를 내리세요 — 작업을 멈추면 게이트웨이만 죽고 옛 설정의
   Ollama 가 남아, 새 게이트웨이가 그걸 그대로 씁니다
+- 동시 처리는 2개(`OLLAMA_NUM_PARALLEL`)입니다. 1개면 밀린 ksain 분석이 도는 동안 질문창 답이
+  그 뒤에 줄을 서서 40~60초씩 걸렸습니다(2개로 4~20초, VRAM 9.1GB)
 
 ### 서버 — 처음 한 번
 
