@@ -9,6 +9,8 @@ Group=baeks
 WorkingDirectory=/srv/class-explorer
 # KSAIN_API_KEY · LLM_GATEWAY_URL · OPENAI_* — API 서비스와 같은 파일을 읽습니다
 EnvironmentFile=-/etc/class-explorer/ai.env
+# 코드베이스 전체가 utcnow() 를 씁니다 — 3.14 의 폐기 경고가 로그를 덮지 않게
+Environment=PYTHONWARNINGS=ignore::DeprecationWarning
 # 수집이 실패해도(ksain 일시 장애) 밀린 분석은 이어서 돌립니다
 ExecStart=-/usr/bin/env python3.14 -m backend.ksain.sync
 ExecStart=/usr/bin/env python3.14 -m backend.ksain.analyze --limit 150
