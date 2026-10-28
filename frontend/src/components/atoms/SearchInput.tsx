@@ -1,24 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Search, X, Clock } from "lucide-react";
-
-const HISTORY_KEY = "ksa_search_history";
-const MAX_HISTORY = 8;
-
-function loadHistory(): string[] {
-    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); }
-    catch { return []; }
-}
-
-function saveToHistory(term: string) {
-    if (!term.trim()) return;
-    const prev = loadHistory().filter((h) => h !== term);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify([term, ...prev].slice(0, MAX_HISTORY)));
-}
-
-function removeFromHistory(term: string) {
-    const next = loadHistory().filter((h) => h !== term);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-}
+import { clearHistory, loadHistory, removeFromHistory, saveToHistory } from "../../lib/searchHistory";
 
 /**
  * `sm`은 모달·패널 안에서 씁니다 — 페이지의 주인공이 아닌 자리에 `lg`를 두면
@@ -145,7 +127,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                             <Clock size={10} /> Recent
                         </span>
                         <button
-                            onClick={() => { localStorage.removeItem(HISTORY_KEY); setHistory([]); }}
+                            onClick={() => { clearHistory(); setHistory([]); }}
                             className="text-[10px] font-black uppercase text-black/30 hover:text-black transition-colors"
                         >
                             Clear all

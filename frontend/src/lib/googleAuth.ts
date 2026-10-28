@@ -66,7 +66,7 @@ export const startGoogleLogin = (): void => {
     const params = new URLSearchParams({
         client_id: CLIENT_ID,
         response_type: "id_token",
-        scope: "openid email profile",
+        scope: "openid email",
         redirect_uri: `${window.location.origin}${REDIRECT_PATH}`,
         nonce,
         state,
