@@ -695,3 +695,38 @@ Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 pre
 
 ### `GET /calendar/requests/pending-count` *(인증 필요)*
 사이드바 빨간 표시용. 매니저가 아니면 항상 `0` 입니다.
+
+`PUT` 이 `source='ksain'`(자동 등록) 일정을 고치면 `source` 가 `manual` 로 바뀌어 자동
+관리에서 빠집니다 — 다음 분석이 고친 내용을 덮어쓰지 않게요 ([ksain.guide.md](ksain.guide.md)).
+
+## Agent 엔드포인트 (`/agent/*`)
+
+홈 질문창입니다. 설계는 [agent.guide.md](agent.guide.md).
+
+### `POST /agent/chat` *(인증 필요)*
+```json
+{ "message": "오늘 형3404 빈 교시 뭐 있어?", "history": [{"role": "user", "content": "…"}], "model": "local:gemma4:12b" }
+```
+응답은 **SSE**(`text/event-stream`)입니다. 줄마다 `data: {...}` 하나.
+
+| `type` | 필드 | 뜻 |
+|---|---|---|
+| `start` | `model` | 실제로 쓴 모델 |
+| `tool` | `name`, `args` | 도구를 부르는 중 (여러 번 올 수 있습니다) |
+| `answer` | `text`, `sources[{title,url}]`, `seconds` | 답 — 마지막 이벤트 |
+| `error` | `message` | 모델에 닿지 않음 — 마지막 이벤트 |
+
+`429` 는 하루 질문 한도(로컬 200 · OpenAI 60)를 넘었을 때입니다. `model` 을 비우거나 모르는
+값을 주면 기본 모델로 갑니다.
+
+### `GET /agent/models` *(인증 필요)*
+`{ models: [{id, label, provider}], default, gateway: {running, owned, inflight, idle_seconds, idle_limit} | null }`.
+`gateway` 가 `null` 이면 데스크탑에 닿지 않는 것이고, `running=false` 면 첫 답에 1분쯤 걸립니다.
+
+### `POST /agent/warmup` *(인증 필요)*
+`{ "model": "local:gemma4:12b" }` → `202`. 로컬 모델을 미리 VRAM 에 올립니다. 질문창에 포커스가
+가면 화면이 부릅니다 (10분에 한 번까지).
+
+### `GET /agent/status` *(admin)*
+수집·분석이 돌고 있는지 — `sync`(마지막 수집 결과), `posts`, `analyzed`(최신 내용 기준),
+`auto_events`(`source='ksain'` 일정 수), `gateway`.

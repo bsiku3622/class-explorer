@@ -1,0 +1,70 @@
+# Agent — 홈 질문창
+
+> [← Backend Guide](CLAUDE.md) · 코드: `agent_router.py` · `agent_tools.py` · `llm.py`
+
+홈 맨 위의 질문창이 "오늘 형3404 빈 교시 뭐 있어?" 같은 질문을 받아, LLM 이 정해진 도구를
+불러 답을 만듭니다. 모델은 SQL 을 만들지 않고 읽기 전용 도구만 부릅니다.
+
+## 모델 (`llm.py`)
+
+| 모델 ID | 어디로 | 언제 보이나 |
+| --- | --- | --- |
+| `local:<이름>` | 데스크탑 게이트웨이 `LLM_GATEWAY_URL` | 게이트웨이에 설치된 모델 (`/gateway/models`, Ollama 를 깨우지 않음) |
+| `openai:<이름>` | `OPENAI_BASE_URL` | `OPENAI_API_KEY` 가 있을 때 `OPENAI_MODELS` 에 적은 것 |
+
+질문창에서 사용자가 고르고(기기에 남습니다), 기본값은 `AGENT_MODEL` → 로컬 기본 모델 순입니다.
+분석기는 `ANALYZE_MODEL` 을 따로 봅니다 — 분석은 무료인 로컬에 두고 Agent 만 OpenAI 로
+올리는 조합이 됩니다.
+
+⚠️ **데스크탑 Ollama 는 평소 꺼져 있습니다.** 게이트웨이(`deploy/llm-gateway/gateway.py`)가
+요청이 오면 켜고 1시간 조용하면 끕니다. 꺼진 상태의 첫 답은 **1분 넘게** 걸립니다(측정 83초 —
+Ollama 기동 + 7.6GB 적재). 그래서 질문창에 포커스가 가면 화면이 `POST /agent/warmup` 을 부르고,
+기다리는 동안 그 사정을 알립니다.
+
+⚠️ **Gemma 4 는 생각(thinking) 토큰을 먼저 씁니다.** `max_tokens` 를 짧게 주면 본문이 빈 채로
+끝납니다. 로컬 모델에는 `reasoning_effort: "none"` 을 붙입니다(OpenAI 호환 경로에서 이것만
+먹습니다 — `think: false` 는 `/v1` 에서 무시됩니다).
+
+## 도구 (`agent_tools.py`)
+
+**화면에서 볼 수 있는 것만 돌려줍니다.** class-explorer 는 로그인한 사람에게 학기 전체를
+보여 주므로 다른 학생·교사 시간표와 분반 명단은 열어 두고, 화면이 본인 것만 보여 주는
+시험 시간표와 개인 일정은 여기서도 본인 것만 줍니다. 새 도구도 이 경계를 지키세요.
+
+| 도구 | 하는 일 |
+| --- | --- |
+| `today_info` | 오늘 날짜·교시·학기·수업 있는 날인지·교시 시각표 |
+| `timetable(person, date?)` | 학생·교사 한 사람의 하루 또는 한 주 |
+| `room_schedule(room, date?)` | 강의실의 교시별 수업과 빈 교시 |
+| `empty_rooms(date?, periods?, building?)` | 비어 있는 강의실 (형·탐·예·창 + 네 자리) |
+| `common_free(people, date?)` | 여럿이 함께 비는 교시 |
+| `class_info(subject, section?)` | 분반·교사·시간·인원, 분반을 주면 명단 |
+| `find_person(query)` | 이름 일부·학번으로 후보 |
+| `calendar(start?, end?, query?)` | 학사일정 + 내 개인 일정 |
+| `my_exams()` | 내 시험 시간표 (`GET /exams/me` 와 같은 함수) |
+| `meal(date?)` | 급식 (`fetch_meal` 재사용 — DB 먼저) |
+| `course_info(name)` | 교육과정 과목 — 학점·선수과목·설명 |
+| `search_ksain` · `read_ksain` · `ksain_digest` | ksain 검색·본문·기간 요약 ([ksain.guide.md](ksain.guide.md)) |
+
+날짜를 받는 도구는 **홈과 같은 규칙**으로 그날을 판정합니다(`Context.day`) — 방학·주말·
+휴업일이면 수업이 없고, 대체 시간표가 있으면 그 요일 수업으로 갈아 끼웁니다. 학기 데이터는
+요일 단위라 이걸 안 거치면 방학에도 "수요일 시간표" 가 나옵니다.
+
+## 흐름 (`agent_router.py`)
+
+`POST /agent/chat` → 시스템 프롬프트(오늘 날짜·질문자) + 최근 대화 8개 + 질문 → 모델이 도구를
+부르면 실행해 결과(최대 7,000자)를 돌려주기를 **최대 6번** → 답. 응답은 SSE 입니다.
+
+```
+data: {"type":"start","model":"local:gemma4:12b"}
+data: {"type":"tool","name":"room_schedule","args":{"room":"형3404","date":"2026-10-28"}}
+data: {"type":"answer","text":"…","sources":[{"title":"…","url":"https://ksain.kr/document/3092"}],"seconds":6.9}
+```
+
+- ⚠️ **스트리밍이라 `Depends(get_db)` 세션이 먼저 닫힐 수 있습니다.** 생성기 안에서 세션을
+  직접 열고 닫습니다
+- nginx 가 SSE 를 모아 두지 않게 `X-Accel-Buffering: no` 를 붙입니다
+- ksain 글은 아무 학생이나 쓸 수 있는 텍스트라, 시스템 프롬프트가 도구 결과를 **지시가 아닌
+  자료**로 다루게 합니다. 도구가 전부 읽기 전용이라 최악의 경우가 "틀린 답" 입니다
+- 하루 질문 수를 사람마다 셉니다 — 로컬 200 · OpenAI 60 (프로세스 메모리, 재시작하면 초기화)
+- 근거 링크(`sources`)는 ksain 검색·본문·`ksain` 출처 학사일정에서 모읍니다
