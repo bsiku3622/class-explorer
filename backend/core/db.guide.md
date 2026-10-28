@@ -9,7 +9,7 @@ DB 를 여는 곳은 이 파일 하나입니다. 본 DB 와 ksain.db 를 같은 
 
 | | 본 DB | ksain.db |
 | --- | --- | --- |
-| 파일 | `backend/ksa_timetable.db` (서버에서는 `../data/` 를 가리키는 symlink) | `backend/ksain.db` |
+| 파일 | `backend/ksa_timetable.db` (서버에서는 `../data/` 를 가리키는 symlink) | `backend/ksain.db` (서버에서는 `../data/ksain.db` 를 가리키는 symlink) |
 | 담는 것 | 계정·시간표·학사일정·자료실·**기억(`facts`)** — 사람이 보고 고치는 것 | ksain 글·첨부·분석·검색 색인 — 다시 받고 다시 만들 수 있는 것 |
 | 엔진 · 세션 · Base | `engine` · `SessionLocal` · `Base` | `ksain_engine` · `KsainSession` · `KsainBase` |
 | 저널 | 기본(rollback) | WAL |
@@ -67,6 +67,14 @@ ksain.db 만 연결마다 `PRAGMA journal_mode=WAL` · `foreign_keys=ON` 을 겁
 수집 타이머(`baeks`)가 못 열고, 반대도 마찬가지입니다. 꼭 바꿔야 한다면 `data/` 에 setgid 를 걸고
 `baeks` 를 `ksaclass` 그룹에 넣는 것부터 해야 합니다.
 
+⚠️ **ksain.db 는 그 준비를 해 두고 `data/` 에 둡니다(2026-10-29).** `data/` 에 setgid, `baeks` 를 `ksaclass` 그룹에
+넣고, API·수집 유닛에 `UMask=0007` 을 걸어 `-wal`·`-shm` 이 누가 만들든 그룹 `ksaclass`·660 으로 생깁니다.
+한동안 `backend/`(`baeks` 만 쓰는 폴더)에 있어서, 수집이 안 도는 사이 `-wal`·`-shm` 이 없으면 API 가 그 파일을
+못 만들어 ksain.db 를 아예 못 열었습니다(`attempt to write a readonly database`) — Ask 의 `search`·`read_ksain`·
+`ksain_digest` 가 로그도 없이 실패했습니다. API 를 재시작한 뒤부터 다음 수집까지가 특히 그랬습니다.
+`backend/ksain.db` 는 symlink 로 남겨 CLI 경로를 그대로 두었고, SQLite 가 symlink 를 따라가서 `-wal`·`-shm`
+도 `data/` 에 생깁니다.
+
 ## 세션 쓰는 법
 
 | 자리 | 쓰는 것 |
@@ -90,9 +98,9 @@ init_ksain_schema()  # ksain.db — create_all + run_ksain_migrations
 돌려야 합니다. 앱(`core/app.py`)은 시작할 때 `init_schema()` 를, ksain 작업(수집·분석·색인 CLI)은
 `init_ksain_schema()` 를 부릅니다.
 
-⚠️ **API 는 `init_ksain_schema()` 를 부르지 않습니다.** 서버에서 ksain.db 는 `baeks` 의 파일이고 API 는
-`ProtectSystem=strict` 로 `data/` 밖에 못 씁니다. 그래서 ksain 쪽에 표·컬럼을 새로 붙이면, API 는 수집
-타이머가 한 번 돌기 전까지 그것이 없는 DB 를 봅니다. 새 컬럼은 `deferred` 로(`Analysis.facts`), 새 표는
+⚠️ **API 는 `init_ksain_schema()` 를 부르지 않습니다.** ksain.db 의 스키마와 내용은 수집 쪽(`baeks`)이 맡고,
+API 는 읽기만 합니다(쓸 권한은 `-wal`·`-shm` 때문에 같이 줬을 뿐입니다). 그래서 ksain 쪽에 표·컬럼을 새로
+붙이면, API 는 수집 타이머가 한 번 돌기 전까지 그것이 없는 DB 를 봅니다. 새 컬럼은 `deferred` 로(`Analysis.facts`), 새 표는
 없을 때 비켜 가게(`knowledge/search.py` 의 LIKE 대체) 만드세요.
 
 ## 사용처

@@ -7,3 +7,5 @@ User=baeks
 Group=baeks
 WorkingDirectory=/srv/class-explorer
 ExecStart=/usr/bin/env python3.14 -m backend.cli.material_backup
+# 로그는 class-explorer 전용 저장소에 90일만 둡니다(/etc/systemd/journald@class-explorer.conf — deploy-guide.md)
+LogNamespace=class-explorer

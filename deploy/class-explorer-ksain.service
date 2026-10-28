@@ -15,3 +15,7 @@ Environment=PYTHONWARNINGS=ignore::DeprecationWarning
 ExecStart=-/usr/bin/env python3.14 -m backend.ksain.sync
 ExecStart=/usr/bin/env python3.14 -m backend.ksain.analyze --limit 150 --minutes 40
 TimeoutStartSec=50min
+# 로그는 class-explorer 전용 저장소에 90일만 둡니다(/etc/systemd/journald@class-explorer.conf — deploy-guide.md)
+LogNamespace=class-explorer
+# ksain.db(data/)의 -wal·-shm 을 API(ksaclass)와 같이 씁니다 — 그룹 쓰기로 만들어야 서로 막히지 않습니다
+UMask=0007

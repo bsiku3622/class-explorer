@@ -88,10 +88,19 @@ Restart=always
 RestartSec=3
 StandardOutput=journal
 StandardError=journal
+LogNamespace=class-explorer
+UMask=0007
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+**로그는 class-explorer 전용 저장소에 둡니다**(`LogNamespace=class-explorer` — API·수집·자료 백업 유닛 셋 다).
+보관 기간은 `/etc/systemd/journald@class-explorer.conf` 의 `MaxRetentionSec=90day` 가 이 저장소에만 겁니다.
+⚠️ 서버 전체 journald(`/etc/systemd/journald.conf.d/`)에 기간을 걸지 마세요 — 같은 서버의 다른 서비스 로그까지
+지워집니다(2026-10-29 에 한 번 그렇게 걸었다가 다른 서비스의 08-10 이전 로그가 지워졌고, 되돌렸습니다).
+
+`UMask=0007` 은 ksain.db(`data/`)의 `-wal`·`-shm` 을 수집 타이머와 같이 쓰려는 것입니다(`backend/core/db.guide.md`).
 
 환경변수와 권한은 drop-in(`class-explorer.service.d/`)이 나눠 맡습니다 — `20-hardening-app.conf`(`ProtectSystem=strict`
 등), `30-env-google.conf`(`GOOGLE_CLIENT_ID`), `30-env-ksain.conf`, `40-paths-data.conf`(`ReadWritePaths=` 데이터
@@ -107,7 +116,8 @@ WantedBy=multi-user.target
 **`KSAIN_API_KEY`** 를 같이 넣으면 홈에 급식이 뜹니다(`api.ksain.net`). 없으면 급식 칸만
 비고 나머지는 그대로 돕니다 — 홈 전체가 죽지는 않습니다.
 
-로그는 `journalctl -u class-explorer -f`로 봅니다.
+로그는 `journalctl --namespace=class-explorer -u class-explorer -f` 로 봅니다 — `--namespace` 를 빼면
+2026-10-29 이후 로그가 안 보입니다.
 
 ### nginx — `/etc/nginx/sites-available/class-explorer.conf`
 
@@ -288,8 +298,11 @@ python3.14 -m backend.ksain.analyze --limit 5000 # 밀린 분석 — 데스크�
 python3.14 -m backend.ksain.analyze --reapply --fresh  # 스테이징에서 돌린 분석을 운영 학사일정에 처음 반영
 python3.14 -m backend.ksain.analyze --reapply    # apply 규칙을 바꾼 뒤 다시 맞춤 (사람이 지운 일정·고친 기억은 유지)
 python3.14 -m backend.knowledge.index --rebuild  # 검색 색인 처음부터 (5초 남짓 — 보통은 수집이 알아서 갱신)
-journalctl -u class-explorer-ksain -n 50         # 주기 실행 로그
+journalctl --namespace=class-explorer -u class-explorer-ksain -n 50   # 주기 실행 로그
 ```
+
+⚠️ **서버의 ksain.db 는 `data/ksain.db` 이고 `backend/ksain.db` 는 그리로 가는 symlink 입니다**(660 `baeks:ksaclass`,
+`data/` 는 setgid). 다시 만들 때도 `data/` 에 두세요 — `backend/` 에 두면 API 가 못 엽니다(`backend/core/db.guide.md`).
 
 ⚠️ **`backend/ksain.db` 는 git 에 없고 언제든 다시 만들 수 있습니다.** 지워도 사용자 데이터는
 그대로입니다 — 자동 일정과 기억은 본 DB 에 있으니 `--reapply` 를 다시 돌리세요. 검색 색인은 다음
@@ -321,7 +334,7 @@ python3.14 -m backend.knowledge.index           # ksain.db 스키마 맞추기 +
 ### 2026-10 개인정보 감사 반영 (한 번만)
 
 개인정보처리방침을 고쳐 싣는 날 바로 시행합니다(13절). 아래가 방침에 적은 것과 서버를 맞추는 단계입니다 —
-빠뜨리면 방침이 거짓말이 됩니다. **2026-10-29 운영 서버에 1~5 를 적용했습니다**(바로 위 「백엔드 재배치」 절과
+빠뜨리면 방침이 거짓말이 됩니다. **2026-10-29 운영 서버에 1~5(3-1 포함)를 적용했습니다**(바로 위 「백엔드 재배치」 절과
 함께). 6 은 아직입니다.
 
 1. **강의계획서를 서버에 올립니다.** git 에서 뺐습니다(교사 연락처) — 맥북의 `backend/syllabi/` 를 그대로 보냅니다.
@@ -335,12 +348,24 @@ python3.14 -m backend.knowledge.index           # ksain.db 스키마 맞추기 +
    `SYLLABI_DIR` 는 비워 둡니다(기본값이 `data/syllabi`). 파일이 없으면 강의계획서만 안 보이고 화면은 그대로입니다.
    Ask 의 `syllabus` 도구도 이 파일을 읽어서, 없으면 "강의계획서 파일이 없습니다" 로 답합니다(`backend/agent.guide.md`)
 2. **API 접속 로그를 끕니다** — 위 「systemd」 의 `--no-access-log`. 유닛을 고친 뒤 `sudo systemctl daemon-reload`
-3. **journald 를 90일만 둡니다** (서버 전체 로그에 걸립니다)
+3. **class-explorer 로그만 90일 둡니다** — 전용 저장소(namespace)를 만들고 유닛 셋이 그리로 쓰게 합니다
    ```bash
-   sudo mkdir -p /etc/systemd/journald.conf.d
-   printf '[Journal]\nMaxRetentionSec=90day\n' | sudo tee /etc/systemd/journald.conf.d/retention.conf
-   sudo systemctl restart systemd-journald
-   sudo journalctl --vacuum-time=90d          # 이미 쌓인 90일 넘은 기록(2026-06~)을 지금 지웁니다
+   printf '[Journal]\nStorage=persistent\nMaxRetentionSec=90day\n' | sudo tee /etc/systemd/journald@class-explorer.conf
+   # API 유닛에 LogNamespace=class-explorer · UMask=0007 (위 「systemd」), 수집·자료 백업 유닛은 repo 파일에 들어 있습니다
+   sudo systemctl daemon-reload && sudo systemctl restart class-explorer.service
+   journalctl --namespace=class-explorer -u class-explorer -n 5   # 여기에 찍히면 된 것
+   ```
+   ⚠️ 처음엔 서버 전체 journald 에 `MaxRetentionSec=90day` 를 걸었다가 같은 서버의 다른 서비스 로그까지 08-10
+   이전 것이 지워졌습니다(4.0GB → 424MB, 되살릴 수 없음). 그 설정은 지웠고, 공용 저장소는 기본값(용량 한도 4GB)으로
+   돌아갔습니다. 그 바람에 **2026-10-29 전의 class-explorer 기록(08-10~)은 공용 저장소에 섞여 남아** 있다가 용량
+   한도로 밀려날 때 지워집니다 — 개인정보처리방침 4절이 그렇게 적고 있습니다
+3-1. **ksain.db 를 `data/` 로 옮깁니다** — API 가 수집 사이에도 ksain.db 를 열 수 있게(`backend/core/db.guide.md`)
+   ```bash
+   sudo usermod -aG ksaclass baeks && sudo chmod g+s data
+   sudo systemctl stop class-explorer-ksain.timer class-explorer.service
+   mv backend/ksain.db data/ksain.db && sudo chgrp ksaclass data/ksain.db && chmod 660 data/ksain.db
+   ln -s ../data/ksain.db backend/ksain.db
+   sudo systemctl start class-explorer.service class-explorer-ksain.timer
    ```
 4. **이미 있는 백업을 정리합니다** — 1년 지난 것 삭제 + 남은 것에서 세션·게시글 파생물 걷어내기. 백업 폴더에
    `ksaclass`·`baeks` 파일이 섞여 있어서 `sudo` 로 돌립니다

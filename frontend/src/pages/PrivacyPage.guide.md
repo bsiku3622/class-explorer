@@ -56,8 +56,11 @@
   DNS 를 옮기면 그 행을 고칩니다. 화면이 새 외부 주소(CDN·분석·폰트)를 부르기 시작하면 여기에 더합니다
 - 세션 보관 기간 — `backend/core/auth.py` 의 `SESSION_EXPIRE_DAYS` (지금 30일, 4절). 만료 세션은
   로그인 때 지웁니다(`routers/auth.py`)
-- **서버 로그** — 웹 서버(nginx) 14일, 서비스 기록(journald) 90일이라고 4·11절에 적었습니다. 서버 설정
-  (`/etc/logrotate.d/nginx`, journald `MaxRetentionSec`, API 유닛의 `--no-access-log`)을 바꾸면 같이 —
+- **서버 로그** — 웹 서버(nginx) 14일, 서비스 기록(journald) 90일이라고 4·11절에 적었습니다. 서비스 기록은
+  class-explorer 전용 저장소(`LogNamespace=class-explorer`, `/etc/systemd/journald@class-explorer.conf`)에만 90일이
+  걸립니다. 4절은 2026-10-29 전 기록이 공용 저장소에 섞여 용량 한도로 밀려날 때 지워진다고 따로 적었습니다(그
+  기록만 떼어 지울 수 없습니다). 서버 설정(`/etc/logrotate.d/nginx`, 전용 저장소의 `MaxRetentionSec`, API 유닛의
+  `--no-access-log`)을 바꾸면 같이 —
   `deploy-guide.md`
 - **백업** — 1년 지나면 지우고(`services/backup.py` 의 `KEEP_DAYS`), 세션과 게시글 파생물은 넣지
   않는다고(`scrub_backup`) 4·10·11절에 적었습니다. 본 DB 를 복사하는 새 길을 만들면 그 약속이 깨집니다

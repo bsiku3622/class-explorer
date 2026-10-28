@@ -1,3 +1,24 @@
+## 2026-10-29 — 서버 로그는 class-explorer 만 90일, ksain.db 는 data/ 로
+
+- 변경 대상: 운영 서버(journald namespace, API·수집 유닛, `data/` 권한, ksain.db 위치), `deploy/class-explorer-ksain.service`·`class-explorer-materials-backup.service`, `deploy-guide.md`, `backend/core/db.guide.md`, `backend/ksain.guide.md`, `frontend/src/pages/PrivacyPage.tsx`(4절), `PrivacyPage.guide.md`
+- 요약: 배포 때 서버 전체 journald 에 건 90일을 지우고, class-explorer 유닛 셋만 전용 저장소(`LogNamespace=class-explorer`)에 90일로 옮겼습니다. 그 과정에서 API 가 ksain.db 를 못 여는 문제를 찾아, ksain.db 를 `data/` 로 옮기고 두 계정이 같은 그룹으로 쓰게 했습니다.
+
+- ⚠️ **서버 전체 journald 에 기간을 걸면 같은 서버의 다른 서비스 로그까지 지워집니다.** 실제로 08-10 이전 것이
+  지워졌고(4.0GB → 424MB) 되살릴 수 없습니다. 운영자가 "서비스별로 따로" 를 요청해 전용 저장소로 바꿨습니다.
+  `LogNamespace=` 는 systemd 245 부터라 서버(249)에서 됩니다. 이제 `journalctl` 에 `--namespace=class-explorer` 를
+  붙여야 class-explorer 로그가 보입니다
+- 2026-10-29 전의 class-explorer 기록(20,947줄, 08-10~)은 공용 저장소에 섞여 있어 따로 지울 수 없습니다. 다른 서비스
+  로그를 또 지우는 쪽은 택하지 않고, 공용 저장소의 용량 한도(4GB)로 밀려날 때 지워진다고 방침 4절에 사실대로 적었습니다
+- ⚠️ **API 가 ksain.db 를 아예 못 열고 있었습니다**(`attempt to write a readonly database`). ksain.db 는 WAL 인데
+  `backend/`(baeks 만 쓰는 폴더)에 있어서, 수집이 안 도는 사이 `-wal`·`-shm` 이 없으면 API(ksaclass)가 그 파일을 못
+  만들었습니다. Ask 의 `search`·`read_ksain`·`ksain_digest` 가 로그도 없이 도구 실패로만 돌아갔고, 특히 API 재시작부터
+  다음 수집까지가 그랬습니다 — 운영자가 말한 "툴 실패" 의 일부였을 수 있습니다. `db.guide.md` 가 이미 적어 둔 대로
+  `data/` 에 setgid, `baeks` 를 `ksaclass` 그룹에, 두 유닛에 `UMask=0007` 을 걸고 ksain.db 를 `data/` 로 옮겼습니다
+  (`backend/ksain.db` 는 symlink — SQLite 가 따라가서 `-wal`·`-shm` 도 `data/` 에 생기는 걸 먼저 시험했습니다).
+  덤으로 644 라 서버의 다른 계정도 읽던 것이 막혔습니다
+- 확인: `systemd-run` 으로 두 계정이 서로 연결을 연 채로 쓰기 잠금 잡기(양방향), API 계정으로 Ask 검색(6건), 같은
+  설정으로 수집 한 번(exit 0, 로그는 전용 저장소), 유닛 문법(`systemd-analyze verify`), nginx 로그 14일(`rotate 14`)
+
 ## 2026-10-29 — 운영 배포 (백엔드 재배치 · Ask · 개인정보 감사)
 
 - 변경 대상: `main`(병합 커밋 `a699c3a`), 운영 서버(`/srv/class-explorer`·systemd·journald), Netlify, `deploy-guide.md`
