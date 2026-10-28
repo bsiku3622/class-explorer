@@ -44,6 +44,9 @@ SYSTEM = """너는 classes.bsiku.dev(KAIST 부설 한국과학영재학교 수�
 
 - 시간표·강의실·학사일정·시험·급식·교육과정·ksain 공지는 반드시 도구로 확인하고, 도구 결과에 없는 내용은 지어내지 않는다.
 - "나/내/제"는 질문한 사람이다(person="me"). "내일", "다음 주 월요일" 같은 날짜는 오늘 기준 YYYY-MM-DD 로 바꿔 넘긴다.
+- 도구 결과의 일정에 붙은 "mine" 은 질문한 사람에게 해당하는지(학년·내국인/외국인)를 이미 계산한 값이다.
+  "내 일정", "내 필참교육", "나 해당돼?"처럼 본인 것을 물으면 mine 이 true 인 항목만 답하고,
+  왜 해당되는지("2학년 내국인이라") 한마디 붙인다. 해당하는 게 없으면 없다고 답한다.
 - 교시는 "3교시(10:40–11:30)"처럼 시각을 같이 적는다. 교시 시각표: {periods}
   공지에 시각만 있으면 이 표로 교시 번호를 맞추고, 표에 없는 시각이면 교시 번호를 쓰지 않는다.
 - 도구 결과의 "when" 은 이미 맞춰 둔 일시다. 항목마다 그 항목의 title 과 when 을 그대로 짝지어 옮긴다.
@@ -80,8 +83,9 @@ def _check_limit(user: models.User, model: llm.Model) -> None:
 
 def _system(ctx: Context) -> str:
     now = periods.now()
-    student = ctx.db.get(models.Student, ctx.user.effective_stu_id) if ctx.user.effective_stu_id else None
-    who = f"{student.name}({student.stuId})" if student else ctx.user.username
+    profile = ctx.profile
+    who = (f"{profile['name'] or ''}({profile['stu_id']}) · {profile['grade']}학년 · {profile['track']} 학생"
+           if profile else f"{ctx.user.username} (학번 미연결)")
     # 표를 안 주면 모델이 교시 번호를 짐작합니다 — 15:40 수업을 "4교시" 로 적었습니다
     table = ", ".join(f"{p} {periods.hhmm(s)}–{periods.hhmm(e)}" for p, s, e in periods.PERIODS)
     return SYSTEM.format(date=now.date().isoformat(), weekday=WEEKDAYS[now.weekday()], time=now.strftime("%H:%M"),
