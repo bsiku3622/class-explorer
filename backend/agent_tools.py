@@ -370,7 +370,8 @@ def class_info(ctx: Context, subject: str, section: str | None = None) -> dict:
 
 def calendar(ctx: Context, start: str | None = None, end: str | None = None, query: str | None = None) -> dict:
     first = _date(start)
-    last = _date(end) if end else first + datetime.timedelta(days=30)
+    # "앞으로 뭐 남았어?" 에 30일로 끊었더니 한 달 하고 이틀 뒤의 R&E 최종보고서 마감이 빠졌습니다
+    last = _date(end) if end else first + datetime.timedelta(days=60)
     rows = (
         ctx.db.query(models.CalendarEvent)
         .filter(models.CalendarEvent.start_date <= last, models.CalendarEvent.end_date >= first,
@@ -496,7 +497,7 @@ TOOLS = [
         {"subject": {"type": "string"}, "section": {"type": "string", "description": "예: 3분반"}}, ["subject"]),
     _fn("find_person", "이름 일부나 학번으로 학생·교사 후보 찾기", {"query": {"type": "string"}}, ["query"]),
     _fn("calendar", "학사일정과 내 개인 일정. 시험·행사·귀가·마감 등",
-        {"start": DATE, "end": {"type": "string", "description": "YYYY-MM-DD. 비우면 start 부터 30일"},
+        {"start": DATE, "end": {"type": "string", "description": "YYYY-MM-DD. 비우면 start 부터 60일"},
          "query": {"type": "string", "description": "제목 키워드 (선택)"}}),
     _fn("my_exams", "질문한 사람의 이번 학기 시험 시간표 (과목·날짜·시각·시험실)"),
     _fn("meal", "급식 메뉴 (아침·점심·저녁)", {"date": DATE}),
