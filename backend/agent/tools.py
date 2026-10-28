@@ -32,6 +32,8 @@ from backend.services.timetable import student_slots, subject_label, term_slots
 from backend.services.versioning import at_version
 
 WEEKDAYS = "월화수목금토일"
+# 학사일정이면 다 해당하는 말 — `calendar` 의 검색어로 쓰면 제목에 그 말이 든 일정만 남습니다("오늘 일정 뭐야?")
+_GENERIC = {"일정", "학사일정", "일정표", "스케줄", "달력", "캘린더"}
 PERIOD_TIME = {p: (s, e) for p, s, e in periods.PERIODS}
 ALL_PERIODS = [p for p, _s, _e in periods.PERIODS]
 CLASSROOM = re.compile(r"^[형탐예창]\d{4}")
@@ -154,10 +156,17 @@ class Context:
         # 이 대화에서 모델에게 보인 사실 — 답의 [F번호] 를 출처로 바꿀 때 씁니다 (agent/chat.py)
         self.facts: dict[int, models.Fact] = {}
         self.profile = profile_of(db, user.effective_stu_id, user.major)
+        # 걸어만 둔 근거 — 답이 그 제목을 말할 때만 남깁니다(`agent/chat.py` 의 `finish_text`). 학사일정 도구가
+        # 찾은 일정마다 원문을 걸었더니 "오늘 일정" 답 밑에 답과 상관없는 수강신청·SAT 링크가 붙었습니다
+        self.weak: set[str] = set()
 
-    def cite(self, title: str, url: str, first: bool = False) -> None:
+    def cite(self, title: str, url: str, first: bool = False, weak: bool = False) -> None:
         if not url:
             return
+        if not weak:
+            self.weak.discard(url)
+        elif all(s["url"] != url for s in self.sources):
+            self.weak.add(url)
         self.sources = [s for s in self.sources if s["url"] != url] if first else self.sources
         if all(s["url"] != url for s in self.sources):
             entry = {"title": title, "url": url}
@@ -401,11 +410,17 @@ def calendar(ctx: Context, start: str | None = None, end: str | None = None, que
                 visible_to(ctx.user))
         .order_by(models.CalendarEvent.start_date, models.CalendarEvent.id).all()
     )
-    words = query_terms(query or "")
+    words = [w for w in query_terms(query or "") if w not in _GENERIC]
+    hint = None
     if words:
         # 대상 전공·학부 이름도 봅니다 — "정보과학 일정" 을 물으면 제목이 "수학 모의면접" 이어도 걸려야 합니다
-        rows = [r for r in rows if any(w in _norm(" ".join([r.title, r.note or "", *majors.with_divisions(
+        matched = [r for r in rows if any(w in _norm(" ".join([r.title, r.note or "", *majors.with_divisions(
             majors.split(r.target_majors))])) for w in words)]
+        if matched or not rows:
+            rows = matched
+        else:
+            # 걸린 게 없으면 기간 안의 일정을 그대로 줍니다 — 빈 목록을 받은 모델은 "일정이 없다" 고 답합니다
+            hint = f"'{query}' 에 맞는 일정은 없습니다. 아래는 이 기간의 일정 전부입니다"
     events = []
     for row in rows[:60]:
         out = event_out(row)
@@ -418,11 +433,45 @@ def calendar(ctx: Context, start: str | None = None, end: str | None = None, que
             out["mine"] = mine
         url = re.search(r"https://ksain\.kr/document/\d+", row.note or "")
         if url:
-            ctx.cite(row.title, url.group(0))
+            ctx.cite(row.title, url.group(0), weak=True)
         events.append({k: v for k, v in out.items() if v not in (None, [], "") and k not in (
             "id", "series_id", "start_minute", "end_minute", "start_date", "end_date", "time_mode",
             "start_period", "end_period")})
-    return {"from": first.isoformat(), "to": last.isoformat(), "events": events}
+    result = {"from": first.isoformat(), "to": last.isoformat(), "events": events}
+    return {**result, "hint": hint} if hint else result
+
+
+def today_events(ctx: Context) -> list[str]:
+    """오늘 걸친 학사일정(공용 + 본인 개인 일정) 한 줄씩 — 시스템 프롬프트에 처음부터 싣습니다(`agent/chat.py`).
+
+    "오늘 뭐 있어?" 가 가장 흔한 질문인데, 모델이 도구를 엉뚱하게 부르면 확인할 길이 없었습니다 — 체육대회 날
+    `calendar(query="일정")` 이 "KSA 한마당체육대회" 를 걸러 내고 "특별한 일정은 없습니다" 라고 답했습니다.
+    홈 화면이 오늘 일정을 늘 보여 주는 것과 같은 이유로, 몇 줄 안 되는 오늘 것은 묻기 전에 줍니다.
+    """
+    today = clock.today()
+    rows = (
+        ctx.db.query(models.CalendarEvent)
+        .filter(models.CalendarEvent.start_date <= today, models.CalendarEvent.end_date >= today,
+                visible_to(ctx.user))
+        .order_by(models.CalendarEvent.start_date, models.CalendarEvent.id).all()
+    )
+    # 짧은 것부터 — 몇 달짜리("교직원 건강검진(~11.30)")가 맨 앞에 서면 오늘만의 일정(체육대회)이 묻힙니다
+    rows.sort(key=lambda row: (row.end_date - row.start_date, row.start_date))
+    lines = []
+    for row in rows[:12]:
+        out = event_out(row)
+        timed = out["time_mode"] == "clock" and out["start_minute"] is not None
+        when = _when(out["start_date"], out["end_date"],
+                     periods.hhmm(out["start_minute"]) if timed else None,
+                     periods.hhmm(out["end_minute"]) if timed and out["end_minute"] is not None else None)
+        target = [f"{'·'.join(map(str, out['target_grades']))}학년"] if out["target_grades"] else []
+        target += ["·".join(out["target_majors"])] if out["target_majors"] else []
+        parts = [when, "대상 " + " · ".join(target) if target else None,
+                 "개인 일정" if out["is_personal"] else None,
+                 "질문자 해당 아님" if applies(ctx.profile, row.title, out["target_grades"], out["target_majors"]) is False
+                 else None]
+        lines.append(f"{row.title} ({' / '.join(p for p in parts if p)})")
+    return lines
 
 
 def my_exams(ctx: Context) -> dict:
@@ -523,8 +572,8 @@ TOOLS = [
         {"subject": {"type": "string"}, "section": {"type": "string", "description": "예: 3분반"}}, ["subject"]),
     _fn("find_person", "이름 일부나 학번으로 학생·교사 후보 찾기", {"query": {"type": "string"}}, ["query"]),
     _fn("calendar", "학사일정과 내 개인 일정. 시험·행사·귀가·마감 등",
-        {"start": DATE, "end": {"type": "string", "description": "YYYY-MM-DD. 비우면 start 부터 60일"},
-         "query": {"type": "string", "description": "제목 키워드 (선택)"}}),
+        {"start": DATE, "end": {"type": "string", "description": "YYYY-MM-DD. 비우면 start 부터 60일. 하루만 보려면 start 와 같은 날"},
+         "query": {"type": "string", "description": "찾는 일정의 이름(예: 기말고사, 귀가). 기간 안의 일정을 다 보려면 비운다"}}),
     _fn("my_exams", "질문한 사람의 이번 학기 시험 시간표 (과목·날짜·시각·시험실)"),
     _fn("meal", "급식 메뉴 (아침·점심·저녁)", {"date": DATE}),
     _fn("course_info", "교육과정 과목 정보 — 학점·선수과목·설명", {"name": {"type": "string"}}, ["name"]),
