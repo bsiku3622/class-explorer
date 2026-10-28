@@ -58,7 +58,7 @@ def similar(a: str, b: str) -> bool:
     return len(grams_a & grams_b) / len(grams_a | grams_b) >= 0.5
 
 
-# 같은 날 같은 분류에서 이 말을 함께 쓰면 같은 일정입니다 ("12월 귀가" = "귀가(전학년)")
+# 날짜가 겹치는 두 일정이 이 말을 함께 쓰면 같은 일정입니다 ("12월 귀가" = "귀가(전학년)")
 IDENTITY_WORDS = ("귀가", "귀교", "폐쇄", "개학", "종업", "방학", "중간고사", "기말고사", "수강신청", "수강정정",
                   "졸업", "입학", "축제", "체육대회")
 
@@ -107,7 +107,8 @@ def duplicate(db, item: dict, post_id: int) -> bool:
             continue
         if similar(row.title, item["title"]):
             return True
-        if row.start_date == start and row.category == item["category"] and same_identity(row.title, item["title"]):
+        # 분류는 보지 않습니다 — 모델이 기말고사를 academic 으로 줘서 PDF 의 exam 일정과 겹쳐 들어갔습니다
+        if same_identity(row.title, item["title"]):
             return True
         # "기말고사" 와 "2학기 기말고사 시작" 처럼 시험 기간은 이름이 달라도 같은 일정입니다
         if item["category"] == "exam" and row.category == "exam" and row.source != "ksain":
@@ -120,7 +121,8 @@ def _event(post: Post, item: dict, index: int) -> core.CalendarEvent:
     title = item["title"]
     # 마감은 "15:00 까지" 라 시간 블록으로 그리면 15:00–16:00 행사처럼 읽힙니다 — 종일 + 제목에 시각
     if item.get("kind") == "deadline" and start_minute is not None:
-        title = f"{title} ({item['start_time']}까지)"
+        # "24:00 까지" 를 모델이 00:00 으로 적습니다 — 그날 자정입니다
+        title = f"{title} ({'자정' if start_minute == 0 else item['start_time']}까지)"
         start_minute = end_minute = None
     clock = start_minute is not None
     if clock and (end_minute is None or end_minute <= start_minute):
@@ -176,9 +178,8 @@ def apply_post(post: Post, analysis: Analysis) -> int:
 
 
 def remove_missing(ksain_db) -> int:
-    """ksain 에서 사라진 글의 자동 일정을 걷어냅니다."""
+    """ksain 에서 사라진 글의 자동 일정과 분석(요약에 원문 내용이 들어 있습니다)을 지웁니다."""
     rows = ksain_db.query(Analysis).join(Post).filter(Post.missing_since.isnot(None)).all()
-    rows = [row for row in rows if row.applied]
     if not rows:
         return 0
     db = _core()
@@ -189,8 +190,9 @@ def remove_missing(ksain_db) -> int:
                 core.CalendarEvent.source == "ksain",
                 core.CalendarEvent.source_ref.like(f"{row.post_id}:%"),
             ).delete(synchronize_session=False)
-            row.applied = []
         db.commit()
     finally:
         db.close()
+    for row in rows:
+        ksain_db.delete(row)
     return removed

@@ -170,7 +170,12 @@ def refresh(db, client: KsainClient, days: int) -> tuple[int, int]:
     for post in db.query(Post).filter(Post.posted_at >= since, Post.missing_since.is_(None)).all():
         doc = client.document(post.id)
         if doc is None:
+            # 원문이 지워졌으면 사본의 내용도 지웁니다(개인정보처리방침 4항). 번호만 남겨 다시
+            # 묻지 않게 하고, 그 글에서 만든 일정은 analyze 의 remove_missing 이 걷어냅니다
             post.missing_since = datetime.datetime.utcnow()
+            post.title, post.content_text, post.eng_title, post.eng_content_text, post.raw, post.writer = (
+                "", "", None, None, None, None)
+            post.attachments = []
             missing += 1
         else:
             changed += store(db, doc)[1]
