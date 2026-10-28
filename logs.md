@@ -11,8 +11,14 @@
   있어 지웠고, main 에 없던 두 커밋(`dev` 의 3월 "test", `hotfix/timetable-overrides` 의 옛 대체 시간표 구현)은 patch 로
   남기고(`~/Bufs/Claude Files/2026-10-29/history-rewrite/archived-branches/`) 지웠습니다. `dev` 는 맥북·데스크탑 모두 새
   `origin/dev` 로 옮겼습니다. 데스크탑에도 3월에 받은 clone(`D:\Projects\Main Projects\class-explorer`)이 있었습니다
-- ⚠️ GitHub 이 관리하는 `refs/pull/1/head`·`refs/pull/2/head` 는 덮어쓸 수 없어서 옛 커밋을 계속 가리킵니다 — 지원팀이
-  PR 을 지우고 캐시를 비워야 끝납니다(요청문: `history-rewrite/github-support-request.txt`). 이미 받아 간 clone 은 되돌릴 수 없습니다
+- ⚠️ GitHub 이 관리하는 `refs/pull/1/head`·`refs/pull/2/head` 는 덮어쓸 수 없어서 옛 커밋을 계속 가리킵니다 — 지우려면
+  지원팀이 PR 을 지우고 캐시를 비워야 합니다. **운영자가 PR 은 그대로 두기로 했습니다**(요청문만
+  `history-rewrite/github-support-request.txt` 에 남김). 이미 받아 간 clone 도 되돌릴 수 없습니다
+- ⚠️ 맥북 원래 폴더(옛 main `7515903`)에 **커밋 안 한 10-15 작업**("자몽 학기별 상세 입력 패널" — `Roadmap.tsx`·
+  `ZamongPage.tsx`·가이드 둘·logs·tasks 수정 + 새 파일 `TermPanel.tsx`)이 남아 있었습니다. main 에 없는 작업이라 그대로
+  `reset --hard` 했으면 사라졌습니다 — 맞추는 명령의 "커밋 안 한 변경이 있으면 멈춤" 이 막았습니다. 새 main 위에 얹은
+  patch 를 만들어(빌드·린트 확인) `history-rewrite/resync-main-checkout.sh` 가 보관 → reset → 다시 얹기를 합니다.
+  커밋·배포는 하지 않았습니다 — 여전히 커밋 안 한 작업입니다
 - 같은 점검에서 서버의 `backend/students.txt`(학번·이름)가 644 라 다른 계정도 읽던 것을 640 `baeks:ksaclass` 로 막았습니다.
   API 계정은 그대로 읽습니다(`/admin/sync` 가 씁니다)
 

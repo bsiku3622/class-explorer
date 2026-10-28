@@ -387,7 +387,7 @@ python3.14 -m backend.knowledge.index           # ksain.db 스키마 맞추기 +
 6. **공개 레포의 기록에서 개인정보 파일을 지웁니다** — 이 브랜치를 main 에 합쳐 배포한 **뒤에**. 학생 명단·옛 DB·
    강의계획서가 2026-03 이후 기록에 남아 있습니다. 맥북에서 `~/Bufs/Claude Files/2026-10-29/history-rewrite/rewrite-history.sh`
    를 먼저 그냥 돌려 확인하고, `--push` 로 덮어쓴 뒤 출력대로 모든 clone(맥북·서버·데스크탑)을 맞춥니다. PR #1·#2 의
-   화면은 GitHub 지원팀에 요청해야 지워집니다. **2026-10-29 에 덮어썼습니다**(main `9e97e77`)
+   화면은 GitHub 지원팀에 요청해야 지워지는데, 운영자가 그대로 두기로 했습니다. **2026-10-29 에 덮어썼습니다**(main `9e97e77`)
    ⚠️ **옛 clone 에서는 `git pull` 하지 마세요.** git 이 옛 기록과 새 기록을 합쳐 버리고, 그대로 푸시하면 지운 명단이 든
    커밋이 공개 레포로 다시 올라갑니다. 커밋 안 한 변경이 없는지 보고 `git fetch origin --prune && git reset --hard
    origin/main` 으로 맞춥니다. 맥북 저장소에는 `pull.ff=only` 를 걸어 두어 합치려 하면 멈춥니다
