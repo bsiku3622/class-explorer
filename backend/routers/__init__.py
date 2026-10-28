@@ -18,4 +18,5 @@
 | `bench.py` | ksa-bench — 사람 1명 조회·수강 분포·본인 이수 |
 | `materials.py` | `/materials/*` · `/admin/materials/*` — 자료실 |
 | `agent.py` | `/agent/*` — Ask (질문창) |
+| `facts.py` | `/facts/*` — Ask 의 기억 고치기·숨기기 (manager) |
 """

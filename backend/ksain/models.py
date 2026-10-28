@@ -5,7 +5,7 @@
 """
 
 from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import deferred, relationship
 
 from backend.core import clock
 from backend.core.db import KsainBase
@@ -103,7 +103,35 @@ class Analysis(KsainBase):
     # 학사일정에 반영한 것 [{sig, event_id}] 과, 사람이 지워서 다시 만들지 않을 항목의 sig
     applied = Column(JSON, default=list, nullable=False)
     suppressed = Column(JSON, default=list, nullable=False)
+    # 글에서 뽑은 사실 — 본 DB 의 `facts`(기억)로 옮겨 적습니다. `--reapply` 가 LLM 없이 다시
+    # 옮기려고 남겨 둡니다. ⚠️ `deferred` 인 이유: API 는 ksain.db 에 스키마를 맞추지 않아서
+    # (core/db.py) 수집 타이머가 이 칸을 붙이기 전에도 분석 행을 읽을 수 있어야 합니다
+    facts = deferred(Column(JSON, default=list, nullable=False))
     error = Column(String, nullable=True)
     analyzed_at = Column(DateTime, default=clock.utcnow, nullable=False)
 
     post = relationship("Post", back_populates="analysis")
+
+
+class SearchChunk(KsainBase):
+    """검색 색인의 조각 하나 — 글 본문(`attachment_id` 없음)이나 첨부 텍스트의 [start, stop) 구간.
+
+    글자는 저장하지 않고 **위치만** 둡니다. 원문은 글·첨부 표에 이미 있습니다. FTS 표
+    (`ksain_search_fts`, 바이그램 토큰)의 rowid 가 이 id 입니다 — `knowledge/index.py`.
+
+    ⚠️ AUTOINCREMENT 입니다. 지운 조각의 id 를 다시 쓰면 FTS 에 남은 옛 토큰이 새 조각에 붙습니다.
+    """
+    __tablename__ = "ksain_search_chunks"
+    __table_args__ = {"sqlite_autoincrement": True}
+    id = Column(Integer, primary_key=True)
+    post_id = Column(Integer, nullable=False, index=True)
+    attachment_id = Column(Integer, nullable=True)
+    start = Column(Integer, nullable=False)
+    stop = Column(Integer, nullable=False)
+
+
+class SearchStamp(KsainBase):
+    """글마다 마지막으로 색인한 내용의 지문 — 바뀐 글만 다시 색인합니다."""
+    __tablename__ = "ksain_search_stamps"
+    post_id = Column(Integer, primary_key=True, autoincrement=False)
+    stamp = Column(String, nullable=False)
