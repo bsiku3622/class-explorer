@@ -25,6 +25,8 @@ import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
 import GoogleLinkModal from "./components/GoogleLinkModal";
 import ShareMaterialsPrompt from "./components/ShareMaterialsPrompt";
+import AgentDock from "./components/agent/AgentDock";
+import { useAgentChat } from "./hooks/useAgentChat";
 
 // Pages (lazy loaded for code splitting)
 const SearchPage = React.lazy(() => import("./pages/SearchPage"));
@@ -45,6 +47,9 @@ const MaterialsPage = React.lazy(() => import("./pages/MaterialsPage"));
 const UploadPage = React.lazy(() => import("./pages/UploadPage"));
 // 개발 전용 — funky-ui 토큰 작업용 컴포넌트 표본집. 메뉴에 올리지 않습니다
 const InventoryPage = React.lazy(() => import("./pages/InventoryPage"));
+// 플로팅 버튼을 누를 때 미리 받아 둡니다 — 모바일 창은 보내는 순간 `/ai` 로 옮겨 갑니다
+const loadAiPage = () => import("./pages/AiPage");
+const AiPage = React.lazy(loadAiPage);
 
 const CACHE_PREFIX = "ksa_class_finder_cache";
 /**
@@ -146,6 +151,35 @@ const App: React.FC = () => {
 
     const isModifierPressed = useModifierKey();
     const tradeAvailable = isTradeAvailable(term, currentUser?.trade);
+
+    // ── Ask (`/ai` · 오른쪽 아래 플로팅 버튼 · ⌘K) ────────────────────────────
+    // 대화는 여기 한 벌이라 페이지를 옮겨도, 창과 `/ai` 를 오가도 이어집니다. 창(`askOpen`)은
+    // 데스크탑이면 미니 창, 폰이면 전체 화면으로 그려집니다(`AgentDock`). `/ai` 에 들어서면 닫습니다 —
+    // 그 페이지가 곧 큰 창이고, 나올 때 창이 도로 떠 있으면 연 적 없는 창이 튀어나온 것처럼 보입니다
+    const onAiPage = location.pathname === "/ai";
+    const [askOpen, setAskOpen] = useState(false);
+    if (onAiPage && askOpen) setAskOpen(false);
+    const askChat = useAgentChat(onAiPage || askOpen);
+    const [askFocus, setAskFocus] = useState(0);
+    const askName = currentUser?.student_name || currentUser?.username || "";
+    const openAsk = useCallback(() => {
+        void loadAiPage();
+        setAskOpen(true);
+        setAskFocus((n) => n + 1);
+    }, []);
+    const closeAsk = useCallback(() => setAskOpen(false), []);
+    // ⌘K 는 열기만 합니다(이미 열려 있으면 입력칸으로). ⚠️ 닫기까지 맡기면 모바일 창이 남긴 방문 기록을
+    // 거치지 않고 닫혀서, 다음 뒤로가기가 그 기록에 걸려 헛돕니다 — 닫기는 창의 ✕ 가 합니다
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "k") return;
+            e.preventDefault();
+            if (onAiPage) setAskFocus((n) => n + 1);
+            else openAsk();
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [onAiPage, openAsk]);
 
     const handleLogout = useCallback(async () => {
         if (getSessionToken()) {
@@ -595,6 +629,12 @@ const App: React.FC = () => {
                                 }
                             />
                             <Route
+                                path="/ai"
+                                element={
+                                    <AiPage chat={askChat} focusKey={askFocus} name={askName} />
+                                }
+                            />
+                            <Route
                                 path="/search"
                                 element={
                                     <SearchPage
@@ -761,6 +801,16 @@ const App: React.FC = () => {
                 showTrade={tradeAvailable}
                 onLogout={handleLogout}
             />
+            {!onAiPage && (
+                <AgentDock
+                    chat={askChat}
+                    name={askName}
+                    open={askOpen}
+                    focusKey={askFocus}
+                    onOpen={openAsk}
+                    onClose={closeAsk}
+                />
+            )}
             {currentUser && (
                 <ShareMaterialsPrompt
                     term={term}
