@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from backend import models
 from backend.core import clock
 from backend.knowledge.text import expand, fts_query, query_terms, similar, squeeze, tokens
+from backend.services import majors
 from backend.services.calendar import grades
 
 #: 이보다 확신이 낮은 사실은 옮겨 적지 않습니다 (분석기가 "추정" 이라고 한 것)
@@ -46,9 +47,11 @@ def fact_out(fact: models.Fact) -> dict:
         "topic": fact.topic,
         "post_id": fact.post_id,
         "post_title": fact.post_title,
+        "board": fact.board,
         "posted_on": fact.posted_on.isoformat() if fact.posted_on else None,
         "url": ksain_url(fact.post_id),
         "target_grades": grades(fact.target_grades),
+        "target_majors": majors.split(fact.target_majors),
         "valid_until": fact.valid_until.isoformat() if fact.valid_until else None,
         "confidence": fact.confidence,
         "status": fact.status,
@@ -57,10 +60,18 @@ def fact_out(fact: models.Fact) -> dict:
 
 
 # ─── 검색 색인 (facts_fts) ───────────────────────────────────────────────────
+def _searchable(fact: models.Fact) -> str:
+    """검색이 보는 글 — 주제·문장에 대상 전공과 그 학부 이름까지(`majors.with_divisions`).
+
+    학부 공지의 사실은 문장에 학부 이름이 없는 일이 많습니다("면접 특강 참석 시 자기 계발 점수 부여").
+    """
+    return "\n".join([fact.topic, fact.statement, " ".join(majors.with_divisions(majors.split(fact.target_majors)))])
+
+
 def _index(db: Session, fact: models.Fact) -> None:
     db.execute(text("DELETE FROM facts_fts WHERE rowid = :id"), {"id": fact.id})
     db.execute(text("INSERT INTO facts_fts(rowid, tokens) VALUES (:id, :tokens)"),
-               {"id": fact.id, "tokens": " ".join(tokens(f"{fact.topic}\n{fact.statement}"))})
+               {"id": fact.id, "tokens": " ".join(tokens(_searchable(fact)))})
 
 
 def _unindex(db: Session, fact_ids: list[int]) -> None:
@@ -101,9 +112,10 @@ def apply_post(db: Session, post, analysis) -> int:
             continue  # 사람이 숨기거나 고친 그 사실입니다
         valid_until = item.get("valid_until")
         fact = models.Fact(
-            post_id=post.id, post_title=post.title, posted_on=posted_on, seq=seq,
+            post_id=post.id, post_title=post.title, board=post.board_label, posted_on=posted_on, seq=seq,
             statement=item["statement"], topic=item.get("topic") or "",
             target_grades=",".join(str(g) for g in item.get("target_grades") or []) or None,
+            target_majors=majors.joined(item.get("target_majors")),
             valid_until=datetime.date.fromisoformat(valid_until) if valid_until else None,
             confidence=float(item.get("confidence") or 0),
         )
@@ -112,7 +124,7 @@ def apply_post(db: Session, post, analysis) -> int:
         _index(db, fact)
         created += 1
     for kept in keep:
-        kept.post_title = post.title  # 글 제목을 고쳤으면 출처 표시도 따라갑니다
+        kept.post_title, kept.board = post.title, post.board_label  # 글을 고쳤으면 출처 표시도 따라갑니다
     return created
 
 
@@ -167,7 +179,7 @@ def _weights(db: Session, terms: list[str]) -> list[float]:
 
 
 def find(db: Session, query: str, *, today: datetime.date | None = None, grade: int | None = None,
-         limit: int = RECALL_LIMIT, min_relevance: float = 0.5) -> list[models.Fact]:
+         major: str | None = None, limit: int = RECALL_LIMIT, min_relevance: float = 0.5) -> list[models.Fact]:
     """질문에 맞는 사실 — 질문 낱말을 무게 기준으로 절반 넘게 덮은 것만.
 
     같은 주제(`topic`)의 사실이 여럿이면 **새 글의 것 하나만** 남깁니다 — 해마다 다시 오는
@@ -191,7 +203,7 @@ def find(db: Session, query: str, *, today: datetime.date | None = None, grade: 
 
     scored = []
     for fact in facts:
-        flat = squeeze(f"{fact.topic}\n{fact.statement}")
+        flat = squeeze(_searchable(fact))
         relevance = sum(w for w, group in zip(weights, variants) if any(v in flat for v in group)) / total
         if relevance < min_relevance and len(terms) > 1:
             continue
@@ -200,6 +212,8 @@ def find(db: Session, query: str, *, today: datetime.date | None = None, grade: 
             score += max(0.0, 1 - (today - fact.posted_on).days / FRESH_DAYS)
         if grade and fact.target_grades and grade not in grades(fact.target_grades):
             score -= 1  # 다른 학년 이야기 — 빼지는 않습니다(다른 학년 걸 묻기도 합니다)
+        if major and fact.target_majors and major not in majors.split(fact.target_majors):
+            score -= 1  # 다른 전공 이야기 — 같은 이유로 빼지 않습니다
         if fact.edited:
             score += 0.5  # 사람이 확인한 문장
         scored.append((score, fact))

@@ -4,6 +4,8 @@
 새 사이트(ksain.kr)에서 쓴 글은 100000 번대이고 둘은 같은 DB 에 있습니다.
 """
 
+import re
+
 from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import deferred, relationship
 
@@ -45,6 +47,15 @@ class Post(KsainBase):
     @property
     def url(self) -> str:
         return f"https://ksain.kr/document/{self.id}"
+
+    @property
+    def board_label(self) -> str | None:
+        """게시판 + 말머리 — "공지사항 · 교무연구부", "규정 게시판 · 폐지". 말머리가 올린 부서나 규정의
+        현행 여부일 때만 붙입니다. 연도("2026")·번호·"일반"·"기타" 는 아무것도 말해 주지 않습니다."""
+        category = (self.category or "").strip()
+        if not self.board_name or not category or category in ("일반", "기타") or re.fullmatch(r"[\d\-]+", category):
+            return self.board_name
+        return f"{self.board_name} · {category}"
 
 
 class Attachment(KsainBase):

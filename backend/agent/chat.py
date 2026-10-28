@@ -45,9 +45,9 @@ SYSTEM = """너는 classes.bsiku.dev(KAIST 부설 한국과학영재학교 수�
 
 - 시간표·강의실·학사일정·시험·급식·교육과정·ksain 공지는 반드시 도구로 확인하고, 도구 결과에 없는 내용은 지어내지 않는다.
 - "나/내/제"는 질문한 사람이다(person="me"). "내일", "다음 주 월요일" 같은 날짜는 오늘 기준 YYYY-MM-DD 로 바꿔 넘긴다.
-- 도구 결과의 일정에 붙은 "mine" 은 질문한 사람에게 해당하는지(학년·내국인/외국인)를 이미 계산한 값이다.
+- 도구 결과의 일정·사실에 붙은 "mine" 은 질문한 사람에게 해당하는지(학년·전공 트랙·내국인/외국인)를 이미 계산한 값이다.
   "내 일정", "내 필참교육", "나 해당돼?"처럼 본인 것을 물으면 mine 이 true 인 항목만 답하고,
-  왜 해당되는지("2학년 내국인이라") 한마디 붙인다. 해당하는 게 없으면 없다고 답한다.
+  왜 해당되는지("2학년 내국인이라", "물리학 트랙이라") 한마디 붙인다. 해당하는 게 없으면 없다고 답한다.
 - 교시는 "3교시(10:40–11:30)"처럼 시각을 같이 적는다. 교시 시각표: {periods}
   공지에 시각만 있으면 이 표로 교시 번호를 맞추고, 표에 없는 시각이면 교시 번호를 쓰지 않는다.
 - 도구 결과의 "when" 은 이미 맞춰 둔 일시다. 항목마다 그 항목의 title 과 when 을 그대로 짝지어 옮긴다.
@@ -63,9 +63,11 @@ SYSTEM = """너는 classes.bsiku.dev(KAIST 부설 한국과학영재학교 수�
 """
 
 MEMORY = """
-기억 — ksain 공지에서 정리해 둔 사실이다(괄호 안은 공지 날짜와 글 제목). 질문과 관련 있으면 쓰고,
-쓴 문장 끝에 그 사실의 번호를 [F12] 처럼 붙인다. 규칙·방법·장소처럼 기억으로 충분하면 바로 답해도
-되지만, 날짜·마감은 공지가 올라온 뒤 바뀌었을 수 있으니 도구로 한 번 더 확인한다.
+기억 — ksain 글에서 정리해 둔 사실이다(괄호 안은 글 날짜·게시판·제목, 대상 학년·전공, 질문자 해당 여부).
+질문과 관련 있으면 쓰고, 쓴 문장 끝에 그 사실의 번호를 [F12] 처럼 붙인다. 규칙·방법·장소처럼 기억으로
+충분하면 바로 답해도 된다. 기억에는 날짜가 없다 — 날짜·마감은 calendar 나 search 로 찾는다.
+공지사항·규정 게시판의 사실이 홍보·자유게시판의 사실보다 믿을 만하다. "질문자 해당 아님" 인 사실은
+질문자가 그 학년·전공에 대해 물을 때만 쓴다.
 {lines}
 """
 
@@ -80,23 +82,36 @@ def check_limit(user: models.User, model: llm.Model) -> None:
     _usage[key] += 1
 
 
-def memory_line(fact: models.Fact) -> str:
-    source = " · ".join(part for part in (
-        f"{fact.posted_on.isoformat()} 공지" if fact.posted_on else None, fact.post_title[:60]) if part)
-    return f"- [F{fact.id}] {fact.statement} ({source})"
+def memory_line(entry: dict) -> str:
+    """`Context.remember` 의 항목 하나 → 기억 한 줄.
+
+    `- [F12] 문장 (2026-10-01 · 공지사항 · 교무연구부 · 글 제목 / 대상 2학년 · 물리학·지구과학 / 질문자 해당)`
+    — 해당 여부는 대상이 있거나 해당하지 않을 때만 적습니다. 전교생 사실마다 "해당" 을 붙이면 줄만 깁니다.
+    """
+    target = [f"{'·'.join(str(g) for g in entry['grades'])}학년"] if entry.get("grades") else []
+    target += ["·".join(entry["majors"])] if entry.get("majors") else []
+    parts = [entry["from"], "대상 " + " · ".join(target) if target else None]
+    if entry.get("mine") is False:
+        parts.append("질문자 해당 아님")
+    elif entry.get("mine") and target:
+        parts.append("질문자 해당")
+    return f"- [{entry['id']}] {entry['fact']} ({' / '.join(p for p in parts if p)})"
 
 
-def system_prompt(ctx: Context, facts: list[models.Fact]) -> str:
+def system_prompt(ctx: Context, memory_entries: list[dict]) -> str:
     now = clock.now()
     profile = ctx.profile
-    who = (f"{profile['name'] or ''}({profile['stu_id']}) · {profile['grade']}학년 · {profile['track']} 학생"
-           if profile else f"{ctx.user.username} (학번 미연결)")
+    if profile:
+        major = (f"{profile['major']} 트랙({profile['division']})" if profile["major"] else "전공 트랙 미정")
+        who = f"{profile['name'] or ''}({profile['stu_id']}) · {profile['grade']}학년 · {profile['track']} · {major} 학생"
+    else:
+        who = f"{ctx.user.username} (학번 미연결)"
     # 표를 안 주면 모델이 교시 번호를 짐작합니다 — 15:40 수업을 "4교시" 로 적었습니다
     table = ", ".join(f"{p} {periods.hhmm(s)}–{periods.hhmm(e)}" for p, s, e in periods.PERIODS)
     text = SYSTEM.format(date=now.date().isoformat(), weekday=WEEKDAYS[now.weekday()], time=now.strftime("%H:%M"),
                          term=f"{ctx.year}-{ctx.semester}", who=who, periods=table)
-    if facts:
-        text += MEMORY.format(lines="\n".join(memory_line(f) for f in facts))
+    if memory_entries:
+        text += MEMORY.format(lines="\n".join(memory_line(entry) for entry in memory_entries))
     return text
 
 
@@ -174,15 +189,16 @@ async def run(user_id: int, message: str, history: list[dict], images: list[str]
 
         recall_started = time.monotonic()
         facts = memory.find(db, _recall_query(message, history),
-                            grade=ctx.profile["grade"] if ctx.profile else None)
-        ctx.remember(facts)
+                            grade=ctx.profile["grade"] if ctx.profile else None,
+                            major=ctx.profile["major"] if ctx.profile else None)
+        remembered = ctx.remember(facts)
         if facts:
             # 화면의 단계 줄 — 도구와 같은 모양으로 "기억에서 찾기 · 사실 3건" 을 보입니다
             yield _event("tool", id="recall", name="recall", args={"query": message[:60]})
             yield _event("tool_done", id="recall", name="recall", ok=True,
                          ms=round((time.monotonic() - recall_started) * 1000), summary=f"사실 {len(facts)}건")
 
-        messages = [{"role": "system", "content": system_prompt(ctx, facts)}]
+        messages = [{"role": "system", "content": system_prompt(ctx, remembered)}]
         messages += history[-8:]
         if images:
             # OpenAI 호환 형식 — Ollama(gemma4 는 이미지를 읽습니다)와 OpenAI 가 같이 받습니다

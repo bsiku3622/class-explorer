@@ -22,7 +22,7 @@ from backend.core.db import KsainSession, db_session
 from backend.knowledge import facts as memory
 from backend.knowledge import search as knowledge
 from backend.knowledge.text import query_terms
-from backend.services import periods
+from backend.services import majors, periods
 from backend.services.calendar import event_out, grades, visible_to
 from backend.services.exams import exams_for
 from backend.services.meals import fetch_meal
@@ -66,8 +66,8 @@ def _when(start: str, end: str | None = None, start_time: str | None = None, end
     return text
 
 
-def profile_of(db: Session, stu_id: str | None) -> dict | None:
-    """학번에서 읽어 내는 질문자 정보 — 학년과 내국인·외국인.
+def profile_of(db: Session, stu_id: str | None, major: str | None = None) -> dict | None:
+    """학번에서 읽어 내는 질문자 정보 — 학년과 내국인·외국인. 전공은 계정에 적힌 것(`User.major`)을 받습니다.
 
     - 학년: 학번 앞 두 자리가 입학 연도이고 학년도는 3월에 바뀝니다 (2026년 10월의 25학번 = 2학년).
       4년째 다니는 학생도 있어 3학년으로 묶습니다
@@ -80,18 +80,22 @@ def profile_of(db: Session, stu_id: str | None) -> dict | None:
     school_year = today.year if today.month >= 3 else today.year - 1
     years = school_year - (2000 + int(stu_id[:2])) + 1
     student = db.get(models.Student, stu_id)
+    major = major if major in majors.MAJORS else None
     return {
         "name": student.name if student else None, "stu_id": stu_id,
         "grade": max(1, min(3, years)), "years": years,
         "track": "외국인" if int(stu_id[3:]) >= 200 else "내국인",
+        "major": major, "division": majors.division_of(major),
     }
 
 
-def applies(profile: dict | None, title: str, grades: list[int] | None) -> bool | None:
+def applies(profile: dict | None, title: str, grades: list[int] | None,
+            target_majors: list[str] | None = None) -> bool | None:
     """이 일정이 질문자에게 해당하는가. 모를 때는 None.
 
     모델에게 맡기면 항목 여러 개를 엇갈려 고릅니다 — 코드가 학년(`target_grades` 나 제목의
-    "N학년")과 구분(제목의 내국인·외국인, 국내반·국제반)으로 미리 정합니다.
+    "N학년"), 전공(`target_majors` 나 제목의 학부 이름)과 구분(제목의 내국인·외국인, 국내반·국제반)으로
+    미리 정합니다. 전공을 아직 안 정한 사람에게는 전공을 따지지 않습니다.
     """
     if not profile:
         return None
@@ -101,6 +105,9 @@ def applies(profile: dict | None, title: str, grades: list[int] | None) -> bool 
         if match:
             wanted = {int(g) for g in re.findall(r"[123]", match.group(1))}
     if wanted and profile["grade"] not in wanted:
+        return False
+    wanted_majors = set(target_majors or []) or set(majors.mentioned(title))
+    if wanted_majors and profile.get("major") and profile["major"] not in wanted_majors:
         return False
     foreign = profile["track"] == "외국인"
     if re.search(r"외국인|국제반", title or "") and not foreign:
@@ -117,7 +124,9 @@ def _items(items: list[dict], profile: dict | None = None) -> list[dict]:
                                                       item.get("start_time"), item.get("end_time"))}
         if item.get("target_grades"):
             entry["grades"] = item["target_grades"]
-        mine = applies(profile, item["title"], item.get("target_grades"))
+        if item.get("target_majors"):
+            entry["majors"] = item["target_majors"]
+        mine = applies(profile, item["title"], item.get("target_grades"), item.get("target_majors"))
         if mine is not None:
             entry["mine"] = mine
         for key in ("post_title", "url"):
@@ -144,7 +153,7 @@ class Context:
         self.sources: list[dict] = []
         # 이 대화에서 모델에게 보인 사실 — 답의 [F번호] 를 출처로 바꿀 때 씁니다 (agent/chat.py)
         self.facts: dict[int, models.Fact] = {}
-        self.profile = profile_of(db, user.effective_stu_id)
+        self.profile = profile_of(db, user.effective_stu_id, user.major)
 
     def cite(self, title: str, url: str, first: bool = False) -> None:
         if not url:
@@ -158,14 +167,24 @@ class Context:
                 self.sources.append(entry)
 
     def remember(self, facts: list[models.Fact]) -> list[dict]:
-        """모델에게 보이는 사실 — 번호(F12)를 붙여 돌려주고, 답에서 그 번호를 찾을 수 있게 기억해 둡니다."""
+        """모델에게 보이는 사실 — 번호(F12)를 붙여 돌려주고, 답에서 그 번호를 찾을 수 있게 기억해 둡니다.
+
+        시스템 프롬프트의 기억 줄(`agent/chat.py` 의 `memory_line`)도 이 항목으로 만듭니다. 출처에 게시판
+        (말머리)을 붙이는 건 교무연구부 공지와 동아리 홍보를 모델이 가려 읽게 하려는 것이고, 대상 학년·전공과
+        `mine` 은 다른 학년·전공 이야기를 질문자의 것처럼 답하지 않게 하려는 것입니다.
+        """
         out = []
         for fact in facts:
             self.facts[fact.id] = fact
             entry = {"id": f"F{fact.id}", "fact": fact.statement,
                      "from": " · ".join(x for x in (fact.posted_on.isoformat() if fact.posted_on else None,
-                                                    fact.post_title[:60]) if x)}
-            mine = applies(self.profile, fact.statement, grades(fact.target_grades))
+                                                    fact.board, fact.post_title[:60]) if x)}
+            target_grades, target_majors = grades(fact.target_grades), majors.split(fact.target_majors)
+            if target_grades:
+                entry["grades"] = target_grades
+            if target_majors:
+                entry["majors"] = target_majors
+            mine = applies(self.profile, fact.statement, target_grades, target_majors)
             if mine is not None:
                 entry["mine"] = mine
             out.append(entry)
@@ -384,7 +403,9 @@ def calendar(ctx: Context, start: str | None = None, end: str | None = None, que
     )
     words = query_terms(query or "")
     if words:
-        rows = [r for r in rows if any(w in _norm(r.title) or w in _norm(r.note or "") for w in words)]
+        # 대상 전공·학부 이름도 봅니다 — "정보과학 일정" 을 물으면 제목이 "수학 모의면접" 이어도 걸려야 합니다
+        rows = [r for r in rows if any(w in _norm(" ".join([r.title, r.note or "", *majors.with_divisions(
+            majors.split(r.target_majors))])) for w in words)]
     events = []
     for row in rows[:60]:
         out = event_out(row)
@@ -392,7 +413,7 @@ def calendar(ctx: Context, start: str | None = None, end: str | None = None, que
         out["when"] = _when(out["start_date"], out["end_date"],
                             periods.hhmm(out["start_minute"]) if clock else None,
                             periods.hhmm(out["end_minute"]) if clock and out["end_minute"] is not None else None)
-        mine = applies(ctx.profile, row.title, out["target_grades"])
+        mine = applies(ctx.profile, row.title, out["target_grades"], out["target_majors"])
         if mine is not None:
             out["mine"] = mine
         url = re.search(r"https://ksain\.kr/document/\d+", row.note or "")
@@ -435,7 +456,8 @@ def course_info(ctx: Context, name: str) -> dict:
 
 def search(ctx: Context, query: str, since: str | None = None, until: str | None = None, board: str | None = None) -> dict:
     """학교 자료 — 정리해 둔 사실(기억)과 ksain 글(근거 발췌 포함)을 함께."""
-    facts = memory.find(ctx.db, query, grade=ctx.profile["grade"] if ctx.profile else None, limit=5)
+    facts = memory.find(ctx.db, query, grade=ctx.profile["grade"] if ctx.profile else None,
+                        major=ctx.profile["major"] if ctx.profile else None, limit=5)
     with db_session(KsainSession) as db:
         posts = knowledge.search(db, query, since=_date(since) if since else None,
                                  until=_date(until) if until else None, board=board)
