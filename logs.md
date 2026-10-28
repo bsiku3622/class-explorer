@@ -1,3 +1,37 @@
+## 2026-10-29 — Ask: 질문자 신원 되돌림, 강의계획서 읽기, 도구 실패 줄이기
+
+- 변경 파일: `backend/agent/tools.py`·`chat.py`, `backend/services/syllabi.py`·`subject_names.py`, `backend/routers/agent.py`(warmup), `frontend/src/lib/agentChat.ts`, `frontend/src/pages/PrivacyPage.tsx`(1·2·3·6·10절), `backend/agent.guide.md`, `frontend/src/pages/PrivacyPage.guide.md`, `backend/CLAUDE.md`, `backend/services/__init__.py`, `deploy-guide.md`
+- 요약: 질문 30개를 실제 모델(gemma4:12b, 사본 DB)로 돌려 도구 실패가 36번 중 7번 → 30번 중 0번이 됐습니다. 실패는 전부 이름을 못 알아들은 것이었습니다. 강의계획서를 읽는 `syllabus` 도구를 붙였고, 질문자 이름·학번과 이번 학기 수업을 시스템 프롬프트에 되돌렸습니다.
+
+- ⚠️ **이름·학번을 프롬프트에서 뺐던 감사 결정을 운영자 요청으로 되돌렸습니다.** 빼 둔 동안 "내 이름이랑 학번
+  뭐야?" 에 모델이 "김민준, 25-012" 를 지어냈습니다. 대신 개인정보처리방침 2·6·10절이 "이름·학번·이번 학기 수강
+  과목을 보낸다(OpenAI 를 고르면 OpenAI 로도)" 고 적습니다 — 프롬프트에서 다시 빼면 방침도 고칩니다
+- 실패 일곱은 `미1`·`선대`·`미방`·`물실1`·`일물2`·`확통` 같은 줄임말과, 교사 이름을 과목 칸에 넣은 호출이었습니다.
+  모델은 실패를 받으면 "그런 과목은 없다" 고 답하거나, "물실1 평가 비율" 을 상관없는 ksain 글(머신러닝 과목)에서
+  지어냈습니다. `rank_names` 는 **첫 글자를 묶은** 순서 포함으로 줄임말을 받습니다 — 묶지 않으면 "학1" 이 수학1·
+  미적분학1·일반화학1 에 다 걸립니다. 같은 단계에서 가장 촘촘한 것만 남겨 "일물2" 가 일반생물학2 를 끌고 오지
+  않게 했습니다. 교사 이름이면 그 교사의 분반을, 이번 학기에 없는 과목이면 "미개설" 을 돌려줍니다
+- 날짜: 목요일에 "목요일 3교시" 를 묻자 모델이 금요일 날짜를 넘겼습니다. 이번 주·다음 주의 요일별 날짜를
+  프롬프트에 넣고, 도구도 "목요일"·"10/30"·"다음 주 월요일" 을 직접 받습니다. ⚠️ 못 읽는 날짜는 이제 **오류**입니다
+  — 예전엔 조용히 오늘로 바꿔 틀린 날을 답했습니다. "종업식" 은 제목 "종업" 을 못 찾고 개학 무렵부터 60일만 봐서
+  "등록되어 있지 않습니다" 였습니다 → 제목이 검색어 안에 든 것도 찾고, 기간을 안 주면 1년 앞까지 봅니다
+- 강의계획서: 모은 파일이 2023~2026학년도 것이라 대개 **이번 학기 계획서가 아닙니다** — 결과가 몇 학기 것인지
+  밝히라고 시킵니다. 계획서는 "제17주 기말고사" 처럼 주차로 적혀 있어서, 학사일정 PDF 의 "N주차 종료" 표지로
+  주차표·지금 주차를 만들어 같이 줍니다(운영자가 말한 "가온누리에 없던 기존 학사일정" 을 쓰는 자리)
+- ⚠️ 짝짓기 함정이 많았습니다. 파일 이름에 오타(`Calulus2`), `고급알고리즘` 안의 `알고리즘`, 일반지구과학에
+  걸리는 **Lab** 계획서, "Art"(미술)가 오타 제목 "Gerneral E**art**h Science" 안에 든 것, 외국인 과목
+  "Biology & Exp.Ⅱ" 를 한국어 과목 "Biology & Exp." 가 가져간 것, `&` 와 `and` 가 섞인 것. 그래서 첫 쪽의
+  과목명 칸으로 짝짓고, 다른 과목 이름에 더 잘 맞는 계획서는 그쪽 몫으로 넘깁니다(더 넓은 이름은 다투지 않음).
+  이번 학기 109과목 중 104과목이 짝지어집니다 — 남은 다섯은 파일이 없거나(생활체육2 등) 로마숫자로만 다른
+  것(물리학기초Ⅱ ↔ "Basic Physics 2")입니다. 화면(`frontend/src/lib/syllabi.ts`)은 손으로 적은 규칙으로 따로
+  짝지어서 둘이 다른 파일을 고를 수 있습니다
+- ⚠️ PDF 본문은 배치 모드로 뽑습니다. 기본 모드는 줄을 이어 붙여 "기말고사 : chapters 1-7" 뒤에 다음 절 번호가
+  붙어 "chapters 1-76." 이 됐습니다. 교사 전화번호·이메일은 지우고 넘깁니다(방침 10절). 첫 호출은 목록을 만드느라
+  5초쯤 걸려 스레드에서 읽고, 질문창이 열릴 때 미리 만듭니다
+- 검증 자료: `~/Bufs/Claude Files/2026-10-29/ask-tools/` (`before.txt`·`after.txt` 가 같은 질문 묶음의 전후,
+  `syl_match.after3.txt` 가 과목별 계획서). 물실1 평가 비율·미적분학1 평가와 범위는 계획서 원문과 대조했습니다.
+  프롬프트는 최대 6.9k 토큰으로 게이트웨이 컨텍스트(16k) 안입니다
+
 ## 2026-10-29 — 개인정보 감사 + 개인정보처리방침 개정
 
 - 변경 파일: `frontend/src/pages/PrivacyPage.tsx`(1·2·3·4·5·6·7·8·10·11·13절), `backend/routers/admin.py`(`_forget_user`), `backend/core/migrations.py`(`_purge_orphans`), `backend/services/schoolday.py`, `backend/routers/auth.py`(`_get_client_ip`·만료 세션), `backend/core/db.py`(`secure_delete`), `backend/services/backup.py`(`scrub_backup`·`prune_backups`), `backend/cli/material_backup.py`·`snapshot.py`(`--scrub-existing`), `backend/knowledge/index.py`, `backend/ksain/`(apply·analyze·sync), `backend/agent/`(chat·tools·llm), 신규 `backend/routers/syllabi.py`·`backend/services/syllabi.py`, `frontend/src/lib/syllabi.ts`·`searchHistory.ts`, `App.tsx`·`SearchInput.tsx`·`googleAuth.ts`, `.gitignore`, 가이드 전반, `deploy-guide.md`

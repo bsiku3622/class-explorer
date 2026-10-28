@@ -11,11 +11,11 @@
 | `curriculum.py` | 졸업 요건·누적 이수 이력 |
 | `majors.py` | 전공(심화필수 전공 트랙)·학부 묶음·수강 이력으로 짐작하기 |
 | `materials.py` | 자료 원본의 자리 |
-| `syllabi.py` | 강의계획서 원본의 자리·목록 (git 에 없는 파일) |
+| `syllabi.py` | 강의계획서 원본의 자리·목록 (git 에 없는 파일) + Ask 가 읽는 본문(과목과 짝짓기·발췌) |
 | `terms.py` | 학기 해석 |
 | `versioning.py` | 수집 회차 (`at_version`) |
 | `features.py` | 한시적 기능의 기간 (`settings` 표) |
-| `subject_names.py` | 과목명 분해·정규화 |
+| `subject_names.py` | 과목명 분해·정규화 + 부르는 이름(줄임말)으로 찾기(`rank_names`) |
 | `zamong_import.py` | 자몽 워크북 → 이수 기록 |
 | `backup.py` | 본 DB 스냅샷 |
 """
