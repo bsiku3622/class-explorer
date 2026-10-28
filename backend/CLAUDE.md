@@ -24,6 +24,7 @@ backend/
 │   ├── meals.py         → 급식 (ksain.net API → meal_menus)
 │   ├── exams.py         → 시험 회차·본인 시험 시간표 (exams_for)
 │   ├── curriculum.py    → 졸업 요건 상수·누적 이수 이력 (fetch_progress)
+│   ├── majors.py        → 전공(심화필수 전공 트랙)·학부 묶음·대상 이름 풀기·수강 이력으로 짐작하기
 │   ├── materials.py     → 자료 원본의 자리
 │   ├── terms.py         → 학년도/학기 해석 (current_term, list_terms, resolve_term)
 │   ├── versioning.py    → 수집 회차 — at_version() (versioning.guide.md)
@@ -44,7 +45,8 @@ backend/
 │   ├── bench.py         → ksa-bench 가 주로 쓰는 것 — 사람 1명 조회·집계 (bench.guide.md)
 │   ├── materials.py     → /materials/* · /admin/materials/* — 자료실
 │   ├── agent.py         → /agent/* — Ask 질문창, SSE 응답
-│   └── facts.py         → /facts/* — Ask 의 기억 고치기·숨기기 (manager 이상)
+│   ├── facts.py         → /facts/* — Ask 의 기억 고치기·숨기기 (manager 이상)
+│   └── majors.py        → /majors/* — 내 전공 고르기 + 조사 현황(인원 수만, admin)
 ├── agent/               → Ask — 도구를 부르는 LLM Agent (agent.guide.md)
 │   ├── llm.py           → LLM 호출 한 곳 — 모델 목록(데스크탑 게이트웨이·OpenAI) + Chat Completions
 │   ├── chat.py          → 질문 하나 → 답 — 시스템 프롬프트·기억 싣기·도구 호출 루프·SSE
@@ -165,7 +167,8 @@ UniqueConstraint     role (user|manager|admin)   device_type (web|mobile)
 (stuId, classId)     email (unique, NULL 허용)     ip_address
                      stu_id (FK→Student,         created_at
                             unique, NULL 허용)     last_used_at
-                                                 expires_at
+                     major (전공 트랙 이름)        expires_at
+                     major_answered_at
 
 Department                     Subject
 ─────────────────────────────  ─────────────────────────────
@@ -195,9 +198,10 @@ title                          user_id (FK→User, 제안한 사람)
 start_date / end_date          title
 time_mode (allday|clock|       start_date / end_date
            period)             time_mode / 시간 칸들
-start_minute / end_minute      category / target_grades / note
-start_period / end_period      status (pending|approved|rejected)
-category / target_grades       reason (거절 사유)
+start_minute / end_minute      category / target_grades /
+start_period / end_period        target_majors / note
+category / target_grades /     status (pending|approved|rejected)
+  target_majors                reason (거절 사유)
 source (pdf|manual)            decided_by_id / decided_at
 owner_id (FK→User, NULL=공용)   event_id (FK→CalendarEvent)
 series_id (반복 묶음)
@@ -224,9 +228,10 @@ Fact (Ask 의 기억)
 ─────────────────────────────
 id (PK)
 post_id (ksain 글 번호 — FK 없음, 다른 DB)
-post_title / posted_on / seq
-statement / topic
+post_title / board / posted_on / seq
+statement (날짜 없음) / topic
 target_grades ("1,2", 비면 전학년)
+target_majors ("화학,생물학", 비면 전공 무관)
 valid_until (지나면 기억에서 뺌)
 confidence
 status (active|hidden)
@@ -349,6 +354,10 @@ A가 B를 추가해도 B의 목록에는 A가 없습니다.
 차 있으면 그 계정의 **개인 일정**(본인만 보고 본인만 수정)입니다. 공개 범위 컬럼을
 따로 두지 않은 이유는 지금 경우의 수가 이 둘뿐이어서입니다 — 공유가 생기면 그때
 붙입니다.
+
+대상은 학년(`target_grades`)과 전공 트랙(`target_majors`)으로 적고, 비어 있으면 전체입니다. 공개 범위가
+아니라 **표시**입니다 — 남의 학년·전공 일정도 다 내려가고, 화면의 "내 학년·전공" 거르기와 Ask 의
+`mine` 이 이 두 칸을 봅니다. 전공은 `services/majors.py`, 계정의 전공은 `User.major` 입니다.
 
 공개 범위는 `services/calendar.py` 의 `visible_to(user)` 하나로 겁니다 — `owner_id IS NULL OR
 owner_id = 나`. `/calendar`·홈·Agent 가 같이 쓰니 조건을 손으로 다시 적지 마세요(한때 세 벌이

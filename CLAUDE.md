@@ -201,9 +201,9 @@ KEIS API → cli/parser_run.py (학기 단위) → ksa_timetable.db
 | `/browse`           | BrowsePage      | 학생·교사 목록 + 교육과정 그래프  |
 | `/trade`            | TradePage       | 수강 변경 탐색 — 기간·학기는 **admin 화면**에서 (`settings` 표) |
 | `/zamong`           | ZamongPage      | 자몽 — 학교 Zamong 워크북 이식 (학번 등록 필요) |
-| `/calendar`         | CalendarPage    | 학사일정 달력 + 개인 일정 + 일정 제안 |
+| `/calendar`         | CalendarPage    | 학사일정 달력 + 개인 일정 + 일정 제안 + "내 학년·전공 것만" 거르기 |
 | `/ai`               | AiPage          | Ask — AI 에게 묻는 큰 화면. 다른 화면에서는 오른쪽 아래 플로팅 버튼이 같은 대화를 엽니다 |
-| `/about`            | SettingsPage    | 기능 가이드북 + About             |
+| `/about`            | SettingsPage    | 기능 가이드북 + 내 전공(심화필수 전공 트랙) + About. 아직 안 고른 학생에게는 어느 화면에서든 전공 팝업이 뜹니다 |
 | `/admin`            | AdminPage       | 계정 관리 (role=admin만)          |
 
 ---

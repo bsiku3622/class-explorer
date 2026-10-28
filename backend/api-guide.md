@@ -183,9 +183,14 @@ Admin의 `Timetable Overrides`에서 날짜와 가져올 요일을 등록하면 
   "email": "25-059@ksa.hs.kr",
   "is_demo": false,
   "trade": { "open": true, "year": 2026, "semester": 2 },
-  "data_versions": { "2026-2": 7, "2026-1": 3 }
+  "data_versions": { "2026-2": 7, "2026-1": 3 },
+  "major": "정보과학", "major_division": "수리정보과학부", "major_answered": true
 }
 ```
+
+`major` 는 본인이 고른 심화필수 전공 트랙이고, `major_answered` 가 `false` 면 화면이 전공 팝업을 띄웁니다.
+"아직 정하지 않았어요" 를 고른 사람은 `major: null` 이지만 `major_answered: true` 입니다 — 아래
+「전공 엔드포인트」.
 
 `data_versions`는 학기별 데이터 회차입니다. **프론트가 캐시를 계속 써도 되는지 판단하는
 유일한 근거**라, 값이 자기 캐시와 다르면 TTL 이 남아 있어도 버리고 다시 받습니다.
@@ -640,13 +645,14 @@ Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 pre
   "start_date": "2026-04-14", "end_date": "2026-04-17",
   "time_mode": "allday", "start_minute": null, "end_minute": null,
   "start_period": null, "end_period": null,
-  "category": "exam", "target_grades": [], "source": "pdf",
+  "category": "exam", "target_grades": [], "target_majors": [], "source": "pdf",
   "is_personal": false, "series_id": null, "note": null
 }] }
 ```
 
 `category`: `holiday` · `dorm` · `exam` · `term` · `academic` · `event`
 `time_mode`: `allday` · `clock`(`start_minute`, 자정 기준 분) · `period`(`start_period`, 1~11교시)
+`target_grades` · `target_majors`: 대상 학년과 대상 전공 트랙(`["화학", "생물학"]`). 비면 전체입니다.
 
 ---
 
@@ -656,9 +662,12 @@ Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 pre
 ```json
 { "title": "R&E 미팅", "start_date": "2026-04-14", "end_date": null,
   "time_mode": "period", "start_period": 7, "end_period": 8,
-  "category": "event", "target_grades": [1], "note": null,
+  "category": "event", "target_grades": [1], "target_majors": [], "note": null,
   "repeat": "weekly", "repeat_until": "2026-05-12" }
 ```
+
+`target_majors` 에는 트랙 이름(`수학`·…·`생물학`)을 넣고, 학부 이름(`화학생물학부`)을 넣으면 트랙 둘로 풀어
+저장합니다. 모르는 이름이면 `422` 입니다. 제안(`POST /calendar/requests`)도 같은 칸을 받습니다.
 
 `repeat`: `none` · `daily` · `weekly` · `monthly`. 반복은 **회차마다 한 행**으로 저장되고
 같은 `series_id` 로 묶입니다 (한 번에 최대 200 회차).
@@ -699,6 +708,46 @@ Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 pre
 `PUT` 이 `source='ksain'`(자동 등록) 일정을 고치면 `source` 가 `manual` 로 바뀌어 자동
 관리에서 빠집니다 — 다음 분석이 고친 내용을 덮어쓰지 않게요 ([ksain.guide.md](ksain.guide.md)).
 
+## 전공 엔드포인트 (`/majors/*`)
+
+전공은 학교가 부르는 이름으로 **심화필수 전공 트랙**입니다 — 수학·정보과학(수리정보과학부), 물리학·
+지구과학(물리지구과학부), 화학·생물학(화학생물학부). 1·2학년 때 학교가 조사하고 3학년 2학기까지 바꿀 수
+있어서, 본인이 적고 언제든 고칩니다. Ask 의 개인화와 학사일정의 "내 학년·전공" 거르기에 쓰입니다
+(`services/majors.py`).
+
+### `GET /majors` *(인증 필요)*
+팝업과 `/about` 이 늘어놓을 선택지, 내 전공, 수강 이력으로 짐작한 트랙입니다.
+
+```json
+{
+  "options": [{ "division": "수리정보과학부", "majors": [
+    { "name": "수학", "requirement": "선형대수, 확률및통계, 미적분학3을 수강해야 함" },
+    { "name": "정보과학", "requirement": "자료구조, 정보과학3, 알고리즘을 수강해야 함" }] }, …],
+  "me": { "major": null, "division": null, "answered": false },
+  "suggestion": { "major": "정보과학", "division": "수리정보과학부", "courses": ["자료구조", "정보과학3"] }
+}
+```
+
+`requirement` 는 교육과정 학과의 심화필수 조건(`departments.track`)입니다. `suggestion` 은 **아직 전공을 안
+고른 사람에게만** 주고, 심화필수 과목(3점)과 심화·AP 과목(2점)을 세어 1등이 4점 이상이면서 2등의 1.5배를
+넘을 때만 내놓습니다 — 1학년 필수 과목은 모두가 들어서 단서가 안 됩니다. 확실하지 않으면 `null` 입니다.
+⚠️ 짐작은 권하기만 하고 저장하지 않습니다. 맞는지 대 볼 정답이 없고, 2026-10 데이터로 세어 보면 23~25학번도
+열에 서넛은 짐작이 안 나옵니다(63~70% 만 나옴). 26학번은 1학년 필수만 들어서 거의 안 나옵니다(1%).
+
+### `PUT /majors/me` *(인증 필요)*
+`{ "major": "정보과학" }` → `{ "major", "division", "answered" }`. `major: null` 은 "아직 정하지
+않았어요" 이고, 그래도 답한 것(`answered: true`)으로 쳐서 팝업이 다시 뜨지 않습니다. 트랙 이름이 아니면
+`422` 입니다. **본인 것만 고칩니다** — 남의 전공을 읽거나 고치는 경로는 없습니다.
+
+### `GET /majors/stats` *(admin)*
+조사 현황 — 학번을 확인한 계정 중 몇 명이 답했는지와 트랙별 **인원 수**만 줍니다. 누가 무엇을 골랐는지는
+내보내지 않습니다. 시연 계정(빌린 학번)과 교사 계정은 세지 않습니다.
+
+```json
+{ "students": 312, "unanswered": 120, "undecided": 40,
+  "divisions": [{ "division": "수리정보과학부", "majors": [{ "name": "수학", "count": 21 }, …] }, …] }
+```
+
 ## Agent 엔드포인트 (`/agent/*`)
 
 Ask(질문창)입니다. 설계는 [agent.guide.md](agent.guide.md).
@@ -733,7 +782,7 @@ Ask(질문창)입니다. 설계는 [agent.guide.md](agent.guide.md).
 값을 주면 기본 모델로 갑니다.
 
 ### `GET /agent/models` *(인증 필요)*
-`{ models: [{id, name, label, provider}], default, gateway: {running, owned, inflight, idle_seconds, idle_limit} | null, me: {name, stu_id, grade, track} | null }`.
+`{ models: [{id, name, label, provider}], default, gateway: {running, owned, inflight, idle_seconds, idle_limit} | null, me: {name, stu_id, grade, track, major, division} | null }`.
 `name` 은 입력창에 보이는 짧은 이름, `label` 은 어디서 도는지까지 붙인 이름입니다. `gateway` 가
 `null` 이면 데스크탑에 닿지 않는 것이고, `running=false` 면 첫 답에 1분쯤 걸립니다. `me` 는 Agent 가
 아는 "나"(학번으로 계산, 화면 인사에 씁니다)이고 학번이 없으면 `null` 입니다.
@@ -764,8 +813,9 @@ Admin 의 기억 패널이 씁니다. 새 사실을 손으로 지어 넣는 길�
     "url": "https://ksain.kr/document/100123", "summary": "…",
     "facts": [{
       "id": 12, "statement": "…", "topic": "기말고사",
-      "post_id": 100123, "post_title": "…", "posted_on": "2026-10-20", "url": "…",
-      "target_grades": [1, 2], "valid_until": "2026-12-11",
+      "post_id": 100123, "post_title": "…", "board": "공지사항 · 교무연구부",
+      "posted_on": "2026-10-20", "url": "…",
+      "target_grades": [1, 2], "target_majors": [], "valid_until": "2026-12-11",
       "confidence": 0.9, "status": "active", "edited": false
     }]
   }],

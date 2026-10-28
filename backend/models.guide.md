@@ -130,10 +130,12 @@ ksain 글에서 분석(`ksain.analyze`)이 뽑은 사실 한 줄입니다. Ask �
 |------|-----|
 | `post_id` | ksain 글 번호. **외래키가 없습니다** — 글은 다른 파일(ksain.db)에 있습니다 |
 | `post_title` · `posted_on` | 출처 표시용 사본 — 화면과 Agent 가 ksain.db 를 따로 열지 않아도 됩니다 |
+| `board` | 출처 게시판과 말머리(`"공지사항 · 교무연구부"`) — 학교 공지인지 홍보 글인지 모델이 가려 읽게 기억 줄에 싣습니다 |
 | `seq` | 그 글에서 몇 번째 사실인지 |
-| `statement` | 글을 안 읽은 사람도 뜻이 통하는 한 문장 |
+| `statement` | 글을 안 읽은 사람도 뜻이 통하는 한 문장. **날짜가 없습니다** — 날짜는 학사일정이 맡습니다([ksain.guide.md](ksain.guide.md)) |
 | `topic` | 같은 주제를 묶는 짧은 이름 — 해마다 오는 공지는 새 글의 사실이 앞섭니다 |
 | `target_grades` | `"1,2"`. 비어 있으면 전학년 (학사일정과 같은 꼴) |
+| `target_majors` | `"화학,생물학"`. 비어 있으면 전공 무관 — 아래 「전공 칸」 |
 | `valid_until` | 지나면 기억에서 뺍니다. 비어 있으면 계속 유효한 사실(규칙·방법) |
 | `confidence` | 분석기가 매긴 확신 — 0.6 미만은 옮겨 적지 않습니다 |
 | `status` | `active` \| `hidden` |
@@ -146,3 +148,17 @@ ksain 글에서 분석(`ksain.analyze`)이 뽑은 사실 한 줄입니다. Ask �
 검색은 FTS5 표 `facts_fts`(rowid = `facts.id`, 바이그램 토큰)로 합니다. 모델이 아니라서
 `core/migrations.py` 가 만듭니다. ⚠️ **`facts` 는 `knowledge/facts.py` 를 거쳐서만 고치세요** — 거기서
 `facts_fts` 를 같이 맞춥니다. 다른 곳에서 행을 직접 고치면 검색이 옛 문장으로 걸립니다.
+
+## 전공 칸 (`User.major` · `target_majors`)
+
+전공은 학교가 부르는 이름으로 **심화필수 전공 트랙**입니다(수학·정보과학·물리학·지구과학·화학·생물학 —
+`services/majors.py`).
+
+| 모델 | 컬럼 | 뜻 |
+|------|------|-----|
+| `User` | `major` | 본인이 고른 트랙 이름(`"정보과학"`). 비어 있으면 아직 안 골랐거나 미정 |
+| `User` | `major_answered_at` | 전공 팝업에 답한 때. "아직 정하지 않았어요" 도 답이라 `major` 가 비어도 찹니다 |
+| `CalendarEvent` · `EventRequest` · `Fact` | `target_majors` | `"물리학,지구과학"`. 비어 있으면 전공 무관 (`target_grades` 와 같은 꼴) |
+
+⚠️ **학과 id 가 아니라 이름을 적습니다.** `cli/import_curriculum.py` 가 학과 행을 지우고 다시 만들어서
+id 가 바뀝니다 — id 로 묶으면 교육과정을 다시 적재하는 날 모든 사람의 전공이 끊깁니다.
