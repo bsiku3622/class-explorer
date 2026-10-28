@@ -35,7 +35,7 @@ backend/
 ├── parser_run.py    → 학기별 데이터 동기화 실행 스크립트
 ├── students.txt     → 학생 목록 (학번 + 이름)
 ├── llm.py           → LLM 호출 한 곳 — 모델 목록(데스크탑 게이트웨이·OpenAI) + Chat Completions
-├── agent_router.py  → 홈 질문창 (/agent/*) — 도구를 부르는 Agent, SSE 응답
+├── agent_router.py  → Ask 질문창 (/agent/*) — 도구를 부르는 Agent, SSE 응답
 ├── agent_tools.py   → Agent 의 읽기 전용 도구 (시간표·강의실·학사일정·시험·급식·ksain)
 ├── ksain/           → ksain 게시글 수집·분석·학사일정 자동 반영 (ksain.guide.md)
 ├── ksa_timetable.db → SQLite 데이터베이스
@@ -548,6 +548,6 @@ olefile>=0.47     # ksain 첨부 hwp
 
 - [exams.guide.md](exams.guide.md) — 시험 회차·응시 대상 DB 적재와 본인 시간표
 - [ksain.guide.md](ksain.guide.md) — ksain 수집·분석·학사일정 자동 반영
-- [agent.guide.md](agent.guide.md) — 홈 질문창 Agent·도구·모델
+- [agent.guide.md](agent.guide.md) — Ask(질문창) Agent·도구·모델
 - [api-guide.md](api-guide.md) — API 엔드포인트 명세
 - [../frontend/CLAUDE.md](../frontend/CLAUDE.md) — 프론트엔드 연동 방식
