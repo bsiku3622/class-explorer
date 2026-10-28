@@ -25,6 +25,7 @@ import time
 
 from sqlalchemy import and_, or_
 
+from backend import models
 from backend.agent import llm
 from backend.core import clock
 from backend.core.db import KsainSession, SessionLocal, init_ksain_schema, init_schema
@@ -118,7 +119,8 @@ SYSTEM = f"""너는 KAIST 부설 한국과학영재학교(KSA) 커뮤니티 ksai
   - kind: event(행사·교육·설명회), deadline(신청·제출 마감), mandatory(필참 교육), exam(시험), dorm(귀가·귀교·생활관), recruit(모집 기간)
   - title: 달력에 들어갈 짧은 이름(20자 안팎). 예: "TISF 2027 참가 신청 마감", "성인지감수성 교육(필참)"
   - detail: 그 일정에 딸린 세부 — 장소·버스 시각·준비물·제출 방법처럼 학생이 그날 알아야 할 것을 한두 문장
-    (150자 안팎). facts 에 쓸 수 없는 날짜 딸린 정보는 여기에 적는다. 없으면 빈 문자열 "".
+    (150자 안팎). facts 에 쓸 수 없는 날짜 딸린 정보는 여기에 적는다. 학생·졸업생 이름은 쓰지 않는다.
+    없으면 빈 문자열 "".
   - start_date / end_date: YYYY-MM-DD. 하루짜리면 end_date 는 start_date 와 같게. 신청 기간처럼 기간이 길면 마감일 하루만 deadline 으로 적는다.
   - start_time / end_time: HH:MM (24시간). 본문이나 제목에 시각이 있으면 반드시 채운다
     ("09:00~09:20" → "09:00", "09:20" / "13시" → "13:00"). 정말 없을 때만 빈 문자열 "".
@@ -145,7 +147,9 @@ SYSTEM = f"""너는 KAIST 부설 한국과학영재학교(KSA) 커뮤니티 ksai
   - target_grades: 대상 학년. 전교생이거나 알 수 없으면 빈 배열.
   - target_majors: 대상 전공 트랙이나 학부 (items 와 같은 규칙). 전공과 상관없으면 빈 배열.
   - confidence: 글에 그대로 적혀 있으면 0.9 이상, 해석이 들어갔으면 0.6 이하.
-  - 전화번호·이메일·학번·성적 같은 개인 정보는 쓰지 않는다.
+  - 전화번호·이메일·학번·성적, 학생·졸업생의 이름 같은 개인 정보는 쓰지 않는다
+    ("배준수(KSA18) 선배가 진행" → "졸업생 선배가 진행"). 교사 이름은 담당·문의처를 말할 때만 쓴다.
+    사람을 칭찬하거나 평가하는 말은 사실로 쓰지 않는다.
   - 감사 인사·잡담처럼 다른 학생이 물어볼 정보가 없는 글이면 빈 배열.
 """
 
@@ -240,7 +244,7 @@ def grounded(day: datetime.date, text: str) -> bool:
     return re.search(pattern, text) is not None
 
 
-def coerce(raw: dict, post: Post) -> dict:
+def coerce(raw: dict, post: Post, names: re.Pattern | None = None) -> dict:
     posted = post.posted_at.date() if post.posted_at else None
     text = source_text(post)
     items = []
@@ -259,7 +263,7 @@ def coerce(raw: dict, post: Post) -> dict:
         items.append({
             "kind": item.get("kind") if item.get("kind") in KINDS else "event",
             "title": str(item.get("title") or post.title).strip()[:60],
-            "detail": _detail(item.get("detail")),
+            "detail": _detail(item.get("detail"), names),
             "start_date": start.isoformat(),
             "end_date": end.isoformat(),
             "start_time": _time(item.get("start_time")),
@@ -271,7 +275,7 @@ def coerce(raw: dict, post: Post) -> dict:
             "confidence": max(0.0, min(1.0, float(item.get("confidence") or 0))),
             "grounded": grounded(start, text),
         })
-    facts, dated = coerce_facts(raw.get("facts"), post)
+    facts, dated = coerce_facts(raw.get("facts"), post, names)
     _attach_dated(items, dated)
     importance = raw.get("importance")
     importance = importance if isinstance(importance, int) and 0 <= importance <= 3 else 0
@@ -302,12 +306,32 @@ _DATED = re.compile(
 # 기억에 남기지 않는 것 — 학번은 사실째 버리고, 전화번호·이메일은 문장에서 걷어냅니다
 _STUDENT_ID = re.compile(r"(?<!\d)\d{2}-\d{3}(?!\d)")
 _CONTACT = re.compile(r"\(?\s*(?:\d{2,3}-\d{3,4}-\d{4}|[\w.+-]+@[\w-]+(?:\.[\w-]+)+)\s*\)?")
+# 졸업생을 가리키는 꼴 — "배준수(KSA18) 선배". 지금 학생 명단에 없어서 `student_names` 로는 못 잡습니다
+_ALUMNUS = re.compile(r"[가-힣]{2,4}\s*\(\s*KSA\s*\d{2}\s*\)", re.I)
 
 
-def _detail(value) -> str:
-    """일정 세부 — 자동 일정의 메모가 됩니다(`apply._event`). 연락처는 걷어내고, 학번이 든 세부는 버립니다."""
+def student_names(db) -> re.Pattern | None:
+    """학생 이름 — 사실·일정 세부에 들어가면 그 문장을 버립니다. `run` 이 본 DB 에서 한 번 만들어 넘깁니다.
+
+    세 글자 이상 한글 이름만 봅니다. 두 글자 이름은 "이수"·"정보" 같은 낱말과 겹칩니다(그건 지시문이 막습니다).
+    """
+    names = {name for (name,) in db.query(models.Student.name) if name and re.fullmatch(r"[가-힣]{3,4}", name)}
+    return re.compile("|".join(sorted(map(re.escape, names), key=len, reverse=True))) if names else None
+
+
+def _personal(text: str, names: re.Pattern | None) -> bool:
+    """학번·졸업생 표기·학생 이름이 든 문장인가 — 기억과 일정 메모에 남기지 않습니다.
+
+    기억은 질문마다 프롬프트에 실리고, 일정 메모는 달력에서 모두에게 보입니다. 모든 글(감사 글·선거 글
+    포함)에서 사실을 뽑으면서 이름이 섞일 자리가 늘었습니다.
+    """
+    return bool(_STUDENT_ID.search(text) or _ALUMNUS.search(text) or (names and names.search(text)))
+
+
+def _detail(value, names: re.Pattern | None = None) -> str:
+    """일정 세부 — 자동 일정의 메모가 됩니다(`apply._event`). 연락처는 걷어내고, 학번·이름이 든 문장은 뺍니다."""
     detail = _drop_contacts(str(value or ""))[:MAX_DETAIL]
-    return "" if _STUDENT_ID.search(detail) else detail
+    return " ".join(part for part in re.split(r"(?<=[.!?])\s+", detail) if part and not _personal(part, names))
 
 
 def _attach_dated(items: list[dict], dated: list[str]) -> None:
@@ -333,7 +357,7 @@ def _drop_contacts(statement: str) -> str:
     return re.sub(r"\s+", " ", marked.replace("\x00", " ")).strip()
 
 
-def coerce_facts(raw: list | None, post: Post) -> tuple[list[dict], list[str]]:
+def coerce_facts(raw: list | None, post: Post, names: re.Pattern | None = None) -> tuple[list[dict], list[str]]:
     """모델이 뽑은 사실을 거릅니다. (남길 사실, 날짜가 들어 뺀 문장) 을 돌려줍니다.
 
     ⚠️ **날짜가 든 사실은 기억에 남기지 않습니다**(`_DATED`). 날짜는 일정(items → 학사일정)이 맡습니다 —
@@ -348,7 +372,7 @@ def coerce_facts(raw: list | None, post: Post) -> tuple[list[dict], list[str]]:
         if not isinstance(item, dict):
             continue
         statement = _drop_contacts(str(item.get("statement") or ""))
-        if not 10 <= len(statement) <= 220 or _STUDENT_ID.search(statement):
+        if not 10 <= len(statement) <= 220 or _personal(statement, names):
             continue
         if _DATED.search(statement):
             dated.append(statement)
@@ -378,14 +402,14 @@ def parse(content: str) -> dict:
     return json.loads(fenced.group(0))
 
 
-def analyze_post(post: Post, model: llm.Model) -> dict:
+def analyze_post(post: Post, model: llm.Model, names: re.Pattern | None = None) -> dict:
     message = llm.chat_sync(model, [
         {"role": "system", "content": SYSTEM},
         {"role": "user", "content": prompt(post)},
     ], schema=SCHEMA, max_tokens=3000)
     if message.get("finish_reason") == "length":
         raise ValueError("출력이 한도에서 잘렸습니다")
-    return coerce(parse(message.get("content") or ""), post)
+    return coerce(parse(message.get("content") or ""), post, names)
 
 
 def pending(db, limit: int):
@@ -454,6 +478,7 @@ def run(limit: int, model_id: str | None, post_id: int | None = None, dry_run: b
     init_schema()  # 학사일정·기억을 적을 본 DB
     model = llm.resolve(model_id, "analyze")
     db, core = KsainSession(), SessionLocal()
+    names = student_names(core)
     counts = {"analyzed": 0, "failed": 0, "events": 0, "facts": 0, "model": model.id}
     try:
         posts = [db.get(Post, post_id)] if post_id else pending(db, limit)
@@ -464,7 +489,7 @@ def run(limit: int, model_id: str | None, post_id: int | None = None, dry_run: b
                 counts["stopped"] = f"{minutes:g}분이 지나 멈춤 — 다음 주기에 이어갑니다"
                 break
             try:
-                result = analyze_post(post, model)
+                result = analyze_post(post, model, names)
             except llm.LLMError as error:
                 counts["stopped"] = str(error)[:200]
                 break
