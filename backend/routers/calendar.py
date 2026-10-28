@@ -23,6 +23,7 @@ from backend import models
 from backend.core import clock
 from backend.core.auth import get_current_manager, get_current_user
 from backend.core.db import get_db
+from backend.services import majors
 from backend.services.calendar import event_out, request_out, visible_to
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
@@ -47,6 +48,8 @@ class EventBody(BaseModel):
     end_period: Optional[int] = Field(default=None, ge=1, le=11)
     category: Category = "event"
     target_grades: list[int] = Field(default_factory=list)
+    # 대상 전공 트랙 (`수학`·…·`생물학`, 학부 이름도 받아 전공으로 풉니다). 비면 전공 무관
+    target_majors: list[str] = Field(default_factory=list, max_length=6)
     note: Optional[str] = Field(default=None, max_length=2000)
     # 반복은 만들 때만 씁니다. 저장은 회차마다 한 행씩입니다
     repeat: Repeat = "none"
@@ -68,6 +71,9 @@ class EventBody(BaseModel):
                 raise ValueError("교시를 고르면 시작 교시가 있어야 합니다.")
             if self.end_period is not None and self.end_period < self.start_period:
                 raise ValueError("끝나는 교시가 시작보다 앞섭니다.")
+        unknown = [m for m in self.target_majors if not majors.normalize([m])]
+        if unknown:
+            raise ValueError(f"모르는 전공 트랙입니다: {', '.join(unknown[:3])}")
         if any(g not in (1, 2, 3) for g in self.target_grades):
             raise ValueError("학년은 1·2·3만 됩니다.")
         if self.repeat != "none" and self.repeat_until is None:
@@ -93,6 +99,7 @@ def _fields_from(body: EventBody) -> dict:
         "end_period": body.end_period if period else None,
         "category": body.category,
         "target_grades": ",".join(str(g) for g in sorted(set(body.target_grades))) or None,
+        "target_majors": majors.joined(body.target_majors),
         "note": (body.note or "").strip() or None,
     }
 
@@ -343,6 +350,7 @@ def decide_request(
             end_period=req.end_period,
             category=req.category,
             target_grades=req.target_grades,
+            target_majors=req.target_majors,
             note=req.note,
             source="manual",
             owner_id=None,

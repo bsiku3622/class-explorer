@@ -24,7 +24,7 @@ from backend.core.auth import (
 )
 from backend.core.db import get_db
 from backend.core.ratelimit import SlidingWindow
-from backend.services import features
+from backend.services import features, majors
 from backend.services.versioning import version_map
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -337,6 +337,7 @@ def me(
 ):
     # 시연 계정은 빌린 학번으로 보입니다 — 화면 전체가 이 값 하나를 받아 씁니다
     stu_id = current_user.effective_stu_id
+    major = majors.me(current_user)
     student = (
         db.query(models.Student).filter(models.Student.stuId == stu_id).first()
         if stu_id
@@ -362,6 +363,10 @@ def me(
         # 요청**이기 때문입니다. 학기 데이터가 캐시에 맞으면 서버로 아무것도 안 나가서,
         # 따로 물어볼 자리를 만들면 요청이 하나 더 늘어납니다.
         "data_versions": version_map(db),
+        # 전공(심화필수 전공 트랙)과 그걸 물었는지 — 안 물었으면 화면이 전공 팝업을 띄웁니다
+        "major": major["major"],
+        "major_division": major["division"],
+        "major_answered": major["answered"],
     }
 
 

@@ -9,6 +9,7 @@
 | `meals.py` | 급식 (ksain.net) |
 | `exams.py` | 시험 회차·본인 시험 시간표 |
 | `curriculum.py` | 졸업 요건·누적 이수 이력 |
+| `majors.py` | 전공(심화필수 전공 트랙)·학부 묶음·수강 이력으로 짐작하기 |
 | `materials.py` | 자료 원본의 자리 |
 | `terms.py` | 학기 해석 |
 | `versioning.py` | 수집 회차 (`at_version`) |

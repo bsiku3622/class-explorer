@@ -660,6 +660,13 @@ def run_migrations(engine: Engine) -> None:
         # ksain 자동 일정 — 원문 글 번호. 글이 바뀌면 그 글에서 온 일정만 갈아끼웁니다
         "ALTER TABLE calendar_events ADD COLUMN source_ref VARCHAR",
         "CREATE INDEX IF NOT EXISTS ix_calendar_events_source_ref ON calendar_events (source_ref)",
+        # 전공(심화필수 전공 트랙) — 계정의 전공과, 일정·제안·기억의 대상 전공 (services/majors.py)
+        "ALTER TABLE users ADD COLUMN major VARCHAR",
+        "ALTER TABLE users ADD COLUMN major_answered_at DATETIME",
+        "ALTER TABLE calendar_events ADD COLUMN target_majors VARCHAR",
+        "ALTER TABLE event_requests ADD COLUMN target_majors VARCHAR",
+        "ALTER TABLE facts ADD COLUMN target_majors VARCHAR",
+        "ALTER TABLE facts ADD COLUMN board VARCHAR",
     ]
 
     with engine.connect() as conn:
