@@ -98,6 +98,8 @@ export function stepLabel(name: string, args: Record<string, unknown>): string {
             return withDate("급식 확인", args.date);
         case "course_info":
             return `${short(args.name)} 교육과정 확인`;
+        case "syllabus":
+            return isMe(args.subject) ? "내 과목 강의계획서 읽기" : `${short(args.subject)} 강의계획서 읽기`;
         case "recall":
             // 서버가 질문 전에 기억(ksain 글에서 정리해 둔 사실)을 고른 단계 — 모델이 부른 도구는 아닙니다
             return "기억에서 찾기";

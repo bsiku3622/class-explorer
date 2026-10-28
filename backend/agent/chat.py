@@ -17,6 +17,7 @@
 """
 from __future__ import annotations
 
+import ast
 import datetime
 import json
 import re
@@ -27,12 +28,13 @@ from fastapi import HTTPException
 
 from backend import models
 from backend.agent import llm
-from backend.agent.tools import TOOLS, WEEKDAYS, Context, execute, today_events
+from backend.agent.tools import TOOLS, WEEKDAYS, Context, canonical, execute, today_events
 from backend.core import clock
 from backend.core.db import SessionLocal
 from backend.knowledge import facts as memory
 from backend.knowledge.text import squeeze
 from backend.services import periods
+from backend.services.timetable import subject_label
 
 MAX_STEPS = 6
 MAX_TOOL_CHARS = 9000  # 게이트웨이가 컨텍스트를 16k 로 띄웁니다 (Ollama 기본 4k 는 넘치면 앞을 자릅니다)
@@ -41,7 +43,7 @@ DAILY_LIMIT = {"local": 200, "openai": 60}
 _usage: dict[tuple[int, str, datetime.date], int] = defaultdict(int)
 
 SYSTEM = """너는 classes.bsiku.dev(KAIST 부설 한국과학영재학교 수업 탐색 앱)의 도우미다.
-오늘은 {date}({weekday}) {time} KST, 학기는 {term}이다. 질문한 사람은 {who}.
+오늘은 {date}({weekday}) {time} KST, 학기는 {term}이다. 질문한 사람은 {who}.{classes}
 날짜 기준(직접 계산하지 말고 이 값을 쓴다): {anchors}
 {today}
 - 오늘 일정을 물으면 위 '오늘 걸친 학사일정' 으로 답한다. 다른 날·기간의 일정은 calendar 로 찾는다.
@@ -56,6 +58,10 @@ SYSTEM = """너는 classes.bsiku.dev(KAIST 부설 한국과학영재학교 수�
 - 교시는 "3교시(10:40–11:30)"처럼 시각을 같이 적는다. 교시 시각표: {periods}
   공지에 시각만 있으면 이 표로 교시 번호를 맞추고, 표에 없는 시각이면 교시 번호를 쓰지 않는다.
 - 도구 결과의 "when" 은 이미 맞춰 둔 일시다. 항목마다 그 항목의 title 과 when 을 그대로 짝지어 옮긴다.
+- 과목 이름은 줄임말(미1, 선대, 일물2)이어도 그대로 도구에 넘긴다. 담당 교사·분반·시간은 class_info, 학점·선수과목은 course_info 로 찾는다.
+- 강의계획서 내용(평가 방법·비율, 주차별 진도, 시험 범위, 과제)이나 시험 범위를 물으면 syllabus 를 부른다. 질문한 사람의
+  과목 전부를 물으면 subject 를 "me" 로 한다. 계획서가 이번 학기 것이 아니면 몇 학기 계획서인지 밝히고, 계획서의 주차는
+  결과의 이번 학기 주차표(this_term)로 날짜를 맞춘다. 계획서에 없는 범위는 지어내지 않는다.
 - 학교 공지·마감·행사·모집·규칙·방법을 물으면 search 로 찾는다(정리해 둔 사실과 ksain 글을 같이 찾는다).
   기간 안의 중요 공지를 모아 보려면 ksain_digest 를 쓴다. 결과의 발췌(passages)·요약에 답이 없으면
   read_ksain 으로 본문과 첨부를 읽어 확인한다. 근거가 된 글의 제목을 답에 적는다.
@@ -104,12 +110,16 @@ def memory_line(entry: dict) -> str:
 
 
 def date_anchors(today: datetime.date) -> str:
-    """어제·내일·이번 주·다음 주·이번 달의 실제 날짜 — 주는 월요일부터입니다.
+    """어제·내일·이번 주·다음 주·이번 달의 실제 날짜와, 이번 주·다음 주의 요일별 날짜 — 주는 월요일부터입니다.
 
-    12B 모델은 날짜 셈을 틀립니다 — 목요일에 "다음 주" 를 11-03~11-09 로 잡고 요일까지 하루씩 밀어 적었습니다.
+    12B 모델은 날짜 셈을 틀립니다 — 목요일에 "다음 주" 를 11-03~11-09 로 잡고 요일까지 하루씩 밀어 적었고, 목요일에
+    "목요일 3교시 빈 교실" 을 물었더니 금요일 날짜를 넘겼습니다.
     """
     def day(value: datetime.date) -> str:
         return f"{value.isoformat()}({WEEKDAYS[value.weekday()]})"
+
+    def days(monday: datetime.date) -> str:
+        return " ".join(f"{WEEKDAYS[i]} {monday + datetime.timedelta(days=i):%m-%d}" for i in range(7))
 
     week = datetime.timedelta(days=7)
     monday = today - datetime.timedelta(days=today.weekday())
@@ -117,27 +127,33 @@ def date_anchors(today: datetime.date) -> str:
     last = (first + datetime.timedelta(days=32)).replace(day=1) - datetime.timedelta(days=1)
     one = datetime.timedelta(days=1)
     return (f"어제 {day(today - one)} · 내일 {day(today + one)} · 이번 주 {day(monday)}~{day(monday + week - one)} · "
-            f"다음 주 {day(monday + week)}~{day(monday + 2 * week - one)} · 이번 달 {day(first)}~{day(last)}")
+            f"다음 주 {day(monday + week)}~{day(monday + 2 * week - one)} · 이번 달 {day(first)}~{day(last)}\n"
+            f"요일별 날짜: 이번 주 {days(monday)} / 다음 주 {days(monday + week)}")
 
 
 def system_prompt(ctx: Context, memory_entries: list[dict]) -> str:
     now = clock.now()
     profile = ctx.profile
-    # 이름·학번은 싣지 않습니다 — 본인은 person="me" 로 부르면 되고, 이용자가 OpenAI 를 고르면 프롬프트가 그대로
-    # 바깥으로 나갑니다. 답을 가르는 데 필요한 학년·구분·전공만 줍니다
+    # 이름·학번도 싣습니다 — 한동안 뺐더니 "내 이름이랑 학번 뭐야?" 에 모델이 "김민준, 25-012" 를 지어냈습니다.
+    # 이용자가 OpenAI 를 고르면 이것도 바깥으로 갑니다(개인정보처리방침 6절)
     if profile:
         major = (f"{profile['major']} 트랙({profile['division']})" if profile["major"] else "전공 트랙 미정")
-        who = f"{profile['grade']}학년 · {profile['track']} · {major} 학생"
+        who = f"{profile['name'] or '이름 모름'}({profile['stu_id']}) · {profile['grade']}학년 · {profile['track']} · {major} 학생"
     else:
-        who = "학번을 연결하지 않은 계정"
+        who = f"{ctx.user.username} 계정(학번을 연결하지 않아 본인 시간표·시험을 알 수 없다)"
+    # 내 수업은 처음부터 줍니다 — "내 미적분학 선생님 누구야?" 에 분반 12개를 늘어놓고 어느 반이냐고 되물었습니다
+    mine = list(dict.fromkeys(f"{subject_label(c.subject.name, c.subject.is_ec)} {c.section}({c.teacher})"
+                              for c in sorted(ctx.my_classes(), key=lambda c: c.subject.name)))
+    classes = f"\n질문한 사람의 이번 학기 수업: {' · '.join(mine)}" if mine else ""
+    week = re.search(r"\d+주차", ctx.term_dates()["now"])
     # 표를 안 주면 모델이 교시 번호를 짐작합니다 — 15:40 수업을 "4교시" 로 적었습니다
     table = ", ".join(f"{p} {periods.hhmm(s)}–{periods.hhmm(e)}" for p, s, e in periods.PERIODS)
     events = today_events(ctx)
     today = ("오늘 걸친 학사일정:\n" + "\n".join(f"  · {line}" for line in events)
              if events else "오늘 걸친 학사일정은 없다.")
     text = SYSTEM.format(date=now.date().isoformat(), weekday=WEEKDAYS[now.weekday()], time=now.strftime("%H:%M"),
-                         term=f"{ctx.year}-{ctx.semester}", who=who, anchors=date_anchors(now.date()), today=today,
-                         periods=table)
+                         term=f"{ctx.year}-{ctx.semester}" + (f" {week.group(0)}" if week else ""), who=who,
+                         classes=classes, anchors=date_anchors(now.date()), today=today, periods=table)
     if memory_entries:
         text += MEMORY.format(lines="\n".join(memory_line(entry) for entry in memory_entries))
     return text
@@ -156,6 +172,11 @@ def summarize(result: dict) -> str:
     if result.get("note"):
         return str(result["note"])[:80]
     parts = []
+    if isinstance(result.get("syllabus"), dict):
+        parts.append(f"강의계획서 {result['syllabus']['term']}")
+    elif isinstance(result.get("subjects"), list) and "this_term" in result:
+        found = sum(1 for subject in result["subjects"] if subject.get("syllabus"))
+        parts.append(f"과목 {len(result['subjects'])}개 · 계획서 {found}개")
     if result.get("no_class_reason"):
         parts.append(f"{result['no_class_reason']} — 수업 없음")
     counted = [("facts", "사실 {}건"), ("posts", "글 {}건"), ("posted", "공지 {}건"), ("dated_items", "일정 {}건"),
@@ -207,6 +228,26 @@ def finish_text(text: str, ctx: Context) -> str:
         if fact is not None:
             ctx.cite(fact.post_title, memory.ksain_url(fact.post_id), first=True)
     return text
+
+
+def _arguments(raw) -> dict | None:
+    """도구 인자 — 보통 JSON 글자열이지만 dict 로 오기도 하고, 작은따옴표를 쓴 것도 있습니다. 못 읽으면 None.
+
+    예전에는 못 읽으면 빈 인자로 도구를 돌렸습니다. 그러면 `timetable()` 처럼 기본값(내 시간표)으로 도는 도구가
+    묻지 않은 결과를 맞는 것처럼 돌려줍니다 — 못 읽었다고 돌려줘 모델이 다시 부르게 합니다.
+    """
+    if isinstance(raw, dict):
+        return raw
+    if not raw:
+        return {}
+    try:
+        value = json.loads(raw)
+    except ValueError:
+        try:
+            value = ast.literal_eval(raw)
+        except Exception:  # 구문 오류·해시 안 되는 키 — 어느 쪽이든 못 읽은 것입니다
+            return None
+    return value if isinstance(value, dict) else None
 
 
 def _recall_query(message: str, history: list[dict]) -> str:
@@ -265,11 +306,8 @@ async def run(user_id: int, message: str, history: list[dict], images: list[str]
                 return
             messages.append({"role": "assistant", "content": reply.get("content") or "", "tool_calls": calls})
             for call in calls:
-                name = call.get("function", {}).get("name", "")
-                try:
-                    args = json.loads(call.get("function", {}).get("arguments") or "{}")
-                except ValueError:
-                    args = {}
+                name = canonical(call.get("function", {}).get("name", ""))
+                args = _arguments(call.get("function", {}).get("arguments"))
                 key = f"{name}:{json.dumps(args, sort_keys=True, ensure_ascii=False)}"
                 if key in seen:
                     repeats += 1
@@ -277,10 +315,11 @@ async def run(user_id: int, message: str, history: list[dict], images: list[str]
                 else:
                     seen.add(key)
                     tool_id = call.get("id") or f"{name}-{step}"
-                    yield _event("tool", id=tool_id, name=name, args=args)
+                    yield _event("tool", id=tool_id, name=name, args=args or {})
                     tool_started = time.monotonic()
                     try:
-                        result = await execute(ctx, name, args if isinstance(args, dict) else {})
+                        result = (await execute(ctx, name, args) if args is not None
+                                  else {"error": "도구 인자를 읽지 못했습니다 — JSON 객체로 다시 부르세요"})
                     except Exception as error:  # 도구 하나가 터져도 모델이 다른 길을 찾게 둡니다
                         result = {"error": f"{type(error).__name__}: {error}"[:300]}
                         db.rollback()

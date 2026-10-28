@@ -29,6 +29,7 @@ from backend.agent import llm
 from backend.agent.tools import profile_of
 from backend.core.auth import get_current_admin, get_current_user
 from backend.core.db import KsainSession, SessionLocal, db_session
+from backend.services import syllabi
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -115,4 +116,6 @@ async def status(_: models.User = Depends(get_current_admin)):
 async def warmup(body: WarmupBody, _: models.User = Depends(get_current_user)):
     model = llm.resolve(body.model, "agent")
     asyncio.create_task(llm.warmup(model))
+    # 강의계획서 목록도 미리 만듭니다 — 처음엔 PDF 첫 쪽을 다 읽어 몇 초 걸립니다(services/syllabi.py)
+    asyncio.create_task(asyncio.to_thread(syllabi.catalog))
     return {"model": model.id}
