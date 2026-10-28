@@ -39,6 +39,40 @@ def _period_label(period: int) -> str:
     return f"{period}교시({periods.hhmm(start)}–{periods.hhmm(end)})"
 
 
+def _when(start: str, end: str | None = None, start_time: str | None = None, end_time: str | None = None) -> str:
+    """일정 한 줄 — "2026-10-28(수) 15:40–16:30 · 7교시".
+
+    ⚠️ 날짜·시각·학년을 따로 주면 12B 모델이 항목 여러 개를 엇갈려 짝짓습니다(외국인 OT 15:40 을
+    다른 학년 줄에 붙였습니다). 코드가 완성된 문장을 만들고 모델은 옮기기만 하게 합니다.
+    """
+    day = datetime.date.fromisoformat(start)
+    text = f"{start}({WEEKDAYS[day.weekday()]})"
+    if end and end != start:
+        last = datetime.date.fromisoformat(end)
+        text += f"~{end}({WEEKDAYS[last.weekday()]})"
+    if start_time:
+        text += f" {start_time}" + (f"–{end_time}" if end_time else "")
+        minute = int(start_time[:2]) * 60 + int(start_time[3:5])
+        period = next((p for p, s, _e in periods.PERIODS if s == minute), None)
+        if period:
+            text += f" · {period}교시"
+    return text
+
+
+def _items(items: list[dict]) -> list[dict]:
+    out = []
+    for item in items or []:
+        entry = {"title": item["title"], "when": _when(item["start_date"], item.get("end_date"),
+                                                      item.get("start_time"), item.get("end_time"))}
+        if item.get("target_grades"):
+            entry["grades"] = item["target_grades"]
+        for key in ("post_title", "url"):
+            if item.get(key):
+                entry[key] = item[key]
+        out.append(entry)
+    return out
+
+
 def _date(value: str | None) -> datetime.date:
     if not value:
         return periods.today()
@@ -300,12 +334,16 @@ def calendar(ctx: Context, start: str | None = None, end: str | None = None, que
     events = []
     for row in rows[:60]:
         out = event_out(row)
-        if out["time_mode"] == "clock" and out["start_minute"] is not None:
-            out["time"] = f"{periods.hhmm(out['start_minute'])}–{periods.hhmm(out['end_minute'] or out['start_minute'])}"
+        clock = out["time_mode"] == "clock" and out["start_minute"] is not None
+        out["when"] = _when(out["start_date"], out["end_date"],
+                            periods.hhmm(out["start_minute"]) if clock else None,
+                            periods.hhmm(out["end_minute"]) if clock and out["end_minute"] is not None else None)
         url = re.search(r"https://ksain\.kr/document/\d+", row.note or "")
         if url:
             ctx.cite(row.title, url.group(0))
-        events.append({k: v for k, v in out.items() if v not in (None, [], "") and k not in ("id", "series_id", "start_minute", "end_minute")})
+        events.append({k: v for k, v in out.items() if v not in (None, [], "") and k not in (
+            "id", "series_id", "start_minute", "end_minute", "start_date", "end_date", "time_mode",
+            "start_period", "end_period")})
     return {"from": first.isoformat(), "to": last.isoformat(), "events": events}
 
 
@@ -347,6 +385,8 @@ def search_ksain(ctx: Context, query: str, since: str | None = None, until: str 
                                     until=_date(until) if until else None, board=board)
     finally:
         db.close()
+    for post in posts:
+        post["items"] = _items(post["items"])
     for post in posts[:5]:
         ctx.cite(post["title"], post["url"])
     return {"query": query, "posts": posts}
@@ -360,6 +400,7 @@ def read_ksain(ctx: Context, post_id: int) -> dict:
         db.close()
     if post is None:
         return {"error": f"{post_id}번 글이 없습니다"}
+    post["items"] = _items(post["items"])
     ctx.cite(post["title"], post["url"])
     return post
 
@@ -373,6 +414,9 @@ def ksain_digest(ctx: Context, start: str | None = None, end: str | None = None,
         out = ksain_search.digest(db, first, last, int(min_importance))
     finally:
         db.close()
+    for post in out["posted"]:
+        post["items"] = _items(post["items"])
+    out["dated_items"] = _items(out["dated_items"])
     for post in out["posted"][:5]:
         ctx.cite(post["title"], post["url"])
     return {"from": first.isoformat(), "to": last.isoformat(), **out}
