@@ -650,6 +650,9 @@ def run_migrations(engine: Engine) -> None:
             "id INTEGER PRIMARY KEY, subject VARCHAR NOT NULL, "
             "alias VARCHAR NOT NULL, UNIQUE (subject, alias))"
         ),
+        # ksain 자동 일정 — 원문 글 번호. 글이 바뀌면 그 글에서 온 일정만 갈아끼웁니다
+        "ALTER TABLE calendar_events ADD COLUMN source_ref VARCHAR",
+        "CREATE INDEX IF NOT EXISTS ix_calendar_events_source_ref ON calendar_events (source_ref)",
     ]
 
     with engine.connect() as conn:

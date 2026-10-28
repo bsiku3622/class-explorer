@@ -73,3 +73,7 @@ android/app/build/
 android/local.properties
 android/.kotlin/
 *.apk
+
+# ksain 수집 사본 — 언제든 다시 받을 수 있는 데이터라 추적하지 않습니다
+backend/ksain.db
+backend/ksain.db-*

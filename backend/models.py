@@ -411,7 +411,10 @@ class CalendarEvent(Base):
     # 대상 학년. "1,2" 처럼 적고 비어 있으면 전학년입니다.
     target_grades = Column(String, nullable=True)
     # pdf = 학사일정 문서에서 온 것. 개정판을 다시 파싱할 때 이것만 갈아끼웁니다
+    # ksain = ksain 게시글 분석으로 자동 등록된 것 (backend/ksain/apply.py 가 관리)
     source = Column(String, default="manual", nullable=False)
+    # source='ksain' 일 때 원문 글 번호와 항목 순번 ("3092:0"). 글이 바뀌면 그 글 것만 갈아끼웁니다
+    source_ref = Column(String, nullable=True, index=True)
 
     owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     series_id = Column(String, nullable=True, index=True)

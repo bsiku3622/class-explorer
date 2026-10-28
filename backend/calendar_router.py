@@ -289,6 +289,10 @@ def update_event(
         setattr(event, key, value)
     event.start_date = body.start_date
     event.end_date = body.end_date
+    # ksain 에서 자동으로 들어온 일정을 사람이 고치면 자동 관리에서 뺍니다 — 다음 분석이
+    # 고친 내용을 덮어쓰지 않게요 (ksain/apply.py 는 source='ksain' 만 갈아끼웁니다)
+    if event.source == "ksain":
+        event.source = "manual"
     db.commit()
     return event_out(event)
 
