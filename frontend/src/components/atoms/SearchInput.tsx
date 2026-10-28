@@ -49,6 +49,12 @@ interface SearchInputProps {
     /** 외부에서 searchTerm이 확정됐을 때 히스토리 저장 트리거 */
     committedTerm?: string;
     autoFocus?: boolean;
+    /**
+     * Enter 로 검색을 확정할 때 — 글자마다 서버에 물을 수 없는 검색용입니다(Admin 기억 패널).
+     * ⚠️ 한글 조합 중의 Enter 는 여기서 거릅니다(`isComposing`). 안 거르면 한 번 누른 Enter 가
+     * 두 번 들어옵니다.
+     */
+    onEnter?: () => void;
 }
 
 const SearchInput: React.FC<SearchInputProps> = ({
@@ -60,6 +66,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
     enableHistory = false,
     committedTerm,
     autoFocus = false,
+    onEnter,
 }) => {
     const style = SIZES[size];
     const [focused, setFocused] = useState(false);
@@ -113,6 +120,10 @@ const SearchInput: React.FC<SearchInputProps> = ({
                     placeholder={placeholder}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (onEnter && e.key === "Enter" && !e.nativeEvent.isComposing) onEnter();
+                    }}
+                    enterKeyHint={onEnter ? "search" : undefined}
                     onFocus={handleFocus}
                     autoFocus={autoFocus}
                 />

@@ -29,6 +29,7 @@ src/
 │   ├── agentDemo.ts          → Ask — 화면 상태 데모 이벤트 (개발 전용, 배포 번들에 없음)
 │   ├── askMotion.ts          → 모바일 Ask 창 → `/ai` 화면 전환 모션 (View Transitions)
 │   ├── imageAttach.ts        → Ask 첨부 이미지 줄이기 (긴 변 1600px JPEG)
+│   ├── factsApi.ts           → Ask 의 기억 — 글별 사실 목록·고치기·숨기기 (Admin 기억 패널, 매니저 이상)
 │   └── sessionsApi.ts        → 로그인한 기기 목록·폐기 (다중 기기 로그인)
 ├── constants/
 │   └── motion.ts             → Framer Motion 설정값
@@ -41,7 +42,7 @@ src/
 │   └── useTradePlan.ts       → 홈에서 `/trade` 계획 읽기 (읽기 전용)
 ├── pages/
 │   ├── LoginPage.tsx         → 로그인 폼 (미인증 시 전체 화면 대체)
-│   ├── AdminPage.tsx         → 관리자 대시보드 (사용자/세션/데이터/백업, admin 전용)
+│   ├── AdminPage.tsx         → 관리자 대시보드 (사용자/세션/데이터/백업/Ask 기억, admin 전용)
 │   ├── SearchPage.tsx        → 통합 검색
 │   ├── RoomsPage.tsx         → 빈 강의실 탐색
 │   ├── AnalysisPage.tsx      → 학사 통계 대시보드
@@ -819,6 +820,10 @@ Agent(`/agent/chat`)가 도구로 찾아 답합니다(`backend/agent.guide.md`).
   스트림으로 읽습니다(`lib/agentApi.ts`). 이벤트는 `thinking` · `tool` · `tool_done` · `answer` ·
   `error` 이고, 화면 상태로 바꾸는 건 `lib/agentChat.ts` 의 순수 함수들입니다. 답이 도는 동안은
   단계가 펼쳐지고, 끝나면 "작업 N단계 · 초" 한 줄로 접힙니다
+- **기억(ksain 글에서 정리한 사실)을 쓰면 맨 앞에 "기억에서 찾기" 단계가 붙습니다.** 서버가 질문 전에
+  고른 것이라 모델이 부른 도구는 아니지만, 화면에는 도구와 같은 모양(`name: "recall"` 인 `tool`·
+  `tool_done`)으로 옵니다 — 라벨은 `stepLabel` 의 `recall`. 학교 자료 검색 도구는 `search` 입니다
+  (예전 이름 `search_ksain`). 기억 관리 화면은 Admin 의 `Ask Memory`(`components/admin/FactsPanel.tsx`)
 - **모델을 고릅니다** — 데스크탑 Gemma 가 기본이고, 서버에 OpenAI 키가 있으면 목록에 붙습니다.
   고른 값은 이 기기에 남습니다(`ksa_agent_model`)
 - ⚠️ **모델 이름을 보일지는 화면이 아니라 입력창 폭으로 정합니다**(`@container` + `@md:`). 미니 창은

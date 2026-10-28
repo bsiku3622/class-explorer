@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera, History, FlaskConical, ArrowLeftRight, FileCheck2, CalendarDays } from "lucide-react";
+import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera, History, FlaskConical, ArrowLeftRight, FileCheck2, CalendarDays, Brain } from "lucide-react";
 import api from "../lib/api";
 import { authHeader } from "../lib/session";
 import axios from "axios";
@@ -12,6 +12,7 @@ import PageHeader from "../components/molecules/PageHeader";
 import ChangeSummary from "../components/admin/ChangeSummary";
 import type { ChangeSummaryData } from "../components/admin/ChangeSummary";
 import MaterialReviewPanel from "../components/MaterialReviewPanel";
+import FactsPanel from "../components/admin/FactsPanel";
 
 interface UserRow {
     id: number;
@@ -221,7 +222,7 @@ const EditableRow: React.FC<EditableRowProps> = ({
 };
 
 const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
-    const [openSections, setOpenSections] = useState({ materials: false, users: true, sessions: true, data: false, versions: false, backups: false, trade: false, timetable: false });
+    const [openSections, setOpenSections] = useState({ materials: false, memory: false, users: true, sessions: true, data: false, versions: false, backups: false, trade: false, timetable: false });
 
     // Users
     const [users, setUsers] = useState<UserRow[]>([]);
@@ -711,6 +712,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
             {/* Users */}
             <AccordionSection title="Material Review" icon={FileCheck2} isOpen={openSections.materials} onToggle={() => toggle("materials")}>
                 <MaterialReviewPanel />
+            </AccordionSection>
+
+            {/* Ask 의 기억 — ksain 글에서 뽑은 사실. 자료 검수처럼 사람이 걸러 내는 자리라 그 옆에 둡니다.
+                열 때마다 패널이 새로 받습니다(접으면 내려갑니다) */}
+            <AccordionSection title="Ask Memory" icon={Brain} isOpen={openSections.memory} onToggle={() => toggle("memory")}>
+                <FactsPanel />
             </AccordionSection>
 
             <AccordionSection title="User Management" icon={Users} isOpen={openSections.users} onToggle={() => toggle("users")}>

@@ -17,7 +17,7 @@
  * (면 → 띠 → 점) 하루가 색표처럼 보이고 정작 "지금" 이 묻혔습니다.
  *
  * 교시 시각은 **`GET /home` 이 실어 보낸 값을 그대로 씁니다.** 화면이 상수를 따로
- * 들면 `backend/periods.py` 만 고쳤을 때 조용히 어긋납니다.
+ * 들면 `backend/services/periods.py` 만 고쳤을 때 조용히 어긋납니다.
  */
 
 import React, { useLayoutEffect, useRef } from "react";

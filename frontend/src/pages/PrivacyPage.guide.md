@@ -35,9 +35,9 @@
 같이 보세요.
 
 - 수집 항목 — `models.py` 의 `User`·`Session`·`Material` 컬럼과 자료 파일
-- 세션 보관 기간 — `auth.py` 의 `SESSION_EXPIRE_DAYS` (지금 30일, 화면 4절에 적혀 있음)
+- 세션 보관 기간 — `backend/core/auth.py` 의 `SESSION_EXPIRE_DAYS` (지금 30일, 화면 4절에 적혀 있음)
 - 국외 이전 대상 — 호스팅이나 외부 서비스를 바꿨을 때 6절
-- **AI 모델 제공자** — `backend/llm.py` 에 새 제공자를 붙이거나 분석(`ANALYZE_MODEL`)을 외부
+- **AI 모델 제공자** — `backend/agent/llm.py` 에 새 제공자를 붙이거나 분석(`ANALYZE_MODEL`)을 외부
   모델로 돌리면 6절. 지금은 OpenAI 를 "이용자가 고른 경우에만" 으로 적어 두었습니다
 - ksain 수집 범위·보관 — `backend/ksain/` (1·3·4절). 원문이 지워진 글의 사본을 지운다고
   적었으니 `sync.refresh` 의 그 동작을 빼면 4절도 고쳐야 합니다

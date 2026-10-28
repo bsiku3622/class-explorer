@@ -201,7 +201,7 @@ export const hasRole = (role: Role | undefined | null, minimum: Role): boolean =
 /**
  * 자정 기준 분 → `"14:05"`.
  *
- * 교시 시각(`backend/periods.py`)이 자정 기준 분으로 오고, 홈의 시계·캐럿도 같은
+ * 교시 시각(`backend/services/periods.py`)이 자정 기준 분으로 오고, 홈의 시계·캐럿도 같은
  * 단위로 셉니다 — 화면마다 따로 포맷하면 `9:5` 같은 게 섞여 나옵니다.
  */
 export const hhmm = (minute: number): string =>
