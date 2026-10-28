@@ -325,9 +325,12 @@ python3.14 -m backend.knowledge.index           # ksain.db 스키마 맞추기 +
 
 1. **강의계획서를 서버에 올립니다.** git 에서 뺐습니다(교사 연락처) — 맥북의 `backend/syllabi/` 를 그대로 보냅니다.
    ```bash
-   rsync -a --chmod=D750,F640 "backend/syllabi/" server:/srv/class-explorer/data/syllabi/
-   ssh server 'sudo chgrp -R ksaclass /srv/class-explorer/data/syllabi'   # API(ksaclass)가 읽게
+   rsync -a "backend/syllabi/" server:/srv/class-explorer/data/syllabi/
+   # API(ksaclass)가 읽게 — 폴더 750, 파일 640, 그룹 ksaclass
+   ssh server 'D=/srv/class-explorer/data/syllabi; sudo chgrp -R ksaclass "$D"; sudo find "$D" -type d -exec chmod 750 {} +; sudo find "$D" -type f -exec chmod 640 {} +'
    ```
+   ⚠️ 권한은 서버에서 맞춥니다. 맥의 `rsync` 는 openrsync 라 `--chmod=D750,F640` 을 못 받습니다(`invalid argument`).
+   옮기는 사이에는 맥의 권한(644)대로 앉지만, `data/` 가 `770 baeks:ksaclass` 라 다른 계정은 들어오지 못합니다
    `SYLLABI_DIR` 는 비워 둡니다(기본값이 `data/syllabi`). 파일이 없으면 강의계획서만 안 보이고 화면은 그대로입니다.
    Ask 의 `syllabus` 도구도 이 파일을 읽어서, 없으면 "강의계획서 파일이 없습니다" 로 답합니다(`backend/agent.guide.md`)
 2. **API 접속 로그를 끕니다** — 위 「systemd」 의 `--no-access-log`. 유닛을 고친 뒤 `sudo systemctl daemon-reload`
