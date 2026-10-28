@@ -1,7 +1,7 @@
 /**
  * 친구 + 교시 시각표.
  *
- * 서버 쪽은 `backend/friends_router.py` 하나를 **두 앱이 같이 씁니다**
+ * 서버 쪽은 `backend/routers/friends.py` 하나를 **두 앱이 같이 씁니다**
  * (class-explorer / ksa-bench). 그래서 여기서 부르는 경로는 ksa-bench 쪽과 같습니다.
  *
  * 등록은 **단방향**입니다 — 내가 추가하면 끝이고 상대의 수락이 없습니다. 이 앱은
