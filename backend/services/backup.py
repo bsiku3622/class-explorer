@@ -4,8 +4,10 @@ DB 스냅샷 — 재수집 직전 상태를 통째로 남깁니다.
 재수집은 한 학기를 통째로 갈아 끼우는 작업입니다. 학교 API 가 이상한 값을 주거나
 학기를 잘못 지정한 걸 나중에 알아채면, 되돌릴 곳이 파일 말고는 없습니다.
 
-**자동으로 지우지 않습니다.** 오래된 것부터 정리하는 규칙을 두면 하필 그게 필요한
-날에 없습니다 — 용량은 목록에 총합으로 띄우고, 지우는 건 사람이 판단합니다.
+**1년이 지나면 지웁니다**(`prune_backups`, `KEEP_DAYS`). 한동안 자동으로 지우지 않았는데 — 오래된 것부터 정리하는
+규칙을 두면 하필 그게 필요한 날에 없다는 이유였습니다 — 그러면 지운 계정·기록이 백업 속에 영영 남아서
+개인정보처리방침 11절("백업은 1년이 지나면 삭제")과 어긋났습니다. 되돌릴 일은 대개 그 학기 안에 생기니 1년이면
+넉넉합니다. 지우는 건 매일 도는 자료 백업 타이머(`cli/material_backup.py`, `baeks`)와 새 백업을 뜰 때입니다.
 
 **ksain 글에서 만든 것과 세션은 넣지 않습니다**(`scrub_backup`) — 기억(`facts`)과 글에서 온 일정,
 그리고 로그인 세션. 원문이 지워지면 같이 지운다고 개인정보처리방침에 약속했는데, 자동으로 안 지우는
@@ -15,12 +17,17 @@ DB 스냅샷 — 재수집 직전 상태를 통째로 남깁니다.
 """
 
 import datetime
+import glob
 import os
 import re
 import sqlite3
 from contextlib import closing
 
+from backend.core.config import BACKEND_DIR
 from backend.core.db import main_db_file
+
+#: 이 날수가 지난 백업은 지웁니다 — 개인정보처리방침 11절이 약속합니다
+KEEP_DAYS = 365
 
 
 # `ksa_timetable-20260818-143012-sync-2026-2.db`
@@ -110,7 +117,46 @@ def create_backup(label: str) -> dict | None:
         os.remove(dest)  # 걷어내지 못한 백업은 남기지 않습니다
         raise
 
+    prune_backups()
     return _describe(dest)
+
+
+def _legacy_dirs() -> set[str]:
+    """예전 손 백업(`ksa_timetable.db.bak-*`)이 있는 곳 — DB 옆, 그리고 서버에서 배포 때 `cp` 로 뜨던 코드 옆."""
+    return {os.path.dirname(db_path()), str(BACKEND_DIR)}
+
+
+def backup_files() -> list[str]:
+    """본 DB 백업 파일 전부 — `backups/*.db` 와 예전 손 백업."""
+    paths = glob.glob(os.path.join(BACKUP_DIR, "*.db"))
+    for folder in _legacy_dirs():
+        paths += glob.glob(os.path.join(folder, _LEGACY_PREFIX + "*"))
+    return sorted(set(paths))
+
+
+def _created(path: str) -> datetime.datetime:
+    matched = _NAME_PATTERN.match(os.path.basename(path))
+    if matched:
+        return datetime.datetime.strptime(matched[1] + matched[2], "%Y%m%d%H%M%S")
+    return datetime.datetime.fromtimestamp(os.stat(path).st_mtime)
+
+
+def prune_backups(keep_days: int = KEEP_DAYS) -> list[str]:
+    """`keep_days` 가 지난 백업을 지우고 지운 이름을 돌려줍니다.
+
+    지울 권한이 없는 파일은 건너뜁니다 — API(`ksaclass`)는 코드 옆의 옛 손 백업(`baeks` 파일)을 못 지우고, 그건
+    매일 `baeks` 로 도는 자료 백업 타이머가 지웁니다. 새 백업을 뜨다가 이것 때문에 수집이 멈추면 안 됩니다.
+    """
+    limit = datetime.datetime.now() - datetime.timedelta(days=keep_days)
+    removed = []
+    for path in backup_files():
+        try:
+            if _created(path) < limit:
+                os.remove(path)
+                removed.append(os.path.basename(path))
+        except OSError:
+            continue
+    return removed
 
 
 def scrub_backup(path) -> None:
@@ -153,13 +199,14 @@ def list_backups() -> list[dict]:
             if name.endswith(".db")
         ]
 
-    # 예전 방식으로 DB 옆에 떠 둔 백업도 같이 보여 줍니다 — 옮기지는 않습니다
-    db_dir = os.path.dirname(db_path())
-    if os.path.isdir(db_dir):
-        items += [
-            _describe(os.path.join(db_dir, name), label_override="legacy")
-            for name in os.listdir(db_dir)
-            if name.startswith(_LEGACY_PREFIX)
-        ]
+    # 예전 방식으로 떠 둔 백업도 같이 보여 줍니다 — 옮기지는 않습니다. DB 옆과, 서버에서 배포 때 `cp` 로 뜨던
+    # 코드 옆(`backend/`) 둘 다입니다. 코드 옆 것은 한동안 이 목록에 안 보였습니다
+    for folder in _legacy_dirs():
+        if os.path.isdir(folder):
+            items += [
+                _describe(os.path.join(folder, name), label_override="legacy")
+                for name in os.listdir(folder)
+                if name.startswith(_LEGACY_PREFIX)
+            ]
 
     return sorted(items, key=lambda item: item["created"], reverse=True)

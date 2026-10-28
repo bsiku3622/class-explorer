@@ -1,4 +1,8 @@
-"""과목 자료 파일의 일일 압축 snapshot. 최근 30개를 유지합니다."""
+"""과목 자료 파일의 일일 압축 snapshot. 최근 30개를 유지하고, 1년이 지난 것은 지웁니다.
+
+매일 도는 타이머라 **본 DB 백업의 1년 정리**(`services/backup.py` 의 `prune_backups`)도 여기서 같이 돌립니다 —
+`baeks` 로 돌아서 API 가 못 지우는 코드 옆의 옛 손 백업까지 지울 수 있습니다.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +16,7 @@ import tarfile
 import tempfile
 
 from backend.core.db import main_db_file
-from backend.services.backup import scrub_backup
+from backend.services.backup import KEEP_DAYS, prune_backups, scrub_backup
 from backend.services.materials import storage_root
 
 
@@ -47,7 +51,44 @@ def _signature(db_file: Path, files: list[Path], source: Path) -> str:
     return digest.hexdigest()
 
 
+def prune_archives(keep_days: int = KEEP_DAYS) -> list[str]:
+    """`keep_days` 가 지난 자료 압축본을 지웁니다 — 자료가 안 바뀌면 새 압축본이 안 생겨서, 개수(30개)만으로는
+    몇 년 묵은 것이 남을 수 있습니다."""
+    limit = datetime.datetime.now() - datetime.timedelta(days=keep_days)
+    removed = []
+    for path in sorted(backup_dir().glob("materials-*.tar.gz")):
+        # 이름의 시각으로 잽니다(`materials-20260911-025723`) — 걷어내기(`scrub_archive`)가 파일을 다시 써도 그대로입니다
+        try:
+            created = datetime.datetime.strptime(path.name[len("materials-"):][:15], "%Y%m%d-%H%M%S")
+        except ValueError:
+            created = datetime.datetime.fromtimestamp(path.stat().st_mtime)
+        if created < limit:
+            path.unlink()
+            removed.append(path.name)
+    return removed
+
+
+def scrub_archive(path: Path) -> None:
+    """이미 있는 자료 압축본 안의 DB 에서도 기억·글에서 온 일정·세션을 걷어냅니다(`scrub_backup`). 한 번만 씁니다
+    (`python -m backend.cli.snapshot --scrub-existing`)."""
+    with tempfile.TemporaryDirectory(dir=path.parent) as temp_name:
+        temp = Path(temp_name)
+        with tarfile.open(path, "r:gz") as archive:
+            archive.extractall(temp, filter="data")
+        database = temp / "ksa_timetable.db"
+        if database.is_file():
+            scrub_backup(database)
+        rebuilt = path.with_suffix(path.suffix + ".tmp")
+        with tarfile.open(rebuilt, "w:gz") as archive:
+            for item in sorted(temp.rglob("*")):
+                if item.is_file():
+                    archive.add(item, arcname=str(item.relative_to(temp)))
+        os.replace(rebuilt, path)
+
+
 def create_backup() -> Path | None:
+    for name in prune_backups() + prune_archives():
+        print(f"[materials-backup] removed {name} (older than {KEEP_DAYS} days)")
     source = storage_root()
     db_file = database_path()
     files = (
