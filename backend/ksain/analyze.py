@@ -78,7 +78,7 @@ SYSTEM = f"""너는 KAIST 부설 한국과학영재학교(KSA) 커뮤니티 ksai
 - tags: {", ".join(TAGS)} 중에서 고른다.
 - mandatory: 참석·제출이 의무인 글("필참", "필독", "전원 참석", "반드시 제출")이면 true.
 - target_grades: 대상 학년(1·2·3). 전교생이거나 알 수 없으면 빈 배열.
-- items: 글에 나온 날짜 있는 일정·마감. 없으면 빈 배열.
+- items: 글에 나온 날짜 있는 일정·마감. 없으면 빈 배열. 많으면 중요한 것부터 최대 12개만.
   - kind: event(행사·교육·설명회), deadline(신청·제출 마감), mandatory(필참 교육), exam(시험), dorm(귀가·귀교·생활관), recruit(모집 기간)
   - title: 달력에 들어갈 짧은 이름(20자 안팎). 예: "TISF 2027 참가 신청 마감", "성인지감수성 교육(필참)"
   - start_date / end_date: YYYY-MM-DD. 하루짜리면 end_date 는 start_date 와 같게. 신청 기간처럼 기간이 길면 마감일 하루만 deadline 으로 적는다.
@@ -236,7 +236,9 @@ def analyze_post(post: Post, model: llm.Model) -> dict:
     message = llm.chat_sync(model, [
         {"role": "system", "content": SYSTEM},
         {"role": "user", "content": prompt(post)},
-    ], schema=SCHEMA, max_tokens=1200)
+    ], schema=SCHEMA, max_tokens=3000)
+    if message.get("finish_reason") == "length":
+        raise ValueError("출력이 한도에서 잘렸습니다")
     return coerce(parse(message.get("content") or ""), post)
 
 
@@ -298,6 +300,13 @@ def run(limit: int, model_id: str | None, post_id: int | None = None, dry_run: b
             except (ValueError, TypeError) as error:
                 counts["failed"] += 1
                 print(f"  ! {post.id}: {error}", flush=True)
+                # 실패도 기록합니다 — 안 남기면 그 글이 "밀린 글" 로 남아 10분마다 같은 실패를
+                # 되풀이하며 GPU 를 씁니다. 글이 바뀌거나 버전을 올리면 다시 돕니다
+                if not dry_run:
+                    failed = save(db, post, {"summary": None, "importance": 0, "tags": [], "mandatory": False,
+                                             "target_grades": [], "items": []}, model)
+                    failed.error = str(error)[:300]
+                    db.commit()
                 continue
             if dry_run:
                 print(json.dumps({"id": post.id, "title": post.title, **result}, ensure_ascii=False, indent=1))
