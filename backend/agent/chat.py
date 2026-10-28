@@ -123,15 +123,17 @@ def date_anchors(today: datetime.date) -> str:
 def system_prompt(ctx: Context, memory_entries: list[dict]) -> str:
     now = clock.now()
     profile = ctx.profile
+    # 이름·학번은 싣지 않습니다 — 본인은 person="me" 로 부르면 되고, 이용자가 OpenAI 를 고르면 프롬프트가 그대로
+    # 바깥으로 나갑니다. 답을 가르는 데 필요한 학년·구분·전공만 줍니다
     if profile:
         major = (f"{profile['major']} 트랙({profile['division']})" if profile["major"] else "전공 트랙 미정")
-        who = f"{profile['name'] or ''}({profile['stu_id']}) · {profile['grade']}학년 · {profile['track']} · {major} 학생"
+        who = f"{profile['grade']}학년 · {profile['track']} · {major} 학생"
     else:
-        who = f"{ctx.user.username} (학번 미연결)"
+        who = "학번을 연결하지 않은 계정"
     # 표를 안 주면 모델이 교시 번호를 짐작합니다 — 15:40 수업을 "4교시" 로 적었습니다
     table = ", ".join(f"{p} {periods.hhmm(s)}–{periods.hhmm(e)}" for p, s, e in periods.PERIODS)
     events = today_events(ctx)
-    today = ("오늘 걸친 학사일정(공용 + 질문자 개인 일정):\n" + "\n".join(f"  · {line}" for line in events)
+    today = ("오늘 걸친 학사일정:\n" + "\n".join(f"  · {line}" for line in events)
              if events else "오늘 걸친 학사일정은 없다.")
     text = SYSTEM.format(date=now.date().isoformat(), weekday=WEEKDAYS[now.weekday()], time=now.strftime("%H:%M"),
                          term=f"{ctx.year}-{ctx.semester}", who=who, anchors=date_anchors(now.date()), today=today,

@@ -302,7 +302,8 @@ def today_info(ctx: Context) -> dict:
         "next_period": _period_label(upcoming[0]) if upcoming else None,
         "break": periods.current_break(minute),
         "periods": [_period_label(p) for p in ALL_PERIODS],
-        "me": ctx.profile,
+        # 이름·학번은 빼고 줍니다 — 시스템 프롬프트와 같은 이유(agent/chat.py 의 system_prompt)
+        "me": {k: v for k, v in ctx.profile.items() if k not in ("name", "stu_id")} if ctx.profile else None,
     }
 
 
@@ -442,11 +443,14 @@ def calendar(ctx: Context, start: str | None = None, end: str | None = None, que
 
 
 def today_events(ctx: Context) -> list[str]:
-    """오늘 걸친 학사일정(공용 + 본인 개인 일정) 한 줄씩 — 시스템 프롬프트에 처음부터 싣습니다(`agent/chat.py`).
+    """오늘 걸친 공용 학사일정 한 줄씩 — 시스템 프롬프트에 처음부터 싣습니다(`agent/chat.py`).
 
     "오늘 뭐 있어?" 가 가장 흔한 질문인데, 모델이 도구를 엉뚱하게 부르면 확인할 길이 없었습니다 — 체육대회 날
     `calendar(query="일정")` 이 "KSA 한마당체육대회" 를 걸러 내고 "특별한 일정은 없습니다" 라고 답했습니다.
     홈 화면이 오늘 일정을 늘 보여 주는 것과 같은 이유로, 몇 줄 안 되는 오늘 것은 묻기 전에 줍니다.
+
+    ⚠️ **개인 일정은 건수만** 싣습니다. 질문과 상관없이 매번 실리는 자리라, 제목을 넣으면 이용자가 OpenAI 를
+    고른 날 묻지도 않은 개인 일정이 바깥으로 나갑니다. 내용은 물으면 `calendar` 가 줍니다.
     """
     today = clock.today()
     rows = (
@@ -455,9 +459,11 @@ def today_events(ctx: Context) -> list[str]:
                 visible_to(ctx.user))
         .order_by(models.CalendarEvent.start_date, models.CalendarEvent.id).all()
     )
+    personal = sum(1 for row in rows if row.owner_id is not None)
+    rows = [row for row in rows if row.owner_id is None]
     # 짧은 것부터 — 몇 달짜리("교직원 건강검진(~11.30)")가 맨 앞에 서면 오늘만의 일정(체육대회)이 묻힙니다
     rows.sort(key=lambda row: (row.end_date - row.start_date, row.start_date))
-    lines = []
+    lines = [f"질문자의 개인 일정 {personal}건 — 내용은 물으면 calendar 로 확인한다"] if personal else []
     for row in rows[:12]:
         out = event_out(row)
         timed = out["time_mode"] == "clock" and out["start_minute"] is not None
@@ -467,7 +473,6 @@ def today_events(ctx: Context) -> list[str]:
         target = [f"{'·'.join(map(str, out['target_grades']))}학년"] if out["target_grades"] else []
         target += ["·".join(out["target_majors"])] if out["target_majors"] else []
         parts = [when, "대상 " + " · ".join(target) if target else None,
-                 "개인 일정" if out["is_personal"] else None,
                  "질문자 해당 아님" if applies(ctx.profile, row.title, out["target_grades"], out["target_majors"]) is False
                  else None]
         lines.append(f"{row.title} ({' / '.join(p for p in parts if p)})")
