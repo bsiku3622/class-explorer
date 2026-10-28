@@ -68,7 +68,9 @@ def store(db, doc: dict) -> tuple[Post, bool]:
     post.read_count = doc.get("readCount")
     post.is_anonymous = bool(doc.get("isAnonymous"))
     post.content_hash = digest
-    post.raw = {k: v for k, v in doc.items() if k not in ("embedding", "content", "engContent")}
+    # 익명 글이면 작성자를 원본 사본에서도 뺍니다 — 위에서 `writer` 만 비우면 raw 에 그대로 남았습니다
+    post.raw = {k: v for k, v in doc.items() if k not in ("embedding", "content", "engContent")
+                and not (k == "writer" and doc.get("isAnonymous"))}
     post.fetched_at = clock.utcnow()
     post.missing_since = None
 
