@@ -197,16 +197,30 @@ def extract_attachments(db, client: KsainClient, limit: int = 500) -> dict:
             except Exception as error:  # 형식이 깨진 파일 하나가 수집 전체를 멈추면 안 됩니다
                 row.status, row.error = "error", f"{type(error).__name__}: {error}"[:300]
         row.extracted_at = datetime.datetime.utcnow()
+        try:
+            db.commit()
+        except Exception as error:  # 저장 단계에서 깨져도(인코딩 등) 이 첨부만 실패로 남깁니다
+            db.rollback()
+            row = db.get(Attachment, row.id)
+            row.status, row.text, row.error = "error", None, f"save: {type(error).__name__}"[:300]
+            row.extracted_at = datetime.datetime.utcnow()
+            db.commit()
         counts[row.status] = counts.get(row.status, 0) + 1
-        db.commit()
     return counts
 
 
-def run(do_backfill: bool, refresh_days: int, attachments: bool) -> dict:
+def run(do_backfill: bool, refresh_days: int, attachments: bool, attachments_only: bool = False) -> dict:
     init_ksain_schema()
     client = KsainClient()
     db = SessionLocal()
     summary: dict = {"started_at": datetime.datetime.utcnow().isoformat(timespec="seconds")}
+    if attachments_only:
+        try:
+            summary["attachments"] = extract_attachments(db, client, limit=10000)
+            summary["ok"] = True
+        finally:
+            db.close()
+        return summary
     try:
         if do_backfill:
             summary["backfill"] = backfill(db, client)
@@ -233,7 +247,8 @@ if __name__ == "__main__":
     parser.add_argument("--backfill", action="store_true", help="두 번호 공간을 처음부터 훑습니다")
     parser.add_argument("--refresh-days", type=int, default=14)
     parser.add_argument("--no-attachments", action="store_true")
+    parser.add_argument("--attachments-only", action="store_true", help="밀린 첨부 텍스트만 뽑습니다")
     args = parser.parse_args()
-    result = run(args.backfill, args.refresh_days, not args.no_attachments)
+    result = run(args.backfill, args.refresh_days, not args.no_attachments, args.attachments_only)
     print(json.dumps(result, ensure_ascii=False))
     raise SystemExit(0 if result.get("ok") else 1)

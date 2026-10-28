@@ -32,6 +32,9 @@ UPSTREAM_HOST = "127.0.0.1"
 UPSTREAM_PORT = int(os.environ.get("GATEWAY_OLLAMA_PORT", "11435"))
 IDLE_SECONDS = int(os.environ.get("GATEWAY_IDLE_SECONDS", "3600"))
 KEEP_ALIVE = os.environ.get("GATEWAY_KEEP_ALIVE", "15m")
+# ⚠️ Ollama 기본 컨텍스트는 4096 토큰이고, 넘치면 프롬프트 **앞부분을 조용히 잘라** 시스템
+# 지시문이 사라집니다. 도구 명세 + 검색 결과만으로 4천을 넘어서 답이 중간에 끊겼습니다
+CONTEXT_LENGTH = os.environ.get("GATEWAY_CONTEXT_LENGTH", "16384")
 OLLAMA_EXE = os.environ.get(
     "GATEWAY_OLLAMA_EXE",
     str(Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Ollama" / "ollama.exe"),
@@ -72,6 +75,7 @@ class Ollama:
                 env = dict(os.environ)
                 env["OLLAMA_HOST"] = f"{UPSTREAM_HOST}:{UPSTREAM_PORT}"
                 env["OLLAMA_KEEP_ALIVE"] = KEEP_ALIVE
+                env["OLLAMA_CONTEXT_LENGTH"] = CONTEXT_LENGTH
                 log.info("starting ollama: %s", OLLAMA_EXE)
                 self.proc = subprocess.Popen(
                     [OLLAMA_EXE, "serve"], env=env,

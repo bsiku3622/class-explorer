@@ -21,12 +21,12 @@ import re
 
 from backend import llm
 from backend.ksain.db import SessionLocal, init_ksain_schema
-from backend.ksain.models import Analysis, Post
+from backend.ksain.models import Analysis, Attachment, Post
 
-ANALYZER_VERSION = 1
+ANALYZER_VERSION = 3  # 2: 날짜 근거 검사(grounded) · 3: 시트별 첨부 발췌, 요약에도 근거 없는 날짜 금지
 MAX_BODY = 5000
-MAX_ATTACHMENT = 1500
-MAX_ATTACHMENTS_TOTAL = 4000
+MAX_ATTACHMENT = 2500
+MAX_ATTACHMENTS_TOTAL = 6000
 
 TAGS = ["시험", "수업·수강", "R&E·연구", "필참교육", "행사", "대회·공모", "모집·선발", "생활·기숙사",
         "귀가·귀교", "급식", "학생회", "동아리·연구회", "입시", "시설", "장학·행정", "건의", "기타"]
@@ -72,6 +72,7 @@ SYSTEM = f"""너는 KAIST 부설 한국과학영재학교(KSA) 커뮤니티 ksai
 글 하나를 읽고 아래 JSON 만 출력한다. 설명이나 코드 블록은 쓰지 않는다.
 
 - summary: 학생이 한눈에 알 수 있게 1~2문장. 날짜·장소·대상·해야 할 일을 담는다.
+  날짜·시각은 본문이나 첨부 발췌에 적힌 것만 쓴다. 확인할 수 없으면 "자세한 일정은 첨부 참고" 라고 쓴다.
 - importance: 0 = 개인적·잡담·감사 글, 1 = 일부 학생 관련(동아리 모집·홍보 등),
   2 = 다수 학생 관련 공지(행사·공모·생활 안내), 3 = 전교생이 놓치면 안 되는 것(시험·필참 교육·수강 변경·귀가 일정).
 - tags: {", ".join(TAGS)} 중에서 고른다.
@@ -110,10 +111,25 @@ def prompt(post: Post) -> str:
     for att in post.attachments:
         lines.append(f"[첨부] {att.name}")
         if att.status == "ok" and att.text and budget > 0:
-            excerpt = att.text[:min(MAX_ATTACHMENT, budget)]
+            excerpt = _excerpt(att.text, min(MAX_ATTACHMENT, budget))
             budget -= len(excerpt)
             lines.append(excerpt)
     return "\n".join(lines)
+
+
+def _excerpt(text: str, limit: int) -> str:
+    """첨부 발췌. xlsx 는 시트마다 앞부분을 고르게 나눠 담습니다.
+
+    ⚠️ 앞에서부터 자르면 첫 시트만 보입니다. 기말고사 공지(3092)는 첫 시트가 `수강 현황`
+    (명단 머리)이고 날짜는 둘째 시트에 있어서, 모델이 날짜를 못 보고 "11/1 기말고사" 를
+    지어냈습니다.
+    """
+    sheets = [s for s in text.split("\n\n[시트:") if s.strip()]
+    if len(sheets) <= 1:
+        return text[:limit]
+    share = max(300, limit // len(sheets))
+    parts = [(s if i == 0 else "[시트:" + s)[:share] for i, s in enumerate(sheets)]
+    return "\n\n".join(parts)[:limit]
 
 
 def _date(value) -> datetime.date | None:
@@ -151,8 +167,26 @@ def _fix_year(day: datetime.date, posted: datetime.date | None) -> datetime.date
     return moved if (posted - moved).days <= 60 else day
 
 
+def source_text(post: Post) -> str:
+    parts = [post.title, post.content_text, post.eng_content_text or ""]
+    parts += [a.text or "" for a in post.attachments if a.status == "ok"]
+    return "\n".join(parts)
+
+
+def grounded(day: datetime.date, text: str) -> bool:
+    """그 날짜가 글 어딘가에 적혀 있는가 — "12.11", "12/11", "12월 11일", "2026-12-11".
+
+    ⚠️ 모델은 본문에 없는 날짜를 지어냅니다. 3092번(기말고사 시간표 안내)은 날짜가 첨부
+    xlsx 에만 있는데, 첨부를 못 읽은 상태에서 "11/1 기말고사" 를 만들어 냈습니다. 근거가 없는
+    항목은 정보로만 남기고 학사일정에는 넣지 않습니다.
+    """
+    pattern = rf"(?<!\d)0?{day.month}\s*(?:[./\-]|월)\s*0?{day.day}(?!\d)"
+    return re.search(pattern, text) is not None
+
+
 def coerce(raw: dict, post: Post) -> dict:
     posted = post.posted_at.date() if post.posted_at else None
+    text = source_text(post)
     items = []
     for item in raw.get("items") or []:
         if not isinstance(item, dict):
@@ -177,6 +211,7 @@ def coerce(raw: dict, post: Post) -> dict:
             "target_grades": _grades(item.get("target_grades")),
             "calendar": bool(item.get("calendar")),
             "confidence": max(0.0, min(1.0, float(item.get("confidence") or 0))),
+            "grounded": grounded(start, text),
         })
     importance = raw.get("importance")
     return {
@@ -215,6 +250,9 @@ def pending(db, limit: int):
             Analysis.content_hash != Post.content_hash,
             Analysis.version < ANALYZER_VERSION,
         ))
+        # 첨부를 아직 못 읽은 글은 미룹니다 — 날짜가 첨부에만 있는 공지가 많고, 첨부 텍스트는
+        # content_hash 에 안 들어가서 한 번 분석하면 다시 돌지 않습니다
+        .filter(~Post.attachments.any(Attachment.status == "pending"))
         .order_by(Post.posted_at.desc())
         .limit(limit)
         .all()
@@ -279,12 +317,16 @@ def run(limit: int, model_id: str | None, post_id: int | None = None, dry_run: b
     return counts
 
 
-def reapply() -> dict:
+def reapply(fresh: bool = False) -> dict:
     """LLM 을 부르지 않고 저장된 분석으로 학사일정만 다시 맞춥니다.
 
     분석을 다른 DB(스테이징)에서 미리 돌렸거나 `apply.py` 규칙을 바꿨을 때 씁니다. 반영
     기록(`applied`)은 그 DB 의 일정 번호라 여기서는 비우고 시작합니다 — 남겨 두면 "사람이
-    지운 일정" 으로 오해해 전부 막아 버립니다. 사람이 지워 둔 기록(`suppressed`)은 남깁니다.
+    지운 일정" 으로 오해해 전부 막아 버립니다.
+
+    사람이 지워 둔 기록(`suppressed`)은 평소엔 남깁니다. ⚠️ **스테이징에서 만든 분석을 운영에
+    처음 반영할 때는 `fresh=True`** 로 그것까지 비우세요 — 스테이징 사본에서 지운 일정이
+    운영에서도 막힙니다.
     """
     from backend.ksain import apply
 
@@ -295,6 +337,8 @@ def reapply() -> dict:
         rows = db.query(Analysis).join(Post).filter(Post.missing_since.is_(None)).all()
         for row in rows:
             row.applied = []
+            if fresh:
+                row.suppressed = []
             created += apply.apply_post(row.post, row)
             db.commit()
         removed = apply.remove_missing(db)
@@ -312,8 +356,9 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run", action="store_true", help="저장하지 않고 결과만 출력")
     parser.add_argument("--no-calendar", action="store_true", help="학사일정에 반영하지 않음")
     parser.add_argument("--reapply", action="store_true", help="분석 없이 저장된 결과로 학사일정만 다시 맞춤")
+    parser.add_argument("--fresh", action="store_true", help="--reapply 때 '사람이 지운 일정' 기록까지 비움 (첫 운영 반영)")
     args = parser.parse_args()
     if args.reapply:
-        print(json.dumps(reapply(), ensure_ascii=False))
+        print(json.dumps(reapply(args.fresh), ensure_ascii=False))
     else:
         print(json.dumps(run(args.limit, args.model, args.post, args.dry_run, not args.no_calendar), ensure_ascii=False))

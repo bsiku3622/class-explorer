@@ -366,7 +366,8 @@ def read_ksain(ctx: Context, post_id: int) -> dict:
 
 def ksain_digest(ctx: Context, start: str | None = None, end: str | None = None, min_importance: int = 2) -> dict:
     first = _date(start)
-    last = _date(end) if end else first
+    # end 를 빼먹고 "이번 주" 를 start 만으로 묻는 일이 잦습니다 — 비우면 오늘까지로 잡습니다
+    last = _date(end) if end else max(first, periods.today())
     db = KsainSession()
     try:
         out = ksain_search.digest(db, first, last, int(min_importance))
@@ -411,7 +412,7 @@ TOOLS = [
          "board": {"type": "string", "description": "게시판 이름 일부 (예: 공지사항)"}}, ["query"]),
     _fn("read_ksain", "ksain 글 하나의 본문과 첨부 내용", {"post_id": {"type": "integer"}}, ["post_id"]),
     _fn("ksain_digest", "기간 안에 올라온 중요한 ksain 공지와 그 기간에 걸린 필참 교육·마감",
-        {"start": DATE, "end": {"type": "string", "description": "비우면 start 와 같은 날"},
+        {"start": DATE, "end": {"type": "string", "description": "YYYY-MM-DD. 비우면 오늘까지"},
          "min_importance": {"type": "integer", "description": "0~3, 기본 2"}}),
 ]
 
