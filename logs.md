@@ -1,3 +1,18 @@
+## 2026-10-29 — Ask 가 오늘 일정(체육대회)을 놓치던 문제
+
+- 변경 파일: `backend/agent/tools.py`(`today_events`·`_GENERIC`·`Context.weak`), `backend/agent/chat.py`(`date_anchors`·`_named`·시스템 프롬프트), `backend/agent.guide.md`
+- 요약: "오늘 일정 뭐야?" 에 모델이 `calendar(query="일정")` 을 불러 체육대회가 걸러지고 "특별한 일정은 없습니다" 라고 답한 일. 오늘 걸친 일정과 어제·내일·이번 주·다음 주 날짜를 프롬프트에 미리 넣고, 검색어의 일반어를 버리고, 걸린 게 없으면 빈 목록 대신 기간 일정을 줍니다.
+
+같은 계열의 실수가 셋이었습니다. ① 일반어 검색어가 도구 결과를 비웠고 ② 12B 모델이 "다음 주" 를 11-03~11-09 로
+잘못 세고 요일도 밀어 적었고 ③ "기말고사 언제야?" 에 달력을 안 보고 기억만으로 답했습니다. 프롬프트로 타이르는
+대신 **날짜는 코드가 세서 건네는** 쪽으로 고쳤고, 실제 모델로 네 질문(오늘·다음 주·기말고사·내일)이 다 맞는 걸
+확인했습니다. 덤으로 `calendar` 가 일정마다 걸던 원문 링크는 답이 그 일정을 말할 때만 남깁니다 — 스크린샷의
+답 밑에 붙은 수강신청·SAT·R&E 칩이 그것이었습니다.
+
+- ⚠️ 첫 답이 틀린 뒤 "비융신이야? 학사일정 찾아보면…" 에 모델은 도구 없이 "확인해 보니 체육대회입니다" 라고 따라
+  했습니다. 틀렸다는 말을 들으면 다시 확인하라는 줄을 넣었지만, 근본 해결은 처음부터 맞게 답하는 쪽(오늘 일정
+  프롬프트)입니다
+
 ## 2026-10-29 — 기억·자동 일정을 백업에서 빼기 + 사실에서 학생 이름 거르기 — 브랜치 `feat/backend-overhaul`
 
 - 변경 파일: `backend/services/backup.py`(`strip_ksain_derived`), `backend/cli/material_backup.py`, 신규 `backend/cli/snapshot.py`, `backend/ksain/analyze.py`(`student_names`·`_personal`), `deploy-guide.md`(배포 직전 `cp` → `backend.cli.snapshot`), `frontend/src/pages/PrivacyPage.tsx`, 가이드(`core/db.guide.md`·`ksain.guide.md`·`models.guide.md`·`backend/CLAUDE.md`·`PrivacyPage.guide.md`)

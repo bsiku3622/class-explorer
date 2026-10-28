@@ -27,7 +27,7 @@ from fastapi import HTTPException
 
 from backend import models
 from backend.agent import llm
-from backend.agent.tools import TOOLS, WEEKDAYS, Context, execute
+from backend.agent.tools import TOOLS, WEEKDAYS, Context, execute, today_events
 from backend.core import clock
 from backend.core.db import SessionLocal
 from backend.knowledge import facts as memory
@@ -42,6 +42,11 @@ _usage: dict[tuple[int, str, datetime.date], int] = defaultdict(int)
 
 SYSTEM = """너는 classes.bsiku.dev(KAIST 부설 한국과학영재학교 수업 탐색 앱)의 도우미다.
 오늘은 {date}({weekday}) {time} KST, 학기는 {term}이다. 질문한 사람은 {who}.
+날짜 기준(직접 계산하지 말고 이 값을 쓴다): {anchors}
+{today}
+- 오늘 일정을 물으면 위 '오늘 걸친 학사일정' 으로 답한다. 다른 날·기간의 일정은 calendar 로 찾는다.
+- "언제"·며칠·마감을 묻는 질문(시험·행사·귀가·제출)은 기억이나 짐작으로 답하지 말고 반드시 calendar 로 날짜를 확인한다.
+- 사용자가 답이 틀렸다고 하면 그 말을 따라 하지 말고 도구로 다시 확인한 뒤 답한다.
 
 - 시간표·강의실·학사일정·시험·급식·교육과정·ksain 공지는 반드시 도구로 확인하고, 도구 결과에 없는 내용은 지어내지 않는다.
 - "나/내/제"는 질문한 사람이다(person="me"). "내일", "다음 주 월요일" 같은 날짜는 오늘 기준 YYYY-MM-DD 로 바꿔 넘긴다.
@@ -98,6 +103,23 @@ def memory_line(entry: dict) -> str:
     return f"- [{entry['id']}] {entry['fact']} ({' / '.join(p for p in parts if p)})"
 
 
+def date_anchors(today: datetime.date) -> str:
+    """어제·내일·이번 주·다음 주·이번 달의 실제 날짜 — 주는 월요일부터입니다.
+
+    12B 모델은 날짜 셈을 틀립니다 — 목요일에 "다음 주" 를 11-03~11-09 로 잡고 요일까지 하루씩 밀어 적었습니다.
+    """
+    def day(value: datetime.date) -> str:
+        return f"{value.isoformat()}({WEEKDAYS[value.weekday()]})"
+
+    week = datetime.timedelta(days=7)
+    monday = today - datetime.timedelta(days=today.weekday())
+    first = today.replace(day=1)
+    last = (first + datetime.timedelta(days=32)).replace(day=1) - datetime.timedelta(days=1)
+    one = datetime.timedelta(days=1)
+    return (f"어제 {day(today - one)} · 내일 {day(today + one)} · 이번 주 {day(monday)}~{day(monday + week - one)} · "
+            f"다음 주 {day(monday + week)}~{day(monday + 2 * week - one)} · 이번 달 {day(first)}~{day(last)}")
+
+
 def system_prompt(ctx: Context, memory_entries: list[dict]) -> str:
     now = clock.now()
     profile = ctx.profile
@@ -108,8 +130,12 @@ def system_prompt(ctx: Context, memory_entries: list[dict]) -> str:
         who = f"{ctx.user.username} (학번 미연결)"
     # 표를 안 주면 모델이 교시 번호를 짐작합니다 — 15:40 수업을 "4교시" 로 적었습니다
     table = ", ".join(f"{p} {periods.hhmm(s)}–{periods.hhmm(e)}" for p, s, e in periods.PERIODS)
+    events = today_events(ctx)
+    today = ("오늘 걸친 학사일정(공용 + 질문자 개인 일정):\n" + "\n".join(f"  · {line}" for line in events)
+             if events else "오늘 걸친 학사일정은 없다.")
     text = SYSTEM.format(date=now.date().isoformat(), weekday=WEEKDAYS[now.weekday()], time=now.strftime("%H:%M"),
-                         term=f"{ctx.year}-{ctx.semester}", who=who, periods=table)
+                         term=f"{ctx.year}-{ctx.semester}", who=who, anchors=date_anchors(now.date()), today=today,
+                         periods=table)
     if memory_entries:
         text += MEMORY.format(lines="\n".join(memory_line(entry) for entry in memory_entries))
     return text
@@ -151,20 +177,29 @@ def summarize(result: dict) -> str:
     return " · ".join(parts) or "완료"
 
 
+def _named(title: str, flat: str) -> bool:
+    """답이 이 일정을 말했는가 — 자동 일정 제목 끝의 괄호("(23:59까지)", "(~11.30)")는 떼고 봅니다."""
+    core = squeeze(re.sub(r"\s*\([^)]*\)\s*$", "", title))
+    return len(core) >= 4 and core[:24] in flat
+
+
 def finish_text(text: str, ctx: Context) -> str:
     """답에서 사실 번호를 걷어내고 근거 순서를 맞춥니다.
 
     근거는 ① 답이 쓴 사실의 글 ② 답에 제목이 나온 글 ③ 나머지(도구가 찾은 순) 입니다. 도구는 찾은 글을
     다 걸어 두는데, 검색 1등 글이 답의 근거가 아닐 때가 있습니다 — "R&E 최종보고서" 를 물었더니 답은
-    R&E 공지로 했는데 근거 맨 위에 KAIST HRP 공지가 걸렸습니다.
+    R&E 공지로 했는데 근거 맨 위에 KAIST HRP 공지가 걸렸습니다. 학사일정 도구가 일정마다 걸어 둔 원문
+    (`ctx.weak`)은 ③에 넣지 않고, 답이 그 일정을 말했을 때만 ②로 남깁니다.
     """
     used = []
     for mark in _MARK.findall(text):
         used += [int(n) for n in re.findall(r"\d+", mark)]
     text = re.sub(r"[ \t]+\n", "\n", _MARK.sub("", text)).strip()
     flat = squeeze(text)
-    mentioned = [s for s in ctx.sources if len(squeeze(s["title"])) >= 6 and squeeze(s["title"])[:24] in flat]
-    ctx.sources = mentioned + [s for s in ctx.sources if s not in mentioned]
+    mentioned = [s for s in ctx.sources if (len(squeeze(s["title"])) >= 6 and squeeze(s["title"])[:24] in flat)
+                 or (s["url"] in ctx.weak and _named(s["title"], flat))]
+    # 걸어만 둔 근거(학사일정 도구가 찾은 일정의 원문)는 답이 그 일정을 말했을 때만 남깁니다
+    ctx.sources = mentioned + [s for s in ctx.sources if s not in mentioned and s["url"] not in ctx.weak]
     for fact_id in reversed(list(dict.fromkeys(used))):
         fact = ctx.facts.get(fact_id)
         if fact is not None:
