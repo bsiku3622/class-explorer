@@ -43,6 +43,8 @@ def session_state(db: Session, today: datetime.date) -> dict:
         row = (
             db.query(models.CalendarEvent.start_date)
             .filter(
+                # 공용 일정만 — 한때 아무 학생이 개인 일정으로 "종업" 을 넣으면 전교생 홈이 방학이 됐습니다
+                models.CalendarEvent.owner_id.is_(None),
                 models.CalendarEvent.category == "term",
                 models.CalendarEvent.title.like(f"%{keyword}%"),
                 models.CalendarEvent.start_date <= today,
@@ -60,6 +62,7 @@ def session_state(db: Session, today: datetime.date) -> dict:
         row = (
             db.query(models.CalendarEvent.start_date)
             .filter(
+                models.CalendarEvent.owner_id.is_(None),
                 models.CalendarEvent.category == "term",
                 models.CalendarEvent.title.like("%개학%"),
                 models.CalendarEvent.start_date > today,

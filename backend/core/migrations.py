@@ -685,11 +685,28 @@ def run_migrations(engine: Engine) -> None:
         _add_version_ranges(conn)
         _seed_term_versions(conn)
         _seed_october_timetable_overrides(conn)
+        _purge_orphans(conn)
         # 기억(facts) 검색 — rowid 가 facts.id 입니다 (knowledge/facts.py)
         conn.execute(text(
             f"CREATE VIRTUAL TABLE IF NOT EXISTS facts_fts USING fts5(tokens, tokenize='{FTS_TOKENIZER}')"
         ))
         conn.commit()
+
+
+def _purge_orphans(conn) -> None:
+    """지운 계정이 남긴 기록 — 계정 삭제가 예전엔 계정 행과 자료만 지웠습니다(`routers/admin.py` 의 `_forget_user`).
+
+    `users.id` 는 AUTOINCREMENT 가 아니라, 남겨 두면 다음에 만든 계정이 같은 id 를 받아 그대로 물려받습니다.
+    앱이 뜰 때마다 돌지만 지울 게 없으면 아무 일도 하지 않습니다.
+    """
+    for table, column in (("user_states", "user_id"), ("course_grades", "user_id"), ("friends", "user_id"),
+                          ("calendar_events", "owner_id"), ("event_requests", "user_id"), ("sessions", "user_id")):
+        conn.execute(text(f"DELETE FROM {table} WHERE {column} IS NOT NULL "
+                          f"AND {column} NOT IN (SELECT id FROM users)"))
+    for table, column in (("event_requests", "decided_by_id"), ("materials", "decided_by_id"), ("facts", "edited_by_id")):
+        conn.execute(text(f"UPDATE {table} SET {column} = NULL WHERE {column} IS NOT NULL "
+                          f"AND {column} NOT IN (SELECT id FROM users)"))
+    conn.commit()
 
 
 # ksain.db — create_all 은 이미 있는 표에 컬럼을 붙이지 않아서, 나중에 생긴 컬럼은 여기 적습니다
