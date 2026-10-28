@@ -1,3 +1,21 @@
+## 2026-10-29 — 공개 레포 기록에서 개인정보 파일 지우기 (강제 푸시)
+
+- 변경 대상: GitHub `main`·`dev`(강제 푸시), 서버·데스크탑·맥북 저장소, 서버 `backend/students.txt` 권한, `deploy-guide.md`
+- 요약: `git filter-repo` 로 `backend/students.txt`·`backend/ksa_timetable.db`·`frontend/src/assets/syllabi/` 를 모든 기록에서 지우고 덮어썼습니다(main `a8b238d → 9e97e77`). 마지막 파일 트리는 그대로이고(같은 트리 해시, 커밋 222개), 새로 받은 clone 에는 그 파일이 든 커밋·객체가 0개입니다.
+
+- ⚠️ **옛 clone 에서 `git pull` 하면 지운 명단이 되살아납니다** — 옛 기록과 새 기록을 합친 채 푸시하면 그 커밋이 다시
+  올라갑니다. 서버·데스크탑·이 워크트리는 `fetch` + `reset --hard origin/main` 으로 맞췄고, 맥북 원래 폴더는 이 세션이
+  건드릴 수 없어(워크트리 격리) 운영자가 같은 명령을 돌립니다. 그 사이 사고를 막으려고 맥북 저장소에
+  `pull.ff=only` 를 걸었습니다. pre-push 훅도 넣으려 했지만 공용 `.git/hooks` 에 쓰는 것도 막혀 있어 뺐습니다
+- 옛 기록을 든 로컬 브랜치를 정리했습니다. `feat/ksa-bench`·`feat/ksain-ai`·`hotfix/exam-timetable` 은 main 에 다 들어가
+  있어 지웠고, main 에 없던 두 커밋(`dev` 의 3월 "test", `hotfix/timetable-overrides` 의 옛 대체 시간표 구현)은 patch 로
+  남기고(`~/Bufs/Claude Files/2026-10-29/history-rewrite/archived-branches/`) 지웠습니다. `dev` 는 맥북·데스크탑 모두 새
+  `origin/dev` 로 옮겼습니다. 데스크탑에도 3월에 받은 clone(`D:\Projects\Main Projects\class-explorer`)이 있었습니다
+- ⚠️ GitHub 이 관리하는 `refs/pull/1/head`·`refs/pull/2/head` 는 덮어쓸 수 없어서 옛 커밋을 계속 가리킵니다 — 지원팀이
+  PR 을 지우고 캐시를 비워야 끝납니다(요청문: `history-rewrite/github-support-request.txt`). 이미 받아 간 clone 은 되돌릴 수 없습니다
+- 같은 점검에서 서버의 `backend/students.txt`(학번·이름)가 644 라 다른 계정도 읽던 것을 640 `baeks:ksaclass` 로 막았습니다.
+  API 계정은 그대로 읽습니다(`/admin/sync` 가 씁니다)
+
 ## 2026-10-29 — 서버 로그는 class-explorer 만 90일, ksain.db 는 data/ 로
 
 - 변경 대상: 운영 서버(journald namespace, API·수집 유닛, `data/` 권한, ksain.db 위치), `deploy/class-explorer-ksain.service`·`class-explorer-materials-backup.service`, `deploy-guide.md`, `backend/core/db.guide.md`, `backend/ksain.guide.md`, `frontend/src/pages/PrivacyPage.tsx`(4절), `PrivacyPage.guide.md`
