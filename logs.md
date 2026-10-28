@@ -1,3 +1,28 @@
+## 2026-10-29 — 운영 배포 (백엔드 재배치 · Ask · 개인정보 감사)
+
+- 변경 대상: `main`(병합 커밋 `a699c3a`), 운영 서버(`/srv/class-explorer`·systemd·journald), Netlify, `deploy-guide.md`
+- 요약: `feat/backend-overhaul` 26커밋을 main 에 병합해 푸시하고, 배포 가이드의 평소 배포와 2026-10 한 번만 하는 두 절(1~5단계)을 서버에 적용했습니다. 6단계(공개 레포 기록 지우기)는 아직입니다.
+
+- ⚠️ **이 저장소에는 PR 을 만들지 않습니다.** PR #2 를 열었다가 운영자에게 "내 git 인데 왜 PR 이냐" 는 말을 들었습니다.
+  병합 커밋(`merge: …`)을 main 에 바로 올립니다. 작업 폴더를 안 건드리려고 `git commit-tree <브랜치>^{tree} -p
+  origin/main -p <브랜치>` 로 만들었습니다 — 워크트리에서 옛 main 을 체크아웃하면 거기 추적되던 강의계획서·DB 파일이
+  로컬 사본을 덮습니다. PR #1·#2 는 merged 로 남았고 화면은 GitHub 지원팀만 지울 수 있어서, 기록 정리 때 같이
+  요청합니다(`~/Bufs/Claude Files/2026-10-29/history-rewrite/github-support-request.txt`). 원격 브랜치는 `main`·`dev` 만 남겼습니다
+- 서버 순서: 강의계획서 149개를 `data/syllabi` 에(폴더 750·파일 640, 그룹 ksaclass) → journald 90일(재시작만으로
+  4.0GB → 424MB, 가장 오래된 기록 2026-08-10) → API 유닛에 `--no-access-log`(원래 유닛은 서버 홈의
+  `class-explorer.service.bak-20261029`) → 타이머 멈춤 → 당기기 → 스냅샷 → 타이머 유닛 복사 → 검색 색인(조각 26,896개,
+  9.5초) → 백업 25개·자료 압축 1개 정리(1년 지난 것은 없었습니다) → 재시작 → VACUUM(본 DB 3.42 → 3.33MB, ksain.db
+  57.5 → 55.1MB) → 타이머 켬
+- 확인: 경로 70개, `/syllabi` 로그인 없이 401, 요청을 보내도 접속 로그 0줄, 마이그레이션(facts 표·전공 칸), Netlify 라이브
+  번들에 새 Ask 라벨, 서버에서 강의계획서 127개 목록과 미적분학1 "기말고사 : chapters 1-7"
+- ⚠️ 함정 둘을 가이드에 적었습니다. 맥의 `rsync` 는 openrsync 라 `--chmod=D750,F640` 을 못 받아 권한은 서버에서 맞추고,
+  백업 정리를 root 로 돌리면 자료 압축 파일만 새로 써져 root 소유가 되어 되돌립니다. 배포 전에 nginx 가 실제 접속자 IP 를
+  `X-Real-IP` 로 넘기는지 봤습니다(`snippets/proxy-common.conf`, Cloudflare 의 `CF-Connecting-IP` 를 믿는 범위만) — 새 로그인
+  횟수 제한이 이 값만 봅니다
+- 다음 수집 타이머(07:00 KST)부터 분석기 v5 가 최근 1년 글 약 710건을 다시 분석합니다 — 데스크탑 GPU 로 몇 시간
+- 손대지 않은 것: `backend/ksain.db` 가 `644 baeks:baeks` 라 서버의 다른 계정도 읽을 수 있습니다. API(ksaclass)가 "그 밖"
+  권한으로 읽고 있어서, 막으려면 그룹을 ksaclass 로 바꾸고 `-wal`·`-shm` 까지 같이 봐야 합니다
+
 ## 2026-10-29 — Ask: 질문자 신원 되돌림, 강의계획서 읽기, 도구 실패 줄이기
 
 - 변경 파일: `backend/agent/tools.py`·`chat.py`, `backend/services/syllabi.py`·`subject_names.py`, `backend/routers/agent.py`(warmup), `frontend/src/lib/agentChat.ts`, `frontend/src/pages/PrivacyPage.tsx`(1·2·3·6·10절), `backend/agent.guide.md`, `frontend/src/pages/PrivacyPage.guide.md`, `backend/CLAUDE.md`, `backend/services/__init__.py`, `deploy-guide.md`

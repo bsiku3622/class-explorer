@@ -321,7 +321,8 @@ python3.14 -m backend.knowledge.index           # ksain.db 스키마 맞추기 +
 ### 2026-10 개인정보 감사 반영 (한 번만)
 
 개인정보처리방침을 고쳐 싣는 날 바로 시행합니다(13절). 아래가 방침에 적은 것과 서버를 맞추는 단계입니다 —
-빠뜨리면 방침이 거짓말이 됩니다.
+빠뜨리면 방침이 거짓말이 됩니다. **2026-10-29 운영 서버에 1~5 를 적용했습니다**(바로 위 「백엔드 재배치」 절과
+함께). 6 은 아직입니다.
 
 1. **강의계획서를 서버에 올립니다.** git 에서 뺐습니다(교사 연락처) — 맥북의 `backend/syllabi/` 를 그대로 보냅니다.
    ```bash
@@ -345,8 +346,11 @@ python3.14 -m backend.knowledge.index           # ksain.db 스키마 맞추기 +
    `ksaclass`·`baeks` 파일이 섞여 있어서 `sudo` 로 돌립니다
    ```bash
    cd /srv/class-explorer && sudo ./venv/bin/python -m backend.cli.snapshot --scrub-existing
+   sudo chown baeks:baeks data/material-backups/*.tar.gz   # 압축 파일은 새로 써서 root 소유가 됩니다
    ```
-   이 규칙 뒤로는 매일 새벽 자료 백업 타이머가 1년 지난 백업을 지웁니다(`services/backup.py` 의 `KEEP_DAYS`)
+   이 규칙 뒤로는 매일 새벽 자료 백업 타이머가 1년 지난 백업을 지웁니다(`services/backup.py` 의 `KEEP_DAYS`).
+   ⚠️ DB 백업은 제자리에서 고쳐 소유자가 그대로지만, 자료 백업 압축 파일은 새로 써서 `root:root` 가 됩니다 — 타이머
+   (`baeks`)가 나중에 지울 수는 있어도 다른 압축 파일과 소유가 갈리니 돌려 둡니다
 5. API 를 재시작합니다 — 마이그레이션이 지운 계정의 남은 기록을 지우고(`_purge_orphans`), 두 DB 가 `secure_delete`
    로 열립니다. 이미 지운 행이 남은 빈 페이지는 한 번 VACUUM 해야 사라집니다
    ```bash
