@@ -192,8 +192,9 @@ def remove_missing(ksain_db, db) -> int:
         return 0
     removed = 0
     for row in rows:
+        # 글 번호로만 찾습니다 — 매니저가 고쳐 `manual` 이 된 자동 일정도 `source_ref` 를 그대로 들고 있고, 글에서
+        # 온 것이라 원문이 지워지면 같이 지운다고 약속했습니다(개인정보처리방침 4항)
         removed += db.query(core.CalendarEvent).filter(
-            core.CalendarEvent.source == "ksain",
             core.CalendarEvent.source_ref.like(f"{row.post_id}:%"),
         ).delete(synchronize_session=False)
     memory.remove_posts(db, [row.post_id for row in rows])

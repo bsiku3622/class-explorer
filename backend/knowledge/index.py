@@ -12,7 +12,9 @@
 
 ⚠️ **contentless FTS5 는 행을 지울 수 없습니다** (SQLite 3.43 부터 되는데 서버가 3.37 입니다).
 그래서 글이 바뀌면 조각 행만 지우고 FTS 쪽 토큰은 남겨 둡니다 — 검색이 조각 표와 이어 붙여 보므로
-고아 토큰은 안 걸립니다. 고아가 조각 수의 30% 를 넘으면 처음부터 다시 만듭니다.
+고아 토큰은 안 걸립니다. 고아가 조각 수의 30% 를 넘으면 처음부터 다시 만듭니다. ⚠️ 단 **원문에서 지워진
+글이 하나라도 있으면 바로 처음부터** 만듭니다 — 고아 토큰은 fts5vocab 으로 읽혀서, 지운 글의 낱말이 파일에
+남습니다.
 """
 from __future__ import annotations
 
@@ -141,6 +143,10 @@ def refresh(db: Session) -> dict:
     known = {row.post_id: row.stamp for row in db.query(SearchStamp)}
     changed = [post_id for post_id, stamp in stamps.items() if known.get(post_id) != stamp]
     gone = [post_id for post_id in known if post_id not in stamps]
+    # 원문에서 지워진 글이 있으면 처음부터 — 조각 행만 지우면 그 글의 낱말이 고아 토큰으로 남아 fts5vocab 으로
+    # 다시 읽힙니다. 지웠다고 약속한 글(개인정보처리방침 4항)이라 남기면 안 되고, 처음부터 만드는 데 1~2초입니다
+    if gone or any((post := db.get(Post, post_id)) is None or post.missing_since is not None for post_id in changed):
+        return rebuild(db)
     orphans, added = int(state.get("orphans", 0)), 0
     for post_id in changed + gone:
         orphans += _drop(db, post_id)

@@ -260,9 +260,10 @@ def coerce(raw: dict, post: Post, names: re.Pattern | None = None) -> dict:
         if end < start:
             end = start
         category = item.get("category") if item.get("category") in CATEGORIES else "event"
+        title = str(item.get("title") or post.title).strip()[:60]
         items.append({
             "kind": item.get("kind") if item.get("kind") in KINDS else "event",
-            "title": str(item.get("title") or post.title).strip()[:60],
+            "title": title,
             "detail": _detail(item.get("detail"), names),
             "start_date": start.isoformat(),
             "end_date": end.isoformat(),
@@ -271,7 +272,8 @@ def coerce(raw: dict, post: Post, names: re.Pattern | None = None) -> dict:
             "category": category,
             "target_grades": _grades(item.get("target_grades")),
             "target_majors": majors.normalize(item.get("target_majors")),
-            "calendar": bool(item.get("calendar")),
+            # 이름·학번이 든 제목은 달력에 올리지 않습니다 — 달력은 모두에게 보입니다. 정보로는 남아 검색에 나옵니다
+            "calendar": bool(item.get("calendar")) and not _personal(title, names),
             "confidence": max(0.0, min(1.0, float(item.get("confidence") or 0))),
             "grounded": grounded(start, text),
         })
@@ -383,7 +385,8 @@ def coerce_facts(raw: list | None, post: Post, names: re.Pattern | None = None) 
             until = None  # 글보다 앞선 "유효 기한" 은 모델의 실수입니다
         out.append({
             "statement": statement,
-            "topic": str(item.get("topic") or "").strip()[:40] or statement[:30],
+            "topic": topic if (topic := str(item.get("topic") or "").strip()[:40]) and not _personal(topic, names)
+            else statement[:30],
             "valid_until": until.isoformat() if until else None,
             "target_grades": _grades(item.get("target_grades")),
             "target_majors": majors.normalize(item.get("target_majors")),
@@ -515,7 +518,9 @@ def run(limit: int, model_id: str | None, post_id: int | None = None, dry_run: b
                 counts["facts"] += facts
                 core.commit()
                 db.commit()  # 반영 기록(applied·suppressed)
-            print(f"  · {post.id} [{result['importance']}] {post.title[:40]} — items {len(result['items'])}"
+            # 글 번호만 찍습니다 — 타이머 로그는 journald 에 몇 달씩 남아서, 제목을 찍으면 원문이 지워진 글의
+            # 제목(이름이 든 감사 글·선거 글)이 로그에 남습니다
+            print(f"  · {post.id} [{result['importance']}] items {len(result['items'])}"
                   f" · facts {len(result['facts'])}", flush=True)
         if apply_results and not dry_run:
             counts["removed"] = apply.remove_missing(db, core)
@@ -567,7 +572,7 @@ def reapply(fresh: bool = False) -> dict:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ksain 글 분석")
     parser.add_argument("--limit", type=int, default=150)
-    parser.add_argument("--model", default=None, help="예: local:gemma4:12b, openai:gpt-5-mini")
+    parser.add_argument("--model", default=None, help="로컬 모델만 (예: local:gemma4:12b) — 개인정보처리방침 6절")
     parser.add_argument("--post", type=int, default=None, help="글 하나만")
     parser.add_argument("--dry-run", action="store_true", help="저장하지 않고 결과만 출력")
     parser.add_argument("--no-calendar", action="store_true", help="학사일정·기억에 반영하지 않음")
