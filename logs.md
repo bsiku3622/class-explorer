@@ -1,3 +1,52 @@
+## 2026-10-29 — 전공(심화필수 전공 트랙) 조사·반영 + 기억에서 날짜 빼기(분석기 v5) — 브랜치 `feat/backend-overhaul`
+
+- 변경 파일: 신규 `backend/services/majors.py`·`backend/routers/majors.py`, `backend/models.py`(`User.major`·`major_answered_at`, `target_majors` 셋, `Fact.board`), `backend/core/migrations.py`, `backend/ksain/`(analyze v5·apply·models `board_label`), `backend/knowledge/`(facts·text), `backend/agent/`(chat·tools), `backend/routers/`(auth·calendar·agent), 신규 `frontend/src/components/MajorPrompt.tsx`·`MajorPicker.tsx`·`MajorSettings.tsx`·`admin/MajorSurveyPanel.tsx`·`lib/majors.ts`, `ShareMaterialsPrompt` 삭제, `CalendarPage`·`EventFormModal`·`RequestSidebar`·`FactsPanel`·`SettingsPage`·`AdminPage`·`PrivacyPage`, 가이드(`ksain.guide.md`·`agent.guide.md`·`api-guide.md`·`models.guide.md`·`backend/CLAUDE.md`·`deploy-guide.md`·`frontend/CLAUDE.md` …)
+- 요약: 학생이 고른 전공 트랙을 계정에 두고("자료 구합니다" 팝업 자리에 전공 팝업), 학사일정·기억에 대상 전공을 달았습니다. 기억에서는 날짜를 빼고 날짜 든 정보는 일정 항목과 그 세부 메모로 보내며, 사실은 게시판과 상관없이 모든 글에서 뽑습니다. 기억 줄에는 게시판(말머리)·대상 학년·전공·질문자 해당 여부가 붙습니다.
+
+**전공은 학교 이름 그대로 "심화필수 전공 트랙" 여섯입니다**(ksain 2315번 「심화필수 전공 트랙 조사」). 교육과정에서
+`departments.track`(심화필수 조건)이 있는 과학 여섯 학과와 같고, 학부 셋(수리정보과학부·물리지구과학부·
+화학생물학부)으로 묶입니다. 1·2학년 때 조사하고 3학년 2학기까지 바꿀 수 있어서, 계정에 적되 본인이 `/about`
+에서 언제든 고치게 했습니다. ⚠️ **계정에는 학과 id 가 아니라 이름을 적습니다** — `import_curriculum` 이 학과
+행을 지우고 다시 만들어서 id 로 묶으면 재적재하는 날 전원의 전공이 끊깁니다.
+
+**수강 이력으로 짐작한 트랙은 추천으로만 보여 주고 저장하지 않습니다.** 1학년 필수는 모두가 들어서 심화필수
+(3점)·심화·AP(2점)만 세고, 1등이 4점 이상이면서 2등의 1.5배를 넘을 때만 내놓습니다. 2026-10 사본으로 세어
+보니 23~25학번은 63~70% 만 짐작이 나오고 26학번은 1% 입니다. ⚠️ 이 숫자는 정확도가 아니라 짐작이 **나오는
+비율**입니다 — 맞는지 대 볼 정답이 없습니다. 작업 중 한때 가이드에 정확도처럼 적었다가 다시 재 보고 바로잡았습니다.
+조사 현황은 Admin 에 **트랙별 인원 수만** 냅니다(`GET /majors/stats`) — 누가 무엇을 골랐는지는 서버도 안 줍니다.
+
+**날짜는 학사일정이 맡습니다.** v4 기억에 "R&E 최종보고서는 11월 29일까지 제출" 이 그대로 들어 있었는데,
+기억은 질문마다 프롬프트에 실려서 마감이 연장되거나 매니저가 일정을 고쳐도 옛 날짜가 나갑니다. 지시문에서
+facts 에 날짜를 금하고, 일정 항목에 `detail`(장소·버스 시각·준비물)을 받아 자동 일정의 메모 맨 앞에 넣었습니다.
+
+- ⚠️ **날짜 판정이 소수·분수를 날짜로 잡으면 안 됩니다.** 처음 쓴 정규식은 `숫자.숫자` 를 다 날짜로 봐서
+  "평점 3.5 이상"·"1.5배"·"A-(3.7)" 같은 기준 사실까지 버릴 뻔했습니다. 연도·끝 마침표·요일·괄호·"까지" 가
+  붙거나 두 자리 수가 든 슬래시("11/13")일 때만 날짜로 봅니다 — 34개 예시로 확인했습니다
+- ⚠️ **모델은 지시를 어기고 날짜 단 사실을 씁니다.** 실제 모델(gemma4:12b) dry-run 에서 3089(11월 귀가)가
+  "귀가일(11/13) 학교버스는 16:40, 17:30 운행" 을 사실로 냈습니다. 그냥 버리면 버스 시각이 어디에도 안 남아서,
+  문장의 날짜가 시작일·끝날인 일정을 찾아 그 `detail` 에 옮깁니다(`_attach_dated`, `grounded` 와 같은 꼴)
+- 재분석 범위는 "최근 1년의 중요도 1 이상" 에서 "최근 1년 전부" 로 넓혔습니다(약 710건) — 사실을 모든 글에서
+  뽑으라는 요청이라서입니다. 대신 기억 줄에 게시판을 실어 모델이 교무연구부 공지와 홍보 글을 가려 읽게 했습니다
+
+**Ask 가 학부 공지를 못 찾던 두 가지를 고쳤습니다**(실제 모델로 끝까지 돌려 확인).
+
+- "화학생물학부 면접 특강 나도 들어야 해?" 에 기억이 안 걸렸습니다. 사실 문장에 학부 이름이 없어서였고, 고친
+  뒤에도 "나도"·"들어" 가 사실 어디에도 없는 말이라 희소도가 가장 높게 잡혀 덮은 비율이 0.47 로 떨어졌습니다.
+  색인에 대상 전공과 학부 이름을 넣고(`_searchable`), 두 말을 묻는 꼴 불용어에 더했습니다 → "해당되지 않습니다"
+- "내 전공 관련 일정" 에 모델이 `calendar(query="정보과학")` 을 불렀는데 제목이 "수학 모의면접" 이라 0건이었습니다.
+  `query` 가 대상 전공·학부 이름에도 걸리게 했습니다 → 수학 모의면접 1·2차와 교실까지 답했습니다
+- 일정이 겹치는지 볼 때 **대상 학년·전공이 서로 안 겹치면 다른 일정**으로 봅니다(`_apart`) — 학부마다 따로 여는
+  "학부 설명회" 가 이름이 같다고 하나만 남지 않게
+
+스냅샷 비교(시각 고정, GET 95개·도구 26개)에서 달라진 건 새 칸뿐이었습니다 — `/auth/me` 의 `major`·
+`major_division`·`major_answered`, 일정·제안의 `target_majors: []`, Ask 프로필의 `major`·`division`.
+프론트는 빌드 통과, 린트는 기준선 그대로(7 errors / 5 warnings, 전부 기존). 화면은 DB 사본에 띄워 팝업(데스크톱·
+모바일)·달력 거르개·일정 입력 칩·`/about`·Admin 두 패널을 확인했습니다.
+
+- ⚠️ **개인정보처리방침 13항은 수집 항목 추가를 30일 전에 알린다고 약속합니다.** 전공이 새 수집 항목이라, 배포
+  때 시행일(지금 화면 값 2026-10-29)과 공지 시점을 정해야 합니다 — 위 "운영 배포" 할 일에 같이 걸려 있습니다
+- 화면과 서버를 따로 배포해서, 팝업은 `major_answered === false` 일 때만 띄웁니다. 옛 서버는 이 칸이 없습니다
+
 ## 2026-10-28 — 백엔드 재배치 + ksain 검색 색인 + 기억(facts) — 브랜치 `feat/backend-overhaul`
 
 - 변경 파일: `backend/` 전체 재배치(`core/`·`routers/`·`services/`·`cli/`·`agent/`·`knowledge/` — 신규 `core/config.py`·`clock.py`·`ratelimit.py`, `services/calendar.py`·`schoolday.py`·`meals.py`·`timetable.py`·`curriculum.py`·`materials.py`, `agent/chat.py`, `knowledge/*`, `routers/facts.py`), `backend/models.py`(`Fact`), `backend/ksain/`(analyze v4·apply·sync·models), `deploy/class-explorer-*.service`, `frontend/src/lib/agentChat.ts`·`agentDemo.ts`, `frontend/src/pages/PrivacyPage.tsx`, Admin 기억 패널, 가이드 전반(`core/db.guide.md` 신규, `ksain.guide.md`·`agent.guide.md`·`deploy-guide.md` …)

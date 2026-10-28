@@ -35,6 +35,11 @@
 같이 보세요.
 
 - 수집 항목 — `models.py` 의 `User`·`Session`·`Material` 컬럼과 자료 파일
+- 전공 — `User.major`·`major_answered_at` 과 그걸 쓰는 자리(1·2·4·8절). 고르는 창이 수강 이력으로
+  짐작한 트랙을 **저장하지 않는다**고 적었으니, 짐작을 남기기 시작하면 2절도 고칩니다. 관리자가
+  **인원 수만** 본다고도 적었습니다(`GET /majors/stats`)
+- **Ask 가 모델에 보내는 질문자 정보** — `backend/agent/chat.py` 의 시스템 프롬프트 첫 줄(이름·학번·
+  학년·내국인/외국인 구분·전공 트랙). 2절과 6절의 OpenAI 행에 적혀 있습니다 — 줄에 넣는 걸 늘리면 둘 다
 - 세션 보관 기간 — `backend/core/auth.py` 의 `SESSION_EXPIRE_DAYS` (지금 30일, 화면 4절에 적혀 있음)
 - 국외 이전 대상 — 호스팅이나 외부 서비스를 바꿨을 때 6절
 - **AI 모델 제공자** — `backend/agent/llm.py` 에 새 제공자를 붙이거나 분석(`ANALYZE_MODEL`)을 외부

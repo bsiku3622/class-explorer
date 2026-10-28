@@ -295,10 +295,14 @@ python3.14 -m backend.knowledge.index           # ksain.db 스키마 맞추기 +
 
 1. `git pull` 뒤 `python3.14 -m backend.knowledge.index` 로 색인을 만듭니다 — 안 해도 다음 수집이
    만들지만, 그 전까지 검색이 LIKE 로 돕니다
-2. API 를 재시작하면 본 DB 에 `facts`·`facts_fts` 가 생깁니다(`init_schema()`)
-3. 분석기가 v4 로 올라가서, 다음 주기부터 **최근 1년의 중요한 글 약 600건을 다시 분석**합니다. 글
-   하나에 15~30초라 데스크탑 GPU 로 서너 시간 걸리고(낮 시간 타이머가 40분씩 나눠 돕니다), 그동안
-   기억이 최신 글부터 쌓입니다. 진행은 `GET /agent/status` 의 `facts.active` 나 Admin 의 기억 패널로 봅니다
+2. API 를 재시작하면 본 DB 에 `facts`·`facts_fts` 가 생기고, 계정의 전공(`users.major`)과 일정·제안·
+   기억의 대상 전공(`target_majors`) 칼럼이 붙습니다(`init_schema()`)
+3. 분석기가 v3 에서 v5 로 올라가서, 다음 주기부터 **최근 1년의 글 약 710건을 게시판·중요도와 상관없이
+   다시 분석**합니다. 글 하나에 15~30초라 데스크탑 GPU 로 네다섯 시간 걸리고(낮 시간 타이머가 40분씩
+   이어 돕니다), 그동안 기억과 자동 일정이 최신 글부터 바뀝니다 — 자동 일정에는 대상 전공과 세부 메모가
+   붙습니다. 진행은 `GET /agent/status` 의 `facts.active` 나 Admin 의 기억 패널로 봅니다
+4. 학번을 확인한 학생에게는 다음 접속 때 전공 팝업이 뜹니다. 응답 현황은 Admin 의 전공 조사 칸
+   (`GET /majors/stats`)에서 인원 수로만 봅니다
 
 ---
 

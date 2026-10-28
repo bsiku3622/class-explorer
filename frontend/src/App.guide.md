@@ -10,7 +10,7 @@
 | 상태 | 초기값 | 설명 |
 |------|--------|------|
 | `sessionToken` | localStorage | 인증 토큰. null이면 LoginPage 렌더 |
-| `currentUser` | `null` | `{ id, username, is_admin }` — `/auth/me` 응답 |
+| `currentUser` | `null` | `{ id, username, role, stu_id, …, major, major_answered }` — `/auth/me` 응답. 전공 칸은 `applyMajor` 가 고칩니다 |
 | `allClassesData` | `[]` | API 원본 전체 데이터 (캐시 포함) |
 | `displayData` | `[]` | 현재 필터/검색 적용된 표시 데이터 |
 | `stats` | `null` | 검색 없을 때 전체 통계 (있으면 null) |
@@ -102,6 +102,20 @@ handleSearchSelect: 항상 해당 값으로 설정
 `/auth/me` 의 `stu_id` 에 그 학번이 실려 옵니다 — 그래서 화면 쪽은 시연인지 아닌지
 따로 알 필요가 없습니다.
 
+## 전공을 묻는 창
+
+`MajorPrompt` 는 라우터 밖, 화면 맨 끝에 붙습니다(예전 "실라버스를 공유해주세요" 창 자리). 조건은
+넷입니다 — `major_answered === false`, 학번이 있음, 시연 계정이 아님, 지금 주소가 `/about`·`/privacy`
+가 아님. `/about` 에는 같은 칸이 있고, `/privacy` 는 무엇을 왜 모으는지 읽는 자리라 그 위를 덮지
+않습니다.
+
+⚠️ **`!major_answered` 로 바꾸지 마세요.** 화면과 서버를 따로 배포해서 옛 서버의 `/auth/me` 에는 이
+칸이 없고, 그러면 없는 `/majors` 를 부르는 창이 모두에게 뜹니다.
+
+창은 `React.lazy` 라 답한 사람의 첫 로딩에는 실리지 않습니다. 답은 창과 `/about` 둘 다 `applyMajor`
+로 돌아와 `currentUser` 의 전공 칸을 바꾸고, 그러면 조건이 깨져 창이 내려갑니다. 자세한 규칙은
+[../CLAUDE.md](../CLAUDE.md) 의 `전공` 절에 있습니다.
+
 ## 라우팅
 ```tsx
 sessionToken=null · 주소 `/`         → LandingPage (공개 소개 화면, 라우터 밖)
@@ -111,7 +125,8 @@ sessionToken=null · 그 외 주소        → LoginPage (라우터 밖, 전체 
 /emptyroomfinder  → RoomsPage (allClassesData, onRoomSearch)
 /analysis         → AnalysisPage (allClassesData, studentCounts, lastUpdated, fetchInitialData, handleSearch=handleSearchToggle)
 /browse           → BrowsePage (allClassesData, studentCounts, lastUpdated, fetchInitialData, handleSearch=handleSearchSelect)
-/about            → SettingsPage (props 없음)
+/about            → SettingsPage (onMajorSaved=applyMajor — 전공 칸에서 고르면 currentUser 를 맞춥니다)
+/calendar         → CalendarPage (role, stuId, major — "내 학년·전공 것만" 거르개)
 /exams            → ExamsPage (선택 학기의 본인 시험 시간표)
 /admin            → AdminPage (is_admin=true일 때만 라우트 등록)
 /*                → currentUser 가 있으면 Navigate to /, 없으면 로딩 화면
