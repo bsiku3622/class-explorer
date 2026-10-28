@@ -12,6 +12,7 @@ import tarfile
 import tempfile
 
 from backend.core.db import main_db_file
+from backend.services.backup import strip_ksain_derived
 from backend.services.materials import storage_root
 
 
@@ -80,6 +81,8 @@ def create_backup() -> Path | None:
             closing(sqlite3.connect(database_snapshot)) as snapshot_database,
         ):
             live_database.backup(snapshot_database)
+        # 기억·자동 일정은 빼고 묶습니다 — 이유는 services/backup.py 의 strip_ksain_derived
+        strip_ksain_derived(database_snapshot)
 
         with tarfile.open(temporary, "w:gz") as archive:
             archive.add(database_snapshot, arcname="ksa_timetable.db")
