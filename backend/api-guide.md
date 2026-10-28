@@ -9,9 +9,9 @@
 
 주로 ksa-bench 가 쓰는 것: `GET /students/search`, `GET /students/{stu_id}`(한 명씩
 조회), `GET /me/progress`(본인만), `GET /stats/enrollment`(집계). 자세한 설계 의도는
-[bench_router.guide.md](bench_router.guide.md).
+[routers/bench.guide.md](routers/bench.guide.md).
 
-홈 (`home_router.py`):
+홈 (`routers/home.py`):
 
 `exam_period`에는 해당 학기의 활성 시험 회차와 기간이 옵니다. 배너 노출은 서버 KST
 날짜로 판정하며, 값이 없으면 `null`입니다. `GET /exams/me?year=&semester=`는 로그인한
@@ -55,7 +55,7 @@ Admin의 `Timetable Overrides`에서 날짜와 가져올 요일을 등록하면 
 
 **교시 시각표(`periods`)와 시간대(`breaks`)가 응답에 실려 옵니다.** 홈이 하루를 시간
 축으로 그려서 열한 교시의 시작·끝 분이 전부 필요하고, 교시 사이의 큰 구멍에 "점심"·
-"저녁" 이름을 답니다. 화면이 상수를 따로 들면 `periods.py` 만 고쳤을 때 조용히
+"저녁" 이름을 답니다. 화면이 상수를 따로 들면 `services/periods.py` 만 고쳤을 때 조용히
 어긋납니다 — 열한 줄 + 여섯 줄이라 값도 쌉니다.
 
 급식은 `menu` 에 **끼니별 줄 배열**로 옵니다 (`{"lunch": ["단호박카레라이스&소시지",
@@ -67,7 +67,7 @@ Admin의 `Timetable Overrides`에서 날짜와 가져올 요일을 등록하면 
 `meal` 이 통째로 `null` 이라 화면이 급식 칸을 아예 그리지 않습니다 — `menu` 가 `null` 인
 것(그날 급식이 없음)과는 뜻이 다릅니다.
 
-친구·교시 엔드포인트(`friends_router.py`) — 두 프론트 공통:
+친구·교시 엔드포인트(`routers/friends.py`) — 두 프론트 공통:
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
@@ -107,7 +107,7 @@ Admin의 `Timetable Overrides`에서 날짜와 가져올 요일을 등록하면 
 }
 ```
 
-**한 계정에 기기 5대까지** (`auth.MAX_SESSIONS_PER_USER`). 넘으면 **가장 오래 안 쓴
+**한 계정에 기기 5대까지** (`core/auth.py` 의 `MAX_SESSIONS_PER_USER`). 넘으면 **가장 오래 안 쓴
 세션부터 밀려납니다** — 새 로그인을 거절하지 않습니다(거절하면 폰을 잃어버린 사람이
 영영 못 들어옵니다).
 
@@ -550,7 +550,7 @@ Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 pre
 ⚠️ **`until` 에는 시간대를 붙이세요.** 저장이 문자열이라 기준이 문자열 안에 있어야
 어디서 읽든 같은 순간입니다. 시간대가 없으면 UTC 로 읽습니다.
 
-⚠️ **`settings` 표가 비어 있으면 코드의 기본값을 씁니다**(`backend/features.py`).
+⚠️ **`settings` 표가 비어 있으면 코드의 기본값을 씁니다**(`backend/services/features.py`).
 값을 지우는 것이 곧 "기본으로 되돌리기" 입니다.
 
 ---
@@ -721,6 +721,14 @@ Ask(질문창)입니다. 설계는 [agent.guide.md](agent.guide.md).
 | `answer` | `text`, `sources[{title,url}]`, `seconds` | 답 — 마지막 이벤트 |
 | `error` | `message` | 모델에 닿지 않음 — 마지막 이벤트 |
 
+**`start` 바로 뒤에 `name: "recall"` 인 `tool`·`tool_done` 짝이 올 수 있습니다.** 질문에 맞는
+기억(ksain 공지에서 정리해 둔 사실)을 골라 시스템 프롬프트에 실었다는 표시이고(`summary: "사실 3건"`),
+고른 게 없으면 오지 않습니다. 모델이 부른 도구가 아니라 서버가 먼저 하는 일인데, 화면이 단계 줄을
+같은 모양으로 그리게 도구 이벤트로 보냅니다.
+
+답이 기억을 쓰면 모델은 문장 끝에 `[F12]` 처럼 사실 번호를 붙입니다. **서버가 이 번호를 걷어내고**
+그 사실의 글을 `sources` 맨 앞에 둡니다 — 화면은 번호를 볼 일이 없습니다.
+
 `429` 는 하루 질문 한도(로컬 200 · OpenAI 60)를 넘었을 때입니다. `model` 을 비우거나 모르는
 값을 주면 기본 모델로 갑니다.
 
@@ -735,5 +743,50 @@ Ask(질문창)입니다. 설계는 [agent.guide.md](agent.guide.md).
 플로팅 버튼 창) 화면이 부릅니다 (10분에 한 번까지).
 
 ### `GET /agent/status` *(admin)*
-수집·분석이 돌고 있는지 — `sync`(마지막 수집 결과), `posts`, `analyzed`(최신 내용 기준),
-`auto_events`(`source='ksain'` 일정 수), `gateway`.
+수집·분석·색인·기억이 돌고 있는지 — `sync`(마지막 수집 결과), `index`(검색 색인 —
+`{version, chunks, orphans, built_at}`, 한 번도 안 만들었으면 `null`), `posts`, `analyzed`(최신 내용
+기준), `auto_events`(`source='ksain'` 일정 수), `facts`(`{active, hidden}` 기억 수), `gateway`.
+
+## 기억 엔드포인트 (`/facts/*`, 매니저)
+
+Ask 의 기억 — ksain 글에서 분석이 뽑아 둔 사실(`Fact`) — 을 사람이 **고치거나 숨기는** 자리이고,
+Admin 의 기억 패널이 씁니다. 새 사실을 손으로 지어 넣는 길은 두지 않았습니다 — 기억은 글에 묶인
+요약이라 글 없는 사실은 출처를 댈 수 없습니다.
+
+### `GET /facts?q=&status=&page=` *(매니저)*
+사실을 **글 단위로 묶어** 새 글부터 한 쪽에 글 20개씩 돌려줍니다. `status` 는 `active` · `hidden` ·
+`edited`(사람이 고친 것)이고 비우면 전부, `q` 는 문장·주제·글 제목의 부분 일치입니다.
+
+```json
+{
+  "posts": [{
+    "post_id": 100123, "post_title": "…", "posted_on": "2026-10-20",
+    "url": "https://ksain.kr/document/100123", "summary": "…",
+    "facts": [{
+      "id": 12, "statement": "…", "topic": "기말고사",
+      "post_id": 100123, "post_title": "…", "posted_on": "2026-10-20", "url": "…",
+      "target_grades": [1, 2], "valid_until": "2026-12-11",
+      "confidence": 0.9, "status": "active", "edited": false
+    }]
+  }],
+  "page": 1, "per_page": 20, "total_posts": 41,
+  "counts": { "active": 180, "hidden": 2, "edited": 5 }
+}
+```
+
+`summary` 는 ksain.db 에 있는 그 글의 요약입니다. ksain.db 를 못 읽으면(수집 타이머가 아직 안 돈
+서버) `null` 입니다. `counts` 는 `q`·`status` 와 상관없는 전체 수입니다.
+
+### `PATCH /facts/{id}` *(매니저)*
+준 칸만 바꾸고, 고친 사실 하나를 위 `facts[]` 항목과 같은 꼴로 돌려줍니다. 없는 id 면 `404`.
+
+| 칸 | 값 |
+|---|---|
+| `statement` | 5~300자 |
+| `topic` | 60자 이하 |
+| `valid_until` | `YYYY-MM-DD`. 빈 문자열이면 기한 없음(계속 유효) |
+| `status` | `active` · `hidden` — 숨기면 Ask 가 더 이상 싣지 않습니다 |
+
+문장·주제·유효 기간을 바꾸면 `edited` 가 켜집니다. ⚠️ **고친 사실과 숨긴 사실은 글을 다시 분석해도
+그대로 둡니다** — 사람이 바로잡은 것을 다음 분석이 되돌리면 안 됩니다. 글이 ksain 에서 지워지면 고친
+것까지 지웁니다.

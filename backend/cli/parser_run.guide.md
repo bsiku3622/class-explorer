@@ -1,16 +1,16 @@
-# backend/parser_run.py Guide
+# backend/cli/parser_run.py Guide
 
-> [← Backend Guide](CLAUDE.md)
+> [← Backend Guide](../CLAUDE.md)
 
 ## 역할
 학생 목록(`students.txt`)을 기반으로 KEIS API에서 **학기 단위**로 시간표를 수집해 DB에 반영.
 
 ## 실행
 ```bash
-python -m backend.parser_run                       # 오늘 날짜 기준 학기
-python -m backend.parser_run --year 2026 --semester 2
-python -m backend.parser_run -y 2026 -s 2 --prune  # 데이터 없는 학생 students.txt에서 제거
-python -m backend.parser_run --no-backup           # 반영 직전 스냅샷 생략
+python -m backend.cli.parser_run                       # 오늘 날짜 기준 학기
+python -m backend.cli.parser_run --year 2026 --semester 2
+python -m backend.cli.parser_run -y 2026 -s 2 --prune  # 데이터 없는 학생 students.txt에서 제거
+python -m backend.cli.parser_run --no-backup           # 반영 직전 스냅샷 생략
 ```
 
 | 인자 | 기본값 | 설명 |
@@ -43,6 +43,7 @@ parse_schedule() → 수업 목록
   - 다른 학기 데이터는 건드리지 않음
       ↓
 record_version() — 회차 + 변경 요약을 term_versions 에 기록
+```
 
 ## 바뀐 게 없으면 아무것도 남기지 않습니다
 
@@ -54,7 +55,7 @@ record_version() — 회차 + 변경 요약을 term_versions 에 기록
 않습니다. 판정은 읽기만 하므로 DB 에 아무 흔적도 남기지 않습니다.
 
 `SYNC_RESULT` 줄에 `version=` 과 `changed=` 가 붙습니다 — 웹에서 누른 수집은
-`admin_router` 가 이 줄을 파싱해 화면에 띄웁니다.
+`routers/admin.py` 가 이 줄을 파싱해 화면에 띄웁니다.
 
 ## 변경 요약
 
@@ -63,7 +64,6 @@ record_version() — 회차 + 변경 요약을 term_versions 에 기록
 
 담당 교사만 바뀐 분반은 `swapped` 로 따로 뺍니다. 분반을 `(과목, EC, 분반, 교사)` 로 잡기
 때문에 그냥 두면 "폐강 + 신설" 로 보이는데, 사람에게는 한 사건입니다.
-```
 
 ## ⚠️ Class.id 는 재수집해도 그대로입니다
 

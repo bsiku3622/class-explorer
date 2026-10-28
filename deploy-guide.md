@@ -29,20 +29,25 @@ ssh server
 cd /srv/class-explorer
 cp backend/ksa_timetable.db backend/ksa_timetable.db.bak-$(date +%Y%m%d)   # DB는 서버에만 있습니다
 git pull --ff-only
-sudo cp deploy/class-explorer-materials-backup.service deploy/class-explorer-materials-backup.timer /etc/systemd/system/
+sudo cp deploy/class-explorer-materials-backup.service deploy/class-explorer-materials-backup.timer \
+        deploy/class-explorer-ksain.service deploy/class-explorer-ksain.timer /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now class-explorer-materials-backup.timer
+sudo systemctl enable --now class-explorer-materials-backup.timer class-explorer-ksain.timer
 sudo systemctl restart class-explorer.service
 systemctl is-active class-explorer.service
 ```
 
 의존성이 바뀌었으면 재시작 전에 `pip install -r requirements.txt`를 한 번 돌립니다.
 
+⚠️ **타이머 유닛은 배포 때마다 다시 복사합니다.** 유닛 파일이 `python3.14 -m backend.cli.material_backup`
+처럼 모듈 경로를 들고 있어서, 코드만 당기고 유닛을 안 바꾸면 그날 밤 타이머가 `No module named` 로
+실패합니다(2026-10 백엔드 재배치 때 `backend.material_backup` → `backend.cli.material_backup`).
+
 ⚠️ **`curriculum_seed.json`이 바뀐 배포에서는 재시작만으로 부족합니다** — 적재를 한 번
 돌려야 새 필드(과목 분류·트랙 등)가 DB에 들어갑니다.
 
 ```bash
-python3.14 -m backend.import_curriculum
+python3.14 -m backend.cli.import_curriculum
 sudo systemctl restart class-explorer.service   # 새 값을 물고 다시 뜨게
 ```
 
@@ -187,16 +192,16 @@ systemd 가 쓰는 uvicorn(`/home/baeks/.local/bin/uvicorn`)도 그 인터프리
 
 ```bash
 cd /srv/class-explorer
-python3.14 -m backend.parser_run                    # 오늘 기준 학기 수집
-python3.14 -m backend.parser_run -y 2026 -s 2       # 학기 지정
-python3.14 -m backend.import_curriculum             # 교육과정 적재
-python3.14 -m backend.import_calendar               # 학사일정 적재 (source='pdf' 만 교체)
-python3.14 -m backend.create_user <username> <password> [--manager|--admin]
+python3.14 -m backend.cli.parser_run                    # 오늘 기준 학기 수집
+python3.14 -m backend.cli.parser_run -y 2026 -s 2       # 학기 지정
+python3.14 -m backend.cli.import_curriculum             # 교육과정 적재
+python3.14 -m backend.cli.import_calendar               # 학사일정 적재 (source='pdf' 만 교체)
+python3.14 -m backend.cli.create_user <username> <password> [--manager|--admin]
 ```
 
 **DB는 서버에만 있습니다.** `backend/ksa_timetable.db`는 git에 올라가지 않으니, 스키마를
 건드리는 배포 전에는 반드시 복사본을 떠 두세요. 마이그레이션은 앱이 뜰 때 자동으로
-돕니다(`database.init_schema()`).
+돕니다(`core/db.py` 의 `init_schema()`).
 
 **수집은 반영 직전에 스냅샷을 남깁니다** — `backend/backups/` 에 한 번에 약 3MB 씩,
 **자동으로 지우지 않습니다**. Admin 화면의 `Backups` 에 총 용량이 뜨니 가끔 보고 서버에서
@@ -267,12 +272,33 @@ python3.14 -m backend.ksain.sync --backfill      # 처음 한 번 (수십 분, 0
 python3.14 -m backend.ksain.sync --attachments-only  # 백필이 첨부 단계에서 멈췄을 때
 python3.14 -m backend.ksain.analyze --limit 5000 # 밀린 분석 — 데스크탑 GPU 로 몇 시간
 python3.14 -m backend.ksain.analyze --reapply --fresh  # 스테이징에서 돌린 분석을 운영 학사일정에 처음 반영
-python3.14 -m backend.ksain.analyze --reapply    # apply 규칙을 바꾼 뒤 다시 맞춤 (사람이 지운 일정은 유지)
+python3.14 -m backend.ksain.analyze --reapply    # apply 규칙을 바꾼 뒤 다시 맞춤 (사람이 지운 일정·고친 기억은 유지)
+python3.14 -m backend.knowledge.index --rebuild  # 검색 색인 처음부터 (5초 남짓 — 보통은 수집이 알아서 갱신)
 journalctl -u class-explorer-ksain -n 50         # 주기 실행 로그
 ```
 
 ⚠️ **`backend/ksain.db` 는 git 에 없고 언제든 다시 만들 수 있습니다.** 지워도 사용자 데이터는
-그대로입니다 — 자동 일정은 본 DB 에 있으니 `--reapply` 를 다시 돌리세요.
+그대로입니다 — 자동 일정과 기억은 본 DB 에 있으니 `--reapply` 를 다시 돌리세요. 검색 색인은 다음
+수집이 다시 만듭니다.
+
+⚠️ **ksain.db 를 고치는 건 `baeks` 로 도는 쪽(수집 타이머·CLI)뿐입니다.** API(`ksaclass`)는 읽기만
+합니다. 그래서 ksain 쪽 스키마가 바뀐 배포에서는 새 표·칼럼이 **다음 수집 때** 생기고, 그 전까지
+API 는 옛 모양으로 돕니다(검색은 색인 없이 LIKE 로). 바로 맞추려면 당긴 뒤 아래를 한 번 돌리세요.
+
+```bash
+python3.14 -m backend.knowledge.index           # ksain.db 스키마 맞추기 + 색인 만들기
+```
+
+### 2026-10 백엔드 재배치 + 기억 배포 (한 번만)
+
+위 평소 배포(유닛 두 벌 다시 복사 포함)에 더해 아래를 확인합니다.
+
+1. `git pull` 뒤 `python3.14 -m backend.knowledge.index` 로 색인을 만듭니다 — 안 해도 다음 수집이
+   만들지만, 그 전까지 검색이 LIKE 로 돕니다
+2. API 를 재시작하면 본 DB 에 `facts`·`facts_fts` 가 생깁니다(`init_schema()`)
+3. 분석기가 v4 로 올라가서, 다음 주기부터 **최근 1년의 중요한 글 약 600건을 다시 분석**합니다. 글
+   하나에 15~30초라 데스크탑 GPU 로 서너 시간 걸리고(낮 시간 타이머가 40분씩 나눠 돕니다), 그동안
+   기억이 최신 글부터 쌓입니다. 진행은 `GET /agent/status` 의 `facts.active` 나 Admin 의 기억 패널로 봅니다
 
 ---
 

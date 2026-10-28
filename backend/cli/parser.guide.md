@@ -1,6 +1,6 @@
-# backend/parser.py Guide
+# backend/cli/parser.py Guide
 
-> [← Backend Guide](CLAUDE.md)
+> [← Backend Guide](../CLAUDE.md)
 
 ## 역할
 KEIS 시간표 API 응답 JSON을 파싱해 수업 목록으로 변환.
