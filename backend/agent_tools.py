@@ -59,13 +59,60 @@ def _when(start: str, end: str | None = None, start_time: str | None = None, end
     return text
 
 
-def _items(items: list[dict]) -> list[dict]:
+def profile_of(db: Session, stu_id: str | None) -> dict | None:
+    """학번에서 읽어 내는 질문자 정보 — 학년과 내국인·외국인.
+
+    - 학년: 학번 앞 두 자리가 입학 연도이고 학년도는 3월에 바뀝니다 (2026년 10월의 25학번 = 2학년).
+      4년째 다니는 학생도 있어 3학년으로 묶습니다
+    - 외국인: **번호가 200 이상** (`24-201`, `26-205`). 2026-2 기준으로 외국인 전용 과목(한국어·TOPIK·
+      로마숫자 과목 — `영어Ⅱ` 는 내국인도 들어서 제외) 수강생 18명과 정확히 같은 18명입니다
+    """
+    if not stu_id or not re.fullmatch(r"\d{2}-\d{3}", stu_id):
+        return None
+    today = periods.today()
+    school_year = today.year if today.month >= 3 else today.year - 1
+    years = school_year - (2000 + int(stu_id[:2])) + 1
+    student = db.get(models.Student, stu_id)
+    return {
+        "name": student.name if student else None, "stu_id": stu_id,
+        "grade": max(1, min(3, years)), "years": years,
+        "track": "외국인" if int(stu_id[3:]) >= 200 else "내국인",
+    }
+
+
+def applies(profile: dict | None, title: str, grades: list[int] | None) -> bool | None:
+    """이 일정이 질문자에게 해당하는가. 모를 때는 None.
+
+    모델에게 맡기면 항목 여러 개를 엇갈려 고릅니다 — 코드가 학년(`target_grades` 나 제목의
+    "N학년")과 구분(제목의 내국인·외국인, 국내반·국제반)으로 미리 정합니다.
+    """
+    if not profile:
+        return None
+    wanted = set(grades or [])
+    if not wanted:
+        match = re.search(r"((?:[123]\s*,\s*)*[123])\s*학년", title or "")
+        if match:
+            wanted = {int(g) for g in re.findall(r"[123]", match.group(1))}
+    if wanted and profile["grade"] not in wanted:
+        return False
+    foreign = profile["track"] == "외국인"
+    if re.search(r"외국인|국제반", title or "") and not foreign:
+        return False
+    if re.search(r"내국인|국내반", title or "") and foreign:
+        return False
+    return True
+
+
+def _items(items: list[dict], profile: dict | None = None) -> list[dict]:
     out = []
     for item in items or []:
         entry = {"title": item["title"], "when": _when(item["start_date"], item.get("end_date"),
                                                       item.get("start_time"), item.get("end_time"))}
         if item.get("target_grades"):
             entry["grades"] = item["target_grades"]
+        mine = applies(profile, item["title"], item.get("target_grades"))
+        if mine is not None:
+            entry["mine"] = mine
         for key in ("post_title", "url"):
             if item.get(key):
                 entry[key] = item[key]
@@ -88,6 +135,7 @@ class Context:
         self.user = user
         self.year, self.semester = resolve_term(db, None, None)
         self.sources: list[dict] = []
+        self.profile = profile_of(db, user.effective_stu_id)
 
     def cite(self, title: str, url: str) -> None:
         if url and all(s["url"] != url for s in self.sources):
@@ -222,6 +270,7 @@ def today_info(ctx: Context) -> dict:
         "next_period": _period_label(upcoming[0]) if upcoming else None,
         "break": periods.current_break(minute),
         "periods": [_period_label(p) for p in ALL_PERIODS],
+        "me": ctx.profile,
     }
 
 
@@ -338,6 +387,9 @@ def calendar(ctx: Context, start: str | None = None, end: str | None = None, que
         out["when"] = _when(out["start_date"], out["end_date"],
                             periods.hhmm(out["start_minute"]) if clock else None,
                             periods.hhmm(out["end_minute"]) if clock and out["end_minute"] is not None else None)
+        mine = applies(ctx.profile, row.title, out["target_grades"])
+        if mine is not None:
+            out["mine"] = mine
         url = re.search(r"https://ksain\.kr/document/\d+", row.note or "")
         if url:
             ctx.cite(row.title, url.group(0))
@@ -386,7 +438,7 @@ def search_ksain(ctx: Context, query: str, since: str | None = None, until: str 
     finally:
         db.close()
     for post in posts:
-        post["items"] = _items(post["items"])
+        post["items"] = _items(post["items"], ctx.profile)
     for post in posts[:5]:
         ctx.cite(post["title"], post["url"])
     return {"query": query, "posts": posts}
@@ -400,7 +452,7 @@ def read_ksain(ctx: Context, post_id: int) -> dict:
         db.close()
     if post is None:
         return {"error": f"{post_id}번 글이 없습니다"}
-    post["items"] = _items(post["items"])
+    post["items"] = _items(post["items"], ctx.profile)
     ctx.cite(post["title"], post["url"])
     return post
 
@@ -415,8 +467,8 @@ def ksain_digest(ctx: Context, start: str | None = None, end: str | None = None,
     finally:
         db.close()
     for post in out["posted"]:
-        post["items"] = _items(post["items"])
-    out["dated_items"] = _items(out["dated_items"])
+        post["items"] = _items(post["items"], ctx.profile)
+    out["dated_items"] = _items(out["dated_items"], ctx.profile)
     for post in out["posted"][:5]:
         ctx.cite(post["title"], post["url"])
     return {"from": first.isoformat(), "to": last.isoformat(), **out}
