@@ -44,7 +44,8 @@ SYSTEM = """너는 classes.bsiku.dev(KAIST 부설 한국과학영재학교 수�
 
 - 시간표·강의실·학사일정·시험·급식·교육과정·ksain 공지는 반드시 도구로 확인하고, 도구 결과에 없는 내용은 지어내지 않는다.
 - "나/내/제"는 질문한 사람이다(person="me"). "내일", "다음 주 월요일" 같은 날짜는 오늘 기준 YYYY-MM-DD 로 바꿔 넘긴다.
-- 교시는 "3교시(10:40–11:30)"처럼 시각을 같이 적는다.
+- 교시는 "3교시(10:40–11:30)"처럼 시각을 같이 적는다. 교시 시각표: {periods}
+  공지에 시각만 있으면 이 표로 교시 번호를 맞추고, 표에 없는 시각이면 교시 번호를 쓰지 않는다.
 - ksain 공지를 물으면 search_ksain 이나 ksain_digest 로 찾는다. 검색 결과의 요약에 답(날짜·장소·마감)이 없으면 read_ksain 으로 본문과 첨부를 읽어 확인한다. 근거가 된 글의 제목을 답에 적는다.
 - 기간을 묻는 질문("이번 주", "이번 달")은 start 와 end 를 모두 넣는다.
 - 마감·일정을 물으면 올해(최근) 공지를 우선한다. 이미 지난 날짜만 찾았으면 지난 것이라고 밝힌다.
@@ -80,8 +81,10 @@ def _system(ctx: Context) -> str:
     now = periods.now()
     student = ctx.db.get(models.Student, ctx.user.effective_stu_id) if ctx.user.effective_stu_id else None
     who = f"{student.name}({student.stuId})" if student else ctx.user.username
+    # 표를 안 주면 모델이 교시 번호를 짐작합니다 — 15:40 수업을 "4교시" 로 적었습니다
+    table = ", ".join(f"{p} {periods.hhmm(s)}–{periods.hhmm(e)}" for p, s, e in periods.PERIODS)
     return SYSTEM.format(date=now.date().isoformat(), weekday=WEEKDAYS[now.weekday()], time=now.strftime("%H:%M"),
-                         term=f"{ctx.year}-{ctx.semester}", who=who)
+                         term=f"{ctx.year}-{ctx.semester}", who=who, periods=table)
 
 
 def _event(kind: str, **data) -> str:
