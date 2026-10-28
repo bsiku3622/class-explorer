@@ -6,6 +6,8 @@ import RetroSubTitle from "../components/atoms/RetroSubTitle";
 import AccordionSection from "../components/molecules/AccordionSection";
 import PageHeader from "../components/molecules/PageHeader";
 import DeviceSessions from "../components/DeviceSessions";
+import MajorSettings from "../components/MajorSettings";
+import type { MyMajor } from "../lib/majors";
 
 interface GuideSection {
     title: string;
@@ -134,7 +136,12 @@ const guideSections: GuideSection[] = [
     },
 ];
 
-const SettingsPage: React.FC = () => {
+interface SettingsPageProps {
+    /** 전공을 바꿨을 때 — App 의 `currentUser` 를 맞춥니다 */
+    onMajorSaved: (me: MyMajor) => void;
+}
+
+const SettingsPage: React.FC<SettingsPageProps> = ({ onMajorSaved }) => {
     const [openGuide, setOpenGuide] = useState<number | null>(0);
 
     return (
@@ -164,9 +171,10 @@ const SettingsPage: React.FC = () => {
                 </div>
             </RetroCard>
 
-            {/* 로그인한 기기 — 다중 기기 로그인을 열면서 같이 생긴 화면입니다.
-                가이드북 아래, About 위에 둡니다: 읽는 것(가이드)과 앱 정보 사이에 있는
-                **유일하게 뭔가를 하는 칸**이라 끝에 붙이면 못 찾습니다 */}
+            {/* 전공과 로그인한 기기 — 가이드북 아래, About 위에 둡니다: 읽는 것(가이드)과 앱 정보
+                사이에 있는 **뭔가를 하는 칸**이라 끝에 붙이면 못 찾습니다. 기기 칸은 다중 기기
+                로그인을 열면서, 전공 칸은 전공을 묻는 창(`MajorPrompt`)과 같이 생겼습니다 */}
+            <MajorSettings onSaved={onMajorSaved} />
             <DeviceSessions />
 
             {/* About */}

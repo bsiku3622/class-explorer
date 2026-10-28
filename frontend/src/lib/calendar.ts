@@ -146,6 +146,36 @@ export const timeLabel = (event: {
 export const gradeLabel = (grades: number[]): string =>
     grades.length === 0 ? "" : `${grades.join("·")}학년`;
 
+/**
+ * 학번 → 그날의 학년. 학번 앞 두 자리가 입학 연도이고 **학년도는 3월에 바뀝니다** — 2027년 2월의
+ * 25학번은 아직 2학년입니다. 4년째 다니는 학생은 3학년으로 묶습니다. 서버가 Ask 질문자의 학년을 재는
+ * 셈(`backend/agent/tools.py` 의 `profile_of`)과 같아야 달력과 Ask 가 같은 일정을 "내 것" 이라고 합니다.
+ */
+export const gradeOf = (stuId: string | null, on: Date): number | null => {
+    const admitted = Number(stuId?.slice(0, 2));
+    if (!stuId || !Number.isFinite(admitted)) return null;
+    const schoolYear = on.getMonth() >= 2 ? on.getFullYear() : on.getFullYear() - 1;
+    return Math.max(1, Math.min(3, schoolYear - (2000 + admitted) + 1));
+};
+
+/**
+ * "내 학년·전공 것만" 에 남는가. 대상이 비어 있으면(전학년·전공 무관) 늘 남고, 개인 일정도 남습니다.
+ * **전공을 아직 안 정한 사람은 전공으로 거르지 않습니다** — 어느 학부 일정이 자기 것이 될지 모릅니다.
+ */
+export const isForMe = (
+    event: Pick<CalendarEvent, "is_personal" | "target_grades" | "target_majors">,
+    grade: number | null,
+    major: string | null,
+): boolean => {
+    if (event.is_personal) return true;
+    const grades = event.target_grades;
+    const majors = event.target_majors ?? [];
+    return (
+        (grade === null || grades.length === 0 || grades.includes(grade)) &&
+        (major === null || majors.length === 0 || majors.includes(major))
+    );
+};
+
 export const CATEGORY_LABEL: Record<EventCategory, string> = {
     holiday: "공휴일",
     dorm: "귀가·생활관",

@@ -5,12 +5,12 @@
  * ksain 글에서 분석기가 뽑은 사실입니다. …                          [Refetch]
  * [ 문장·주제·글 제목으로 찾기 — Enter                                  ✕ ]
  * [전체 37] [활성 36] [숨김 1] [고친 것 1]     글 9개 [‹ 이전] 1 / 1 쪽 [다음 ›]
- * ┌ 2024-06-14 · #750 · 사실 4 ──────────────────────────────────────┐
+ * ┌ 2024-06-14 · 공지사항 · 학생생활부 · #750 · 사실 4 ────────────────┐
  * │ 2학기 주중 외출 안내 ↗                                            │
  * │ 글 요약 (옅게)                                                     │
  * ├───────────────────────────────────────────────────────────────────┤
  * │ 주중 외출은 …                                   [고치기] [숨기기] │
- * │ [주중 외출 시간] 2학년 ~11/29까지 유효 [고친 것]                    │
+ * │ [주중 외출 시간] 2학년 물리지구과학부 ~11/29까지 유효 [고친 것]      │
  * └───────────────────────────────────────────────────────────────────┘
  * ```
  *
@@ -21,6 +21,8 @@
  *   무관한 전체 값이라 서버만 셀 수 있습니다 — 다시 받지 않으면 숨긴 뒤에도 `활성 36` 이 남습니다
  * - **고칠 때는 바뀐 칸만 보냅니다**(`draftPatch`) — 그 사이 다른 사람이 고친 칸을 덮지 않게
  * - 숨긴 사실과 기한이 지난 사실은 **옅게** 그립니다 — 둘 다 Ask 가 쓰지 않습니다
+ * - 게시판(말머리 포함)은 **글 머리에 한 번** 씁니다(`boardOf`) — 한 글의 사실은 게시판이 같습니다.
+ *   대상 학년·전공은 사실마다 다를 수 있어 줄마다 붙습니다
  * - ⚠️ 거르는 중에 숨기면(활성 보기) 그 사실은 목록에서 빠지고, 그래서 쪽이 비면 마지막 쪽으로
  *   물러납니다. 빈 쪽에 "조건에 맞는 기억이 없습니다" 가 뜨면 기억이 사라진 줄 압니다
  * - 검색은 **Enter 로 확정**합니다(`SearchInput` 의 `onEnter` — 한글 조합 중 Enter 는 거기서
@@ -41,6 +43,7 @@ import {
 } from "lucide-react";
 import {
     FACT_LIMITS,
+    boardOf,
     draftOf,
     draftPatch,
     draftProblem,
@@ -57,6 +60,7 @@ import {
     type FactsPage,
     type FactsQuery,
 } from "../../lib/factsApi";
+import { majorLabel } from "../../lib/majors";
 import RetroButton from "../atoms/RetroButton";
 import RetroCard from "../atoms/RetroCard";
 import RetroChip from "../atoms/RetroChip";
@@ -284,6 +288,9 @@ const FactRow: React.FC<FactRowProps> = ({
                         )}
                         {fact.target_grades.length > 0 && (
                             <span>{fact.target_grades.join("·")}학년</span>
+                        )}
+                        {majorLabel(fact.target_majors) && (
+                            <span>{majorLabel(fact.target_majors)}</span>
                         )}
                         {validity && (
                             <span className={validity.expired ? "text-black/30" : undefined}>
@@ -536,7 +543,7 @@ const FactsPanel: React.FC = () => {
                         <RetroCard key={post.post_id} shadow="sm" className="bg-white">
                             <div className="px-4 py-3">
                                 <p className="text-[11px] font-bold text-black/40">
-                                    {[post.posted_on, `#${post.post_id}`, `사실 ${post.facts.length}`]
+                                    {[post.posted_on, boardOf(post), `#${post.post_id}`, `사실 ${post.facts.length}`]
                                         .filter(Boolean)
                                         .join(" · ")}
                                 </p>

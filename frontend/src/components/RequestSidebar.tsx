@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Check, ChevronRight, Inbox, X } from "lucide-react";
 import type { EventRequest } from "../types";
 import { CATEGORY_LABEL, gradeLabel, timeLabel } from "../lib/calendar";
+import { majorLabel } from "../lib/majors";
 
 interface RequestSidebarProps {
     requests: EventRequest[];
@@ -82,6 +83,8 @@ const RequestSidebar: React.FC<RequestSidebarProps> = ({
                                 {CATEGORY_LABEL[req.category]}
                                 {gradeLabel(req.target_grades) &&
                                     ` · ${gradeLabel(req.target_grades)}`}
+                                {majorLabel(req.target_majors) &&
+                                    ` · ${majorLabel(req.target_majors)}`}
                                 {` · ${req.requested_by}`}
                             </p>
                             {req.note && (

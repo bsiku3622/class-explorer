@@ -29,11 +29,18 @@ export interface Fact {
     topic: string;
     post_id: number;
     post_title: string;
+    /**
+     * 출처 게시판과 말머리 — `"공지사항 · 교무연구부"`, `"규정 게시판 · 폐지"`. Ask 가 학교 공지와 동아리
+     * 홍보를 가려 읽으라고 같이 받습니다. 이 칸이 생기기 전에 뽑은 사실은 다시 분석될 때까지 비어 있습니다
+     */
+    board?: string | null;
     /** `YYYY-MM-DD` */
     posted_on: string | null;
     url: string;
     /** 대상 학년(1~3). 비어 있으면 전교생 */
     target_grades: number[];
+    /** 대상 전공 트랙. 비어 있으면 전공 무관 (옛 서버는 안 보냅니다) */
+    target_majors?: string[];
     /** 쓸모가 끝나는 날 `YYYY-MM-DD`. `null` 이면 계속 유효합니다(규칙처럼) */
     valid_until: string | null;
     confidence: number;
@@ -53,6 +60,14 @@ export interface FactPost {
     /** 거르개·검색에 걸린 사실만 들어 있습니다 */
     facts: Fact[];
 }
+
+/**
+ * 글의 게시판 — 서버는 사실마다 싣지만 한 글의 사실은 게시판이 같아서, 화면은 글 머리에 한 번만
+ * 씁니다(사실 줄마다 되풀이하면 같은 말이 대여섯 번 섭니다). 사람이 고친 사실만 남은 옛 글처럼
+ * 비어 있는 사실이 섞일 수 있어 처음 찬 값을 씁니다.
+ */
+export const boardOf = (post: FactPost): string | null =>
+    post.facts.find((fact) => fact.board)?.board ?? null;
 
 export interface FactsPage {
     /** 새 글부터 */

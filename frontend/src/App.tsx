@@ -24,9 +24,9 @@ import Navigation from "./components/Navigation";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
 import GoogleLinkModal from "./components/GoogleLinkModal";
-import ShareMaterialsPrompt from "./components/ShareMaterialsPrompt";
 import AgentDock from "./components/agent/AgentDock";
 import { useAgentChat } from "./hooks/useAgentChat";
+import type { MyMajor } from "./lib/majors";
 
 // Pages (lazy loaded for code splitting)
 const SearchPage = React.lazy(() => import("./pages/SearchPage"));
@@ -50,6 +50,8 @@ const InventoryPage = React.lazy(() => import("./pages/InventoryPage"));
 // 플로팅 버튼을 누를 때 미리 받아 둡니다 — 모바일 창은 보내는 순간 `/ai` 로 옮겨 갑니다
 const loadAiPage = () => import("./pages/AiPage");
 const AiPage = React.lazy(loadAiPage);
+// 전공을 묻는 창 — 아직 답하지 않은 사람에게만 필요해서 첫 로딩에 싣지 않습니다
+const MajorPrompt = React.lazy(() => import("./components/MajorPrompt"));
 
 const CACHE_PREFIX = "ksa_class_finder_cache";
 /**
@@ -107,6 +109,14 @@ const App: React.FC = () => {
         is_demo?: boolean;
         /** 수강 변경 탐색 설정 — 여는지·어느 학기인지 **전부 서버가** 정합니다 */
         trade?: TradeConfig;
+        /** 전공(심화필수 전공 트랙). 아직 안 골랐거나 미정이면 `null` */
+        major?: string | null;
+        major_division?: string | null;
+        /**
+         * 전공을 묻는 창에 답했는가. ⚠️ **`false` 일 때만** 창을 띄웁니다 — 옛 서버는 이 칸이 없어서
+         * `!major_answered` 로 보면 없는 `/majors` 를 부르는 창이 뜹니다(화면과 서버를 따로 배포합니다)
+         */
+        major_answered?: boolean;
     } | null>(null);
 
     const initialSearch = useMemo(
@@ -204,6 +214,15 @@ const App: React.FC = () => {
     const handleLogin = useCallback((token: string) => {
         persistSessionToken(token);
         setSessionToken(token);
+    }, []);
+
+    // 전공을 고르면(묻는 창·`/about`) 여기 하나로 받습니다 — 달력의 "내 학년·전공 것만" 이 이 값을 봅니다
+    const applyMajor = useCallback((me: MyMajor) => {
+        setCurrentUser((prev) =>
+            prev
+                ? { ...prev, major: me.major, major_division: me.division, major_answered: me.answered }
+                : prev,
+        );
     }, []);
 
     // 검색이 "/" 에서 "/search" 로 옮겨졌습니다. 예전에 공유된 `/?q=…` 링크가 죽지
@@ -729,6 +748,7 @@ const App: React.FC = () => {
                                     <CalendarPage
                                         role={currentUser?.role ?? "user"}
                                         stuId={currentUser?.stu_id ?? null}
+                                        major={currentUser?.major ?? null}
                                     />
                                 }
                             />
@@ -747,7 +767,7 @@ const App: React.FC = () => {
                             />
                             <Route
                                 path="/about"
-                                element={<SettingsPage />}
+                                element={<SettingsPage onMajorSaved={applyMajor} />}
                             />
                             <Route
                                 path="/privacy"
@@ -811,13 +831,17 @@ const App: React.FC = () => {
                     onClose={closeAsk}
                 />
             )}
-            {currentUser && (
-                <ShareMaterialsPrompt
-                    term={term}
-                    pathname={location.pathname}
-                    onUpload={() => navigate("/upload")}
-                />
-            )}
+            {/* 전공을 아직 묻지 않은 학생에게만 — 시연 계정은 빌린 학번이라 묻지 않습니다. `/about` 에는
+                같은 칸이 있고, `/privacy` 는 무엇을 왜 모으는지 읽는 자리라 그 위를 덮지 않습니다 */}
+            {currentUser?.major_answered === false &&
+                currentUser.stu_id &&
+                !currentUser.is_demo &&
+                location.pathname !== "/about" &&
+                location.pathname !== "/privacy" && (
+                    <Suspense fallback={null}>
+                        <MajorPrompt userId={currentUser.id} onAnswered={applyMajor} />
+                    </Suspense>
+                )}
         </div>
     );
 };

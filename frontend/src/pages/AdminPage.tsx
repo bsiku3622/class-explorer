@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera, History, FlaskConical, ArrowLeftRight, FileCheck2, CalendarDays, Brain } from "lucide-react";
+import { Shield, Users, MonitorSmartphone, RefreshCw, Trash2, Plus, X, Check, GraduationCap, Archive, Camera, History, FlaskConical, ArrowLeftRight, FileCheck2, CalendarDays, Brain, Signpost } from "lucide-react";
 import api from "../lib/api";
 import { authHeader } from "../lib/session";
 import axios from "axios";
@@ -13,6 +13,7 @@ import ChangeSummary from "../components/admin/ChangeSummary";
 import type { ChangeSummaryData } from "../components/admin/ChangeSummary";
 import MaterialReviewPanel from "../components/MaterialReviewPanel";
 import FactsPanel from "../components/admin/FactsPanel";
+import MajorSurveyPanel from "../components/admin/MajorSurveyPanel";
 
 interface UserRow {
     id: number;
@@ -222,7 +223,7 @@ const EditableRow: React.FC<EditableRowProps> = ({
 };
 
 const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
-    const [openSections, setOpenSections] = useState({ materials: false, memory: false, users: true, sessions: true, data: false, versions: false, backups: false, trade: false, timetable: false });
+    const [openSections, setOpenSections] = useState({ materials: false, memory: false, users: true, survey: false, sessions: true, data: false, versions: false, backups: false, trade: false, timetable: false });
 
     // Users
     const [users, setUsers] = useState<UserRow[]>([]);
@@ -846,6 +847,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                         </form>
                     </div>
                 </div>
+            </AccordionSection>
+
+            {/* 전공 조사 — 묻는 창에 얼마나 답했는지. 인원 수만 옵니다(누가 무엇을 골랐는지는 서버도 안 보냅니다) */}
+            <AccordionSection title="Major Survey" icon={Signpost} isOpen={openSections.survey} onToggle={() => toggle("survey")}>
+                <MajorSurveyPanel />
             </AccordionSection>
 
             {/* Sessions */}

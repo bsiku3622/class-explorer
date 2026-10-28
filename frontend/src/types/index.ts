@@ -34,6 +34,11 @@ export interface CalendarEvent {
     category: EventCategory;
     /** [1,2] 처럼. 비어 있으면 전학년 */
     target_grades: number[];
+    /**
+     * 대상 전공 트랙 `["물리학", "지구과학"]`. 비어 있으면 전공 무관. 옛 서버는 이 칸을 안 보냅니다 —
+     * 화면과 서버를 따로 배포해서, 쓰는 쪽은 `?? []` 로 받습니다
+     */
+    target_majors?: string[];
     /** pdf = 학사일정 문서에서 온 것 */
     source: "pdf" | "manual";
     /** true 면 내 개인 일정 — 나만 보이고 나만 고칩니다 */
@@ -55,6 +60,8 @@ export interface EventRequest {
     end_period: number | null;
     category: EventCategory;
     target_grades: number[];
+    /** `CalendarEvent.target_majors` 와 같습니다 — 허용하면 그대로 일정에 옮겨 갑니다 */
+    target_majors?: string[];
     note: string | null;
     status: "pending" | "approved" | "rejected";
     reason: string | null;
