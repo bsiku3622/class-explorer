@@ -22,7 +22,7 @@ src/
 │   ├── features.ts           → 한시 기능 노출 플래그 (TRADE_FEATURE)
 │   ├── navigation.ts         → 메뉴 순서 (사이드바·하단 바가 같이 씁니다)
 │   ├── plannedHome.ts        → 홈 응답의 시간표만 트레이드 계획으로 갈아 끼우기
-│   ├── syllabi.ts            → 2026-1 과목과 syllabus asset 연결
+│   ├── syllabi.ts            → 2026-1 과목과 강의계획서 짝짓기 + 서버에서 Blob 으로 받기 (로그인한 사람만 — 파일은 번들·git 에 없습니다)
 │   ├── friendsApi.ts         → 홈·친구·교시 시각표 질의 (백엔드는 두 앱 공용)
 │   ├── agentApi.ts           → Ask — 모델 목록·warmup·SSE 답 받기 (`fetch` 스트림)
 │   ├── agentChat.ts          → Ask — SSE 이벤트를 화면의 대화로 바꾸는 순수 함수
@@ -40,6 +40,7 @@ src/
 │   ├── useAgentChat.ts       → Ask 대화 한 벌 (App 에 하나 — 페이지·창이 같이 봅니다)
 │   ├── useFollowBottom.ts    → 대화가 늘면 맨 아래로 (위로 올려 읽는 중이면 그대로)
 │   ├── useMediaQuery.ts      → 미디어 쿼리 구독 (폭에 따라 그리는 컴포넌트가 다를 때)
+│   ├── useSyllabusFiles.ts   → 강의계획서 파일 목록 (`GET /syllabi`, 필요한 곳에서만)
 │   └── useTradePlan.ts       → 홈에서 `/trade` 계획 읽기 (읽기 전용)
 ├── pages/
 │   ├── LoginPage.tsx         → 로그인 폼 (미인증 시 전체 화면 대체)
@@ -117,7 +118,13 @@ src/
 - `sessionToken` 존재 → 정상 라우팅
 - `fetchInitialData` 401 응답 → `handleLogout()` 자동 호출 → LoginPage로
 - localStorage 키: `ksa_session_token`
-- 로그아웃 시 캐시(`ksa_class_finder_cache`)도 함께 삭제
+- 로그아웃 시 캐시(`ksa_class_finder_cache`)도 함께 삭제. **Ask 대화와 최근 검색어도** 지웁니다 — 대화는 App 에
+  한 벌이라 같은 탭에서 다음 사람이 로그인하면 앞사람의 대화가 보이고 다음 질문에 실려 갔습니다. 검색어는
+  학생 이름이 들어가서 `lib/searchHistory.ts` 로 꺼내 로그아웃이 지우게 했습니다
+- 학기 캐시는 앱을 열 때 **1시간 지난 것을 지웁니다**(`purgeExpiredDataCache`) — TTL 을 읽을 때만 봐서, 다시 안
+  여는 학기의 명단(전교생 이름·학번)이 로그아웃 전까지 남았습니다
+- 구글 연동은 `openid email` 만 청합니다 — 서버는 `email` 만 씁니다(예전엔 `profile` 까지 받아 이름·사진이 토큰에 실렸습니다)
+- ⚠️ 브라우저에 새 키를 두면 **개인정보처리방침 7절 표**도 고칩니다(`pages/PrivacyPage.guide.md`)
 
 ⚠️ **토큰을 직접 읽지 마세요 — `lib/session.ts` 만 씁니다.**
 `getSessionToken()` · `setSessionToken()` · `clearSessionToken()` · `authHeader()`.

@@ -1,3 +1,43 @@
+## 2026-10-29 — 개인정보 감사 + 개인정보처리방침 개정
+
+- 변경 파일: `frontend/src/pages/PrivacyPage.tsx`(1·2·3·4·5·6·7·8·10·11·13절), `backend/routers/admin.py`(`_forget_user`), `backend/core/migrations.py`(`_purge_orphans`), `backend/services/schoolday.py`, `backend/routers/auth.py`(`_get_client_ip`·만료 세션), `backend/core/db.py`(`secure_delete`), `backend/services/backup.py`(`scrub_backup`·`prune_backups`), `backend/cli/material_backup.py`·`snapshot.py`(`--scrub-existing`), `backend/knowledge/index.py`, `backend/ksain/`(apply·analyze·sync), `backend/agent/`(chat·tools·llm), 신규 `backend/routers/syllabi.py`·`backend/services/syllabi.py`, `frontend/src/lib/syllabi.ts`·`searchHistory.ts`, `App.tsx`·`SearchInput.tsx`·`googleAuth.ts`, `.gitignore`, 가이드 전반, `deploy-guide.md`
+- 요약: 방침과 코드를 대조하는 감사와 코드 쪽 데이터 흐름 감사를 따로 돌려(서로의 결론을 안 보게) 합쳤습니다. 계정 삭제가 기록을 남기고 다음 계정이 물려받던 버그부터 Cloudflare 미기재까지, 고칠 수 있는 건 코드로 고치고 방침은 실제대로 다시 썼습니다.
+
+**코드로 고친 것** — 다 빈 DB·사본으로 재현하고 고친 뒤 다시 확인했습니다(`~/Bufs/Claude Files/2026-10-29/privacy-fixes/`).
+
+- ⚠️ **계정 삭제가 이수 기록·계획·친구·개인 일정·제안을 남겼고, 다음에 만든 계정이 같은 id 를 받아 그대로
+  물려받았습니다.** 본 DB 는 `foreign_keys` 를 안 켜서 모델의 `ON DELETE CASCADE` 가 장식이었고 `users.id` 는
+  AUTOINCREMENT 가 아닙니다. 삭제가 명시적으로 지우고, 남은 고아는 마이그레이션이 지웁니다. 본 DB 에
+  `foreign_keys=ON` 을 켜는 쪽은 마이그레이션이 그 pragma 를 만지는 자리가 있어 미뤘습니다
+- ⚠️ **아무 학생이나 개인 일정을 '종업' 분류로 넣으면 전교생 홈이 방학이 됐습니다** — 학기 판정이 개인 일정을 안 걸렀습니다
+- 로그인 횟수 제한·세션 IP 가 `X-Forwarded-For` 첫 값을 믿어서 꾸밀 수 있었습니다 → nginx 의 `X-Real-IP`.
+  만료 세션은 그 토큰이 다시 와야 지워져서 IP 가 30일을 넘겨 남았습니다 → 로그인 때 쓸어 냄
+- 로그아웃해도 Ask 대화가 App 에 남아 같은 탭의 다음 사람에게 보이고 다음 질문에 실려 갔습니다. 최근 검색어(학생
+  이름)도 안 지워졌습니다 → 로그아웃이 둘 다 지움. 만료된 학기 캐시(전교생 명단)는 앱을 열 때 지움
+- 지운 행이 sqlite 빈 페이지에 남아 백업까지 따라갔습니다 → 두 DB `secure_delete`. 백업은 세션(평문 토큰)도 빼고,
+  매니저가 고친 자동 일정도 `source_ref` 로 뺌. 원문에서 지워진 글이 생기면 검색 색인을 처음부터 다시 만듦
+  (고아 토큰이 `fts5vocab` 으로 읽혔습니다)
+- Ask 시스템 프롬프트에서 질문자 이름·학번을 뺐고(학년·구분·전공이면 충분), 오늘 개인 일정은 건수만. OpenAI 는
+  이용자가 고른 경우에만, 게시글 분석은 로컬만 — 기본값이 OpenAI 를 가리켜도 로컬로 갑니다
+- 이름이 든 일정 제목은 달력에 안 올리고, 이름이 든 사실 주제어는 문장 앞부분으로. 익명 글은 원본 사본에서도
+  작성자를 뺌. 구글 연동은 `openid email` 만
+
+**운영자가 정한 것**: 강의계획서는 로그인 뒤로(서버 `data/syllabi`, git 에서 뺌), 백업 1년·로그 90일, 방침은
+배포와 동시에 시행하고 13절의 7일·30일 예고 조항은 없앰, 레포는 공개 유지하되 기록에서 개인정보 파일 삭제.
+
+- ⚠️ **레포가 공개이고, 2026-03 커밋에 학생 356명 명단과 수강 DB 가 기록으로 남아 있습니다.** 강제 푸시는 이
+  백그라운드 세션에서 막혀 있어 `~/Bufs/Claude Files/2026-10-29/history-rewrite/rewrite-history.sh` 로 준비만 했습니다.
+  이 브랜치를 배포한 **뒤에** 돌려야 합니다 — 먼저 지우면 운영 화면의 강의계획서가 다음 빌드부터 사라집니다
+- ⚠️ 방침은 실제 설정을 약속합니다. 배포 가이드 「2026-10 개인정보 감사 반영」의 서버 단계(강의계획서 업로드,
+  `--no-access-log`, journald 90일, `--scrub-existing`, VACUUM)를 빠뜨리면 그날부터 방침이 거짓말이 됩니다
+- Cloudflare(모든 요청·응답이 지나감), Google Fonts·jsDelivr(화면을 열 때마다 IP)가 방침에 없었습니다. 6절은
+  제28조의8 제2항의 칸(연락처·시기·보유 기간)과 이전 근거·거부 방법을 갖췄습니다. 광고 쿠키 문단은 실제 광고가
+  없어 뺐습니다 — 붙이면 되살려야 합니다
+
+남은 권고(손대지 않음): 비밀번호 바꾸는 기능이 없음(관리자가 정한 비밀번호를 운영자가 앎), 세션 토큰을 DB 에
+평문 저장, 글꼴 직접 호스팅(그러면 Google·jsDelivr 행이 빠짐), ksain 사본의 명단형 첨부 마스킹, 업로드 처리가
+이벤트 루프를 막음(ClamAV·LibreOffice), 연동 안 한 계정도 API 로 명단을 받을 수 있음(화면만 막음).
+
 ## 2026-10-29 — Ask 가 오늘 일정(체육대회)을 놓치던 문제
 
 - 변경 파일: `backend/agent/tools.py`(`today_events`·`_GENERIC`·`Context.weak`), `backend/agent/chat.py`(`date_anchors`·`_named`·시스템 프롬프트), `backend/agent.guide.md`
