@@ -85,7 +85,20 @@ def available() -> list[Model]:
 
 
 def resolve(model_id: str | None, purpose: str = "agent") -> Model:
+    """쓸 모델 — **OpenAI 는 이용자가 질문창에서 직접 고른 경우에만** 고릅니다.
+
+    개인정보처리방침 6절이 그렇게 약속합니다. 그래서 기본값(`AGENT_MODEL`)이 OpenAI 를 가리켜도 로컬로 가고,
+    게시글 분석은 아예 로컬만 받습니다 — 글과 첨부에는 학생 명단·연락처가 그대로 있고, 방침은 분석을 운영자가
+    직접 운영하는 컴퓨터에서 한다고 적었습니다.
+    """
     models = {m.id: m for m in available()}
+    if purpose != "agent" or not model_id:
+        local = {key: model for key, model in models.items() if model.provider == "local"}
+        if model_id and model_id not in local:
+            raise LLMError(f"{model_id}: 게시글 분석은 로컬 모델로만 합니다 (개인정보처리방침 6절)")
+        models = local
+    if not models:
+        raise LLMError("쓸 수 있는 모델이 없습니다")
     for candidate in (model_id, DEFAULTS.get(purpose), f"local:{LOCAL_DEFAULT}"):
         if candidate and candidate in models:
             return models[candidate]
