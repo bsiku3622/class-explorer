@@ -223,6 +223,25 @@ def set_role(
     return {"id": user.id, "username": user.username, "role": user.role}
 
 
+def _forget_user(db: Session, user_id: int) -> None:
+    """계정이 남긴 기록을 지우고, 남의 기록에 남은 이 계정의 흔적(처리자·고친 사람)은 비웁니다.
+
+    ⚠️ 모델의 `ON DELETE CASCADE` 는 안 돕니다 — 본 DB 는 `foreign_keys` 를 켜지 않습니다. 그리고 `users.id` 는
+    AUTOINCREMENT 가 아니라, 남겨 두면 **다음에 만든 계정이 같은 id 를 받아 이수 기록·친구·개인 일정을 그대로
+    물려받았습니다.** 이미 남은 것은 마이그레이션(`_purge_orphans`)이 지웁니다.
+    """
+    for model, column in ((models.UserState, models.UserState.user_id),
+                          (models.CourseGrade, models.CourseGrade.user_id),
+                          (models.Friend, models.Friend.user_id),
+                          (models.CalendarEvent, models.CalendarEvent.owner_id),
+                          (models.EventRequest, models.EventRequest.user_id),
+                          (models.Session, models.Session.user_id)):
+        db.query(model).filter(column == user_id).delete(synchronize_session=False)
+    for model, column in ((models.EventRequest, "decided_by_id"), (models.Material, "decided_by_id"),
+                          (models.Fact, "edited_by_id")):
+        db.query(model).filter(getattr(model, column) == user_id).update({column: None}, synchronize_session=False)
+
+
 @router.delete("/users/{user_id}")
 def delete_user(
     user_id: int,
@@ -246,6 +265,7 @@ def delete_user(
     material_directories = [material_dir(item) for item in materials]
     for material in materials:
         db.delete(material)
+    _forget_user(db, user_id)
     db.delete(user)
     db.commit()
     for directory in material_directories:

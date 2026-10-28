@@ -47,11 +47,13 @@ _login_attempts = SlidingWindow(window=60)
 
 
 def _get_client_ip(request: Request) -> str:
-    """리버스 프록시(nginx) 환경에서 실제 클라이언트 IP 추출.
-    nginx에서 proxy_set_header X-Forwarded-For $remote_addr; 설정 필요."""
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+    """실제 클라이언트 IP — nginx 가 `X-Real-IP` 에 넣어 준 값입니다.
+
+    ⚠️ `X-Forwarded-For` 의 첫 값을 믿으면 안 됩니다. Cloudflare 와 nginx 는 그 헤더에 **덧붙이기만** 해서 첫 값은
+    요청한 사람이 아무렇게나 적을 수 있습니다 — 로그인 횟수 제한을 IP 를 바꿔 가며 피할 수 있었고, 세션의 IP 도
+    꾸며졌습니다. 서버의 nginx 는 Cloudflare 에서 온 연결에만 `CF-Connecting-IP` 를 믿고(`cloudflare-realip.conf`)
+    그 결과를 `X-Real-IP` 로 넘깁니다(`proxy-common.conf`).
+    """
     real_ip = request.headers.get("X-Real-IP")
     if real_ip:
         return real_ip.strip()
@@ -142,6 +144,10 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
 
     # 로그인 성공 시 rate limit 카운터 초기화
     _reset_login_rate_limit(client_ip)
+
+    # 만료된 세션은 그 토큰이 다시 와야 지워져서, 안 돌아오는 기기의 IP·기기 이름이 30일을 넘겨 남았습니다
+    # (개인정보처리방침 4항 "마지막 사용으로부터 30일"). 로그인은 하루에도 여러 번 있어서 여기서 쓸어 냅니다
+    db.query(models.Session).filter(models.Session.expires_at < clock.utcnow()).delete(synchronize_session=False)
 
     # 상한을 지키되 **밀어내는** 방식입니다 — 새로 들어올 자리 하나를 비웁니다.
     # 예전에는 여기서 기존 세션을 통째로 지웠고(1계정 1세션), 그래서 폰에서 로그인하면
