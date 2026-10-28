@@ -37,14 +37,19 @@ BUSY_TIMEOUT = 30
 def _engine(url: str, *, wal: bool) -> Engine:
     # check_same_thread=False — FastAPI 가 요청마다 다른 스레드에서 세션을 씁니다
     engine = create_engine(url, connect_args={"check_same_thread": False, "timeout": BUSY_TIMEOUT})
-    if wal:
-        @event.listens_for(engine, "connect")
-        def _pragmas(connection, _record) -> None:
+
+    @event.listens_for(engine, "connect")
+    def _pragmas(connection, _record) -> None:
+        cursor = connection.cursor()
+        # 지운 행을 0 으로 덮습니다 — 기본값은 빈 페이지에 그대로 남겨서, 지운 계정·글이 파일 안에서 읽히고
+        # 백업에도 따라갑니다. 개인정보처리방침 11절이 "복구할 수 없는 방법으로 삭제" 를 약속합니다
+        cursor.execute("PRAGMA secure_delete=ON")
+        if wal:
             # 수집(쓰기)과 Agent 검색(읽기)이 동시에 돌아서 WAL 로 둡니다
-            cursor = connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA foreign_keys=ON")
-            cursor.close()
+        cursor.close()
+
     return engine
 
 

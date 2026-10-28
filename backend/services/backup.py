@@ -7,11 +7,11 @@ DB 스냅샷 — 재수집 직전 상태를 통째로 남깁니다.
 **자동으로 지우지 않습니다.** 오래된 것부터 정리하는 규칙을 두면 하필 그게 필요한
 날에 없습니다 — 용량은 목록에 총합으로 띄우고, 지우는 건 사람이 판단합니다.
 
-**ksain 글에서 만든 것은 넣지 않습니다**(`strip_ksain_derived`) — 기억(`facts`)과 자동 일정
-(`source='ksain'`). 원문이 지워지면 같이 지운다고 개인정보처리방침에 약속했는데, 자동으로 안 지우는
+**ksain 글에서 만든 것과 세션은 넣지 않습니다**(`scrub_backup`) — 기억(`facts`)과 글에서 온 일정,
+그리고 로그인 세션. 원문이 지워지면 같이 지운다고 개인정보처리방침에 약속했는데, 자동으로 안 지우는
 백업에 들어가면 그 약속이 영영 안 지켜집니다. 둘 다 ksain.db 의 분석에서 다시 만들 수 있어서, 백업에서
 되돌린 뒤에는 `python -m backend.ksain.analyze --reapply` 로 채웁니다. ⚠️ 사람이 고치거나 숨긴 기억은
-되돌아오지 않습니다 — 숨겼던 사실은 다시 숨겨야 합니다.
+되돌아오지 않습니다 — 숨겼던 사실은 다시 숨겨야 합니다. 세션이 없으니 되돌리면 모두 다시 로그인합니다.
 """
 
 import datetime
@@ -105,7 +105,7 @@ def create_backup(label: str) -> dict | None:
         source.close()
 
     try:
-        strip_ksain_derived(dest)
+        scrub_backup(dest)
     except Exception:
         os.remove(dest)  # 걷어내지 못한 백업은 남기지 않습니다
         raise
@@ -113,13 +113,19 @@ def create_backup(label: str) -> dict | None:
     return _describe(dest)
 
 
-def strip_ksain_derived(path) -> None:
-    """백업 파일에서 ksain 글로 만든 기억·자동 일정을 걷어냅니다. 자료 백업(`cli/material_backup.py`)도 씁니다.
+def scrub_backup(path) -> None:
+    """백업 파일에서 넣지 않을 것을 걷어냅니다. 자료 백업(`cli/material_backup.py`)도 씁니다.
+
+    - **ksain 글로 만든 기억과 일정** — `facts`·`facts_fts`, 그리고 글 번호(`source_ref`)가 붙은 일정. 매니저가
+      고쳐서 `manual` 이 된 자동 일정도 글에서 왔으니 뺍니다. 원문이 지워지면 같이 지운다고 약속한 것들입니다
+    - **세션** — 토큰을 평문으로 들고 있어서 백업 파일이 새면 그 토큰으로 바로 로그인됩니다. 접속 IP 도 들어
+      있습니다. 백업에서 되돌리면 모두 다시 로그인합니다
 
     ⚠️ **VACUUM 까지 해야 합니다.** sqlite 는 지운 행을 빈 페이지에 그대로 두고, backup API 는 그 빈
     페이지까지 복사합니다 — 지우기만 하면 문장이 파일 안에 그대로 남습니다(실험으로 확인했습니다). 본 DB 에서
     이미 지운 행이 빈 페이지에 남아 있던 것도 이때 같이 사라집니다. `facts_fts` 는 표째 지웁니다 — 행만 지우면
-    색인 조각에 낱말이 남을 수 있고, 앱이 뜰 때 마이그레이션이 빈 표로 다시 만듭니다.
+    색인 조각에 낱말이 남을 수 있고, 앱이 뜰 때 마이그레이션이 빈 표로 다시 만듭니다. 예전 백업에도 쓸 수 있게
+    없는 표·칼럼은 건너뜁니다.
     """
     with closing(sqlite3.connect(path)) as conn:
         tables = {name for (name,) in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
@@ -127,7 +133,11 @@ def strip_ksain_derived(path) -> None:
             conn.execute("DELETE FROM facts")
         conn.execute("DROP TABLE IF EXISTS facts_fts")
         if "calendar_events" in tables:
-            conn.execute("DELETE FROM calendar_events WHERE source = 'ksain'")
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(calendar_events)")}
+            conn.execute("DELETE FROM calendar_events WHERE source = 'ksain'"
+                         + (" OR source_ref IS NOT NULL" if "source_ref" in columns else ""))
+        if "sessions" in tables:
+            conn.execute("DELETE FROM sessions")
         conn.commit()
         conn.execute("VACUUM")
 
