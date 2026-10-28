@@ -216,6 +216,8 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | API 수정      | `backend/api-guide.md`        |
 | ksa-bench 작업 | `bench-frontend/CLAUDE.md` (가이드 사본이 그 안에 따로 있습니다) |
 | 안드로이드 앱·위젯 | `android/CLAUDE.md` |
+| ksain 수집·분석·학사일정 자동 반영 | `backend/ksain.guide.md` |
+| 홈 질문창 Agent·모델·데스크탑 게이트웨이 | `backend/agent.guide.md`, `deploy-guide.md` |
 
 **어느 프론트를 고치는지 먼저 확인하세요.** 두 디렉토리에 같은 이름의 가이드가 각각
 있어서, `frontend/design-guide.md`를 고치고 ksa-bench 를 손봤다고 생각하기 쉽습니다.

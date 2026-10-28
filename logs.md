@@ -1,3 +1,43 @@
+## 2026-10-28 — ksain 수집·분석, 학사일정 자동 관리, 홈 질문창(Agent), 기말고사 적재
+
+- 변경 파일: `backend/ksain/`(신규), `backend/llm.py`, `backend/agent_router.py`, `backend/agent_tools.py`, `backend/models.py`·`migrations.py`(`calendar_events.source_ref`), `backend/calendar_router.py`, `backend/exam_seed_2026-2-final.json`, `frontend/src/components/home/AgentBox.tsx`, `frontend/src/lib/agentApi.ts`, `frontend/src/pages/HomePage.tsx`, `deploy/llm-gateway/`, `deploy/class-explorer-ksain.*`, 가이드(`ksain.guide.md`·`agent.guide.md`·`exams.guide.md`·`deploy-guide.md`)
+- 요약: ksain 전 게시글(구 3천 번대 + 신 100000번대)을 `ksain.db` 에 쌓고 데스크탑 Gemma 로 분석해 학사일정에 `source='ksain'` 으로 자동 반영합니다. 홈 맨 위 질문창이 시간표·강의실·학사일정·시험·급식·ksain 을 도구로 찾아 답합니다. 기말고사 66건·응시 1,779건을 운영 DB 에 적재했습니다.
+
+ksain 은 구·신 사이트가 한 DB 를 쓰고, 개발자 목록 API 는 최신 30건만 주며 신 번호 글을 빼먹습니다.
+그래서 **번호를 앞으로 훑는 수집**이 중심이고, 본문·첨부는 `api.ksain.kr` 이 비로그인으로 줍니다(막히면
+`KSAIN_TOKEN`). 수집 사본을 본 DB 와 나눈 건 언제든 다시 받을 수 있는 데이터라 지우고 다시 돌릴 때
+사용자 데이터와 섞이지 않게 하려는 것입니다.
+
+LLM 은 데스크탑 Ollama 를 **상시로 띄우지 않습니다**(사용자 요청). 게이트웨이(`10.8.10.1:11434`,
+graph-study 방화벽 규칙 재사용)가 요청이 오면 켜고 1시간 쉬면 끕니다. 첫 답은 80초 안팎이라 질문창이
+포커스 때 미리 깨웁니다. 모델은 `local:`·`openai:` ID 로 고르고, OpenAI 는 키를 넣으면 목록에 붙습니다.
+
+함정이 여럿이었습니다.
+- ⚠️ **Ollama 기본 컨텍스트 4096** — 넘치면 프롬프트 앞(시스템 지시문)을 조용히 자릅니다. Agent 답이
+  `total_tokens=4096` 에서 끊긴 걸로 알았습니다. 게이트웨이가 16k 로 띄웁니다
+- ⚠️ **모델이 날짜를 지어냅니다** — 3092 에서 첨부를 못 본 채 "11/1 기말고사". 날짜가 글에 실제로
+  적혀 있어야(`grounded`) 학사일정에 넣고, xlsx 첨부는 시트별로 나눠 보여 주고, 첨부 미추출 글은 분석을 미룹니다
+- ⚠️ **자동 일정에 `holiday`·`term` 금지** — 홈의 휴업·방학 판정이 그 둘에 기대서, 모델 실수 하나로
+  전교생 시간표가 사라집니다
+- JSON schema 의 `["string","null"]` 유니언은 Ollama 가 null 로만 채웁니다(시각이 다 비었음)
+- Gemma 4 는 thinking 토큰을 먼저 씁니다 — `/v1` 에서는 `reasoning_effort: "none"` 만 먹습니다
+- hwp 컨트롤 문자는 8글자 폭, `chr()` 로 붙이면 서로게이트가 갈라져 UTF-8 저장에서 백필이 죽었습니다
+- 같은 도구 반복 호출(`ksain_digest` 6연속) — 반복을 막고 마지막엔 도구 없이 답하게 했습니다
+- 검색은 FTS5 대신 LIKE + 점수 — trigram 은 두 글자 한국어("필참")를 못 찾습니다. 최신성과 "일정이 아직
+  안 지났나" 를 점수에 넣어야 8월 포스터 공지가 11월 것을 이기지 않았습니다
+- 운영 셸에서 `pkill -f "<패턴>"`·`pgrep -f` 대기 루프는 **자기 명령줄과도 일치**합니다(`[e]` 꼴로 쓸 것)
+
+사람이 고친 자동 일정은 `manual` 로 바뀌어 자동 관리에서 빠지고, 지운 일정은 다시 만들지 않습니다.
+분석은 스테이징(`~/ksain-staging`, 학사일정 반영 없이)에서 먼저 돌렸으므로, 운영 첫 반영은
+`analyze --reapply --fresh` 입니다 — 스테이징 사본에서 지운 기록까지 따라오지 않게요.
+
+**기말고사**는 `실시과목` 시트가 없고 `수강 현황` 에 1학년 필수 15과목 응시 표시가 없어, 그 15개만
+수강 정보로 채웠습니다(중간고사 응시 기록으로 국내·국제반 분반 확인). 나머지 51개는 시트를 그대로 썼고
+DB 와 1~5명 차이였습니다. 자세한 건 `exams.guide.md`.
+
+개인정보처리방침에 ksain 공개 글 저장과 질문의 LLM 전송을 반영하는 일은 문구를 사용자가 쓰기로 하고
+`tasks.md` 에 남겼습니다. 멘토링 아카이브(Google Drive)는 다음 차례입니다.
+
 ## 2026-10-05 — 개인 중간고사 시간표
 
 - 변경 파일: `backend/exam_seed.json`, `backend/models.py`, `backend/import_exams.py`, `backend/exams.py`, `backend/exams_router.py`, `backend/home_router.py`, `backend/main.py`, `frontend/src/pages/ExamsPage.tsx`, `frontend/src/pages/HomePage.tsx`, 관련 API·가이드 및 `.gitignore`

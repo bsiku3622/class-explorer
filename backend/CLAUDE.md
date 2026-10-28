@@ -34,7 +34,12 @@ backend/
 ├── backup.py        → DB 스냅샷 (수집 직전 자동 · 자동 삭제 없음) → backups/
 ├── parser_run.py    → 학기별 데이터 동기화 실행 스크립트
 ├── students.txt     → 학생 목록 (학번 + 이름)
-└── ksa_timetable.db → SQLite 데이터베이스
+├── llm.py           → LLM 호출 한 곳 — 모델 목록(데스크탑 게이트웨이·OpenAI) + Chat Completions
+├── agent_router.py  → 홈 질문창 (/agent/*) — 도구를 부르는 Agent, SSE 응답
+├── agent_tools.py   → Agent 의 읽기 전용 도구 (시간표·강의실·학사일정·시험·급식·ksain)
+├── ksain/           → ksain 게시글 수집·분석·학사일정 자동 반영 (ksain.guide.md)
+├── ksa_timetable.db → SQLite 데이터베이스
+└── ksain.db         → ksain 수집 사본 (언제든 다시 받을 수 있어서 따로 둡니다)
 ```
 
 ## 서버는 하나, 프론트가 둘
@@ -285,6 +290,12 @@ KST 여야 하고 다른 서비스의 타임존까지 건드릴 이유가 없어
 `source='pdf'` 는 학사일정 문서에서 온 것이라 `import_calendar` 가 통째로 갈아끼웁니다.
 사람이 넣은 일정(`manual`)과 개인 일정은 건드리지 않습니다.
 
+`source='ksain'` 은 ksain 게시글 분석이 **자동으로** 넣은 것입니다. `source_ref`
+(`"<글 번호>:<순번>"`)로 원문 글에 묶여서, 글이 바뀌면 그 글 것만 갈아끼웁니다. 매니저가
+이 일정을 고치면 `manual` 로 바뀌어 자동 관리에서 빠지고, 지우면 다시 만들어지지 않습니다.
+⚠️ 자동 일정은 `holiday`·`term` 분류를 쓰지 않습니다 — 아래 홈의 휴업·방학 판정이 그 둘에
+기댑니다. 자세한 규칙은 [ksain.guide.md](ksain.guide.md).
+
 **반복은 규칙이 아니라 실제 행으로 펼쳐 둡니다.** 같은 묶음은 `series_id` 가 같습니다.
 규칙으로 두면 조회할 때마다 펼쳐야 하고 "이번 주만 빼기"가 어려워지는데, 행으로 두면
 한 회차만 지우는 게 그냥 삭제입니다. 한 번에 최대 200 회차까지 만듭니다.
@@ -501,7 +512,16 @@ python -m backend.create_user <username> <password>
 | `CORS_ORIGINS` | `http://localhost:5173` | 허용 도메인 (콤마 구분) |
 | `FORCE_HTTPS` | (없음) | 설정 시 HSTS 헤더 활성화 |
 | `GOOGLE_CLIENT_ID` | (없음) | 학번 확인용. 없으면 `/auth/link-google`이 503 |
-| `KSAIN_API_KEY` | (없음) | 급식(ksain.net). 없으면 홈의 급식 칸만 비웁니다 |
+| `KSAIN_API_KEY` | (없음) | 급식(ksain.net) + ksain 최신 글 목록. 없으면 홈의 급식 칸만 비웁니다 |
+| `KSAIN_DB_URL` | `sqlite:///./backend/ksain.db` | ksain 수집 사본 |
+| `KSAIN_TOKEN` | (없음) | ksain.kr 로그인 토큰. 비로그인 본문 조회가 막혔을 때만 |
+| `LLM_GATEWAY_URL` | `http://10.8.10.1:11434` | 데스크탑 Ollama 게이트웨이 (WireGuard) |
+| `LLM_LOCAL_MODEL` | `gemma4:12b` | 게이트웨이 목록을 못 받았을 때의 로컬 모델 |
+| `OPENAI_API_KEY` · `OPENAI_MODELS` | (없음) | 넣으면 질문창 모델 목록에 OpenAI 모델이 붙습니다 (`OPENAI_MODELS=gpt-…,gpt-…`) |
+| `AGENT_MODEL` · `ANALYZE_MODEL` | (로컬) | 용도별 기본 모델 ID (`local:gemma4:12b`, `openai:…`) |
+
+배포에서는 AI·ksain 관련 값을 `/etc/class-explorer/ai.env` 한 파일에 두고, API 서비스와
+수집 타이머가 같이 읽습니다 (`deploy/ai.env.example`, `deploy-guide.md`).
 
 배포 시 예시: `CORS_ORIGINS=https://your-app.com FORCE_HTTPS=1`
 
@@ -519,11 +539,15 @@ sqlalchemy>=2.0.0
 httpx>=0.27.0
 bcrypt>=4.0.0
 python-multipart>=0.0.12
+pypdf>=5.0.0      # ksain 첨부 PDF
+olefile>=0.47     # ksain 첨부 hwp
 ```
 → `requirements.txt` (repo root) 참조
 
 ## 관련 가이드
 
 - [exams.guide.md](exams.guide.md) — 시험 회차·응시 대상 DB 적재와 본인 시간표
+- [ksain.guide.md](ksain.guide.md) — ksain 수집·분석·학사일정 자동 반영
+- [agent.guide.md](agent.guide.md) — 홈 질문창 Agent·도구·모델
 - [api-guide.md](api-guide.md) — API 엔드포인트 명세
 - [../frontend/CLAUDE.md](../frontend/CLAUDE.md) — 프론트엔드 연동 방식
