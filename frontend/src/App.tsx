@@ -24,9 +24,10 @@ import Navigation from "./components/Navigation";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
 import GoogleLinkModal from "./components/GoogleLinkModal";
-import ShareMaterialsPrompt from "./components/ShareMaterialsPrompt";
 import AgentDock from "./components/agent/AgentDock";
 import { useAgentChat } from "./hooks/useAgentChat";
+import type { MyMajor } from "./lib/majors";
+import { clearHistory } from "./lib/searchHistory";
 
 // Pages (lazy loaded for code splitting)
 const SearchPage = React.lazy(() => import("./pages/SearchPage"));
@@ -50,6 +51,8 @@ const InventoryPage = React.lazy(() => import("./pages/InventoryPage"));
 // 플로팅 버튼을 누를 때 미리 받아 둡니다 — 모바일 창은 보내는 순간 `/ai` 로 옮겨 갑니다
 const loadAiPage = () => import("./pages/AiPage");
 const AiPage = React.lazy(loadAiPage);
+// 전공을 묻는 창 — 아직 답하지 않은 사람에게만 필요해서 첫 로딩에 싣지 않습니다
+const MajorPrompt = React.lazy(() => import("./components/MajorPrompt"));
 
 const CACHE_PREFIX = "ksa_class_finder_cache";
 /**
@@ -71,6 +74,28 @@ const clearDataCache = () => {
     Object.keys(localStorage)
         .filter((key) => key.startsWith(CACHE_PREFIX))
         .forEach((key) => localStorage.removeItem(key));
+};
+
+/**
+ * 만료된 학기 캐시를 지웁니다 — TTL 은 읽을 때만 봐서, 다시 안 여는 학기의 응답(전교생 이름·학번·분반 명단)이
+ * 로그아웃 전까지 기기에 계속 남았습니다. 앱을 열 때 한 번 쓸어 냅니다.
+ */
+const purgeExpiredDataCache = () => {
+    try {
+        Object.keys(localStorage)
+            .filter((key) => key.startsWith(CACHE_PREFIX))
+            .forEach((key) => {
+                let timestamp = 0;
+                try {
+                    timestamp = Number(JSON.parse(localStorage.getItem(key) || "{}").timestamp) || 0;
+                } catch {
+                    // 깨진 값은 만료된 것으로 칩니다
+                }
+                if (!(Date.now() - timestamp < CACHE_EXPIRY)) localStorage.removeItem(key);
+            });
+    } catch {
+        // 저장소가 막힌 브라우저 — 지울 것도 없습니다
+    }
 };
 
 const loadSavedTerm = (): Term | null => {
@@ -107,6 +132,14 @@ const App: React.FC = () => {
         is_demo?: boolean;
         /** 수강 변경 탐색 설정 — 여는지·어느 학기인지 **전부 서버가** 정합니다 */
         trade?: TradeConfig;
+        /** 전공(심화필수 전공 트랙). 아직 안 골랐거나 미정이면 `null` */
+        major?: string | null;
+        major_division?: string | null;
+        /**
+         * 전공을 묻는 창에 답했는가. ⚠️ **`false` 일 때만** 창을 띄웁니다 — 옛 서버는 이 칸이 없어서
+         * `!major_answered` 로 보면 없는 `/majors` 를 부르는 창이 뜹니다(화면과 서버를 따로 배포합니다)
+         */
+        major_answered?: boolean;
     } | null>(null);
 
     const initialSearch = useMemo(
@@ -181,6 +214,11 @@ const App: React.FC = () => {
         return () => window.removeEventListener("keydown", onKey);
     }, [onAiPage, openAsk]);
 
+    useEffect(() => {
+        purgeExpiredDataCache();
+    }, []);
+
+    const resetAsk = askChat.reset;
     const handleLogout = useCallback(async () => {
         if (getSessionToken()) {
             try {
@@ -194,16 +232,30 @@ const App: React.FC = () => {
         // 교육과정·급식·교시 캐시도 같이 비웁니다 — 다음 사람이 앞사람이 보던 걸
         // 이어 보면 안 됩니다 (`lib/cache.ts`)
         clearCache();
+        // Ask 대화와 최근 검색어도 — 대화는 App 에 한 벌이라, 그대로 두면 같은 탭에서 다음 사람이 로그인했을 때
+        // 앞사람의 대화(이미지 포함)가 보이고 다음 질문에 그 기록이 같이 실려 갔습니다
+        resetAsk();
+        setAskOpen(false);
+        clearHistory();
         setSessionToken(null);
         setCurrentUser(null);
         setAllClassesData([]);
         setDisplayData([]);
         setStats(null);
-    }, []);
+    }, [resetAsk]);
 
     const handleLogin = useCallback((token: string) => {
         persistSessionToken(token);
         setSessionToken(token);
+    }, []);
+
+    // 전공을 고르면(묻는 창·`/about`) 여기 하나로 받습니다 — 달력의 "내 학년·전공 것만" 이 이 값을 봅니다
+    const applyMajor = useCallback((me: MyMajor) => {
+        setCurrentUser((prev) =>
+            prev
+                ? { ...prev, major: me.major, major_division: me.division, major_answered: me.answered }
+                : prev,
+        );
     }, []);
 
     // 검색이 "/" 에서 "/search" 로 옮겨졌습니다. 예전에 공유된 `/?q=…` 링크가 죽지
@@ -729,6 +781,7 @@ const App: React.FC = () => {
                                     <CalendarPage
                                         role={currentUser?.role ?? "user"}
                                         stuId={currentUser?.stu_id ?? null}
+                                        major={currentUser?.major ?? null}
                                     />
                                 }
                             />
@@ -747,7 +800,7 @@ const App: React.FC = () => {
                             />
                             <Route
                                 path="/about"
-                                element={<SettingsPage />}
+                                element={<SettingsPage onMajorSaved={applyMajor} />}
                             />
                             <Route
                                 path="/privacy"
@@ -811,13 +864,17 @@ const App: React.FC = () => {
                     onClose={closeAsk}
                 />
             )}
-            {currentUser && (
-                <ShareMaterialsPrompt
-                    term={term}
-                    pathname={location.pathname}
-                    onUpload={() => navigate("/upload")}
-                />
-            )}
+            {/* 전공을 아직 묻지 않은 학생에게만 — 시연 계정은 빌린 학번이라 묻지 않습니다. `/about` 에는
+                같은 칸이 있고, `/privacy` 는 무엇을 왜 모으는지 읽는 자리라 그 위를 덮지 않습니다 */}
+            {currentUser?.major_answered === false &&
+                currentUser.stu_id &&
+                !currentUser.is_demo &&
+                location.pathname !== "/about" &&
+                location.pathname !== "/privacy" && (
+                    <Suspense fallback={null}>
+                        <MajorPrompt userId={currentUser.id} onAnswered={applyMajor} />
+                    </Suspense>
+                )}
         </div>
     );
 };

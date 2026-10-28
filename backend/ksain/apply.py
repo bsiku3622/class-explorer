@@ -3,15 +3,19 @@
 글 하나에서 온 일정은 `source_ref = "<글 번호>:<순번>"` 으로 묶여서, 글이 바뀌거나 다시
 분석되면 **그 글 것만** 지우고 새로 만듭니다. PDF·수동 일정은 건드리지 않습니다.
 
+항목의 세부(`detail` — 장소·버스 시각·준비물)는 메모 맨 앞에 들어갑니다. 날짜가 든 정보는 기억(사실)에
+남기지 않고 학사일정이 맡기 때문에, 그 일정에 딸린 내용을 여기 말고는 둘 곳이 없습니다.
+
 반영하는 항목:
 - 모델이 `calendar=true` 로 고르고 확신도가 `MIN_CONFIDENCE` 이상
 - 끝나는 날이 오늘에서 `KEEP_PAST_DAYS` 일 안쪽 (백필한 옛 글이 지난 일정을 쏟아내지 않게)
 - 기간이 `MAX_SPAN_DAYS` 일 이하 (모집 기간 같은 긴 띠는 마감 하루로 들어와야 합니다)
 
 건너뛰는 항목:
-- 날짜가 겹치고 제목이 비슷한 공용 일정이 이미 있을 때 (학사일정 PDF, 다른 글)
+- 날짜가 겹치고 제목이 비슷한 공용 일정이 이미 있을 때 (학사일정 PDF, 다른 글). 대상 학년·전공이
+  서로 겹치지 않으면 이름이 같아도 다른 일정입니다 (`_apart`)
 - **사람이 지웠거나 고친 일정** — `Analysis.applied` 에 적어 둔 일정이 없어졌으면 그 항목의
-  sig 를 `suppressed` 에 넣고 다시 만들지 않습니다. 고친 일정은 calendar_router 가
+  sig 를 `suppressed` 에 넣고 다시 만들지 않습니다. 고친 일정은 routers/calendar.py 가
   `source='manual'` 로 바꿔 자동 관리에서 빼 줍니다
 
 ⚠️ `holiday`·`term` 분류는 쓰지 않습니다. 홈이 `holiday` 일정으로 그날 수업을 지우고,
@@ -23,25 +27,16 @@ import datetime
 import re
 
 from backend import models as core
-from backend import periods
-from backend.database import SessionLocal as CoreSession, init_schema
+from backend.core import clock
+from backend.knowledge import facts as memory
 from backend.ksain.models import Analysis, Post
+from backend.services import majors
+from backend.services.calendar import grades
 
 MIN_CONFIDENCE = 0.6
 KEEP_PAST_DAYS = 14
 MAX_SPAN_DAYS = 45
 CATEGORIES = {"exam", "dorm", "academic", "event"}
-
-_schema_ready = False
-
-
-def _core():
-    global _schema_ready
-    if not _schema_ready:
-        init_schema()  # source_ref 컬럼 마이그레이션
-        _schema_ready = True
-    return CoreSession()
-
 
 def _norm(text: str) -> str:
     return re.sub(r"[\s\W_]+", "", (text or "").lower())
@@ -94,6 +89,15 @@ def desired(analysis: Analysis, today: datetime.date) -> list[dict]:
     return out
 
 
+def _apart(row: core.CalendarEvent, item: dict) -> bool:
+    """대상 학년이나 전공이 겹치지 않는 두 일정 — 이름이 같아도 다른 일정입니다("1학년 귀가" 와 "2학년 귀가",
+    학부마다 따로 여는 "학부 설명회"). 대상이 비어 있으면 전체라 늘 겹칩니다."""
+    row_grades, item_grades = set(grades(row.target_grades)), set(item.get("target_grades") or [])
+    row_majors, item_majors = set(majors.split(row.target_majors)), set(item.get("target_majors") or [])
+    return (bool(row_grades and item_grades and not row_grades & item_grades)
+            or bool(row_majors and item_majors and not row_majors & item_majors))
+
+
 def duplicate(db, item: dict, post_id: int) -> bool:
     start = datetime.date.fromisoformat(item["start_date"])
     end = datetime.date.fromisoformat(item["end_date"])
@@ -104,6 +108,8 @@ def duplicate(db, item: dict, post_id: int) -> bool:
     ).all()
     for row in rows:
         if row.source == "ksain" and (row.source_ref or "").startswith(f"{post_id}:"):
+            continue
+        if _apart(row, item):
             continue
         if similar(row.title, item["title"]):
             return True
@@ -124,75 +130,74 @@ def _event(post: Post, item: dict, index: int) -> core.CalendarEvent:
         # "24:00 까지" 를 모델이 00:00 으로 적습니다 — 그날 자정입니다
         title = f"{title} ({'자정' if start_minute == 0 else item['start_time']}까지)"
         start_minute = end_minute = None
-    clock = start_minute is not None
-    if clock and (end_minute is None or end_minute <= start_minute):
+    timed = start_minute is not None
+    if timed and (end_minute is None or end_minute <= start_minute):
         end_minute = min(start_minute + 60, 23 * 60 + 59)
     category = item["category"] if item["category"] in CATEGORIES else "event"
     return core.CalendarEvent(
         title=title,
         start_date=datetime.date.fromisoformat(item["start_date"]),
         end_date=datetime.date.fromisoformat(item["end_date"]),
-        time_mode="clock" if clock else "allday",
-        start_minute=start_minute if clock else None,
-        end_minute=end_minute if clock else None,
+        time_mode="clock" if timed else "allday",
+        start_minute=start_minute if timed else None,
+        end_minute=end_minute if timed else None,
         category=category,
         target_grades=",".join(str(g) for g in item.get("target_grades") or []) or None,
+        target_majors=majors.joined(item.get("target_majors")),
         source="ksain",
         source_ref=f"{post.id}:{index}",
-        note=f"ksain 자동 등록 — {post.title}\n{post.url}",
+        note="\n\n".join(part for part in (item.get("detail"), f"ksain 자동 등록 — {post.title}\n{post.url}") if part),
     )
 
 
-def apply_post(post: Post, analysis: Analysis) -> int:
-    """이 글에서 온 자동 일정을 분석 결과에 맞춥니다. 새로 만든 일정 수를 돌려줍니다."""
-    db = _core()
-    try:
-        current = db.query(core.CalendarEvent).filter(
-            core.CalendarEvent.source == "ksain",
-            core.CalendarEvent.source_ref.like(f"{post.id}:%"),
-        ).all()
-        alive = {row.id for row in current}
-        suppressed = set(analysis.suppressed or [])
-        for record in analysis.applied or []:
-            if record["event_id"] not in alive:
-                suppressed.add(record["sig"])
-        for row in current:
-            db.delete(row)
-        db.flush()
+def apply_post(db, post: Post, analysis: Analysis) -> int:
+    """이 글에서 온 자동 일정을 분석 결과에 맞춥니다. 새로 만든 일정 수를 돌려줍니다.
 
-        applied = []
-        for index, item in enumerate(desired(analysis, periods.today())):
-            sig = signature(item)
-            if sig in suppressed or duplicate(db, item, post.id):
-                continue
-            event = _event(post, item, index)
-            db.add(event)
-            db.flush()
-            applied.append({"sig": sig, "event_id": event.id})
-        db.commit()
-    finally:
-        db.close()
+    `db` 는 본 DB 세션입니다. 커밋은 부르는 쪽이 합니다(`analyze.run` 이 글마다 한 번).
+    """
+    current = db.query(core.CalendarEvent).filter(
+        core.CalendarEvent.source == "ksain",
+        core.CalendarEvent.source_ref.like(f"{post.id}:%"),
+    ).all()
+    alive = {row.id for row in current}
+    suppressed = set(analysis.suppressed or [])
+    for record in analysis.applied or []:
+        if record["event_id"] not in alive:
+            suppressed.add(record["sig"])
+    for row in current:
+        db.delete(row)
+    db.flush()
+
+    applied = []
+    for index, item in enumerate(desired(analysis, clock.today())):
+        sig = signature(item)
+        if sig in suppressed or duplicate(db, item, post.id):
+            continue
+        event = _event(post, item, index)
+        db.add(event)
+        db.flush()
+        applied.append({"sig": sig, "event_id": event.id})
     analysis.applied = applied
     analysis.suppressed = sorted(suppressed)
     return len(applied)
 
 
-def remove_missing(ksain_db) -> int:
-    """ksain 에서 사라진 글의 자동 일정과 분석(요약에 원문 내용이 들어 있습니다)을 지웁니다."""
+def remove_missing(ksain_db, db) -> int:
+    """ksain 에서 사라진 글의 자동 일정·기억과 분석(요약에 원문 내용이 들어 있습니다)을 지웁니다.
+
+    `ksain_db` 는 ksain.db, `db` 는 본 DB 세션입니다. 커밋은 부르는 쪽이 합니다.
+    """
     rows = ksain_db.query(Analysis).join(Post).filter(Post.missing_since.isnot(None)).all()
     if not rows:
         return 0
-    db = _core()
     removed = 0
-    try:
-        for row in rows:
-            removed += db.query(core.CalendarEvent).filter(
-                core.CalendarEvent.source == "ksain",
-                core.CalendarEvent.source_ref.like(f"{row.post_id}:%"),
-            ).delete(synchronize_session=False)
-        db.commit()
-    finally:
-        db.close()
+    for row in rows:
+        # 글 번호로만 찾습니다 — 매니저가 고쳐 `manual` 이 된 자동 일정도 `source_ref` 를 그대로 들고 있고, 글에서
+        # 온 것이라 원문이 지워지면 같이 지운다고 약속했습니다(개인정보처리방침 4항)
+        removed += db.query(core.CalendarEvent).filter(
+            core.CalendarEvent.source_ref.like(f"{row.post_id}:%"),
+        ).delete(synchronize_session=False)
+    memory.remove_posts(db, [row.post_id for row in rows])
     for row in rows:
         ksain_db.delete(row)
     return removed

@@ -1,24 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Search, X, Clock } from "lucide-react";
-
-const HISTORY_KEY = "ksa_search_history";
-const MAX_HISTORY = 8;
-
-function loadHistory(): string[] {
-    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); }
-    catch { return []; }
-}
-
-function saveToHistory(term: string) {
-    if (!term.trim()) return;
-    const prev = loadHistory().filter((h) => h !== term);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify([term, ...prev].slice(0, MAX_HISTORY)));
-}
-
-function removeFromHistory(term: string) {
-    const next = loadHistory().filter((h) => h !== term);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-}
+import { clearHistory, loadHistory, removeFromHistory, saveToHistory } from "../../lib/searchHistory";
 
 /**
  * `sm`은 모달·패널 안에서 씁니다 — 페이지의 주인공이 아닌 자리에 `lg`를 두면
@@ -49,6 +31,12 @@ interface SearchInputProps {
     /** 외부에서 searchTerm이 확정됐을 때 히스토리 저장 트리거 */
     committedTerm?: string;
     autoFocus?: boolean;
+    /**
+     * Enter 로 검색을 확정할 때 — 글자마다 서버에 물을 수 없는 검색용입니다(Admin 기억 패널).
+     * ⚠️ 한글 조합 중의 Enter 는 여기서 거릅니다(`isComposing`). 안 거르면 한 번 누른 Enter 가
+     * 두 번 들어옵니다.
+     */
+    onEnter?: () => void;
 }
 
 const SearchInput: React.FC<SearchInputProps> = ({
@@ -60,6 +48,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
     enableHistory = false,
     committedTerm,
     autoFocus = false,
+    onEnter,
 }) => {
     const style = SIZES[size];
     const [focused, setFocused] = useState(false);
@@ -113,6 +102,10 @@ const SearchInput: React.FC<SearchInputProps> = ({
                     placeholder={placeholder}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (onEnter && e.key === "Enter" && !e.nativeEvent.isComposing) onEnter();
+                    }}
+                    enterKeyHint={onEnter ? "search" : undefined}
                     onFocus={handleFocus}
                     autoFocus={autoFocus}
                 />
@@ -134,7 +127,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
                             <Clock size={10} /> Recent
                         </span>
                         <button
-                            onClick={() => { localStorage.removeItem(HISTORY_KEY); setHistory([]); }}
+                            onClick={() => { clearHistory(); setHistory([]); }}
                             className="text-[10px] font-black uppercase text-black/30 hover:text-black transition-colors"
                         >
                             Clear all

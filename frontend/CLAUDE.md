@@ -22,13 +22,15 @@ src/
 │   ├── features.ts           → 한시 기능 노출 플래그 (TRADE_FEATURE)
 │   ├── navigation.ts         → 메뉴 순서 (사이드바·하단 바가 같이 씁니다)
 │   ├── plannedHome.ts        → 홈 응답의 시간표만 트레이드 계획으로 갈아 끼우기
-│   ├── syllabi.ts            → 2026-1 과목과 syllabus asset 연결
+│   ├── syllabi.ts            → 2026-1 과목과 강의계획서 짝짓기 + 서버에서 Blob 으로 받기 (로그인한 사람만 — 파일은 번들·git 에 없습니다)
 │   ├── friendsApi.ts         → 홈·친구·교시 시각표 질의 (백엔드는 두 앱 공용)
 │   ├── agentApi.ts           → Ask — 모델 목록·warmup·SSE 답 받기 (`fetch` 스트림)
 │   ├── agentChat.ts          → Ask — SSE 이벤트를 화면의 대화로 바꾸는 순수 함수
 │   ├── agentDemo.ts          → Ask — 화면 상태 데모 이벤트 (개발 전용, 배포 번들에 없음)
 │   ├── askMotion.ts          → 모바일 Ask 창 → `/ai` 화면 전환 모션 (View Transitions)
 │   ├── imageAttach.ts        → Ask 첨부 이미지 줄이기 (긴 변 1600px JPEG)
+│   ├── factsApi.ts           → Ask 의 기억 — 글별 사실 목록·고치기·숨기기 (Admin 기억 패널, 매니저 이상)
+│   ├── majors.ts             → 전공(심화필수 전공 트랙) — API·대상 표기·묻는 창 미루기 (아래 `전공` 절)
 │   └── sessionsApi.ts        → 로그인한 기기 목록·폐기 (다중 기기 로그인)
 ├── constants/
 │   └── motion.ts             → Framer Motion 설정값
@@ -38,10 +40,11 @@ src/
 │   ├── useAgentChat.ts       → Ask 대화 한 벌 (App 에 하나 — 페이지·창이 같이 봅니다)
 │   ├── useFollowBottom.ts    → 대화가 늘면 맨 아래로 (위로 올려 읽는 중이면 그대로)
 │   ├── useMediaQuery.ts      → 미디어 쿼리 구독 (폭에 따라 그리는 컴포넌트가 다를 때)
+│   ├── useSyllabusFiles.ts   → 강의계획서 파일 목록 (`GET /syllabi`, 필요한 곳에서만)
 │   └── useTradePlan.ts       → 홈에서 `/trade` 계획 읽기 (읽기 전용)
 ├── pages/
 │   ├── LoginPage.tsx         → 로그인 폼 (미인증 시 전체 화면 대체)
-│   ├── AdminPage.tsx         → 관리자 대시보드 (사용자/세션/데이터/백업, admin 전용)
+│   ├── AdminPage.tsx         → 관리자 대시보드 (사용자/세션/데이터/백업/Ask 기억/전공 조사, admin 전용)
 │   ├── SearchPage.tsx        → 통합 검색
 │   ├── RoomsPage.tsx         → 빈 강의실 탐색
 │   ├── AnalysisPage.tsx      → 학사 통계 대시보드
@@ -50,9 +53,9 @@ src/
 │   ├── ZamongPage.tsx        → 교육과정 이수 현황 + 평점 (학번 등록 필요)
 │   ├── HomePage.tsx          → 홈 — 지금 교시·가야 할 교실·오늘 시간표·급식·공강 친구
 │   ├── ExamsPage.tsx         → 본인 시험 시간표 — 실제 시각·분반별 시험실·별도 실시
-│   ├── CalendarPage.tsx      → 학사일정 달력 + 개인 일정 + 일정 제안
+│   ├── CalendarPage.tsx      → 학사일정 달력 + 개인 일정 + 일정 제안 + "내 학년·전공 것만"
 │   ├── AiPage.tsx            → Ask 큰 화면 — 대화 + 화면 아래 붙은 입력창
-│   └── SettingsPage.tsx      → 기능 가이드북 + About
+│   └── SettingsPage.tsx      → 기능 가이드북 + 전공 + 로그인한 기기 + About
 └── components/
     ├── atoms/                → 재사용 원자 컴포넌트 9종
     ├── molecules/            → 복합 컴포넌트 3종
@@ -115,7 +118,13 @@ src/
 - `sessionToken` 존재 → 정상 라우팅
 - `fetchInitialData` 401 응답 → `handleLogout()` 자동 호출 → LoginPage로
 - localStorage 키: `ksa_session_token`
-- 로그아웃 시 캐시(`ksa_class_finder_cache`)도 함께 삭제
+- 로그아웃 시 캐시(`ksa_class_finder_cache`)도 함께 삭제. **Ask 대화와 최근 검색어도** 지웁니다 — 대화는 App 에
+  한 벌이라 같은 탭에서 다음 사람이 로그인하면 앞사람의 대화가 보이고 다음 질문에 실려 갔습니다. 검색어는
+  학생 이름이 들어가서 `lib/searchHistory.ts` 로 꺼내 로그아웃이 지우게 했습니다
+- 학기 캐시는 앱을 열 때 **1시간 지난 것을 지웁니다**(`purgeExpiredDataCache`) — TTL 을 읽을 때만 봐서, 다시 안
+  여는 학기의 명단(전교생 이름·학번)이 로그아웃 전까지 남았습니다
+- 구글 연동은 `openid email` 만 청합니다 — 서버는 `email` 만 씁니다(예전엔 `profile` 까지 받아 이름·사진이 토큰에 실렸습니다)
+- ⚠️ 브라우저에 새 키를 두면 **개인정보처리방침 7절 표**도 고칩니다(`pages/PrivacyPage.guide.md`)
 
 ⚠️ **토큰을 직접 읽지 마세요 — `lib/session.ts` 만 씁니다.**
 `getSessionToken()` · `setSessionToken()` · `clearSessionToken()` · `authHeader()`.
@@ -189,6 +198,44 @@ vs `{}`). axios 가 둘 다 받아 줘서 아무도 못 알아챘지만, 키를 
 | Zamong | **본인 고정** — 성적은 본인 것만 기록합니다 |
 | Trade | 본인이 기본값, 다른 학생도 선택 가능 (친구 계획을 봐주는 쓰임) |
 | Search·Browse | 제한 없음 — 탐색 도구입니다. 교육과정 그래프도 학번 없이 봅니다 |
+
+## 전공 (`lib/majors.ts`)
+
+학교 공식 이름은 **심화필수 전공 트랙**입니다 — 수학·정보과학·물리학·지구과학·화학·생물학 여섯이고, 학부
+셋으로 묶입니다. 학사일정의 "내 학년·전공 것만" 과 Ask 의 "내 일정" 이 이 값을 씁니다. 1·2학년 때
+학교가 조사하고 3학년 2학기까지 바꿀 수 있어서, 한 번 답했다고 끝나지 않습니다.
+
+| 자리 | 하는 일 |
+|---|---|
+| `MajorPrompt` | 아직 답하지 않은 학생에게 뜨는 묻는 창. 예전 "실라버스를 공유해주세요" 창(`ShareMaterialsPrompt`) 자리입니다 |
+| `/about` 의 `MajorSettings` | 고른 값을 보고 바꾸는 칸 (`미정으로 두기` 포함) |
+| `CalendarPage` | "2학년·물리학 것만" 거르개, 일정 줄·제안 서랍의 대상 전공 표기 |
+| `EventFormModal` | 학사일정·제안의 대상 전공 칩. 학부 칩은 두 트랙을 한꺼번에 고릅니다 |
+| Admin `Major Survey` | 조사 현황 — 트랙별 **인원 수만** 옵니다. 누가 무엇을 골랐는지는 서버도 안 보냅니다 |
+
+- **저장은 사람이 누를 때만** 합니다. 서버가 수강 이력으로 짐작한 트랙(`suggestion`)은 "추천" 표식과
+  근거 과목만 보여 줍니다 — 맞는지 대 볼 정답이 없는 짐작이고(수집된 학기가 짧아 윗 학번도 열에 서넛은
+  짐작조차 안 나옵니다), 미리 골라 두면 그대로 눌러 버리기 쉽습니다
+- "아직 정하지 않았어요" 도 **답**입니다(`major: null`) — 다시 묻지 않습니다. "나중에"(✕·바깥·Esc 도
+  같습니다)는 **그날 하루만** 미룹니다(`ksa_major_prompt_snoozed_<계정 id>` 에 KST 날짜). 계정마다 따로
+  적는 건 한 브라우저를 둘이 쓰면 앞사람이 미룬 게 뒷사람의 창까지 막아서입니다
+- ⚠️ **창은 `major_answered === false` 일 때만 띄웁니다.** 화면과 서버를 따로 배포해서 옛 서버는 이 칸이
+  없습니다 — `!major_answered` 로 보면 없는 `/majors` 를 부르는 창이 뜹니다. 같은 이유로 일정·사실의
+  `target_majors` 는 선택 필드이고, 쓰는 쪽이 `?? []` 로 받습니다(`majorLabel`·`isForMe` 가 이미 그렇게 합니다)
+- 창은 **lazy** 입니다 — 답한 사람에게는 필요 없는 코드라 첫 로딩에 싣지 않습니다. 시연 계정(빌린 학번),
+  `/about`(같은 칸이 있습니다), `/privacy`(무엇을 왜 모으는지 읽는 자리)에서는 띄우지 않습니다
+- 창과 `/about` 둘 다 `App` 의 `applyMajor` 로 답을 돌려줍니다. 그래서 고르자마자 달력 거르개의 이름이
+  새로고침 없이 바뀝니다
+- 대상 표기는 `majorLabel` 하나로 — 학부가 통째로 들어 있으면 학부 이름으로 접습니다(`물리학·지구과학` →
+  `물리지구과학부`)
+- 트랙 목록의 **원본은 서버**(`backend/services/majors.py`)입니다. `MAJOR_DIVISIONS` 는 일정 칩과 표기에
+  쓰는 사본이라, 학교가 트랙을 바꾸면 둘 다 고칩니다. 고르는 창은 서버 목록(`GET /majors`)을 그대로
+  그려서 심화필수 조건까지 받습니다
+- 학년은 `lib/calendar.ts` 의 `gradeOf` 가 **보고 있는 달**로 셉니다. ⚠️ **학년도는 3월에 바뀝니다**
+  (서버의 `profile_of` 와 같은 셈). 예전 달력은 연도만 빼서 1·2월에 학년이 하나 앞서 갔고, 4년째 다니는
+  학생에게는 거르개가 아예 안 떴습니다 — 지금은 3학년으로 묶습니다
+- ⚠️ 전공은 개인정보처리방침의 **수집 항목**입니다(1·2·4·8절). 저장하는 값이나 쓰는 곳을 바꾸면 그쪽도
+  고칩니다(`pages/PrivacyPage.guide.md`)
 
 ## 계정별 화면 상태
 
@@ -819,6 +866,10 @@ Agent(`/agent/chat`)가 도구로 찾아 답합니다(`backend/agent.guide.md`).
   스트림으로 읽습니다(`lib/agentApi.ts`). 이벤트는 `thinking` · `tool` · `tool_done` · `answer` ·
   `error` 이고, 화면 상태로 바꾸는 건 `lib/agentChat.ts` 의 순수 함수들입니다. 답이 도는 동안은
   단계가 펼쳐지고, 끝나면 "작업 N단계 · 초" 한 줄로 접힙니다
+- **기억(ksain 글에서 정리한 사실)을 쓰면 맨 앞에 "기억에서 찾기" 단계가 붙습니다.** 서버가 질문 전에
+  고른 것이라 모델이 부른 도구는 아니지만, 화면에는 도구와 같은 모양(`name: "recall"` 인 `tool`·
+  `tool_done`)으로 옵니다 — 라벨은 `stepLabel` 의 `recall`. 학교 자료 검색 도구는 `search` 입니다
+  (예전 이름 `search_ksain`). 기억 관리 화면은 Admin 의 `Ask Memory`(`components/admin/FactsPanel.tsx`)
 - **모델을 고릅니다** — 데스크탑 Gemma 가 기본이고, 서버에 OpenAI 키가 있으면 목록에 붙습니다.
   고른 값은 이 기기에 남습니다(`ksa_agent_model`)
 - ⚠️ **모델 이름을 보일지는 화면이 아니라 입력창 폭으로 정합니다**(`@container` + `@md:`). 미니 창은

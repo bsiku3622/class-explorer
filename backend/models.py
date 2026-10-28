@@ -18,8 +18,8 @@ SQLAlchemy ORM 모델.
 
 from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, UniqueConstraint, DateTime, Date, Text, JSON
 from sqlalchemy.orm import relationship
-from backend.database import Base
-import datetime
+from backend.core import clock
+from backend.core.db import Base
 
 
 # 아래 네 관계는 **지금 열려 있는 행만** 봅니다.
@@ -206,7 +206,7 @@ class TermVersion(Base):
     year = Column(Integer, nullable=False, index=True)
     semester = Column(Integer, nullable=False, index=True)
     version = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=clock.utcnow, nullable=False)
     source = Column(String, nullable=False, default="sync")   # sync | edit | seed
     note = Column(String, nullable=True)                      # source='edit' 일 때 무엇을 고쳤는지
 
@@ -286,6 +286,11 @@ class User(Base):
     # `user_id` 에 붙으므로 원래 계정 것과 섞이지 않습니다. 반대로 말하면 시연 계정이
     # 남긴 기록은 그 계정의 것이지 학번 주인의 것이 아닙니다.
     demo_stu_id = Column(String, ForeignKey("students.stuId"), nullable=True, index=True)
+    # 전공(심화필수 전공 트랙) — 본인이 고릅니다(`services/majors.py`). 학과 **이름**을 적습니다:
+    # 교육과정을 다시 적재하면 학과 id 가 바뀝니다. 3학년 2학기까지 바꿀 수 있는 값이라 언제든 고칩니다
+    major = Column(String, nullable=True)
+    # 전공을 묻는 팝업에 답한 때 — "아직 정하지 않았어요" 도 답입니다(`major` 는 비고 이 칸만 찹니다)
+    major_answered_at = Column(DateTime, nullable=True)
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
 
     def has_role(self, minimum: str) -> bool:
@@ -330,7 +335,7 @@ class UserState(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     key = Column(String, nullable=False)
     data = Column(JSON, nullable=False)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=clock.utcnow, onupdate=clock.utcnow)
 
     __table_args__ = (UniqueConstraint('user_id', 'key', name='_user_state_uc'),)
 
@@ -410,6 +415,8 @@ class CalendarEvent(Base):
     category = Column(String, default="event", nullable=False)
     # 대상 학년. "1,2" 처럼 적고 비어 있으면 전학년입니다.
     target_grades = Column(String, nullable=True)
+    # 대상 전공 트랙. "물리학,지구과학" 처럼 적고 비어 있으면 전공 무관입니다 (services/majors.py)
+    target_majors = Column(String, nullable=True)
     # pdf = 학사일정 문서에서 온 것. 개정판을 다시 파싱할 때 이것만 갈아끼웁니다
     # ksain = ksain 게시글 분석으로 자동 등록된 것 (backend/ksain/apply.py 가 관리)
     source = Column(String, default="manual", nullable=False)
@@ -419,7 +426,7 @@ class CalendarEvent(Base):
     owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     series_id = Column(String, nullable=True, index=True)
     note = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=clock.utcnow)
 
 
 class TimetableOverride(Base):
@@ -429,7 +436,7 @@ class TimetableOverride(Base):
     date = Column(Date, nullable=False, unique=True, index=True)
     source_day = Column(String, nullable=False)  # MON ~ FRI
     title = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=clock.utcnow, nullable=False)
 
 
 class ExamPeriod(Base):
@@ -498,6 +505,8 @@ class EventRequest(Base):
     end_period = Column(Integer, nullable=True)
     category = Column(String, default="event", nullable=False)
     target_grades = Column(String, nullable=True)
+    # 대상 전공 트랙. "물리학,지구과학" 처럼 적고 비어 있으면 전공 무관입니다 (services/majors.py)
+    target_majors = Column(String, nullable=True)
     note = Column(Text, nullable=True)
 
     status = Column(String, default="pending", nullable=False, index=True)  # pending | approved | rejected
@@ -506,7 +515,7 @@ class EventRequest(Base):
     decided_at = Column(DateTime, nullable=True)
     # 허용해서 만들어진 일정. 매니저가 내용을 고쳤다면 원문과 다를 수 있습니다
     event_id = Column(Integer, ForeignKey("calendar_events.id", ondelete="SET NULL"), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=clock.utcnow)
 
 
 class MealMenu(Base):
@@ -525,7 +534,7 @@ class MealMenu(Base):
     breakfast = Column(Text, nullable=True)
     lunch = Column(Text, nullable=True)
     dinner = Column(Text, nullable=True)
-    fetched_at = Column(DateTime, default=datetime.datetime.utcnow)
+    fetched_at = Column(DateTime, default=clock.utcnow)
 
 
 # ─── 과목 자료실 ──────────────────────────────────────────────────────────────
@@ -556,11 +565,11 @@ class Material(Base):
         nullable=True,
     )
     decided_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=clock.utcnow, nullable=False)
     updated_at = Column(
         DateTime,
-        default=datetime.datetime.utcnow,
-        onupdate=datetime.datetime.utcnow,
+        default=clock.utcnow,
+        onupdate=clock.utcnow,
         nullable=False,
     )
 
@@ -591,7 +600,7 @@ class MaterialFile(Base):
     media_type = Column(String, nullable=False)
     preview_media_type = Column(String, nullable=True)
     size_bytes = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=clock.utcnow, nullable=False)
 
     material = relationship("Material", back_populates="files")
 
@@ -614,8 +623,8 @@ class Session(Base):
     #: 이 컬럼이 생기기 전에 만들어진 세션은 `None` 입니다
     device_label = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    last_used_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=clock.utcnow)
+    last_used_at = Column(DateTime, default=clock.utcnow)
     expires_at = Column(DateTime, nullable=False)
     user = relationship("User", back_populates="sessions")
 
@@ -635,7 +644,7 @@ class Friend(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     friend_stu_id = Column(String, ForeignKey("students.stuId"), nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=clock.utcnow)
 
     __table_args__ = (
         UniqueConstraint("user_id", "friend_stu_id", name="_friend_uc"),
@@ -659,4 +668,51 @@ class Setting(Base):
     __tablename__ = "settings"
     key = Column(String, primary_key=True)
     value = Column(JSON, nullable=False)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=clock.utcnow, onupdate=clock.utcnow)
+
+
+class Fact(Base):
+    """
+    **기억** — ksain 글에서 뽑아 둔 사실 한 줄. Ask 가 질문에 맞는 것을 골라 시스템 프롬프트에
+    싣습니다(`knowledge/facts.py`).
+
+    글에 묶인 요약 DB 입니다. 사실마다 출처 글(`post_id`)이 있고, 손으로 지어 넣는 사실은 없습니다.
+    분석(`ksain.analyze`)이 글마다 뽑아 여기 옮겨 적고, 글이 바뀌면 그 글 것만 다시 적습니다. 글이
+    ksain 에서 지워지면 그 글의 사실도 지웁니다 — 개인정보처리방침 4항이 약속한 것입니다.
+
+    **본 DB 에 있는 이유**는 사람이 고치는 결과물이라서입니다(학사일정의 자동 일정과 같습니다).
+    매니저가 틀린 사실을 숨기거나(`status='hidden'`) 고치면(`edited`) 다시 분석해도 그대로 두는데,
+    서버에서 API 가 쓸 수 있는 DB 는 본 DB 뿐입니다 — ksain.db 는 수집 타이머의 파일입니다.
+
+    글 제목·작성일은 출처 표시용으로 같이 적어 둡니다. 화면과 Agent 가 ksain.db 를 따로 열지 않고도
+    어느 공지에서 왔는지 보일 수 있게요.
+    """
+    __tablename__ = "facts"
+    id = Column(Integer, primary_key=True)
+    # ksain 글 번호 — 다른 DB 라 외래키는 없습니다
+    post_id = Column(Integer, nullable=False, index=True)
+    post_title = Column(String, nullable=False, default="")
+    # 출처 게시판과 말머리("공지사항 · 교무연구부") — 학교 공지인지 동아리 홍보인지 모델이 가려 읽게
+    # 기억 줄에 같이 싣습니다 (ksain `Post.board_label`)
+    board = Column(String, nullable=True)
+    posted_on = Column(Date, nullable=True)
+    # 그 글에서 몇 번째 사실인지 (분석 결과의 순서)
+    seq = Column(Integer, nullable=False, default=0)
+    # 글을 안 읽은 사람이 봐도 뜻이 통하는 한 문장
+    statement = Column(Text, nullable=False)
+    # 같은 주제를 묶는 짧은 이름 — 해마다 다시 오는 공지(귀가·수강 정정)는 새 글의 사실이 앞섭니다
+    topic = Column(String, nullable=False, default="")
+    # 대상 학년. "1,2" 처럼 적고 비어 있으면 전학년입니다 (학사일정과 같은 꼴)
+    target_grades = Column(String, nullable=True)
+    # 대상 전공 트랙. "물리학,지구과학" 처럼 적고 비어 있으면 전공 무관입니다 (services/majors.py)
+    target_majors = Column(String, nullable=True)
+    # 이 날이 지나면 기억에서 뺍니다. 비어 있으면 계속 유효한 사실(규칙·방법)
+    valid_until = Column(Date, nullable=True, index=True)
+    confidence = Column(Float, nullable=False, default=0.0)
+    # active | hidden(사람이 숨김 — 다시 분석해도 되살리지 않습니다)
+    status = Column(String, nullable=False, default="active", index=True)
+    # 사람이 고쳤으면 True — 다시 분석해도 덮어쓰지 않습니다
+    edited = Column(Boolean, nullable=False, default=False)
+    edited_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    edited_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=clock.utcnow, nullable=False)

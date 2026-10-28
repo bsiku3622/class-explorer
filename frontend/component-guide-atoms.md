@@ -70,12 +70,16 @@
   onChange={(v) => setSearchInput(v)}
   placeholder="Search..."
   className=""
+  onEnter={() => submit()}   // 선택 — Enter 로 확정하는 검색일 때
 />
 ```
 - 아이콘 + `<input>` 을 직접 조합합니다. 예전에는 HeroUI `Input` 이었는데, 히스토리·
   지우기·포커스를 원래부터 이 파일이 직접 다루고 있어서 남길 이유가 없었습니다
 - 높이 `h-16`, 좌측 Search 아이콘, 값 있을 때 X 버튼 (절대위치 우측)
 - 스타일 고정: `border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.1)]`
+- `onEnter` — 글자마다 서버에 물을 수 없는 검색(Admin 기억 패널)은 Enter 로 확정합니다.
+  **한글 조합 중의 Enter 는 이 안에서 거릅니다**(`isComposing`) — 안 거르면 한 번 누른 Enter 가
+  두 번 들어옵니다. 주면 모바일 키보드의 Enter 자리에 "검색" 이 뜹니다(`enterKeyHint`)
 
 ## StudentCard
 ```tsx

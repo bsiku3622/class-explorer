@@ -52,7 +52,7 @@ student:김민  →  GET /students/search?q=김민   →  후보 목록 (이름�
 후보가 딱 한 명이면 2단계를 자동으로 건너뜁니다. 화면은 `components/StudentLookup.tsx`.
 
 서버에 **최소 2글자·결과 20명 상한·계정 단위 rate limit** 이 걸려 있습니다.
-자세한 값은 [`backend/bench_router.guide.md`](../backend/bench_router.guide.md).
+자세한 값은 [`backend/routers/bench.guide.md`](../backend/routers/bench.guide.md).
 
 ### 아직 없는 것
 
@@ -243,6 +243,6 @@ localStorage 에 남는 것: 세션 토큰, 선택 학기(`ksa_selected_term`), 
 | [component-guide.md](component-guide.md) | 컴포넌트 사전 |
 | [src/App.guide.md](src/App.guide.md) | App.tsx 상세 |
 | [src/lib/searchEngine.guide.md](src/lib/searchEngine.guide.md) | 검색 엔진 상세 |
-| [../backend/bench_router.guide.md](../backend/bench_router.guide.md) | bench 전용 API 상세 |
+| [../backend/routers/bench.guide.md](../backend/routers/bench.guide.md) | bench 전용 API 상세 |
 | [src/lib/curriculum.guide.md](src/lib/curriculum.guide.md) | 교육과정 진척도·그래프 상세 |
 

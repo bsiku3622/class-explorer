@@ -1,4 +1,4 @@
-# 진입점 Guide — main.py / app_factory.py
+# 진입점 Guide — main.py / core/app.py
 
 > [← Backend Guide](CLAUDE.md)
 
@@ -22,15 +22,44 @@ Trade(수강 변경 탐색)가 "이 분반 수강생 중 내 분반을 받을 �
 데이터를 돌려줄 수 있으면 의존성으로 막으세요 — "그 앱에는 안 붙였으니까" 가 더 이상
 방패가 아닙니다.
 
-`materials_router`는 로그인 사용자의 자료 목록·업로드·preview·download를,
-`admin_materials_router`는 admin 전용 검수·삭제를 등록합니다.
+`materials.router`는 로그인 사용자의 자료 목록·업로드·preview·download를,
+`materials.admin_router`는 admin 전용 검수·삭제를 등록합니다.
 
-`exams_router`는 인증한 계정 본인의 시험 목록(`GET /exams/me`)을 등록합니다.
+`exams.router`는 인증한 계정 본인의 시험 목록(`GET /exams/me`)을 등록합니다.
 
 두 프론트의 차이는 **UI 와 캐시**입니다. ksa-bench 에는 전교생을 늘어놓는 화면이 없고,
 학기 데이터를 localStorage 에 캐시하지 않습니다(명단이 브라우저에 파일로 남지 않도록).
 
-## app_factory.create_app()
+## 라우터 (`routers/`)
+
+`main.py` 가 붙이는 순서대로입니다. **순서가 곧 경로 매칭 순서**라, 바꿀 때는 겹치는 경로가
+없는지 보세요.
+
+| 라우터 | 경로 |
+| --- | --- |
+| `auth.router` | `/auth/*` — 로그인·세션·학번 확인 |
+| `admin.router` | `/admin/*` — 계정·데이터 관리 (admin) |
+| `curriculum.router` · `curriculum.explorer_router` | `/curriculum/*` — 교육과정·자몽. `explorer_router` 는 남의 누적 이수(`GET /curriculum/progress/{stu_id}`) |
+| `state.router` | `/state/*` — 계정별 화면 상태 |
+| `calendar.router` | `/calendar/*` — 학사일정·개인 일정·제안 |
+| `friends.router` | `/friends/*` · `GET /periods` |
+| `home.router` | `GET /home` · `GET /meal` |
+| `exams.router` | `GET /exams/me` |
+| `classes.terms_router` · `classes.router` | `GET /terms` · `GET /` |
+| `bench.router` | `/students/*` · `/me/progress` · `/stats/enrollment` — [routers/bench.guide.md](routers/bench.guide.md) |
+| `materials.router` · `materials.admin_router` | `/materials/*` · `/admin/materials/*` |
+| `agent.router` | `/agent/*` — Ask (질문창) |
+| `facts.router` | `/facts/*` — Ask 의 기억 고치기·숨기기 (manager 이상) |
+
+**라우터는 서로 import 하지 않습니다.** 두 화면이 같은 계산을 쓰면 `services/` 로 내립니다 — 한때
+홈이 학사일정 라우터를, ksa-bench 가 교육과정·수업 라우터를, Agent 가 홈·시험 라우터를 가져다 써서
+한쪽을 고치면 엉뚱한 화면이 깨졌습니다.
+
+**`await` 할 게 없는 핸들러는 `def` 로 둡니다** (`GET /`·`/terms`·`/home`, 친구, bench). FastAPI 는
+`def` 를 스레드 풀에서 돌리지만 `async def` 는 이벤트 루프 위에서 돌려서, 그 안의 동기 DB 조회가
+끝날 때까지 다른 요청이 전부 — 흐르고 있는 Ask 의 SSE 까지 — 멈춥니다.
+
+## core/app.py — create_app()
 
 `init_schema()` → CORS → 보안 헤더까지 얹은 **빈 앱**을 돌려줍니다. 라우터는 부르는
 쪽이 붙입니다. 허용 origin 은 로컬(`LOCAL_ORIGINS`) + 앱별 배포 도메인입니다.
@@ -38,7 +67,7 @@ Trade(수강 변경 탐색)가 "이 분반 수강생 중 내 분반을 받을 �
 `SecurityHeadersMiddleware` 도 여기 있습니다 — `/docs`·`/redoc` 만 CSP 를 풀고
 나머지는 `default-src 'none'` 입니다.
 
-## classes_router.py
+## routers/classes.py
 
 ### `GET /terms` (`get_terms`)
 데이터가 존재하는 학기 목록을 최신순으로 반환합니다 (`terms.list_terms`).
@@ -61,9 +90,10 @@ Trade(수강 변경 탐색)가 "이 분반 수강생 중 내 분반을 받을 �
 이걸 localStorage 에 캐시하지 않습니다 — 캐시하면 전교생 명단이 브라우저에 파일로
 남습니다. class-explorer 는 아는 사람끼리 쓰는 앱이라 그대로 캐시합니다.
 
-### `get_section_num(section_str) -> int`
-분반 문자열에서 정렬용 숫자 추출. `"제1분반"` → `1`, `"제10분반"` → `10`
+### `section_num(section) -> int` (`services/timetable.py`)
+분반 문자열에서 정렬용 숫자 추출. `"제1분반"` → `1`, `"제10분반"` → `10`, 숫자가 없으면 `0`
 
 ## get_db()
 
-`auth.py` 에 있습니다. SQLAlchemy 세션 의존성 — 요청 처리 후 자동으로 닫습니다.
+`core/db.py` 에 있습니다. 요청 하나에 본 DB 세션 하나 — 요청 처리 후 자동으로 닫습니다.
+CLI·SSE 안에서는 `db_session()` 을 씁니다 ([core/db.guide.md](core/db.guide.md)).

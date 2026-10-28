@@ -18,13 +18,16 @@ import {
     addDays,
     fromKey,
     gradeLabel,
+    gradeOf,
     groupByDate,
+    isForMe,
     monthGrid,
     timeLabel,
     toKey,
     weekMarkers,
     weekOf,
 } from "../lib/calendar";
+import { majorLabel } from "../lib/majors";
 import PageHeader from "../components/molecules/PageHeader";
 import RetroButton from "../components/atoms/RetroButton";
 import RetroSubTitle from "../components/atoms/RetroSubTitle";
@@ -37,18 +40,11 @@ import EventFormModal, {
 
 interface CalendarPageProps {
     role: Role;
-    /** 로그인한 계정의 학번. 학년 필터의 기본값을 여기서 얻습니다 */
+    /** 로그인한 계정의 학번. "내 학년·전공 것만" 의 학년을 여기서 얻습니다 */
     stuId: string | null;
+    /** 계정에 적힌 전공 트랙. 아직 안 골랐거나 미정이면 `null` — 그때는 전공으로 거르지 않습니다 */
+    major: string | null;
 }
-
-/** `25-059` → 2026학년도 기준 학년. 학번 앞 두 자리가 입학 연도입니다 */
-const gradeOf = (stuId: string | null, year: number): number | null => {
-    if (!stuId) return null;
-    const admitted = Number(stuId.slice(0, 2));
-    if (!Number.isFinite(admitted)) return null;
-    const grade = year - (2000 + admitted) + 1;
-    return grade >= 1 && grade <= 3 ? grade : null;
-};
 
 /**
  * 학사일정 달력.
@@ -56,14 +52,14 @@ const gradeOf = (stuId: string | null, year: number): number | null => {
  * 학교 공용 일정과 내 개인 일정을 한 화면에 겹쳐 봅니다. 개인 일정은 나만 보이고,
  * 공용 일정을 넣고 싶으면 매니저에게 제안합니다.
  */
-const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId }) => {
+const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId, major }) => {
     const today = new Date();
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth() + 1);
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [requests, setRequests] = useState<EventRequest[]>([]);
     const [selected, setSelected] = useState<string | null>(null);
-    const [onlyMyGrade, setOnlyMyGrade] = useState(false);
+    const [onlyMine, setOnlyMine] = useState(false);
     const [form, setForm] = useState<FormPurpose | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
@@ -71,7 +67,9 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId }) => {
     const [error, setError] = useState("");
 
     const isManager = hasRole(role, "manager");
-    const myGrade = gradeOf(stuId, year);
+    // 보고 있는 달의 학년 — 2월과 3월 사이에서 학년이 바뀝니다
+    const myGrade = gradeOf(stuId, new Date(year, month - 1, 1));
+    const mineLabel = [myGrade && `${myGrade}학년`, major].filter(Boolean).join("·");
 
     // 격자가 앞뒤 달을 물고 있으므로 그 범위까지 받아 옵니다
     const range = useMemo(() => {
@@ -111,12 +109,10 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId }) => {
 
     const visible = useMemo(
         () =>
-            onlyMyGrade && myGrade
-                ? events.filter(
-                      (e) => e.target_grades.length === 0 || e.target_grades.includes(myGrade),
-                  )
+            onlyMine && mineLabel
+                ? events.filter((e) => isForMe(e, myGrade, major))
                 : events,
-        [events, onlyMyGrade, myGrade],
+        [events, onlyMine, mineLabel, myGrade, major],
     );
 
     const byDate = useMemo(() => groupByDate(visible), [visible]);
@@ -240,16 +236,16 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId }) => {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        {myGrade && (
+                        {mineLabel && (
                             <button
-                                onClick={() => setOnlyMyGrade((v) => !v)}
+                                onClick={() => setOnlyMine((v) => !v)}
                                 className={`border-2 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest transition-all duration-100 ${
-                                    onlyMyGrade
+                                    onlyMine
                                         ? "border-black bg-black text-white"
                                         : "border-black/30 bg-white text-black/40 hover:border-black hover:text-black"
                                 }`}
                             >
-                                {myGrade}학년 것만
+                                {mineLabel} 것만
                             </button>
                         )}
                         {isManager ? (
@@ -339,6 +335,8 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId }) => {
                                                             ` · ${timeLabel(event)}`}
                                                         {gradeLabel(event.target_grades) &&
                                                             ` · ${gradeLabel(event.target_grades)}`}
+                                                        {majorLabel(event.target_majors) &&
+                                                            ` · ${majorLabel(event.target_majors)}`}
                                                         {event.start_date !== event.end_date &&
                                                             ` · ${event.start_date} → ${event.end_date}`}
                                                     </p>

@@ -5,41 +5,77 @@
 ## 파일 구조
 ```
 backend/
-├── app_factory.py   → 두 앱이 공유하는 뼈대 (init_schema + CORS + 보안 헤더)
-├── bench_router.py  → ksa-bench 전용 API (사람 1명 조회, 집계)
-├── friends_router.py→ 친구(단방향) + 교시 시각표 — **두 앱 공통**
-├── home_router.py   → 홈 대시보드 (`GET /home` 한 번에) + 급식(ksain API)
-├── periods.py       → 교시별 시각표 **원본** (프론트는 GET /periods 로 받아 씁니다)
-├── features.py      → 한시적 기능의 **기간** (`settings` 표) — 시각 판정은 서버가 합니다
-├── main.py          → 진입점 (하나) — 두 프론트가 같이 씁니다
-├── classes_router.py→ GET / (학기 전체 + 분반 명단) + GET /terms
-├── models.py        → SQLAlchemy ORM 모델 (16개 테이블)
-├── migrations.py    → 앱 시작 시 실행되는 SQLite 스키마 마이그레이션 (멱등)
-├── terms.py         → 학년도/학기 해석 유틸 (current_term, list_terms, resolve_term)
-├── database.py      → DB 연결 설정 (SQLite)
-├── auth.py          → 패스워드 해싱, 세션 토큰 생성, get_current_user 의존성
-├── auth_router.py   → 인증 엔드포인트 (/auth/*)
-├── admin_router.py  → 관리자 전용 엔드포인트 (/admin/*)
-├── curriculum_router.py → 교육과정 엔드포인트 (/curriculum/*)
-├── state_router.py  → 계정별 화면 상태 (/state/*)
-├── create_user.py   → 관리자 계정 생성 CLI 스크립트
-├── subject_names.py → 과목명 분해·정규화 (한글명/영문명/EC 태그)
-├── workbook.py      → xlsx 리더 (zipfile+ElementTree, 의존성 없음) — 아래 둘이 공유
-├── zamong_import.py → 사람이 채운 Zamong 워크북 → 자몽 기록
-├── build_curriculum_seed.py → Zamong 워크북 → curriculum_seed.json (로컬 전용)
-├── import_curriculum.py → curriculum_seed.json → Department/Course/CoursePrereq 적재
-│                          + Subject.course_id 재연결
+├── main.py              → 진입점 (하나) — 라우터를 붙입니다. 두 프론트가 같이 씁니다
+├── models.py            → 본 DB 의 SQLAlchemy ORM 모델 (Base 는 core/db.py)
+├── core/                → 뼈대 — 기능과 상관없이 모두가 기대는 것
+│   ├── config.py        → 경로·환경변수를 읽는 자리 + DB 를 둘로 나눈 이유
+│   ├── db.py            → 본 DB·ksain.db 연결, get_db, db_session(), init_schema() (db.guide.md)
+│   ├── migrations.py    → 멱등 스키마 마이그레이션 (본 DB · ksain.db)
+│   ├── clock.py         → 학교 시각(KST) now()·today() + 저장용 utcnow()
+│   ├── auth.py          → 패스워드 해싱, 세션 토큰, get_current_user/manager/admin 의존성
+│   ├── ratelimit.py     → SlidingWindow — 로그인과 ksa-bench 사람 조회가 같이 씁니다
+│   ├── app.py           → 앱 뼈대 (init_schema + CORS + 보안 헤더)
+│   └── workbook.py      → xlsx 리더 (zipfile+ElementTree, 의존성 없음) — 교육과정 seed·자몽이 공유
+├── services/            → 도메인 계산 — 라우터·Agent·CLI 가 같이 씁니다. HTTP 를 모릅니다
+│   ├── periods.py       → 교시별 시각표 **원본** (프론트는 GET /periods 로 받아 씁니다)
+│   ├── schoolday.py     → 그날 판정 — 방학·주말·휴업일·대체 시간표 (홈과 Agent 가 같이)
+│   ├── timetable.py     → 과목 표기(EC)·분반 번호·학생/학기 단위 수업 행
+│   ├── calendar.py      → 학사일정 직렬화 + 공개 범위 visible_to() — 공개 규칙은 여기 하나
+│   ├── meals.py         → 급식 (ksain.net API → meal_menus)
+│   ├── exams.py         → 시험 회차·본인 시험 시간표 (exams_for)
+│   ├── curriculum.py    → 졸업 요건 상수·누적 이수 이력 (fetch_progress)
+│   ├── majors.py        → 전공(심화필수 전공 트랙)·학부 묶음·대상 이름 풀기·수강 이력으로 짐작하기
+│   ├── materials.py     → 자료 원본의 자리
+│   ├── syllabi.py       → 강의계획서 파일의 자리·목록 — git 밖(`data/syllabi`), 교사 연락처가 들어 있습니다. Ask 가 읽는 본문도
+│   ├── terms.py         → 학년도/학기 해석 (current_term, list_terms, resolve_term)
+│   ├── versioning.py    → 수집 회차 — at_version() (versioning.guide.md)
+│   ├── features.py      → 한시적 기능의 **기간** (`settings` 표) — 시각 판정은 서버가 합니다
+│   ├── subject_names.py → 과목명 분해·정규화 (한글명/영문명/EC 태그) + 줄임말로 찾기(미1 → 미적분학1)
+│   ├── zamong_import.py → 사람이 채운 Zamong 워크북 → 자몽 기록
+│   └── backup.py        → 본 DB 스냅샷 (수집 직전 자동 · 1년 뒤 삭제 · 세션·게시글 파생물 제외) → backups/
+├── routers/             → HTTP 엔드포인트 — **서로 import 하지 않습니다** (같이 쓸 계산은 services/ 로)
+│   ├── auth.py          → /auth/* — 로그인·세션·학번 확인
+│   ├── admin.py         → /admin/* — 계정·데이터 관리 (admin)
+│   ├── classes.py       → GET / (학기 전체 + 분반 명단) + GET /terms
+│   ├── home.py          → 홈 대시보드 (GET /home 한 번에) + GET /meal
+│   ├── calendar.py      → /calendar/* — 학사일정·개인 일정·제안
+│   ├── friends.py       → 친구(단방향) + GET /periods — **두 앱 공통**
+│   ├── curriculum.py    → /curriculum/* — 교육과정·자몽
+│   ├── state.py         → /state/* — 계정별 화면 상태
+│   ├── exams.py         → GET /exams/me
+│   ├── bench.py         → ksa-bench 가 주로 쓰는 것 — 사람 1명 조회·집계 (bench.guide.md)
+│   ├── materials.py     → /materials/* · /admin/materials/* — 자료실
+│   ├── agent.py         → /agent/* — Ask 질문창, SSE 응답
+│   ├── facts.py         → /facts/* — Ask 의 기억 고치기·숨기기 (manager 이상)
+│   ├── majors.py        → /majors/* — 내 전공 고르기 + 조사 현황(인원 수만, admin)
+│   └── syllabi.py       → /syllabi/* — 강의계획서 목록·파일 (로그인 필요, 예전엔 프론트 번들에 공개)
+├── agent/               → Ask — 도구를 부르는 LLM Agent (agent.guide.md)
+│   ├── llm.py           → LLM 호출 한 곳 — 모델 목록(데스크탑 게이트웨이·OpenAI) + Chat Completions
+│   ├── chat.py          → 질문 하나 → 답 — 시스템 프롬프트·기억 싣기·도구 호출 루프·SSE
+│   └── tools.py         → 모델이 부를 수 있는 읽기 전용 도구
+├── knowledge/           → Ask 가 찾아 읽는 것 — ksain 글 검색 색인과 기억
+│   ├── text.py          → 정규화·한글 바이그램 토큰·검색어 뽑기·비슷한 문장 판정
+│   ├── index.py         → ksain 글·첨부 FTS5 색인 (ksain.db, 수집 타이머가 갱신)
+│   ├── search.py        → 글 검색(BM25 + IDF 재정렬 + 근거 발췌) · 글 읽기 · 기간 요약
+│   └── facts.py         → 기억 — 분석이 뽑은 사실을 적고 질문에 맞는 것을 고릅니다 (본 DB)
+├── ksain/               → ksain 게시글 수집·분석·학사일정 자동 반영 (ksain.guide.md)
+├── cli/                 → 손으로(또는 타이머가) 돌리는 명령 — python -m backend.cli.<이름>
+│   ├── parser_run.py    → 학기별 KEIS 시간표 수집 (parser_run.guide.md)
+│   ├── parser.py        → KEIS API 응답 파싱 (parser.guide.md)
+│   ├── import_calendar.py   → calendar_seed.json → 학사일정 (source='pdf' 만 교체)
+│   ├── parse_calendar_pdf.py → 연간 학사일정 PDF → calendar_seed.json (로컬)
+│   ├── import_curriculum.py → curriculum_seed.json → Department/Course/CoursePrereq 적재
+│   │                          + Subject.course_id 재연결
+│   ├── build_curriculum_seed.py → Zamong 워크북 → curriculum_seed.json (로컬 전용)
+│   ├── import_exams.py  → 시험 seed + 응시 명단 → 시험 시간표
+│   ├── create_user.py   → 계정 생성
+│   ├── snapshot.py      → 본 DB 를 손으로 떠 두기 (배포 직전) — `cp` 대신 이걸 씁니다
+│   └── material_backup.py → 자료 원본 + 본 DB 압축 백업 (systemd 타이머)
 ├── curriculum_seed.json → 교육과정 카탈로그 145과목 + 선수관계 117개
-├── parser.py        → KEIS API 응답 파싱 로직
-├── backup.py        → DB 스냅샷 (수집 직전 자동 · 자동 삭제 없음) → backups/
-├── parser_run.py    → 학기별 데이터 동기화 실행 스크립트
-├── students.txt     → 학생 목록 (학번 + 이름)
-├── llm.py           → LLM 호출 한 곳 — 모델 목록(데스크탑 게이트웨이·OpenAI) + Chat Completions
-├── agent_router.py  → Ask 질문창 (/agent/*) — 도구를 부르는 Agent, SSE 응답
-├── agent_tools.py   → Agent 의 읽기 전용 도구 (시간표·강의실·학사일정·시험·급식·ksain)
-├── ksain/           → ksain 게시글 수집·분석·학사일정 자동 반영 (ksain.guide.md)
-├── ksa_timetable.db → SQLite 데이터베이스
-└── ksain.db         → ksain 수집 사본 (언제든 다시 받을 수 있어서 따로 둡니다)
+├── calendar_seed.json · exam_seed*.json → 학사일정·시험 seed (경로는 core/config.py)
+├── students.txt         → 학생 목록 (학번 + 이름, git 에 없습니다)
+├── ksa_timetable.db     → 본 DB (SQLite)
+└── ksain.db             → ksain 수집 사본 (언제든 다시 받을 수 있어서 따로 둡니다)
 ```
 
 ## 서버는 하나, 프론트가 둘
@@ -67,10 +103,10 @@ Trade 가 명단 없이는 성립하지 않아 되돌렸고, 그러자 두 앱�
 수업 데이터는 **학기 단위**로 공존합니다 (`Class.year` / `Class.semester`).
 
 - 조회 기준 학기는 `terms.resolve_term(db, year, semester)`로 결정 — 둘 다 주어졌을 때만 그대로, 아니면 최신 학기
-- 수집은 `parser_run.py`가 학기 단위로 원자적 교체 — 다른 학기 데이터는 건드리지 않음
+- 수집은 `cli/parser_run.py`가 학기 단위로 원자적 교체 — 다른 학기 데이터는 건드리지 않음
 - `Student`는 학기 공통 마스터. 학기별 재적 여부는 `Enrollment → Class` 조인으로 판단
 - `Department`/`Course`/`Subject`는 학기 무관 전역 — 학기를 타는 건 `Class`뿐입니다
-- 스키마 변경은 `migrations.py`에서 처리 — `main.py` import 시 자동 실행
+- 스키마 변경은 `core/migrations.py`에서 처리 — `main.py` import 시 자동 실행
 
 ## 과목 4층 구조
 
@@ -98,6 +134,22 @@ Class       실제 분반        3분반 · 김효진 · 2026-2         (학기�
 `물리학및실험Ⅰ`처럼 로마숫자를 쓴 과목도 외국인 전형 과목이라 `물리학및실험1`과
 합치면 안 됩니다 — 수강생이 100% 외국인 학번입니다.
 
+## DB 는 두 파일입니다
+
+| 파일 | 담는 것 | 서버에서 쓰는 쪽 |
+| --- | --- | --- |
+| `ksa_timetable.db` (본 DB) | 계정·시간표·학사일정·자료실·기억(`facts`) — 사람이 보고 고치는 것 | API(`ksaclass`) + 수집 타이머·CLI(`baeks`) |
+| `ksain.db` | ksain 글·첨부·분석·검색 색인 — 언제든 다시 받고 다시 만들 수 있는 것 | 수집 타이머·CLI(`baeks`)만. API 는 읽기만 |
+
+**나눈 기준은 "사람이 고치는 것인가, 다시 만들 수 있는 것인가" 입니다.** 그래서 ksain 글에서
+나왔어도 사람이 손대는 결과물(학사일정의 자동 일정, 기억)은 본 DB 에 둡니다 — 서버에서 API 가
+쓸 수 있는 DB 도 본 DB 뿐입니다.
+
+합치지 않는 이유는 둘입니다. 본 DB 스냅샷은 1년을 두어서(한동안은 아예 안 지웠습니다), 합치면 ksain 에서
+지워진 글이 백업 속에 그만큼 남습니다. 그리고 서버에서 API 와 수집 타이머가 다른 계정으로 돌아, 한 파일을
+같이 쓰려면 데이터 폴더 권한부터 다시 짜야 합니다. 연결·저널·스키마 초기화의 함정은
+[core/db.guide.md](core/db.guide.md) 에 있습니다.
+
 ## DB 스키마 (models.py)
 
 ```
@@ -118,7 +170,8 @@ UniqueConstraint     role (user|manager|admin)   device_type (web|mobile)
 (stuId, classId)     email (unique, NULL 허용)     ip_address
                      stu_id (FK→Student,         created_at
                             unique, NULL 허용)     last_used_at
-                                                 expires_at
+                     major (전공 트랙 이름)        expires_at
+                     major_answered_at
 
 Department                     Subject
 ─────────────────────────────  ─────────────────────────────
@@ -148,9 +201,10 @@ title                          user_id (FK→User, 제안한 사람)
 start_date / end_date          title
 time_mode (allday|clock|       start_date / end_date
            period)             time_mode / 시간 칸들
-start_minute / end_minute      category / target_grades / note
-start_period / end_period      status (pending|approved|rejected)
-category / target_grades       reason (거절 사유)
+start_minute / end_minute      category / target_grades /
+start_period / end_period        target_majors / note
+category / target_grades /     status (pending|approved|rejected)
+  target_majors                reason (거절 사유)
 source (pdf|manual)            decided_by_id / decided_at
 owner_id (FK→User, NULL=공용)   event_id (FK→CalendarEvent)
 series_id (반복 묶음)
@@ -161,7 +215,7 @@ Setting
 key (PK)   "trade"
 value (JSON)  {enabled, year, semester, until}
 updated_at
-⚠️ 비어 있으면 `features.py` 의 기본값
+⚠️ 비어 있으면 `services/features.py` 의 기본값
 
 UserState                      CourseGrade
 ─────────────────────────────  ─────────────────────────────
@@ -172,6 +226,21 @@ data (JSON, 서버는 해석 안 함)   grade ("A+"... | None)
 updated_at                     term ("1"~"8" | "S" | None)
 UniqueConstraint (user_id,key) is_ec (영어강의로 들었는지)
                                UniqueConstraint (user_id, course_id)
+
+Fact (Ask 의 기억)
+─────────────────────────────
+id (PK)
+post_id (ksain 글 번호 — FK 없음, 다른 DB)
+post_title / board / posted_on / seq
+statement (날짜 없음) / topic
+target_grades ("1,2", 비면 전학년)
+target_majors ("화학,생물학", 비면 전공 무관)
+valid_until (지나면 기억에서 뺌)
+confidence
+status (active|hidden)
+edited / edited_by_id (FK→User) / edited_at
+created_at
+⚠️ 검색 색인 `facts_fts` 와 같이 고칩니다 — `knowledge/facts.py` 를 거치세요
 ```
 
 ### 계정과 학번
@@ -199,7 +268,7 @@ A가 B를 추가해도 B의 목록에는 A가 없습니다.
 `/friends/busy`·`/friends/now` 는 **슬롯(`"MON-3"`)만** 돌려줍니다 — 과목·교실은
 보내지 않습니다. 공강을 맞추는 데 필요 없고, 주면 "누가 뭘 듣는지" 훑는 화면이 됩니다.
 
-### 홈 (`home_router.py`)
+### 홈 (`routers/home.py`)
 
 `GET /home` 하나가 홈 화면에 필요한 걸 다 돌려줍니다 — 지금 교시·오늘 내 시간표·지금
 있어야 할 교실·다음 수업·학기/방학. 켜자마자 보이는 자리라 왕복이 늘면 바로 티가 나서
@@ -219,19 +288,23 @@ A가 B를 추가해도 B의 목록에는 A가 없습니다.
 요일만 들고 있어서 **날짜를 모릅니다** — 그냥 조회하면 방학 중 월요일에도 월요일
 시간표가 그대로 나옵니다. 그래서 학사일정으로 한 번 거릅니다(`off_reason`: `vacation`·
 `weekend`·`holiday`). 휴업일은 `category='holiday'` 중 **공용 일정만** 봅니다
-(`owner_id IS NULL`) — 개인 일정이 남의 수업을 없애면 안 됩니다.
+(`owner_id IS NULL`) — 개인 일정이 남의 수업을 없애면 안 됩니다. 이 판정은
+`services/schoolday.py` 의 `day_status()` 한 곳에서 하고, Agent 의 날짜를 받는 도구도 같은 함수를
+씁니다 — 홈과 Ask 가 같은 날을 다르게 말하면 안 됩니다.
 
 **`week` 는 걸러지지 않습니다.** 오늘이 아니라 **이 학기**를 말하는 값이라, 방학에
 비우면 자기 시간표를 볼 길이 없어집니다.
 
 **오늘 학사일정(`events`)도 같이 보냅니다** — 공용 전부 + 내 개인 일정
-(`calendar_router.event_out` 재사용). 홈이 `/calendar` 를 또 부르지 않게 묶었습니다.
+(`services/calendar.py` 의 `visible_to`·`event_out` — `/calendar` 와 같은 함수). 홈이
+`/calendar` 를 또 부르지 않게 묶었습니다.
 
 **교시 시각표(`periods`)와 시간대(`breaks`)도 같이 보냅니다.** 홈이 하루를 시간 축으로
 그려서 교시마다 시작·끝 분이 필요하고, 교시 사이의 큰 구멍에 "점심"·"저녁" 이름을
-답니다. 화면이 상수를 따로 들면 `periods.py` 만 고쳤을 때 조용히 어긋납니다.
+답니다. 화면이 상수를 따로 들면 `services/periods.py` 만 고쳤을 때 조용히 어긋납니다.
 
-**급식**은 `https://api.ksain.net/v1/meal.php` 에서 받아 `meal_menus` 에 쌓습니다.
+**급식**은 `services/meals.py` 가 `https://api.ksain.net/v1/meal.php` 에서 받아 `meal_menus` 에
+쌓습니다 — 홈과 Agent 의 `meal` 도구가 같이 씁니다.
 환경변수 `KSAIN_API_KEY` 가 필요하고, **없으면 급식 칸만 비고 나머지는 그대로 돕니다** —
 홈 전체가 죽으면 안 됩니다.
 
@@ -250,7 +323,7 @@ A가 B를 추가해도 B의 목록에는 A가 없습니다.
 두드리게 되고, 그 밖은 볼 이유도 없습니다. 타임아웃이 15초인 것도 같은 이유입니다:
 짧게 잡으면 그날 첫 조회가 통째로 실패해 아무도 급식을 못 봅니다.
 
-### 교시 시각표 (`periods.py`)
+### 교시 시각표 (`services/periods.py`)
 
 출처는 생활관에 붙은 **「생활관 일과 운영」** 표입니다. 50분 수업 + 10분 쉬는시간으로
 1~4교시(08:40~12:30) → 점심(~13:10)·학급모임(13:20~13:30) → 5~9교시(13:40~18:30) →
@@ -266,11 +339,13 @@ A가 B를 추가해도 B의 목록에는 A가 없습니다.
 **여기가 유일한 원본입니다.** 화면도 `GET /periods` 로 받아 쓰므로 상수를 두 벌 두지
 않습니다.
 
-⚠️ **"지금" 은 `periods.now()` / `periods.today()` 로 가져오세요.** 배포 서버가 UTC 로
-돌고 있어서 `datetime.now()` 를 그대로 쓰면 교시가 9시간 어긋나고 날짜가 하루 밀립니다.
-시스템 타임존을 고치지 않고 코드에서 KST 를 박은 이유는, 서버를 옮겨도 학교 시각은
-KST 여야 하고 다른 서비스의 타임존까지 건드릴 이유가 없어서입니다. (세션 만료처럼 UTC
-로 저장하고 UTC 로 비교하는 값은 그대로 `utcnow()` 를 씁니다 — 섞지 마세요.)
+⚠️ **"지금" 은 `core/clock.py` 의 `clock.now()` / `clock.today()` 로 가져오세요** (예전엔
+`periods.now()` 였습니다). 배포 서버가 UTC 로 돌고 있어서 `datetime.now()` 를 그대로 쓰면
+교시가 9시간 어긋나고 날짜가 하루 밀립니다. 시스템 타임존을 고치지 않고 코드에서 KST 를 박은
+이유는, 서버를 옮겨도 학교 시각은 KST 여야 하고 다른 서비스의 타임존까지 건드릴 이유가
+없어서입니다. (저장하고 비교만 하는 값은 따로 있습니다 — 세션 만료처럼 UTC 로 넣은 값은
+`clock.utcnow()`(폐기된 `datetime.utcnow()` 대신), ksain 글 시각처럼 KST 로 넣은 값은
+`clock.now_naive()` 와 비교합니다. 섞지 마세요.)
 
 `BREAKS` 중 **저녁(17:30~19:00)과 자습(19:30~21:30)은 교시와 겹칩니다** — 저녁은 9교시와,
 자습은 10·11교시를 감쌉니다. 그래서 `current_period()` 와 `current_break()` 를 배타적으로
@@ -283,8 +358,13 @@ KST 여야 하고 다른 서비스의 타임존까지 건드릴 이유가 없어
 따로 두지 않은 이유는 지금 경우의 수가 이 둘뿐이어서입니다 — 공유가 생기면 그때
 붙입니다.
 
-조회는 `GET /calendar` 한 곳뿐이고, 거기서 `owner_id IS NULL OR owner_id = 나` 를
-겁니다. 남의 개인 일정을 고치려 하면 **404**를 돌려줍니다 — 403 이면 그런 일정이
+대상은 학년(`target_grades`)과 전공 트랙(`target_majors`)으로 적고, 비어 있으면 전체입니다. 공개 범위가
+아니라 **표시**입니다 — 남의 학년·전공 일정도 다 내려가고, 화면의 "내 학년·전공" 거르기와 Ask 의
+`mine` 이 이 두 칸을 봅니다. 전공은 `services/majors.py`, 계정의 전공은 `User.major` 입니다.
+
+공개 범위는 `services/calendar.py` 의 `visible_to(user)` 하나로 겁니다 — `owner_id IS NULL OR
+owner_id = 나`. `/calendar`·홈·Agent 가 같이 쓰니 조건을 손으로 다시 적지 마세요(한때 세 벌이
+따로 있었습니다). 남의 개인 일정을 고치려 하면 **404**를 돌려줍니다 — 403 이면 그런 일정이
 있다는 사실이 새어 나갑니다.
 
 `source='pdf'` 는 학사일정 문서에서 온 것이라 `import_calendar` 가 통째로 갈아끼웁니다.
@@ -321,7 +401,7 @@ KST 여야 하고 다른 서비스의 타임존까지 건드릴 이유가 없어
   **`term`이 이 표의 중심입니다** — 워크북과 같이 학기가 있어야 학점이 인정됩니다.
   재수강은 별도 장치 없이 학기를 다시 고르면 끝이라 행을 여럿 두지 않습니다
 
-### 자몽 워크북 업로드 (`zamong_import.py`)
+### 자몽 워크북 업로드 (`services/zamong_import.py`)
 
 `POST /curriculum/import-workbook` 이 사람이 채운 xlsx 를 읽어 **본인 기록을 통째로
 갈아끼웁니다.** 합치지 않는 이유는 워크북이 그 사람의 자몽 전체라, 일부만 덮으면 앱에서
@@ -336,14 +416,18 @@ EC 로 골라 둔 카드(`미분방정식(EC)`)도 흔합니다 — 학기 없�
 생각" 이지 이수가 아닙니다.
 
 브라우저가 아니라 서버가 읽는 이유는 파서를 하나 더 들이지 않으려고입니다 (SheetJS 는
-1MB 가까이 됩니다). `workbook.py` 는 표준 라이브러리만 씁니다.
+1MB 가까이 됩니다). `core/workbook.py` 는 표준 라이브러리만 씁니다.
 
 ### 스키마 초기화
 
-앱과 CLI 스크립트 모두 `database.init_schema()`를 씁니다. `create_all`은 없는
+앱과 CLI 스크립트 모두 `core/db.py` 의 `init_schema()`를 씁니다. `create_all`은 없는
 **테이블**만 만들고 이미 있는 테이블에 **컬럼**을 붙이지 않아서, 마이그레이션과 항상
 같이 돌려야 합니다. 서버에서 계정 생성이나 데이터 수집을 먼저 실행하는 일이 흔한데
 그때 스키마가 뒤처져 있으면 엉뚱한 곳에서 터집니다.
+
+ksain.db 는 `init_ksain_schema()` 이고 ksain 작업(수집·분석·색인)만 부릅니다. ⚠️ API 는 부르지
+않아서, ksain 쪽에 새로 붙인 컬럼·표는 수집 타이머가 한 번 돌기 전까지 API 에 없을 수 있습니다
+([core/db.guide.md](core/db.guide.md)).
 
 ### 수업과 교육과정의 연결
 
@@ -355,7 +439,7 @@ Class.subject_id ─→ Subject.course_id ─→ Course.department_id ─→ Dep
                                      └─→ CoursePrereq
 ```
 
-## 데이터 수집 흐름 (parser_run.py)
+## 데이터 수집 흐름 (cli/parser_run.py)
 ```
 students.txt (학번 목록)
       ↓
@@ -370,16 +454,21 @@ parse_schedule() → [{subject, section, teacher, room, times}]
 ```
 수집 도중 실패해도 DB는 변경되지 않습니다. 요청 실패가 과반을 넘으면 중단합니다.
 
-**반영 직전에 DB 스냅샷을 뜹니다** (`backup.py` → `backend/backups/`). 학기 하나를
+**반영 직전에 DB 스냅샷을 뜹니다** (`services/backup.py` → `backend/backups/`). 학기 하나를
 통째로 갈아 끼우는 작업이라, API 가 이상한 값을 줬거나 학기를 잘못 지정한 걸 나중에
 알아채면 되돌릴 곳이 그 파일뿐입니다. **백업을 못 만들면 수집을 접습니다** — 되돌릴
-곳 없이 덮어쓰는 쪽이 더 위험합니다(`--no-backup` 으로 생략 가능). 자동 삭제는 없고
-용량은 `/admin/backups` 의 총합으로 봅니다.
+곳 없이 덮어쓰는 쪽이 더 위험합니다(`--no-backup` 으로 생략 가능). **1년이 지난 스냅샷은 지웁니다**
+(`KEEP_DAYS`) — 매일 도는 자료 백업 타이머가 지우고, 용량은 `/admin/backups` 의 총합으로 봅니다.
+
+⚠️ **스냅샷에는 로그인 세션과 ksain 글로 만든 기억·일정이 없습니다**(`scrub_backup`) — 세션은 토큰을 평문으로
+들고 있고, 기억·일정은 원문이 지워지면 같이 지운다고 약속한 것들입니다. 되돌린 뒤에는 `python -m
+backend.ksain.analyze --reapply` 로 기억·일정을 다시 만들고(모두 다시 로그인합니다), 손으로 뜰 때도 `cp` 말고
+`python -m backend.cli.snapshot` 을 씁니다 — [core/db.guide.md](core/db.guide.md).
 
 ⚠️ **`Class.id` 는 재수집해도 보존됩니다.** Trade 계획(`UserState.trade`)이 분반을 id 로
 가리켜서, 지웠다 다시 넣으면 남의 계획이 엉뚱한 분반에 붙습니다. 폐강·신설만 행이
 바뀌고, 교사 이름이 바뀐 분반은 키가 달라져 새 id 를 받습니다 — 자세한 건
-[parser_run.guide.md](parser_run.guide.md).
+[cli/parser_run.guide.md](cli/parser_run.guide.md).
 
 ## 실행 방법
 
@@ -390,27 +479,27 @@ uvicorn backend.main:app --reload
 
 ### 데이터 동기화
 ```bash
-python -m backend.parser_run                       # 오늘 날짜 기준 학기
-python -m backend.parser_run --year 2026 --semester 2
+python -m backend.cli.parser_run                       # 오늘 날짜 기준 학기
+python -m backend.cli.parser_run --year 2026 --semester 2
 ```
 
 ### 교육과정 적재
 ```bash
-python -m backend.import_curriculum --dry-run   # 결과만 확인
-python -m backend.import_curriculum             # 저장
+python -m backend.cli.import_curriculum --dry-run   # 결과만 확인
+python -m backend.cli.import_curriculum             # 저장
 ```
 `curriculum_seed.json`만 있으면 되므로 서버에서 그대로 돌아갑니다.
 
 seed를 다시 만들려면 (로컬에서만 — Zamong 워크북과 SweetZamong DB가 필요):
 ```bash
-python -m backend.build_curriculum_seed
+python -m backend.cli.build_curriculum_seed
 ```
 선수관계는 워크북 학과 시트에 **셀 배경색으로 그린 그림**이라 따로 읽습니다. 자세한
-원리는 `build_curriculum_seed.py` 상단 주석에 적어 뒀습니다.
+원리는 `cli/build_curriculum_seed.py` 상단 주석에 적어 뒀습니다.
 
 ### 계정 생성 (관리자 CLI)
 ```bash
-python -m backend.create_user <username> <password>
+python -m backend.cli.create_user <username> <password> [--manager | --admin]
 ```
 
 ## Admin 엔드포인트 (`/admin/*`)
@@ -421,7 +510,7 @@ python -m backend.create_user <username> <password>
 | `GET` | `/admin/users` | 전체 유저 목록 |
 | `POST` | `/admin/users` | 유저 생성 |
 | `PATCH` | `/admin/users/{id}/role` | 권한 변경 (`user`\|`manager`\|`admin`) |
-| `DELETE` | `/admin/users/{id}` | 유저 삭제 |
+| `DELETE` | `/admin/users/{id}` | 유저 삭제 — 그 계정의 이수 기록·계획·친구·개인 일정·제안·세션도 함께 (`_forget_user`) |
 | `GET` | `/admin/sessions` | 전체 세션 목록 (IP 포함) |
 | `DELETE` | `/admin/sessions/{id}` | 세션 강제 종료 |
 | `GET` | `/admin/students?q=` | 학생 목록 (학번/이름 필터) |
@@ -432,7 +521,7 @@ python -m backend.create_user <username> <password>
 | `GET` | `/admin/terms` | 데이터가 존재하는 학기 목록 |
 | `POST` | `/admin/sync` | 데이터 재수집 (`{"year": 2026, "semester": 2}` 선택, 생략 시 DB 최신 학기) |
 | `GET` | `/admin/backups` | DB 스냅샷 목록 + 총 용량 |
-| `POST` | `/admin/backups` | 지금 상태로 스냅샷 하나 (수집과 무관하게 손으로) |
+| `POST` | `/admin/backups` | 지금 상태로 스냅샷 하나 (수집과 무관하게 손으로) — ksain 글로 만든 기억·자동 일정은 뺍니다 |
 | `GET·PATCH` | `/admin/features/trade` | 수강 변경 탐색을 언제까지 열지 (`settings` 표) |
 
 `/admin/sync` 에 학기를 주면 **DB에 아직 없는 학기도** 받아옵니다 — 새 학기가 열리면
@@ -453,7 +542,7 @@ python -m backend.create_user <username> <password>
 | `manager` | 학사일정 직접 수정 + 제안 허용·거절 |
 | `admin` | manager 전부 + 계정 관리 (`/admin/*`) |
 
-의존성은 `auth.get_current_manager` / `get_current_admin` 을 씁니다. `role == "admin"`
+의존성은 `core/auth.py` 의 `get_current_manager` / `get_current_admin` 을 씁니다. `role == "admin"`
 처럼 직접 비교하면 매니저를 빠뜨리기 쉬우니 `User.has_role(최소등급)`을 거치세요.
 불리언을 여러 개 두지 않은 이유는 "둘 다 켜진 계정"의 뜻이 애매해지기 때문입니다.
 
@@ -466,8 +555,10 @@ python -m backend.create_user <username> <password>
 **오면 토큰 안의 값과 대조합니다.** 안 와도 통과시키는 건 배포가 프론트·백엔드 따로여서
 옛 화면을 버티려는 것입니다.
 
-- **방식**: Session Token (랜덤 48바이트, DB 저장) — 매 요청마다 DB 조회
-- **최대 세션**: 계정당 **5개** (`auth.MAX_SESSIONS_PER_USER`)
+- **방식**: Session Token (랜덤 48바이트, DB 저장) — 매 요청마다 DB 조회. `last_used_at` 은
+  **5분에 한 번만** 적습니다 — 한때 매 요청 커밋해서 읽기 요청까지 쓰기가 됐고, 수집 타이머와
+  잠금을 두고 다퉜습니다
+- **최대 세션**: 계정당 **5개** (`core/auth.py` 의 `MAX_SESSIONS_PER_USER`)
 - **만료**: 30일 **슬라이딩** (`expires_at`, 만료 시 자동 삭제)
 - **GET /**: 인증 필요 (`Authorization: Bearer <session_token>`)
 - JWT 미사용 — `python-jose` 의존성 제거 가능
@@ -507,18 +598,25 @@ python -m backend.create_user <username> <password>
 안드로이드는 `Linux` 를 달고 다니므로 앞에서부터 끊어야 맞습니다.
 
 ## 환경변수
+
+`core/config.py` 가 모듈을 불러올 때 한 번 읽습니다 — ⚠️ 값을 바꾸면 프로세스를 다시 띄워야 합니다.
+
 | 변수 | 기본값 | 설명 |
 |------|--------|------|
 | `CORS_ORIGINS` | `http://localhost:5173` | 허용 도메인 (콤마 구분) |
+| `DATABASE_URL` | `backend/ksa_timetable.db` (절대 경로) | 본 DB. 서버도 비워 둡니다 — `backend/ksa_timetable.db` 가 `../data/` 로 가는 symlink 입니다 |
 | `FORCE_HTTPS` | (없음) | 설정 시 HSTS 헤더 활성화 |
 | `GOOGLE_CLIENT_ID` | (없음) | 학번 확인용. 없으면 `/auth/link-google`이 503 |
 | `KSAIN_API_KEY` | (없음) | 급식(ksain.net) + ksain 최신 글 목록. 없으면 홈의 급식 칸만 비웁니다 |
-| `KSAIN_DB_URL` | `sqlite:///./backend/ksain.db` | ksain 수집 사본 |
+| `KSAIN_DB_URL` | `backend/ksain.db` (절대 경로) | ksain 수집 사본 |
 | `KSAIN_TOKEN` | (없음) | ksain.kr 로그인 토큰. 비로그인 본문 조회가 막혔을 때만 |
 | `LLM_GATEWAY_URL` | `http://10.8.10.1:11434` | 데스크탑 Ollama 게이트웨이 (WireGuard) |
 | `LLM_LOCAL_MODEL` | `gemma4:12b` | 게이트웨이 목록을 못 받았을 때의 로컬 모델 |
 | `OPENAI_API_KEY` · `OPENAI_MODELS` | (없음) | 넣으면 질문창 모델 목록에 OpenAI 모델이 붙습니다 (`OPENAI_MODELS=gpt-…,gpt-…`) |
+| `OPENAI_BASE_URL` · `OPENAI_REASONING_EFFORT` | `https://api.openai.com/v1` · (없음) | OpenAI 호환 주소와 추론 강도 |
 | `AGENT_MODEL` · `ANALYZE_MODEL` | (로컬) | 용도별 기본 모델 ID (`local:gemma4:12b`, `openai:…`) |
+| `MATERIAL_STORAGE_DIR` | (없음) | 자료 원본을 둘 곳. 비우면 본 DB 의 진짜 위치 옆 `materials/` (`services/materials.py`) |
+| `SYNC_YEAR` · `SYNC_SEMESTER` | (오늘 기준) | `cli/parser_run.py` 가 기본으로 받을 학기 |
 
 배포에서는 AI·ksain 관련 값을 `/etc/class-explorer/ai.env` 한 파일에 두고, API 서비스와
 수집 타이머가 같이 읽습니다 (`deploy/ai.env.example`, `deploy-guide.md`).
@@ -527,7 +625,14 @@ python -m backend.create_user <username> <password>
 
 ## 보안
 - **Security Headers**: `SecurityHeadersMiddleware` — X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy
-- **Rate Limiting**: `/auth/login` IP당 60초 10회 제한 (초과 시 429, 성공 시 초기화)
+- **Rate Limiting**: `/auth/login` IP당 60초 10회 제한 (초과 시 429, 성공 시 초기화) — `core/ratelimit.py` 의 `SlidingWindow` 를 ksa-bench 사람 조회와 같이 씁니다.
+  ⚠️ IP 는 nginx 가 넣는 `X-Real-IP` 로 봅니다(`routers/auth.py` 의 `_get_client_ip`). `X-Forwarded-For` 의 첫 값은
+  요청한 사람이 아무렇게나 적을 수 있어서, 한동안 IP 를 바꿔 가며 제한을 피할 수 있었고 세션의 IP 도 꾸며졌습니다
+- **계정 삭제**: 그 계정의 기록을 명시적으로 지웁니다 — 본 DB 는 `foreign_keys` 를 켜지 않아 `ON DELETE CASCADE`
+  가 안 돌고, `users.id` 가 AUTOINCREMENT 가 아니라 **다음 계정이 같은 id 를 받아 기록을 물려받았습니다**.
+  남아 있던 것은 마이그레이션(`_purge_orphans`)이 앱이 뜰 때 지웁니다
+- **만료 세션**: 로그인할 때 쓸어 냅니다 — 그 토큰이 다시 와야만 지워져서 IP·기기 이름이 30일을 넘겨 남았습니다
+- **지운 행**: 두 DB 모두 `secure_delete` 로 0 을 덮어씁니다([core/db.guide.md](core/db.guide.md))
 - **입력값 검증**: 모든 Pydantic 스키마에 `max_length`, `pattern`, `Literal` 검증 적용
 - **에러 노출 차단**: subprocess stderr는 server log에만 기록, 클라이언트엔 generic 메시지
 
@@ -546,6 +651,7 @@ olefile>=0.47     # ksain 첨부 hwp
 
 ## 관련 가이드
 
+- [core/db.guide.md](core/db.guide.md) — DB 두 파일, 연결 설정, 세션 쓰는 법, 스키마 초기화
 - [exams.guide.md](exams.guide.md) — 시험 회차·응시 대상 DB 적재와 본인 시간표
 - [ksain.guide.md](ksain.guide.md) — ksain 수집·분석·학사일정 자동 반영
 - [agent.guide.md](agent.guide.md) — Ask(질문창) Agent·도구·모델

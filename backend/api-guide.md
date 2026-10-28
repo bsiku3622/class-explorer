@@ -9,9 +9,9 @@
 
 주로 ksa-bench 가 쓰는 것: `GET /students/search`, `GET /students/{stu_id}`(한 명씩
 조회), `GET /me/progress`(본인만), `GET /stats/enrollment`(집계). 자세한 설계 의도는
-[bench_router.guide.md](bench_router.guide.md).
+[routers/bench.guide.md](routers/bench.guide.md).
 
-홈 (`home_router.py`):
+홈 (`routers/home.py`):
 
 `exam_period`에는 해당 학기의 활성 시험 회차와 기간이 옵니다. 배너 노출은 서버 KST
 날짜로 판정하며, 값이 없으면 `null`입니다. `GET /exams/me?year=&semester=`는 로그인한
@@ -55,7 +55,7 @@ Admin의 `Timetable Overrides`에서 날짜와 가져올 요일을 등록하면 
 
 **교시 시각표(`periods`)와 시간대(`breaks`)가 응답에 실려 옵니다.** 홈이 하루를 시간
 축으로 그려서 열한 교시의 시작·끝 분이 전부 필요하고, 교시 사이의 큰 구멍에 "점심"·
-"저녁" 이름을 답니다. 화면이 상수를 따로 들면 `periods.py` 만 고쳤을 때 조용히
+"저녁" 이름을 답니다. 화면이 상수를 따로 들면 `services/periods.py` 만 고쳤을 때 조용히
 어긋납니다 — 열한 줄 + 여섯 줄이라 값도 쌉니다.
 
 급식은 `menu` 에 **끼니별 줄 배열**로 옵니다 (`{"lunch": ["단호박카레라이스&소시지",
@@ -67,7 +67,7 @@ Admin의 `Timetable Overrides`에서 날짜와 가져올 요일을 등록하면 
 `meal` 이 통째로 `null` 이라 화면이 급식 칸을 아예 그리지 않습니다 — `menu` 가 `null` 인
 것(그날 급식이 없음)과는 뜻이 다릅니다.
 
-친구·교시 엔드포인트(`friends_router.py`) — 두 프론트 공통:
+친구·교시 엔드포인트(`routers/friends.py`) — 두 프론트 공통:
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
@@ -107,7 +107,7 @@ Admin의 `Timetable Overrides`에서 날짜와 가져올 요일을 등록하면 
 }
 ```
 
-**한 계정에 기기 5대까지** (`auth.MAX_SESSIONS_PER_USER`). 넘으면 **가장 오래 안 쓴
+**한 계정에 기기 5대까지** (`core/auth.py` 의 `MAX_SESSIONS_PER_USER`). 넘으면 **가장 오래 안 쓴
 세션부터 밀려납니다** — 새 로그인을 거절하지 않습니다(거절하면 폰을 잃어버린 사람이
 영영 못 들어옵니다).
 
@@ -183,9 +183,14 @@ Admin의 `Timetable Overrides`에서 날짜와 가져올 요일을 등록하면 
   "email": "25-059@ksa.hs.kr",
   "is_demo": false,
   "trade": { "open": true, "year": 2026, "semester": 2 },
-  "data_versions": { "2026-2": 7, "2026-1": 3 }
+  "data_versions": { "2026-2": 7, "2026-1": 3 },
+  "major": "정보과학", "major_division": "수리정보과학부", "major_answered": true
 }
 ```
+
+`major` 는 본인이 고른 심화필수 전공 트랙이고, `major_answered` 가 `false` 면 화면이 전공 팝업을 띄웁니다.
+"아직 정하지 않았어요" 를 고른 사람은 `major: null` 이지만 `major_answered: true` 입니다 — 아래
+「전공 엔드포인트」.
 
 `data_versions`는 학기별 데이터 회차입니다. **프론트가 캐시를 계속 써도 되는지 판단하는
 유일한 근거**라, 값이 자기 캐시와 다르면 TTL 이 남아 있어도 버리고 다시 받습니다.
@@ -534,6 +539,32 @@ ZIP을 받습니다. 파일당 50MB, 요청당 90MB, ZIP 압축 해제 300MB까�
 ZIP 원본은 남기지 않고 내부 경로를 검사한 뒤 파일만 보관합니다.
 Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 preview합니다.
 
+## 강의계획서 엔드포인트 (`/syllabi/*`)
+
+2026-1 강의계획서 원본(pdf·docx)과 docx 의 PDF 미리보기(`<이름>.preview.pdf`)입니다. 자료실에 올린 자료가
+아니라, 학교가 배포한 파일을 서버의 `SYLLABI_DIR`(비우면 본 DB 옆 `syllabi/`, 서버에서는 `data/syllabi/`)에
+둔 것입니다 — `services/syllabi.py`.
+
+⚠️ **로그인한 사람에게만 줍니다.** 한때 화면 번들(`frontend/src/assets/syllabi/`)에 실었더니 Netlify 가 로그인
+없이 내줬고, 파일 대부분에 교사 이메일·전화번호가 들어 있었습니다. 그래서 파일은 git 에도 없습니다.
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| `GET` | `/syllabi` | 파일 목록 |
+| `GET` | `/syllabi/{id}` | 파일 하나 (pdf · docx 원본, 미리보기 PDF) |
+
+```json
+[{ "id": "246a49408f7ced02", "path": "Physics & Earth Science/Physics/Syllabus_GenPhys1_26-1_rev.docx", "format": "docx" }]
+```
+
+- `path` 는 `syllabi/` 기준 상대 경로이고 폴더는 학부/학과입니다 — 화면이 이 경로로 과목을 짝짓습니다
+  (`frontend/src/lib/syllabi.ts`). 미리보기 PDF 도 목록에 한 줄로 따로 나옵니다
+- `id` 는 경로의 해시(sha1 앞 16자리)라 같은 파일이면 늘 같습니다. URL 에 경로 대신 이것만 쓰는 건 파일 이름에
+  교사 이름이 든 것이 있어서입니다 — 접속 로그에 남습니다
+- 목록에 있는 id 만 내줍니다. 경로를 받지 않으므로 다른 파일로 새는 길이 없고, 폴더 밖을 가리키는 심볼릭
+  링크는 목록에서 빠집니다. 모르는 id 는 `404` 입니다
+- 둘 다 `Cache-Control: private, no-store` 입니다
+
 ## 기능 기간 엔드포인트 (admin)
 
 ### `GET·PATCH /admin/features/trade` *(admin)*
@@ -550,7 +581,7 @@ Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 pre
 ⚠️ **`until` 에는 시간대를 붙이세요.** 저장이 문자열이라 기준이 문자열 안에 있어야
 어디서 읽든 같은 순간입니다. 시간대가 없으면 UTC 로 읽습니다.
 
-⚠️ **`settings` 표가 비어 있으면 코드의 기본값을 씁니다**(`backend/features.py`).
+⚠️ **`settings` 표가 비어 있으면 코드의 기본값을 씁니다**(`backend/services/features.py`).
 값을 지우는 것이 곧 "기본으로 되돌리기" 입니다.
 
 ---
@@ -640,13 +671,14 @@ Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 pre
   "start_date": "2026-04-14", "end_date": "2026-04-17",
   "time_mode": "allday", "start_minute": null, "end_minute": null,
   "start_period": null, "end_period": null,
-  "category": "exam", "target_grades": [], "source": "pdf",
+  "category": "exam", "target_grades": [], "target_majors": [], "source": "pdf",
   "is_personal": false, "series_id": null, "note": null
 }] }
 ```
 
 `category`: `holiday` · `dorm` · `exam` · `term` · `academic` · `event`
 `time_mode`: `allday` · `clock`(`start_minute`, 자정 기준 분) · `period`(`start_period`, 1~11교시)
+`target_grades` · `target_majors`: 대상 학년과 대상 전공 트랙(`["화학", "생물학"]`). 비면 전체입니다.
 
 ---
 
@@ -656,9 +688,12 @@ Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 pre
 ```json
 { "title": "R&E 미팅", "start_date": "2026-04-14", "end_date": null,
   "time_mode": "period", "start_period": 7, "end_period": 8,
-  "category": "event", "target_grades": [1], "note": null,
+  "category": "event", "target_grades": [1], "target_majors": [], "note": null,
   "repeat": "weekly", "repeat_until": "2026-05-12" }
 ```
+
+`target_majors` 에는 트랙 이름(`수학`·…·`생물학`)을 넣고, 학부 이름(`화학생물학부`)을 넣으면 트랙 둘로 풀어
+저장합니다. 모르는 이름이면 `422` 입니다. 제안(`POST /calendar/requests`)도 같은 칸을 받습니다.
 
 `repeat`: `none` · `daily` · `weekly` · `monthly`. 반복은 **회차마다 한 행**으로 저장되고
 같은 `series_id` 로 묶입니다 (한 번에 최대 200 회차).
@@ -699,6 +734,46 @@ Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 pre
 `PUT` 이 `source='ksain'`(자동 등록) 일정을 고치면 `source` 가 `manual` 로 바뀌어 자동
 관리에서 빠집니다 — 다음 분석이 고친 내용을 덮어쓰지 않게요 ([ksain.guide.md](ksain.guide.md)).
 
+## 전공 엔드포인트 (`/majors/*`)
+
+전공은 학교가 부르는 이름으로 **심화필수 전공 트랙**입니다 — 수학·정보과학(수리정보과학부), 물리학·
+지구과학(물리지구과학부), 화학·생물학(화학생물학부). 1·2학년 때 학교가 조사하고 3학년 2학기까지 바꿀 수
+있어서, 본인이 적고 언제든 고칩니다. Ask 의 개인화와 학사일정의 "내 학년·전공" 거르기에 쓰입니다
+(`services/majors.py`).
+
+### `GET /majors` *(인증 필요)*
+팝업과 `/about` 이 늘어놓을 선택지, 내 전공, 수강 이력으로 짐작한 트랙입니다.
+
+```json
+{
+  "options": [{ "division": "수리정보과학부", "majors": [
+    { "name": "수학", "requirement": "선형대수, 확률및통계, 미적분학3을 수강해야 함" },
+    { "name": "정보과학", "requirement": "자료구조, 정보과학3, 알고리즘을 수강해야 함" }] }, …],
+  "me": { "major": null, "division": null, "answered": false },
+  "suggestion": { "major": "정보과학", "division": "수리정보과학부", "courses": ["자료구조", "정보과학3"] }
+}
+```
+
+`requirement` 는 교육과정 학과의 심화필수 조건(`departments.track`)입니다. `suggestion` 은 **아직 전공을 안
+고른 사람에게만** 주고, 심화필수 과목(3점)과 심화·AP 과목(2점)을 세어 1등이 4점 이상이면서 2등의 1.5배를
+넘을 때만 내놓습니다 — 1학년 필수 과목은 모두가 들어서 단서가 안 됩니다. 확실하지 않으면 `null` 입니다.
+⚠️ 짐작은 권하기만 하고 저장하지 않습니다. 맞는지 대 볼 정답이 없고, 2026-10 데이터로 세어 보면 23~25학번도
+열에 서넛은 짐작이 안 나옵니다(63~70% 만 나옴). 26학번은 1학년 필수만 들어서 거의 안 나옵니다(1%).
+
+### `PUT /majors/me` *(인증 필요)*
+`{ "major": "정보과학" }` → `{ "major", "division", "answered" }`. `major: null` 은 "아직 정하지
+않았어요" 이고, 그래도 답한 것(`answered: true`)으로 쳐서 팝업이 다시 뜨지 않습니다. 트랙 이름이 아니면
+`422` 입니다. **본인 것만 고칩니다** — 남의 전공을 읽거나 고치는 경로는 없습니다.
+
+### `GET /majors/stats` *(admin)*
+조사 현황 — 학번을 확인한 계정 중 몇 명이 답했는지와 트랙별 **인원 수**만 줍니다. 누가 무엇을 골랐는지는
+내보내지 않습니다. 시연 계정(빌린 학번)과 교사 계정은 세지 않습니다.
+
+```json
+{ "students": 312, "unanswered": 120, "undecided": 40,
+  "divisions": [{ "division": "수리정보과학부", "majors": [{ "name": "수학", "count": 21 }, …] }, …] }
+```
+
 ## Agent 엔드포인트 (`/agent/*`)
 
 Ask(질문창)입니다. 설계는 [agent.guide.md](agent.guide.md).
@@ -721,11 +796,19 @@ Ask(질문창)입니다. 설계는 [agent.guide.md](agent.guide.md).
 | `answer` | `text`, `sources[{title,url}]`, `seconds` | 답 — 마지막 이벤트 |
 | `error` | `message` | 모델에 닿지 않음 — 마지막 이벤트 |
 
+**`start` 바로 뒤에 `name: "recall"` 인 `tool`·`tool_done` 짝이 올 수 있습니다.** 질문에 맞는
+기억(ksain 공지에서 정리해 둔 사실)을 골라 시스템 프롬프트에 실었다는 표시이고(`summary: "사실 3건"`),
+고른 게 없으면 오지 않습니다. 모델이 부른 도구가 아니라 서버가 먼저 하는 일인데, 화면이 단계 줄을
+같은 모양으로 그리게 도구 이벤트로 보냅니다.
+
+답이 기억을 쓰면 모델은 문장 끝에 `[F12]` 처럼 사실 번호를 붙입니다. **서버가 이 번호를 걷어내고**
+그 사실의 글을 `sources` 맨 앞에 둡니다 — 화면은 번호를 볼 일이 없습니다.
+
 `429` 는 하루 질문 한도(로컬 200 · OpenAI 60)를 넘었을 때입니다. `model` 을 비우거나 모르는
 값을 주면 기본 모델로 갑니다.
 
 ### `GET /agent/models` *(인증 필요)*
-`{ models: [{id, name, label, provider}], default, gateway: {running, owned, inflight, idle_seconds, idle_limit} | null, me: {name, stu_id, grade, track} | null }`.
+`{ models: [{id, name, label, provider}], default, gateway: {running, owned, inflight, idle_seconds, idle_limit} | null, me: {name, stu_id, grade, track, major, division} | null }`.
 `name` 은 입력창에 보이는 짧은 이름, `label` 은 어디서 도는지까지 붙인 이름입니다. `gateway` 가
 `null` 이면 데스크탑에 닿지 않는 것이고, `running=false` 면 첫 답에 1분쯤 걸립니다. `me` 는 Agent 가
 아는 "나"(학번으로 계산, 화면 인사에 씁니다)이고 학번이 없으면 `null` 입니다.
@@ -735,5 +818,51 @@ Ask(질문창)입니다. 설계는 [agent.guide.md](agent.guide.md).
 플로팅 버튼 창) 화면이 부릅니다 (10분에 한 번까지).
 
 ### `GET /agent/status` *(admin)*
-수집·분석이 돌고 있는지 — `sync`(마지막 수집 결과), `posts`, `analyzed`(최신 내용 기준),
-`auto_events`(`source='ksain'` 일정 수), `gateway`.
+수집·분석·색인·기억이 돌고 있는지 — `sync`(마지막 수집 결과), `index`(검색 색인 —
+`{version, chunks, orphans, built_at}`, 한 번도 안 만들었으면 `null`), `posts`, `analyzed`(최신 내용
+기준), `auto_events`(`source='ksain'` 일정 수), `facts`(`{active, hidden}` 기억 수), `gateway`.
+
+## 기억 엔드포인트 (`/facts/*`, 매니저)
+
+Ask 의 기억 — ksain 글에서 분석이 뽑아 둔 사실(`Fact`) — 을 사람이 **고치거나 숨기는** 자리이고,
+Admin 의 기억 패널이 씁니다. 새 사실을 손으로 지어 넣는 길은 두지 않았습니다 — 기억은 글에 묶인
+요약이라 글 없는 사실은 출처를 댈 수 없습니다.
+
+### `GET /facts?q=&status=&page=` *(매니저)*
+사실을 **글 단위로 묶어** 새 글부터 한 쪽에 글 20개씩 돌려줍니다. `status` 는 `active` · `hidden` ·
+`edited`(사람이 고친 것)이고 비우면 전부, `q` 는 문장·주제·글 제목의 부분 일치입니다.
+
+```json
+{
+  "posts": [{
+    "post_id": 100123, "post_title": "…", "posted_on": "2026-10-20",
+    "url": "https://ksain.kr/document/100123", "summary": "…",
+    "facts": [{
+      "id": 12, "statement": "…", "topic": "기말고사",
+      "post_id": 100123, "post_title": "…", "board": "공지사항 · 교무연구부",
+      "posted_on": "2026-10-20", "url": "…",
+      "target_grades": [1, 2], "target_majors": [], "valid_until": "2026-12-11",
+      "confidence": 0.9, "status": "active", "edited": false
+    }]
+  }],
+  "page": 1, "per_page": 20, "total_posts": 41,
+  "counts": { "active": 180, "hidden": 2, "edited": 5 }
+}
+```
+
+`summary` 는 ksain.db 에 있는 그 글의 요약입니다. ksain.db 를 못 읽으면(수집 타이머가 아직 안 돈
+서버) `null` 입니다. `counts` 는 `q`·`status` 와 상관없는 전체 수입니다.
+
+### `PATCH /facts/{id}` *(매니저)*
+준 칸만 바꾸고, 고친 사실 하나를 위 `facts[]` 항목과 같은 꼴로 돌려줍니다. 없는 id 면 `404`.
+
+| 칸 | 값 |
+|---|---|
+| `statement` | 5~300자 |
+| `topic` | 60자 이하 |
+| `valid_until` | `YYYY-MM-DD`. 빈 문자열이면 기한 없음(계속 유효) |
+| `status` | `active` · `hidden` — 숨기면 Ask 가 더 이상 싣지 않습니다 |
+
+문장·주제·유효 기간을 바꾸면 `edited` 가 켜집니다. ⚠️ **고친 사실과 숨긴 사실은 글을 다시 분석해도
+그대로 둡니다** — 사람이 바로잡은 것을 다음 분석이 되돌리면 안 됩니다. 글이 ksain 에서 지워지면 고친
+것까지 지웁니다.

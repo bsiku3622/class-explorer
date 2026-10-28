@@ -27,22 +27,34 @@ git push origin main
 # 2. 백엔드
 ssh server
 cd /srv/class-explorer
-cp backend/ksa_timetable.db backend/ksa_timetable.db.bak-$(date +%Y%m%d)   # DB는 서버에만 있습니다
 git pull --ff-only
-sudo cp deploy/class-explorer-materials-backup.service deploy/class-explorer-materials-backup.timer /etc/systemd/system/
+python3.14 -m backend.cli.snapshot deploy   # DB는 서버에만 있습니다 → data/backups/
+sudo cp deploy/class-explorer-materials-backup.service deploy/class-explorer-materials-backup.timer \
+        deploy/class-explorer-ksain.service deploy/class-explorer-ksain.timer /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now class-explorer-materials-backup.timer
+sudo systemctl enable --now class-explorer-materials-backup.timer class-explorer-ksain.timer
 sudo systemctl restart class-explorer.service
 systemctl is-active class-explorer.service
 ```
 
 의존성이 바뀌었으면 재시작 전에 `pip install -r requirements.txt`를 한 번 돌립니다.
 
+⚠️ **본 DB 를 `cp` 로 떠 두지 않습니다.** 예전엔 여기서 `cp backend/ksa_timetable.db …bak-날짜` 를 했는데,
+그러면 ksain 글로 만든 기억·자동 일정이 백업에 그대로 들어갑니다 — 원문이 지워지면 같이 지운다고
+개인정보처리방침에 약속한 것들이고, 이 백업은 1년을 둡니다. `backend.cli.snapshot` 은 그 둘과 로그인 세션을
+빼고 뜹니다(`services/backup.py` 의 `scrub_backup`). **당긴 직후, 재시작 전에** 뜨는 건 이 명령이 새 코드에 있어서입니다.
+그 몇 초 사이에 수집 타이머가 새 코드로 돌면 마이그레이션이 먼저 붙을 수 있지만, 마이그레이션은 칼럼·표를
+더하기만 해서 옛 코드로 되돌리는 데 지장이 없습니다.
+
+⚠️ **타이머 유닛은 배포 때마다 다시 복사합니다.** 유닛 파일이 `python3.14 -m backend.cli.material_backup`
+처럼 모듈 경로를 들고 있어서, 코드만 당기고 유닛을 안 바꾸면 그날 밤 타이머가 `No module named` 로
+실패합니다(2026-10 백엔드 재배치 때 `backend.material_backup` → `backend.cli.material_backup`).
+
 ⚠️ **`curriculum_seed.json`이 바뀐 배포에서는 재시작만으로 부족합니다** — 적재를 한 번
 돌려야 새 필드(과목 분류·트랙 등)가 DB에 들어갑니다.
 
 ```bash
-python3.14 -m backend.import_curriculum
+python3.14 -m backend.cli.import_curriculum
 sudo systemctl restart class-explorer.service   # 새 값을 물고 다시 뜨게
 ```
 
@@ -68,19 +80,26 @@ Description=KSA FastAPI Server
 After=network.target
 
 [Service]
-User=baeks
-Group=baeks
+User=ksaclass
+Group=ksaclass
 WorkingDirectory=/srv/class-explorer
-ExecStart=/home/baeks/.local/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000
+ExecStart=/srv/class-explorer/venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8000 --no-access-log
 Restart=always
 RestartSec=3
 StandardOutput=journal
 StandardError=journal
-Environment="GOOGLE_CLIENT_ID=<클라이언트 ID>"
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+환경변수와 권한은 drop-in(`class-explorer.service.d/`)이 나눠 맡습니다 — `20-hardening-app.conf`(`ProtectSystem=strict`
+등), `30-env-google.conf`(`GOOGLE_CLIENT_ID`), `30-env-ksain.conf`, `40-paths-data.conf`(`ReadWritePaths=` 데이터
+폴더), `ai.conf`(`/etc/class-explorer/ai.env`). API 는 `127.0.0.1` 에만 뜨고 nginx 가 앞에 섭니다.
+
+⚠️ **`--no-access-log` 를 붙입니다.** uvicorn 의 접속 로그는 요청 주소를 쿼리째 남겨서(`/curriculum/progress/학번`)
+누가 누구의 이수 현황을 봤는지가 journald 에 쌓였고, journald 는 기간 제한이 없었습니다. 접속 기록은 nginx 로그
+(14일)로 충분합니다 — 개인정보처리방침 4·11절이 "웹 서버 로그 14일, 서비스 기록 90일" 을 약속합니다.
 
 `GOOGLE_CLIENT_ID`가 없으면 학번 확인(`/auth/link-google`)이 503을 돌려주고, 계정에
 학번을 붙일 수 없습니다.
@@ -187,20 +206,20 @@ systemd 가 쓰는 uvicorn(`/home/baeks/.local/bin/uvicorn`)도 그 인터프리
 
 ```bash
 cd /srv/class-explorer
-python3.14 -m backend.parser_run                    # 오늘 기준 학기 수집
-python3.14 -m backend.parser_run -y 2026 -s 2       # 학기 지정
-python3.14 -m backend.import_curriculum             # 교육과정 적재
-python3.14 -m backend.import_calendar               # 학사일정 적재 (source='pdf' 만 교체)
-python3.14 -m backend.create_user <username> <password> [--manager|--admin]
+python3.14 -m backend.cli.parser_run                    # 오늘 기준 학기 수집
+python3.14 -m backend.cli.parser_run -y 2026 -s 2       # 학기 지정
+python3.14 -m backend.cli.import_curriculum             # 교육과정 적재
+python3.14 -m backend.cli.import_calendar               # 학사일정 적재 (source='pdf' 만 교체)
+python3.14 -m backend.cli.create_user <username> <password> [--manager|--admin]
 ```
 
 **DB는 서버에만 있습니다.** `backend/ksa_timetable.db`는 git에 올라가지 않으니, 스키마를
 건드리는 배포 전에는 반드시 복사본을 떠 두세요. 마이그레이션은 앱이 뜰 때 자동으로
-돕니다(`database.init_schema()`).
+돕니다(`core/db.py` 의 `init_schema()`).
 
-**수집은 반영 직전에 스냅샷을 남깁니다** — `backend/backups/` 에 한 번에 약 3MB 씩,
-**자동으로 지우지 않습니다**. Admin 화면의 `Backups` 에 총 용량이 뜨니 가끔 보고 서버에서
-직접 지우세요. 스냅샷 없이 돌리려면 `--no-backup` 을 붙입니다.
+**수집은 반영 직전에 스냅샷을 남깁니다** — `data/backups/` 에 한 번에 약 3MB 씩. **1년이 지나면 매일 새벽
+자료 백업 타이머가 지웁니다**(개인정보처리방침 11절). Admin 화면의 `Backups` 에 총 용량이 뜹니다. 스냅샷
+없이 돌리려면 `--no-backup` 을 붙입니다.
 
 ---
 
@@ -267,12 +286,79 @@ python3.14 -m backend.ksain.sync --backfill      # 처음 한 번 (수십 분, 0
 python3.14 -m backend.ksain.sync --attachments-only  # 백필이 첨부 단계에서 멈췄을 때
 python3.14 -m backend.ksain.analyze --limit 5000 # 밀린 분석 — 데스크탑 GPU 로 몇 시간
 python3.14 -m backend.ksain.analyze --reapply --fresh  # 스테이징에서 돌린 분석을 운영 학사일정에 처음 반영
-python3.14 -m backend.ksain.analyze --reapply    # apply 규칙을 바꾼 뒤 다시 맞춤 (사람이 지운 일정은 유지)
+python3.14 -m backend.ksain.analyze --reapply    # apply 규칙을 바꾼 뒤 다시 맞춤 (사람이 지운 일정·고친 기억은 유지)
+python3.14 -m backend.knowledge.index --rebuild  # 검색 색인 처음부터 (5초 남짓 — 보통은 수집이 알아서 갱신)
 journalctl -u class-explorer-ksain -n 50         # 주기 실행 로그
 ```
 
 ⚠️ **`backend/ksain.db` 는 git 에 없고 언제든 다시 만들 수 있습니다.** 지워도 사용자 데이터는
-그대로입니다 — 자동 일정은 본 DB 에 있으니 `--reapply` 를 다시 돌리세요.
+그대로입니다 — 자동 일정과 기억은 본 DB 에 있으니 `--reapply` 를 다시 돌리세요. 검색 색인은 다음
+수집이 다시 만듭니다.
+
+⚠️ **ksain.db 를 고치는 건 `baeks` 로 도는 쪽(수집 타이머·CLI)뿐입니다.** API(`ksaclass`)는 읽기만
+합니다. 그래서 ksain 쪽 스키마가 바뀐 배포에서는 새 표·칼럼이 **다음 수집 때** 생기고, 그 전까지
+API 는 옛 모양으로 돕니다(검색은 색인 없이 LIKE 로). 바로 맞추려면 당긴 뒤 아래를 한 번 돌리세요.
+
+```bash
+python3.14 -m backend.knowledge.index           # ksain.db 스키마 맞추기 + 색인 만들기
+```
+
+### 2026-10 백엔드 재배치 + 기억 배포 (한 번만)
+
+위 평소 배포(유닛 두 벌 다시 복사 포함)에 더해 아래를 확인합니다.
+
+1. `git pull` 뒤 `python3.14 -m backend.knowledge.index` 로 색인을 만듭니다 — 안 해도 다음 수집이
+   만들지만, 그 전까지 검색이 LIKE 로 돕니다
+2. API 를 재시작하면 본 DB 에 `facts`·`facts_fts` 가 생기고, 계정의 전공(`users.major`)과 일정·제안·
+   기억의 대상 전공(`target_majors`) 칼럼이 붙습니다(`init_schema()`)
+3. 분석기가 v3 에서 v5 로 올라가서, 다음 주기부터 **최근 1년의 글 약 710건을 게시판·중요도와 상관없이
+   다시 분석**합니다. 글 하나에 15~30초라 데스크탑 GPU 로 네다섯 시간 걸리고(낮 시간 타이머가 40분씩
+   이어 돕니다), 그동안 기억과 자동 일정이 최신 글부터 바뀝니다 — 자동 일정에는 대상 전공과 세부 메모가
+   붙습니다. 진행은 `GET /agent/status` 의 `facts.active` 나 Admin 의 기억 패널로 봅니다
+4. 학번을 확인한 학생에게는 다음 접속 때 전공 팝업이 뜹니다. 응답 현황은 Admin 의 전공 조사 칸
+   (`GET /majors/stats`)에서 인원 수로만 봅니다
+
+### 2026-10 개인정보 감사 반영 (한 번만)
+
+개인정보처리방침을 고쳐 싣는 날 바로 시행합니다(13절). 아래가 방침에 적은 것과 서버를 맞추는 단계입니다 —
+빠뜨리면 방침이 거짓말이 됩니다.
+
+1. **강의계획서를 서버에 올립니다.** git 에서 뺐습니다(교사 연락처) — 맥북의 `backend/syllabi/` 를 그대로 보냅니다.
+   ```bash
+   rsync -a "backend/syllabi/" server:/srv/class-explorer/data/syllabi/
+   # API(ksaclass)가 읽게 — 폴더 750, 파일 640, 그룹 ksaclass
+   ssh server 'D=/srv/class-explorer/data/syllabi; sudo chgrp -R ksaclass "$D"; sudo find "$D" -type d -exec chmod 750 {} +; sudo find "$D" -type f -exec chmod 640 {} +'
+   ```
+   ⚠️ 권한은 서버에서 맞춥니다. 맥의 `rsync` 는 openrsync 라 `--chmod=D750,F640` 을 못 받습니다(`invalid argument`).
+   옮기는 사이에는 맥의 권한(644)대로 앉지만, `data/` 가 `770 baeks:ksaclass` 라 다른 계정은 들어오지 못합니다
+   `SYLLABI_DIR` 는 비워 둡니다(기본값이 `data/syllabi`). 파일이 없으면 강의계획서만 안 보이고 화면은 그대로입니다.
+   Ask 의 `syllabus` 도구도 이 파일을 읽어서, 없으면 "강의계획서 파일이 없습니다" 로 답합니다(`backend/agent.guide.md`)
+2. **API 접속 로그를 끕니다** — 위 「systemd」 의 `--no-access-log`. 유닛을 고친 뒤 `sudo systemctl daemon-reload`
+3. **journald 를 90일만 둡니다** (서버 전체 로그에 걸립니다)
+   ```bash
+   sudo mkdir -p /etc/systemd/journald.conf.d
+   printf '[Journal]\nMaxRetentionSec=90day\n' | sudo tee /etc/systemd/journald.conf.d/retention.conf
+   sudo systemctl restart systemd-journald
+   sudo journalctl --vacuum-time=90d          # 이미 쌓인 90일 넘은 기록(2026-06~)을 지금 지웁니다
+   ```
+4. **이미 있는 백업을 정리합니다** — 1년 지난 것 삭제 + 남은 것에서 세션·게시글 파생물 걷어내기. 백업 폴더에
+   `ksaclass`·`baeks` 파일이 섞여 있어서 `sudo` 로 돌립니다
+   ```bash
+   cd /srv/class-explorer && sudo ./venv/bin/python -m backend.cli.snapshot --scrub-existing
+   ```
+   이 규칙 뒤로는 매일 새벽 자료 백업 타이머가 1년 지난 백업을 지웁니다(`services/backup.py` 의 `KEEP_DAYS`)
+5. API 를 재시작합니다 — 마이그레이션이 지운 계정의 남은 기록을 지우고(`_purge_orphans`), 두 DB 가 `secure_delete`
+   로 열립니다. 이미 지운 행이 남은 빈 페이지는 한 번 VACUUM 해야 사라집니다
+   ```bash
+   sudo systemctl stop class-explorer class-explorer-ksain.timer
+   python3.14 -c "import sqlite3; [sqlite3.connect(p).execute('VACUUM') for p in ('data/ksa_timetable.db', 'backend/ksain.db')]"
+   sudo systemctl start class-explorer class-explorer-ksain.timer
+   ```
+   서버에는 `sqlite3` 명령이 없어서 파이썬으로 합니다(`baeks` 로 — 두 파일 다 `baeks` 가 쓸 수 있습니다)
+6. **공개 레포의 기록에서 개인정보 파일을 지웁니다** — 이 브랜치를 main 에 합쳐 배포한 **뒤에**. 학생 명단·옛 DB·
+   강의계획서가 2026-03 이후 기록에 남아 있습니다. 맥북에서 `~/Bufs/Claude Files/2026-10-29/history-rewrite/rewrite-history.sh`
+   를 먼저 그냥 돌려 확인하고, `--push` 로 덮어쓴 뒤 출력대로 모든 clone(맥북·서버)을 맞춥니다. 병합된 PR #1 의
+   화면은 GitHub 지원팀에 요청해야 지워집니다
 
 ---
 

@@ -1,3 +1,239 @@
+## 2026-10-29 — Ask: 질문자 신원 되돌림, 강의계획서 읽기, 도구 실패 줄이기
+
+- 변경 파일: `backend/agent/tools.py`·`chat.py`, `backend/services/syllabi.py`·`subject_names.py`, `backend/routers/agent.py`(warmup), `frontend/src/lib/agentChat.ts`, `frontend/src/pages/PrivacyPage.tsx`(1·2·3·6·10절), `backend/agent.guide.md`, `frontend/src/pages/PrivacyPage.guide.md`, `backend/CLAUDE.md`, `backend/services/__init__.py`, `deploy-guide.md`
+- 요약: 질문 30개를 실제 모델(gemma4:12b, 사본 DB)로 돌려 도구 실패가 36번 중 7번 → 30번 중 0번이 됐습니다. 실패는 전부 이름을 못 알아들은 것이었습니다. 강의계획서를 읽는 `syllabus` 도구를 붙였고, 질문자 이름·학번과 이번 학기 수업을 시스템 프롬프트에 되돌렸습니다.
+
+- ⚠️ **이름·학번을 프롬프트에서 뺐던 감사 결정을 운영자 요청으로 되돌렸습니다.** 빼 둔 동안 "내 이름이랑 학번
+  뭐야?" 에 모델이 "김민준, 25-012" 를 지어냈습니다. 대신 개인정보처리방침 2·6·10절이 "이름·학번·이번 학기 수강
+  과목을 보낸다(OpenAI 를 고르면 OpenAI 로도)" 고 적습니다 — 프롬프트에서 다시 빼면 방침도 고칩니다
+- 실패 일곱은 `미1`·`선대`·`미방`·`물실1`·`일물2`·`확통` 같은 줄임말과, 교사 이름을 과목 칸에 넣은 호출이었습니다.
+  모델은 실패를 받으면 "그런 과목은 없다" 고 답하거나, "물실1 평가 비율" 을 상관없는 ksain 글(머신러닝 과목)에서
+  지어냈습니다. `rank_names` 는 **첫 글자를 묶은** 순서 포함으로 줄임말을 받습니다 — 묶지 않으면 "학1" 이 수학1·
+  미적분학1·일반화학1 에 다 걸립니다. 같은 단계에서 가장 촘촘한 것만 남겨 "일물2" 가 일반생물학2 를 끌고 오지
+  않게 했습니다. 교사 이름이면 그 교사의 분반을, 이번 학기에 없는 과목이면 "미개설" 을 돌려줍니다
+- 날짜: 목요일에 "목요일 3교시" 를 묻자 모델이 금요일 날짜를 넘겼습니다. 이번 주·다음 주의 요일별 날짜를
+  프롬프트에 넣고, 도구도 "목요일"·"10/30"·"다음 주 월요일" 을 직접 받습니다. ⚠️ 못 읽는 날짜는 이제 **오류**입니다
+  — 예전엔 조용히 오늘로 바꿔 틀린 날을 답했습니다. "종업식" 은 제목 "종업" 을 못 찾고 개학 무렵부터 60일만 봐서
+  "등록되어 있지 않습니다" 였습니다 → 제목이 검색어 안에 든 것도 찾고, 기간을 안 주면 1년 앞까지 봅니다
+- 강의계획서: 모은 파일이 2023~2026학년도 것이라 대개 **이번 학기 계획서가 아닙니다** — 결과가 몇 학기 것인지
+  밝히라고 시킵니다. 계획서는 "제17주 기말고사" 처럼 주차로 적혀 있어서, 학사일정 PDF 의 "N주차 종료" 표지로
+  주차표·지금 주차를 만들어 같이 줍니다(운영자가 말한 "가온누리에 없던 기존 학사일정" 을 쓰는 자리)
+- ⚠️ 짝짓기 함정이 많았습니다. 파일 이름에 오타(`Calulus2`), `고급알고리즘` 안의 `알고리즘`, 일반지구과학에
+  걸리는 **Lab** 계획서, "Art"(미술)가 오타 제목 "Gerneral E**art**h Science" 안에 든 것, 외국인 과목
+  "Biology & Exp.Ⅱ" 를 한국어 과목 "Biology & Exp." 가 가져간 것, `&` 와 `and` 가 섞인 것. 그래서 첫 쪽의
+  과목명 칸으로 짝짓고, 다른 과목 이름에 더 잘 맞는 계획서는 그쪽 몫으로 넘깁니다(더 넓은 이름은 다투지 않음).
+  이번 학기 109과목 중 104과목이 짝지어집니다 — 남은 다섯은 파일이 없거나(생활체육2 등) 로마숫자로만 다른
+  것(물리학기초Ⅱ ↔ "Basic Physics 2")입니다. 화면(`frontend/src/lib/syllabi.ts`)은 손으로 적은 규칙으로 따로
+  짝지어서 둘이 다른 파일을 고를 수 있습니다
+- ⚠️ PDF 본문은 배치 모드로 뽑습니다. 기본 모드는 줄을 이어 붙여 "기말고사 : chapters 1-7" 뒤에 다음 절 번호가
+  붙어 "chapters 1-76." 이 됐습니다. 교사 전화번호·이메일은 지우고 넘깁니다(방침 10절). 첫 호출은 목록을 만드느라
+  5초쯤 걸려 스레드에서 읽고, 질문창이 열릴 때 미리 만듭니다
+- 검증 자료: `~/Bufs/Claude Files/2026-10-29/ask-tools/` (`before.txt`·`after.txt` 가 같은 질문 묶음의 전후,
+  `syl_match.after3.txt` 가 과목별 계획서). 물실1 평가 비율·미적분학1 평가와 범위는 계획서 원문과 대조했습니다.
+  프롬프트는 최대 6.9k 토큰으로 게이트웨이 컨텍스트(16k) 안입니다
+
+## 2026-10-29 — 개인정보 감사 + 개인정보처리방침 개정
+
+- 변경 파일: `frontend/src/pages/PrivacyPage.tsx`(1·2·3·4·5·6·7·8·10·11·13절), `backend/routers/admin.py`(`_forget_user`), `backend/core/migrations.py`(`_purge_orphans`), `backend/services/schoolday.py`, `backend/routers/auth.py`(`_get_client_ip`·만료 세션), `backend/core/db.py`(`secure_delete`), `backend/services/backup.py`(`scrub_backup`·`prune_backups`), `backend/cli/material_backup.py`·`snapshot.py`(`--scrub-existing`), `backend/knowledge/index.py`, `backend/ksain/`(apply·analyze·sync), `backend/agent/`(chat·tools·llm), 신규 `backend/routers/syllabi.py`·`backend/services/syllabi.py`, `frontend/src/lib/syllabi.ts`·`searchHistory.ts`, `App.tsx`·`SearchInput.tsx`·`googleAuth.ts`, `.gitignore`, 가이드 전반, `deploy-guide.md`
+- 요약: 방침과 코드를 대조하는 감사와 코드 쪽 데이터 흐름 감사를 따로 돌려(서로의 결론을 안 보게) 합쳤습니다. 계정 삭제가 기록을 남기고 다음 계정이 물려받던 버그부터 Cloudflare 미기재까지, 고칠 수 있는 건 코드로 고치고 방침은 실제대로 다시 썼습니다.
+
+**코드로 고친 것** — 다 빈 DB·사본으로 재현하고 고친 뒤 다시 확인했습니다(`~/Bufs/Claude Files/2026-10-29/privacy-fixes/`).
+
+- ⚠️ **계정 삭제가 이수 기록·계획·친구·개인 일정·제안을 남겼고, 다음에 만든 계정이 같은 id 를 받아 그대로
+  물려받았습니다.** 본 DB 는 `foreign_keys` 를 안 켜서 모델의 `ON DELETE CASCADE` 가 장식이었고 `users.id` 는
+  AUTOINCREMENT 가 아닙니다. 삭제가 명시적으로 지우고, 남은 고아는 마이그레이션이 지웁니다. 본 DB 에
+  `foreign_keys=ON` 을 켜는 쪽은 마이그레이션이 그 pragma 를 만지는 자리가 있어 미뤘습니다
+- ⚠️ **아무 학생이나 개인 일정을 '종업' 분류로 넣으면 전교생 홈이 방학이 됐습니다** — 학기 판정이 개인 일정을 안 걸렀습니다
+- 로그인 횟수 제한·세션 IP 가 `X-Forwarded-For` 첫 값을 믿어서 꾸밀 수 있었습니다 → nginx 의 `X-Real-IP`.
+  만료 세션은 그 토큰이 다시 와야 지워져서 IP 가 30일을 넘겨 남았습니다 → 로그인 때 쓸어 냄
+- 로그아웃해도 Ask 대화가 App 에 남아 같은 탭의 다음 사람에게 보이고 다음 질문에 실려 갔습니다. 최근 검색어(학생
+  이름)도 안 지워졌습니다 → 로그아웃이 둘 다 지움. 만료된 학기 캐시(전교생 명단)는 앱을 열 때 지움
+- 지운 행이 sqlite 빈 페이지에 남아 백업까지 따라갔습니다 → 두 DB `secure_delete`. 백업은 세션(평문 토큰)도 빼고,
+  매니저가 고친 자동 일정도 `source_ref` 로 뺌. 원문에서 지워진 글이 생기면 검색 색인을 처음부터 다시 만듦
+  (고아 토큰이 `fts5vocab` 으로 읽혔습니다)
+- Ask 시스템 프롬프트에서 질문자 이름·학번을 뺐고(학년·구분·전공이면 충분), 오늘 개인 일정은 건수만. OpenAI 는
+  이용자가 고른 경우에만, 게시글 분석은 로컬만 — 기본값이 OpenAI 를 가리켜도 로컬로 갑니다
+- 이름이 든 일정 제목은 달력에 안 올리고, 이름이 든 사실 주제어는 문장 앞부분으로. 익명 글은 원본 사본에서도
+  작성자를 뺌. 구글 연동은 `openid email` 만
+
+**운영자가 정한 것**: 강의계획서는 로그인 뒤로(서버 `data/syllabi`, git 에서 뺌), 백업 1년·로그 90일, 방침은
+배포와 동시에 시행하고 13절의 7일·30일 예고 조항은 없앰, 레포는 공개 유지하되 기록에서 개인정보 파일 삭제.
+
+- ⚠️ **레포가 공개이고, 2026-03 커밋에 학생 356명 명단과 수강 DB 가 기록으로 남아 있습니다.** 강제 푸시는 이
+  백그라운드 세션에서 막혀 있어 `~/Bufs/Claude Files/2026-10-29/history-rewrite/rewrite-history.sh` 로 준비만 했습니다.
+  이 브랜치를 배포한 **뒤에** 돌려야 합니다 — 먼저 지우면 운영 화면의 강의계획서가 다음 빌드부터 사라집니다
+- ⚠️ 방침은 실제 설정을 약속합니다. 배포 가이드 「2026-10 개인정보 감사 반영」의 서버 단계(강의계획서 업로드,
+  `--no-access-log`, journald 90일, `--scrub-existing`, VACUUM)를 빠뜨리면 그날부터 방침이 거짓말이 됩니다
+- Cloudflare(모든 요청·응답이 지나감), Google Fonts·jsDelivr(화면을 열 때마다 IP)가 방침에 없었습니다. 6절은
+  제28조의8 제2항의 칸(연락처·시기·보유 기간)과 이전 근거·거부 방법을 갖췄습니다. 광고 쿠키 문단은 실제 광고가
+  없어 뺐습니다 — 붙이면 되살려야 합니다
+
+남은 권고(손대지 않음): 비밀번호 바꾸는 기능이 없음(관리자가 정한 비밀번호를 운영자가 앎), 세션 토큰을 DB 에
+평문 저장, 글꼴 직접 호스팅(그러면 Google·jsDelivr 행이 빠짐), ksain 사본의 명단형 첨부 마스킹, 업로드 처리가
+이벤트 루프를 막음(ClamAV·LibreOffice), 연동 안 한 계정도 API 로 명단을 받을 수 있음(화면만 막음).
+
+## 2026-10-29 — Ask 가 오늘 일정(체육대회)을 놓치던 문제
+
+- 변경 파일: `backend/agent/tools.py`(`today_events`·`_GENERIC`·`Context.weak`), `backend/agent/chat.py`(`date_anchors`·`_named`·시스템 프롬프트), `backend/agent.guide.md`
+- 요약: "오늘 일정 뭐야?" 에 모델이 `calendar(query="일정")` 을 불러 체육대회가 걸러지고 "특별한 일정은 없습니다" 라고 답한 일. 오늘 걸친 일정과 어제·내일·이번 주·다음 주 날짜를 프롬프트에 미리 넣고, 검색어의 일반어를 버리고, 걸린 게 없으면 빈 목록 대신 기간 일정을 줍니다.
+
+같은 계열의 실수가 셋이었습니다. ① 일반어 검색어가 도구 결과를 비웠고 ② 12B 모델이 "다음 주" 를 11-03~11-09 로
+잘못 세고 요일도 밀어 적었고 ③ "기말고사 언제야?" 에 달력을 안 보고 기억만으로 답했습니다. 프롬프트로 타이르는
+대신 **날짜는 코드가 세서 건네는** 쪽으로 고쳤고, 실제 모델로 네 질문(오늘·다음 주·기말고사·내일)이 다 맞는 걸
+확인했습니다. 덤으로 `calendar` 가 일정마다 걸던 원문 링크는 답이 그 일정을 말할 때만 남깁니다 — 스크린샷의
+답 밑에 붙은 수강신청·SAT·R&E 칩이 그것이었습니다.
+
+- ⚠️ 첫 답이 틀린 뒤 "비융신이야? 학사일정 찾아보면…" 에 모델은 도구 없이 "확인해 보니 체육대회입니다" 라고 따라
+  했습니다. 틀렸다는 말을 들으면 다시 확인하라는 줄을 넣었지만, 근본 해결은 처음부터 맞게 답하는 쪽(오늘 일정
+  프롬프트)입니다
+
+## 2026-10-29 — 기억·자동 일정을 백업에서 빼기 + 사실에서 학생 이름 거르기 — 브랜치 `feat/backend-overhaul`
+
+- 변경 파일: `backend/services/backup.py`(`strip_ksain_derived`), `backend/cli/material_backup.py`, 신규 `backend/cli/snapshot.py`, `backend/ksain/analyze.py`(`student_names`·`_personal`), `deploy-guide.md`(배포 직전 `cp` → `backend.cli.snapshot`), `frontend/src/pages/PrivacyPage.tsx`, 가이드(`core/db.guide.md`·`ksain.guide.md`·`models.guide.md`·`backend/CLAUDE.md`·`PrivacyPage.guide.md`)
+- 요약: 기억(`facts`)과 자동 일정이 본 DB 에 있어서 자동으로 안 지우는 백업에 그대로 남던 것을, 본 DB 를 복사하는 모든 길에서 빼고 VACUUM 하게 했습니다. 모든 글에서 사실을 뽑으면서 늘어난 학생 이름은 학생 명단으로 한 번 더 거릅니다.
+
+**DB 를 둘로 나눈 이유가 작게 돌아와 있었습니다.** 개인정보처리방침은 "올라온 지 2주 안의 글이 원문에서 삭제되면
+그 글에서 만든 일정·정리한 사실을 지운다" 고 약속합니다. 그런데 기억과 자동 일정은 API 가 고쳐야 해서 본 DB 에
+두었고, 본 DB 백업(재수집 직전·Admin 단추)은 자동으로 지우지 않습니다. 지운 글의 사실이 백업 속에 영영 남는
+구조였습니다 — `core/db.guide.md` 가 DB 를 합치지 않은 이유로 적어 둔 바로 그 문제입니다. 둘 다 ksain.db 의 분석에서
+다시 만들 수 있어서(`--reapply`), 백업에서 빼는 쪽을 골랐습니다.
+
+- ⚠️ **지우기만 하면 안 됩니다 — VACUUM 까지.** sqlite 는 지운 행을 빈 페이지에 두고(`secure_delete` 기본 꺼짐)
+  backup API 는 그 페이지까지 복사합니다. 실험으로 확인했습니다: 지운 문장이 원본에도 백업에도 바이트로 남고,
+  VACUUM 한 사본에서만 사라졌습니다. `facts_fts` 는 행이 아니라 표째 지웁니다(색인 조각에 낱말이 남을 수 있고,
+  앱이 뜰 때 마이그레이션이 다시 만듭니다)
+- ⚠️ **배포 가이드의 손 `cp` 가 같은 구멍이었습니다.** 평소 배포가 매번 `cp backend/ksa_timetable.db …bak-날짜` 로
+  본 DB 를 통째로 떴습니다. `python -m backend.cli.snapshot deploy` 로 바꿨고(같은 함수), 새 코드에 있는 명령이라
+  `git pull` 뒤·재시작 전에 뜹니다. 본 DB 를 복사하는 길은 이제 셋(재수집·Admin, 자료 압축, 배포)이고 전부 한 함수를
+  거칩니다
+- **되돌릴 때의 값**: 백업에서 되돌린 뒤 `--reapply` 로 기억·자동 일정을 다시 만듭니다(사본으로 확인 — 기억 36건·
+  색인 36건·자동 일정 56건). 사람이 고치거나 숨긴 기억은 돌아오지 않습니다. 드문 복구의 편의보다 약속을 골랐습니다
+
+**학생 이름은 지시문만으로 안 막혔습니다.** 2026-10 사본에서 최근 1년 글 710건 중 159건에 학생 이름이 있었고(연구회
+홍보·선발·선거 게시판 순), 실제 모델(gemma4:12b)은 "이우주 학생이 선발되었습니다", "후보 기호 2번 김은호의 공약" 처럼
+이름을 사실에 썼습니다. 지시문에 금지를 넣고, 본 DB 학생 명단의 세 글자 이상 한글 이름과 "이름(KSA18)" 꼴이 든 문장을
+코드가 버립니다. 두 글자 이름은 "이수"·"정보" 같은 낱말과 겹쳐서 뺐고, 명단 패턴에 걸린 상위 15개가 전부 실제
+이름인 것을 확인했습니다. 교사 이름은 거르지 않습니다 — 시간표에 이미 나오고 "문의는 ○○○ 선생님께" 는 쓸모 있습니다.
+
+- 남은 것(기존 문제, 손대지 않음): ① 방침 11절은 "백업본은 보관 주기가 지나면 삭제" 인데 재수집 백업에는 보관 주기가
+  없습니다 — 계정 삭제 같은 다른 데이터도 백업에 영영 남습니다 ② 서버의 기존 `.bak-` 파일들에는 v3 자동 일정이
+  들어 있습니다 ③ 본 DB 자체도 `secure_delete` 가 꺼져 있어 지운 행이 빈 페이지에 남습니다
+
+## 2026-10-29 — 전공(심화필수 전공 트랙) 조사·반영 + 기억에서 날짜 빼기(분석기 v5) — 브랜치 `feat/backend-overhaul`
+
+- 변경 파일: 신규 `backend/services/majors.py`·`backend/routers/majors.py`, `backend/models.py`(`User.major`·`major_answered_at`, `target_majors` 셋, `Fact.board`), `backend/core/migrations.py`, `backend/ksain/`(analyze v5·apply·models `board_label`), `backend/knowledge/`(facts·text), `backend/agent/`(chat·tools), `backend/routers/`(auth·calendar·agent), 신규 `frontend/src/components/MajorPrompt.tsx`·`MajorPicker.tsx`·`MajorSettings.tsx`·`admin/MajorSurveyPanel.tsx`·`lib/majors.ts`, `ShareMaterialsPrompt` 삭제, `CalendarPage`·`EventFormModal`·`RequestSidebar`·`FactsPanel`·`SettingsPage`·`AdminPage`·`PrivacyPage`, 가이드(`ksain.guide.md`·`agent.guide.md`·`api-guide.md`·`models.guide.md`·`backend/CLAUDE.md`·`deploy-guide.md`·`frontend/CLAUDE.md` …)
+- 요약: 학생이 고른 전공 트랙을 계정에 두고("자료 구합니다" 팝업 자리에 전공 팝업), 학사일정·기억에 대상 전공을 달았습니다. 기억에서는 날짜를 빼고 날짜 든 정보는 일정 항목과 그 세부 메모로 보내며, 사실은 게시판과 상관없이 모든 글에서 뽑습니다. 기억 줄에는 게시판(말머리)·대상 학년·전공·질문자 해당 여부가 붙습니다.
+
+**전공은 학교 이름 그대로 "심화필수 전공 트랙" 여섯입니다**(ksain 2315번 「심화필수 전공 트랙 조사」). 교육과정에서
+`departments.track`(심화필수 조건)이 있는 과학 여섯 학과와 같고, 학부 셋(수리정보과학부·물리지구과학부·
+화학생물학부)으로 묶입니다. 1·2학년 때 조사하고 3학년 2학기까지 바꿀 수 있어서, 계정에 적되 본인이 `/about`
+에서 언제든 고치게 했습니다. ⚠️ **계정에는 학과 id 가 아니라 이름을 적습니다** — `import_curriculum` 이 학과
+행을 지우고 다시 만들어서 id 로 묶으면 재적재하는 날 전원의 전공이 끊깁니다.
+
+**수강 이력으로 짐작한 트랙은 추천으로만 보여 주고 저장하지 않습니다.** 1학년 필수는 모두가 들어서 심화필수
+(3점)·심화·AP(2점)만 세고, 1등이 4점 이상이면서 2등의 1.5배를 넘을 때만 내놓습니다. 2026-10 사본으로 세어
+보니 23~25학번은 63~70% 만 짐작이 나오고 26학번은 1% 입니다. ⚠️ 이 숫자는 정확도가 아니라 짐작이 **나오는
+비율**입니다 — 맞는지 대 볼 정답이 없습니다. 작업 중 한때 가이드에 정확도처럼 적었다가 다시 재 보고 바로잡았습니다.
+조사 현황은 Admin 에 **트랙별 인원 수만** 냅니다(`GET /majors/stats`) — 누가 무엇을 골랐는지는 서버도 안 줍니다.
+
+**날짜는 학사일정이 맡습니다.** v4 기억에 "R&E 최종보고서는 11월 29일까지 제출" 이 그대로 들어 있었는데,
+기억은 질문마다 프롬프트에 실려서 마감이 연장되거나 매니저가 일정을 고쳐도 옛 날짜가 나갑니다. 지시문에서
+facts 에 날짜를 금하고, 일정 항목에 `detail`(장소·버스 시각·준비물)을 받아 자동 일정의 메모 맨 앞에 넣었습니다.
+
+- ⚠️ **날짜 판정이 소수·분수를 날짜로 잡으면 안 됩니다.** 처음 쓴 정규식은 `숫자.숫자` 를 다 날짜로 봐서
+  "평점 3.5 이상"·"1.5배"·"A-(3.7)" 같은 기준 사실까지 버릴 뻔했습니다. 연도·끝 마침표·요일·괄호·"까지" 가
+  붙거나 두 자리 수가 든 슬래시("11/13")일 때만 날짜로 봅니다 — 34개 예시로 확인했습니다
+- ⚠️ **모델은 지시를 어기고 날짜 단 사실을 씁니다.** 실제 모델(gemma4:12b) dry-run 에서 3089(11월 귀가)가
+  "귀가일(11/13) 학교버스는 16:40, 17:30 운행" 을 사실로 냈습니다. 그냥 버리면 버스 시각이 어디에도 안 남아서,
+  문장의 날짜가 시작일·끝날인 일정을 찾아 그 `detail` 에 옮깁니다(`_attach_dated`, `grounded` 와 같은 꼴)
+- 재분석 범위는 "최근 1년의 중요도 1 이상" 에서 "최근 1년 전부" 로 넓혔습니다(약 710건) — 사실을 모든 글에서
+  뽑으라는 요청이라서입니다. 대신 기억 줄에 게시판을 실어 모델이 교무연구부 공지와 홍보 글을 가려 읽게 했습니다
+
+**Ask 가 학부 공지를 못 찾던 두 가지를 고쳤습니다**(실제 모델로 끝까지 돌려 확인).
+
+- "화학생물학부 면접 특강 나도 들어야 해?" 에 기억이 안 걸렸습니다. 사실 문장에 학부 이름이 없어서였고, 고친
+  뒤에도 "나도"·"들어" 가 사실 어디에도 없는 말이라 희소도가 가장 높게 잡혀 덮은 비율이 0.47 로 떨어졌습니다.
+  색인에 대상 전공과 학부 이름을 넣고(`_searchable`), 두 말을 묻는 꼴 불용어에 더했습니다 → "해당되지 않습니다"
+- "내 전공 관련 일정" 에 모델이 `calendar(query="정보과학")` 을 불렀는데 제목이 "수학 모의면접" 이라 0건이었습니다.
+  `query` 가 대상 전공·학부 이름에도 걸리게 했습니다 → 수학 모의면접 1·2차와 교실까지 답했습니다
+- 일정이 겹치는지 볼 때 **대상 학년·전공이 서로 안 겹치면 다른 일정**으로 봅니다(`_apart`) — 학부마다 따로 여는
+  "학부 설명회" 가 이름이 같다고 하나만 남지 않게
+
+스냅샷 비교(시각 고정, GET 95개·도구 26개)에서 달라진 건 새 칸뿐이었습니다 — `/auth/me` 의 `major`·
+`major_division`·`major_answered`, 일정·제안의 `target_majors: []`, Ask 프로필의 `major`·`division`.
+프론트는 빌드 통과, 린트는 기준선 그대로(7 errors / 5 warnings, 전부 기존). 화면은 DB 사본에 띄워 팝업(데스크톱·
+모바일)·달력 거르개·일정 입력 칩·`/about`·Admin 두 패널을 확인했습니다.
+
+- ⚠️ **개인정보처리방침 13항은 수집 항목 추가를 30일 전에 알린다고 약속합니다.** 전공이 새 수집 항목이라, 배포
+  때 시행일(지금 화면 값 2026-10-29)과 공지 시점을 정해야 합니다 — 위 "운영 배포" 할 일에 같이 걸려 있습니다
+- 화면과 서버를 따로 배포해서, 팝업은 `major_answered === false` 일 때만 띄웁니다. 옛 서버는 이 칸이 없습니다
+
+## 2026-10-28 — 백엔드 재배치 + ksain 검색 색인 + 기억(facts) — 브랜치 `feat/backend-overhaul`
+
+- 변경 파일: `backend/` 전체 재배치(`core/`·`routers/`·`services/`·`cli/`·`agent/`·`knowledge/` — 신규 `core/config.py`·`clock.py`·`ratelimit.py`, `services/calendar.py`·`schoolday.py`·`meals.py`·`timetable.py`·`curriculum.py`·`materials.py`, `agent/chat.py`, `knowledge/*`, `routers/facts.py`), `backend/models.py`(`Fact`), `backend/ksain/`(analyze v4·apply·sync·models), `deploy/class-explorer-*.service`, `frontend/src/lib/agentChat.ts`·`agentDemo.ts`, `frontend/src/pages/PrivacyPage.tsx`, Admin 기억 패널, 가이드 전반(`core/db.guide.md` 신규, `ksain.guide.md`·`agent.guide.md`·`deploy-guide.md` …)
+- 요약: 평평하던 `backend/` 를 패키지로 나누고 라우터끼리 import 하던 로직을 `services/` 로 내렸습니다. ksain 글·첨부를 한글 바이그램 FTS5 로 색인해 BM25 + 희소도 재정렬 + 근거 발췌로 찾고, 분석기 v4 가 글마다 사실을 뽑아 본 DB `facts` 에 쌓으면 Ask 가 질문에 맞는 사실을 시스템 프롬프트에 싣습니다. DB 파일은 둘 그대로 둡니다.
+
+**DB 는 합치지 않았습니다.** 처음 요청은 "쪼개진 DB 합치기" 였는데, 사용자와 다시 정리하고 둘로 남겼습니다.
+본 DB 스냅샷은 자동으로 지우지 않아서 합치면 ksain 에서 지워진 글(시험 명단 첨부 등)이 백업 속에 영영
+남고 — 개인정보처리방침 4항 위반입니다 — 서버에서는 API 가 `ksaclass`, 수집 타이머가 `baeks` 로 돌아서
+한 파일을 WAL 로 같이 쓰려면 `-wal`·`-shm` 의 주인·그룹 문제로 `data/` 권한부터 다시 짜야 했습니다(서버에서
+`systemctl show` 로 확인). 대신 연결 코드를 `core/db.py` 하나로 모으고 경계를 규칙으로 적었습니다: **사람이
+보고 고치는 결과물(자동 일정·기억)은 본 DB, 다시 만들 수 있는 원료(글·첨부·분석·색인)는 ksain.db.**
+
+- ⚠️ **기억(facts)을 ksain.db 에 두면 안 됩니다.** 처음엔 "글의 요약 DB" 라 ksain.db 가 자연스러워 보였지만,
+  API 는 `ProtectSystem=strict` 로 `data/` 밖에 못 쓰고 ksain.db 는 `backend/` 의 `baeks` 파일이라 Admin
+  패널의 숨기기·고치기가 운영에서 막힙니다
+- ⚠️ **API 는 ksain.db 스키마를 맞추지 않습니다**(`init_ksain_schema` 를 안 부름). 새 칼럼
+  `ksain_analyses.facts` 는 `deferred` 로, 새 색인 표는 없으면 LIKE 로 비켜 가게 했습니다 — 배포 직후 수집이
+  한 번 돌기 전까지 API 가 옛 ksain.db 를 봅니다. 하네스로 옛 ksain.db 를 물린 채 API 가 멀쩡한 것을 확인했습니다
+- ⚠️ 본 DB 를 WAL 로 바꾸지 마세요 — 같은 계정 문제입니다(`core/db.guide.md`)
+
+**재배치는 동작을 바꾸지 않았다는 걸 스냅샷으로 확인했습니다.** 테스트 파일을 만들지 않는 프로젝트라,
+`~/Bufs/Claude Files/2026-10-28/backend-overhaul/harness/` 에 하네스를 두고(저장소 밖) 재배치 전후의 DB 사본에서
+시각을 2026-10-28 14:05 로 고정한 채 GET 전부·쓰기 흐름·agent 도구 24개를 떠서 비교했습니다. 다른 건 백업
+폴더 경로(트리 위치) 하나였습니다. ⚠️ freezegun 은 `pydantic.v1` 을 먼저 불러야 메타클래스가 안 꼬입니다.
+
+- `auth.get_current_session` 이 주석("쓰기를 줄이려고 절반이 지났을 때만")과 달리 **매 요청마다
+  `last_used_at` 을 적고 커밋**하고 있었습니다. 5분 간격으로 줄였습니다 — 읽기만 하는 요청이 전부 쓰기가 되면
+  수집 타이머의 자동 일정 쓰기와 잠금을 다툽니다
+- 라우터끼리 import 하던 다섯 곳(home→calendar, bench→classes·curriculum, admin·material_backup→materials,
+  agent→calendar·home·exams)을 `services/` 로 내렸고, 공개 범위 필터 3벌·`(EC)` 표기 12곳·로그인/ksa-bench
+  요청 제한 2벌을 하나씩으로 합쳤습니다. 홈과 Agent 가 따로 하던 "그날 판정" 도 `services/schoolday.day_status`
+  하나입니다
+- `datetime.utcnow()`(3.12 폐기 경고)를 `core/clock.utcnow()` 로 바꿨고, `periods.now()/today()` 는 `core/clock`
+  으로 옮겼습니다. ⚠️ CLI 경로가 `python -m backend.cli.<이름>` 으로 바뀌어 **materials-backup 유닛도 바뀌었습니다**
+  — 배포 때 유닛을 다시 복사하지 않으면 그날 밤 타이머가 죽습니다(deploy-guide 에 박아 둠)
+- 기존부터 있던 죽은 코드는 그대로 뒀습니다: `core/app.py` 의 주석 처리된 CORS 블록, `routers/friends.py` 의
+  안 쓰는 `import datetime`
+
+**검색은 한글 바이그램 FTS5 입니다**(`knowledge/`). 예전 LIKE 검색이 FTS5 를 피한 이유는 trigram 이 두 글자
+낱말("필참")을 못 찾아서였는데, 바이그램을 띄어 쓴 문자열을 `unicode61 remove_diacritics 0` 에 넣으면 두 글자도
+찾고 구문 질의(`"기말 말고 고사"`)로 정확히 걸립니다. 서버 SQLite 3.37 에서 확인했습니다. 글 2,400건·조각
+2만 7천 개 색인에 5초, 질의 200ms 안팎, ksain.db 35 → 57MB.
+
+- ⚠️ **contentless FTS5 는 3.43 전에는 행을 못 지웁니다**(서버 3.37). 조각 행만 지우고 토큰은 고아로 두며,
+  조각 id 는 `AUTOINCREMENT` 라 고아가 새 조각에 붙지 않습니다. 고아가 30% 를 넘으면 다시 만듭니다
+- 처음 순위는 낱말을 같은 무게로 셌더니 "외출 신청 방법" 에 "HP 참가 신청" 이 1등이었습니다 — **희소도(IDF)**
+  로 무게를 주고, 최신성·중요도 가산점은 **관련도를 곱해** 관련 있는 글끼리만 순서를 정하게 했습니다
+- 발췌가 흔한 낱말 쪽으로 쏠렸습니다(100109 에서 "연구노트 … 제출" 이 "최종보고서 … 11월 29일" 을 이김).
+  발췌 창도 희소도 무게로 고르고, 후보 조각은 **상위 글 안에서 다시** 뽑습니다
+- 질문 말("언제까지"·"내야"·"하려면")이 검색어로 남으면 희소도가 높게 잡혀 맞는 사실을 밀어냅니다 — 조사·용언
+  꼬리 떼기와 불용어를 늘렸습니다
+
+**기억은 글에 묶인 요약 DB 입니다**(사용자 요청 — "따로 markdown 파일을 만든다거나는 별로"). 분석기 v4 가
+글마다 사실을 최대 6개 뽑고(일정과 겹치지 않는 방법·대상·규칙·결과), 날짜는 글에 있어야(`grounded`), 학번 꼴은
+버리고 전화·이메일은 걷어냅니다. 실제 gemma4:12b 로 R&E·외출·귀가·수강 정정·규정 글을 돌려 보니 문장이 혼자
+읽히고 일정과 겹치지 않았습니다. Ask 는 질문 전에 사실을 골라 시스템 프롬프트에 싣는데, 외출 승인·R&E 마감·멘토
+자격 질문이 **도구 없이 2~4초**에 답했습니다(도구를 거치면 6~8초). `[F12]` 표시는 걷어내고 그 글을 근거 맨
+앞에 겁니다. 숨기거나 고친 사실은 재분석이 덮어쓰지 않습니다(사본 DB 로 흐름 확인).
+
+- ⚠️ **사실을 뽑으면서 글 하나가 15~30초**가 됐습니다(전엔 5~10초). 타이머 유닛이 50분에 죽이므로 분석에
+  `--minutes 40` 시간 예산을 넣었습니다. 버전업 재분석은 **최근 1년·중요도 1 이상**(약 600건, 사용자 선택)만 —
+  배포 뒤 데스크탑 GPU 로 서너 시간입니다
+- 중요도 0(잡담·감사 이벤트) 글에서도 사실이 나와서(이벤트 종료 안내 3건) 버리게 했습니다
+- 개인정보처리방침에 정리한 사실(목적·지워지는 범위·OpenAI 로 가는 항목)을 넣었습니다. ⚠️ **시행일과 7일 전
+  공지는 손대지 않았습니다** — 배포 시점에 어떻게 할지 사용자가 정합니다
+
 ## 2026-10-28 — Ask: `/ai` 페이지 + 플로팅 버튼 (데스크탑 미니 창 · 모바일 전체 화면 창)
 
 - 변경 파일: `frontend/src/components/agent/`(신규 — AgentDock·AgentPanel·AgentEmpty·AgentThread·AgentComposer), `frontend/src/pages/AiPage.tsx`, `frontend/src/hooks/`(useAgentChat·useFollowBottom·useMediaQuery), `frontend/src/lib/`(agentChat·agentDemo·askMotion·imageAttach·agentApi), `frontend/src/App.tsx`, `frontend/src/index.css`, `frontend/src/pages/PrivacyPage.tsx`, `backend/agent_router.py`·`agent_tools.py`, 가이드(`frontend/CLAUDE.md` 의 `Ask` 절·`agent.guide.md`·`api-guide.md`)
