@@ -11,6 +11,7 @@
 | `curriculum.py` | 졸업 요건·누적 이수 이력 |
 | `majors.py` | 전공(심화필수 전공 트랙)·학부 묶음·수강 이력으로 짐작하기 |
 | `materials.py` | 자료 원본의 자리 |
+| `syllabi.py` | 강의계획서 원본의 자리·목록 (git 에 없는 파일) |
 | `terms.py` | 학기 해석 |
 | `versioning.py` | 수집 회차 (`at_version`) |
 | `features.py` | 한시적 기능의 기간 (`settings` 표) |

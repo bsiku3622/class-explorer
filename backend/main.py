@@ -34,6 +34,7 @@ from backend.routers import (
     majors,
     materials,
     state,
+    syllabi,
 )
 
 app = create_app(
@@ -60,6 +61,7 @@ app.include_router(classes.router)          # GET / — 학기 전체 + 분반 �
 app.include_router(bench.router)            # 사람 1명 조회 · 수강 분포 · 본인 이수
 app.include_router(materials.router)        # 인증된 과목 자료실 + 업로드
 app.include_router(materials.admin_router)  # 자료 검수
+app.include_router(syllabi.router)          # 2026-1 강의계획서 — 로그인한 사람에게만
 app.include_router(agent.router)            # Ask — 도구를 부르는 LLM Agent
 app.include_router(facts.router)            # Ask 의 기억 — 매니저가 고치고 숨깁니다
 app.include_router(majors.router)           # 내 전공(심화필수 전공 트랙)

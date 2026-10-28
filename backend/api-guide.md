@@ -539,6 +539,32 @@ ZIP을 받습니다. 파일당 50MB, 요청당 90MB, ZIP 압축 해제 300MB까�
 ZIP 원본은 남기지 않고 내부 경로를 검사한 뒤 파일만 보관합니다.
 Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 preview합니다.
 
+## 강의계획서 엔드포인트 (`/syllabi/*`)
+
+2026-1 강의계획서 원본(pdf·docx)과 docx 의 PDF 미리보기(`<이름>.preview.pdf`)입니다. 자료실에 올린 자료가
+아니라, 학교가 배포한 파일을 서버의 `SYLLABI_DIR`(비우면 본 DB 옆 `syllabi/`, 서버에서는 `data/syllabi/`)에
+둔 것입니다 — `services/syllabi.py`.
+
+⚠️ **로그인한 사람에게만 줍니다.** 한때 화면 번들(`frontend/src/assets/syllabi/`)에 실었더니 Netlify 가 로그인
+없이 내줬고, 파일 대부분에 교사 이메일·전화번호가 들어 있었습니다. 그래서 파일은 git 에도 없습니다.
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| `GET` | `/syllabi` | 파일 목록 |
+| `GET` | `/syllabi/{id}` | 파일 하나 (pdf · docx 원본, 미리보기 PDF) |
+
+```json
+[{ "id": "246a49408f7ced02", "path": "Physics & Earth Science/Physics/Syllabus_GenPhys1_26-1_rev.docx", "format": "docx" }]
+```
+
+- `path` 는 `syllabi/` 기준 상대 경로이고 폴더는 학부/학과입니다 — 화면이 이 경로로 과목을 짝짓습니다
+  (`frontend/src/lib/syllabi.ts`). 미리보기 PDF 도 목록에 한 줄로 따로 나옵니다
+- `id` 는 경로의 해시(sha1 앞 16자리)라 같은 파일이면 늘 같습니다. URL 에 경로 대신 이것만 쓰는 건 파일 이름에
+  교사 이름이 든 것이 있어서입니다 — 접속 로그에 남습니다
+- 목록에 있는 id 만 내줍니다. 경로를 받지 않으므로 다른 파일로 새는 길이 없고, 폴더 밖을 가리키는 심볼릭
+  링크는 목록에서 빠집니다. 모르는 id 는 `404` 입니다
+- 둘 다 `Cache-Control: private, no-store` 입니다
+
 ## 기능 기간 엔드포인트 (admin)
 
 ### `GET·PATCH /admin/features/trade` *(admin)*

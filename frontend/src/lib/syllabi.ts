@@ -1,12 +1,35 @@
+/**
+ * 2026-1 강의계획서 — 과목과 파일을 짝짓고, 로그인한 채로 받아 옵니다.
+ *
+ * ⚠️ **파일은 화면 번들에 없습니다.** 한때 `assets/syllabi/` 를 `import.meta.glob` 으로 번들에 실었더니
+ * Netlify 가 로그인 없이 내줬고, 대부분에 교사 이메일·전화번호가 들어 있었습니다. 지금은 서버가 로그인한
+ * 사람에게만 줍니다(`GET /syllabi` 목록 · `GET /syllabi/{id}` 파일 — `backend/services/syllabi.py`). 그래서
+ * 미리보기·내려받기는 인증 헤더를 붙여 **Blob 으로** 받습니다 — iframe 과 `<a href>` 는 헤더를 못 보냅니다.
+ *
+ * 짝짓기는 예전과 같습니다 — 서버 목록의 경로(학부/학과/파일 이름)를 `SYLLABUS_RULES` 로 봅니다.
+ */
 import type { SubjectData, Term } from "../types";
+import api from "./api";
+import { cached, HOUR } from "./cache";
+import { authHeader } from "./session";
+
+/** 서버 목록의 한 줄 — `path` 는 `syllabi/` 기준 상대 경로입니다 */
+export interface SyllabusFile {
+    id: string;
+    path: string;
+    format: "pdf" | "docx";
+}
 
 export interface SyllabusDocument {
+    /** 원본 파일의 id — 내려받기 */
     id: string;
+    /** PDF 미리보기의 id — docx 면 같은 자리의 `.preview.pdf`, 없으면 원본 */
+    previewId: string;
     title: string;
+    /** 내려받을 때의 파일 이름 */
+    filename: string;
     department: string;
     sourceFormat: "PDF" | "DOCX";
-    previewUrl: string;
-    downloadUrl: string;
 }
 
 type SyllabusRule = {
@@ -16,10 +39,39 @@ type SyllabusRule = {
 
 const SYLLABUS_TERM: Term = { year: 2026, semester: 1 };
 
-const syllabusAssets = import.meta.glob<string>(
-    "../assets/syllabi/**/*.{pdf,docx}",
-    { eager: true, query: "?url", import: "default" },
-);
+/** 강의계획서가 있는 학기인가 — 아니면 목록을 받지도 않습니다 */
+export const hasSyllabusTerm = (term: Term | null): boolean =>
+    term?.year === SYLLABUS_TERM.year && term.semester === SYLLABUS_TERM.semester;
+
+/**
+ * 서버의 파일 목록. 한 시간 캐시해 과목 아코디언마다 다시 받지 않습니다 — 로그아웃 때 `clearCache` 가
+ * 같이 지웁니다(파일 이름에 교사 이름이 든 것이 있습니다).
+ */
+export const fetchSyllabusFiles = (): Promise<SyllabusFile[]> =>
+    cached("syllabi", HOUR, async () => {
+        const { data } = await api.get<SyllabusFile[]>("/syllabi", { headers: authHeader() });
+        return data;
+    });
+
+export const getSyllabusBlob = async (id: string): Promise<Blob> => {
+    const { data } = await api.get<Blob>(`/syllabi/${id}`, {
+        headers: authHeader(),
+        responseType: "blob",
+    });
+    return data;
+};
+
+/** 원본을 받아 저장 창을 띄웁니다. Blob URL 은 바로 거둡니다 */
+export const downloadSyllabus = async (doc: SyllabusDocument): Promise<void> => {
+    const url = URL.createObjectURL(await getSyllabusBlob(doc.id));
+    const anchor = window.document.createElement("a");
+    anchor.href = url;
+    anchor.download = doc.filename;
+    window.document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+};
 
 const normalize = (value: string): string =>
     value
@@ -115,61 +167,60 @@ const SYLLABUS_RULES: SyllabusRule[] = [
     { subject: "music", documents: ["강의계획서음악music"] },
 ];
 
-const originalAssetEntries = Object.entries(syllabusAssets).filter(
-    ([path]) => !path.toLowerCase().endsWith(".preview.pdf"),
-);
+const getFilename = (path: string): string => path.split("/").pop() ?? path;
 
-const getTitle = (path: string): string => {
-    const filename = path.split("/").pop() ?? path;
-    return filename.replace(/\.(pdf|docx)$/i, "").replaceAll("_", " ");
-};
+const getTitle = (path: string): string =>
+    getFilename(path).replace(/\.(pdf|docx)$/i, "").replaceAll("_", " ");
 
 const getDepartment = (path: string): string => {
-    const relative = path.split("/syllabi/")[1] ?? path;
-    const parts = relative.split("/");
+    const parts = path.split("/");
     return parts.length > 1 ? parts.slice(0, -1).join(" / ") : "Syllabus";
 };
 
-export const findSyllabiForSubject = (
+/** 이 과목의 짝짓기 규칙 — 강의계획서가 없는 학기·과목이면 `undefined` */
+export const syllabusRuleFor = (
     subject: Pick<SubjectData, "subject" | "subject_english" | "is_ec">,
     term: Term | null,
-): SyllabusDocument[] => {
-    if (
-        term?.year !== SYLLABUS_TERM.year ||
-        term.semester !== SYLLABUS_TERM.semester
-    ) {
-        return [];
-    }
-
+): SyllabusRule | undefined => {
+    if (!hasSyllabusTerm(term)) return undefined;
     const normalizedSubject = normalize(
         [subject.subject, subject.subject_english, subject.is_ec ? "EC" : ""]
             .filter(Boolean)
             .join(" "),
     );
-    const rule = SYLLABUS_RULES.find(({ subject: hint }) =>
+    return SYLLABUS_RULES.find(({ subject: hint }) =>
         normalizedSubject.includes(hint),
     );
+};
 
+export const findSyllabiForSubject = (
+    subject: Pick<SubjectData, "subject" | "subject_english" | "is_ec">,
+    term: Term | null,
+    files: SyllabusFile[],
+): SyllabusDocument[] => {
+    const rule = syllabusRuleFor(subject, term);
     if (!rule) return [];
 
-    const matches = originalAssetEntries
-        .filter(([path]) => {
-            const normalizedPath = normalize(path);
+    const byPath = new Map(files.map((file) => [file.path, file]));
+    const matches = files
+        .filter((file) => !file.path.toLowerCase().endsWith(".preview.pdf"))
+        .filter((file) => {
+            const normalizedPath = normalize(file.path);
             return rule.documents.some((hint) => normalizedPath.includes(hint));
         })
-        .map(([path, downloadUrl]) => {
-            const isDocx = path.toLowerCase().endsWith(".docx");
-            const previewPath = isDocx
-                ? path.replace(/\.docx$/i, ".preview.pdf")
-                : path;
+        .map((file) => {
+            const isDocx = file.format === "docx";
+            const preview = isDocx
+                ? byPath.get(file.path.replace(/\.docx$/i, ".preview.pdf"))
+                : undefined;
 
             return {
-                id: path,
-                title: getTitle(path),
-                department: getDepartment(path),
+                id: file.id,
+                previewId: preview?.id ?? file.id,
+                title: getTitle(file.path),
+                filename: getFilename(file.path),
+                department: getDepartment(file.path),
                 sourceFormat: isDocx ? "DOCX" as const : "PDF" as const,
-                previewUrl: syllabusAssets[previewPath] ?? downloadUrl,
-                downloadUrl,
             };
         });
 
