@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { X } from "lucide-react";
 import type { EventCategory, TimeMode } from "../types";
 import { CATEGORY_LABEL } from "../lib/calendar";
+import { MAJOR_DIVISIONS, toggleMajors } from "../lib/majors";
 import RetroButton from "./atoms/RetroButton";
 
 export type FormPurpose = "personal" | "shared" | "request";
@@ -17,6 +18,8 @@ export interface EventDraft {
     end_period: number | null;
     category: EventCategory;
     target_grades: number[];
+    /** 대상 전공 트랙. 비면 전공 무관 — 학부를 고르면 두 트랙이 같이 들어갑니다 */
+    target_majors: string[];
     note: string | null;
     repeat: "none" | "daily" | "weekly" | "monthly";
     repeat_until: string | null;
@@ -81,6 +84,7 @@ const EventFormModal: React.FC<EventFormModalProps> = ({
     const [endPeriod, setEndPeriod] = useState(1);
     const [category, setCategory] = useState<EventCategory>("event");
     const [grades, setGrades] = useState<number[]>([]);
+    const [majors, setMajors] = useState<string[]>([]);
     const [note, setNote] = useState("");
     const [repeat, setRepeat] = useState<EventDraft["repeat"]>("none");
     const [repeatUntil, setRepeatUntil] = useState("");
@@ -103,6 +107,7 @@ const EventFormModal: React.FC<EventFormModalProps> = ({
             end_period: timeMode === "period" ? endPeriod : null,
             category,
             target_grades: grades,
+            target_majors: majors,
             note: note.trim() || null,
             repeat,
             repeat_until: repeat === "none" ? null : repeatUntil || null,
@@ -269,6 +274,34 @@ const EventFormModal: React.FC<EventFormModalProps> = ({
                                         >
                                             {g}학년
                                         </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className={labelClass}>대상 전공 (안 고르면 전공 무관)</label>
+                                {/* 공지는 학부 단위로 오는 일이 많아서("물리지구과학부 주관") 학부
+                                    칩이 두 트랙을 한꺼번에 고릅니다 */}
+                                <div className="space-y-1.5">
+                                    {MAJOR_DIVISIONS.map(({ division, majors: pair }) => (
+                                        <div key={division} className="flex flex-wrap gap-1.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => setMajors((prev) => toggleMajors(prev, pair))}
+                                                className={pill(pair.every((m) => majors.includes(m)))}
+                                            >
+                                                {division}
+                                            </button>
+                                            {pair.map((m) => (
+                                                <button
+                                                    key={m}
+                                                    type="button"
+                                                    onClick={() => setMajors((prev) => toggleMajors(prev, [m]))}
+                                                    className={pill(majors.includes(m))}
+                                                >
+                                                    {m}
+                                                </button>
+                                            ))}
+                                        </div>
                                     ))}
                                 </div>
                             </div>

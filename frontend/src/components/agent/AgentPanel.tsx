@@ -42,7 +42,7 @@ const HeadButton: React.FC<{ label: string; onClick: () => void; children: React
 );
 
 /**
- * 창 머리 — 오늘 하루 보지 않기 창(`ShareMaterialsPrompt`)과 같은 보라 띠 + 흰 단추.
+ * 창 머리 — 전공을 묻는 창(`MajorPrompt`)과 같은 보라 띠 + 흰 단추.
  * ⚠️ 단추는 플로팅 버튼처럼 누르면 **살짝 줄어듭니다**(내려앉지 않음) — 앱 규칙의 예외, 사용자 요청
  */
 const Header: React.FC<{ chat: AgentChat; onExpand?: () => void; onClose: () => void }> = ({ chat, onExpand, onClose }) => (
