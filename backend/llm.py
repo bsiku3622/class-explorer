@@ -116,10 +116,13 @@ def _message(res: httpx.Response) -> dict:
         raise LLMError(f"HTTP {res.status_code}: {res.text[:300]}")
     try:
         data = res.json()
-        message = data["choices"][0]["message"]
+        choice = data["choices"][0]
+        message = choice["message"]
     except (ValueError, KeyError, IndexError) as error:
         raise LLMError(f"응답 형식이 다릅니다: {res.text[:300]}") from error
     message["usage"] = data.get("usage")
+    # "length" 면 max_tokens 에서 잘린 것 — 부르는 쪽이 잘렸다고 알릴 수 있게 넘깁니다
+    message["finish_reason"] = choice.get("finish_reason")
     return message
 
 

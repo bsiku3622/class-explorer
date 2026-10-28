@@ -115,7 +115,9 @@ def _hwp_para(chunk: bytes) -> str:
         else:
             out.append(" " if code == 9 else "")
             k += 8
-    return "".join(out)
+    # 코드 단위를 한 글자씩 chr() 로 붙이면 한자 확장 같은 4바이트 글자가 서로게이트 두 개로
+    # 갈라져 남고, 그대로 저장하면 UTF-8 인코딩에서 터집니다. 쌍은 다시 묶고 외톨이만 버립니다
+    return "".join(out).encode("utf-16-le", "surrogatepass").decode("utf-16-le", "ignore")
 
 
 def _hwp(data: bytes) -> str:
@@ -176,6 +178,8 @@ def readable(name: str) -> bool:
 
 def attachment_text(name: str, data: bytes) -> str:
     text = READERS[extension(name)](data)
+    # 어떤 형식이든 저장 전에 UTF-8 로 못 쓰는 글자(외톨이 서로게이트)를 걷어냅니다
+    text = text.encode("utf-8", "ignore").decode("utf-8")
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
     return text[:MAX_TEXT]

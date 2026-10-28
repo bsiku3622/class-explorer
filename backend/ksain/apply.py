@@ -58,6 +58,15 @@ def similar(a: str, b: str) -> bool:
     return len(grams_a & grams_b) / len(grams_a | grams_b) >= 0.5
 
 
+# 같은 날 같은 분류에서 이 말을 함께 쓰면 같은 일정입니다 ("12월 귀가" = "귀가(전학년)")
+IDENTITY_WORDS = ("귀가", "귀교", "폐쇄", "개학", "종업", "방학", "중간고사", "기말고사", "수강신청", "수강정정",
+                  "졸업", "입학", "축제", "체육대회")
+
+
+def same_identity(a: str, b: str) -> bool:
+    return any(word in a and word in b for word in IDENTITY_WORDS)
+
+
 def signature(item: dict) -> str:
     return f"{item['start_date']}|{_norm(item['title'])}"
 
@@ -73,6 +82,9 @@ def desired(analysis: Analysis, today: datetime.date) -> list[dict]:
     out = []
     for item in analysis.items or []:
         if not item.get("calendar") or item.get("confidence", 0) < MIN_CONFIDENCE:
+            continue
+        # 날짜가 글에 실제로 적혀 있어야 합니다 (analyze.grounded — 모델이 지어낸 날짜 차단)
+        if not item.get("grounded"):
             continue
         start = datetime.date.fromisoformat(item["start_date"])
         end = datetime.date.fromisoformat(item["end_date"])
@@ -95,6 +107,8 @@ def duplicate(db, item: dict, post_id: int) -> bool:
             continue
         if similar(row.title, item["title"]):
             return True
+        if row.start_date == start and row.category == item["category"] and same_identity(row.title, item["title"]):
+            return True
         # "기말고사" 와 "2학기 기말고사 시작" 처럼 시험 기간은 이름이 달라도 같은 일정입니다
         if item["category"] == "exam" and row.category == "exam" and row.source != "ksain":
             return True
@@ -103,12 +117,17 @@ def duplicate(db, item: dict, post_id: int) -> bool:
 
 def _event(post: Post, item: dict, index: int) -> core.CalendarEvent:
     start_minute, end_minute = _minutes(item.get("start_time")), _minutes(item.get("end_time"))
+    title = item["title"]
+    # 마감은 "15:00 까지" 라 시간 블록으로 그리면 15:00–16:00 행사처럼 읽힙니다 — 종일 + 제목에 시각
+    if item.get("kind") == "deadline" and start_minute is not None:
+        title = f"{title} ({item['start_time']}까지)"
+        start_minute = end_minute = None
     clock = start_minute is not None
     if clock and (end_minute is None or end_minute <= start_minute):
         end_minute = min(start_minute + 60, 23 * 60 + 59)
     category = item["category"] if item["category"] in CATEGORIES else "event"
     return core.CalendarEvent(
-        title=item["title"],
+        title=title,
         start_date=datetime.date.fromisoformat(item["start_date"]),
         end_date=datetime.date.fromisoformat(item["end_date"]),
         time_mode="clock" if clock else "allday",
