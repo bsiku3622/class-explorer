@@ -14,7 +14,7 @@ DB 를 여는 곳은 이 파일 하나입니다. 본 DB 와 ksain.db 를 같은 
 | 엔진 · 세션 · Base | `engine` · `SessionLocal` · `Base` | `ksain_engine` · `KsainSession` · `KsainBase` |
 | 저널 | 기본(rollback) | WAL |
 | 쓰는 프로세스 (서버) | API(`ksaclass`) + 수집 타이머·CLI(`baeks`) | 수집 타이머·CLI(`baeks`)만 — API 는 읽기만 |
-| 백업 | 스냅샷 (`services/backup.py`, 자동 삭제 없음) | 안 함 |
+| 백업 | 스냅샷 (`services/backup.py`, 자동 삭제 없음) — ksain 글로 만든 기억·자동 일정은 빼고 | 안 함 |
 
 **합치지 않습니다.** 한때 합치는 쪽으로 기울었다가 두 가지 때문에 접었습니다.
 
@@ -28,6 +28,23 @@ DB 를 여는 곳은 이 파일 하나입니다. 본 DB 와 ksain.db 를 같은 
 경계는 "사람의 것인가, 다시 만들 수 있는가" 입니다. 그래서 ksain 글에서 나왔어도 **사람이 고치는
 결과물**(학사일정의 자동 일정, 기억)은 본 DB 에 있습니다 — 서버에서 API 가 쓸 수 있는 DB 가 본 DB
 뿐이기도 합니다.
+
+**그 둘은 백업할 때 뺍니다**(`services/backup.py` 의 `strip_ksain_derived`). 위에서 "모든 복사 길이 빼야
+하는 규칙" 이 싫어서 DB 를 합치지 않았는데, 기억과 자동 일정은 본 DB 에 둘 수밖에 없어서 같은 문제가 작게
+돌아왔습니다 — 원문이 지워지면 같이 지운다고 약속한 것이 자동으로 안 지우는 백업에 남습니다. 그래서 본 DB 를
+복사하는 길을 전부 그 함수로 모았습니다.
+
+| 길 | 어디서 |
+| --- | --- |
+| 재수집 직전 · Admin 의 `백업` 단추 | `services/backup.py` 의 `create_backup` |
+| 자료 원본 일일 압축 | `cli/material_backup.py` |
+| 배포 직전 (사람이 손으로) | `python -m backend.cli.snapshot deploy` — 예전엔 `cp` 였습니다 |
+
+- ⚠️ **본 DB 를 `cp` 로 복사하지 마세요.** 위 표 밖의 복사는 이 규칙을 어깁니다
+- ⚠️ 지우고 **VACUUM 까지** 합니다. sqlite 는 지운 행을 빈 페이지에 그대로 두고 backup API 는 그 페이지까지
+  복사해서, 지우기만 하면 문장이 파일 안에 남습니다(실험으로 확인했습니다)
+- 백업에서 되돌린 뒤에는 `python -m backend.ksain.analyze --reapply` 로 기억·자동 일정을 다시 만듭니다.
+  사람이 고치거나 숨긴 기억은 돌아오지 않습니다 — 희귀한 복구 대신 약속을 지키는 쪽을 골랐습니다
 
 ## 연결 설정
 

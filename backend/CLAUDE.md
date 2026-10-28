@@ -67,6 +67,7 @@ backend/
 │   ├── build_curriculum_seed.py → Zamong 워크북 → curriculum_seed.json (로컬 전용)
 │   ├── import_exams.py  → 시험 seed + 응시 명단 → 시험 시간표
 │   ├── create_user.py   → 계정 생성
+│   ├── snapshot.py      → 본 DB 를 손으로 떠 두기 (배포 직전) — `cp` 대신 이걸 씁니다
 │   └── material_backup.py → 자료 원본 + 본 DB 압축 백업 (systemd 타이머)
 ├── curriculum_seed.json → 교육과정 카탈로그 145과목 + 선수관계 117개
 ├── calendar_seed.json · exam_seed*.json → 학사일정·시험 seed (경로는 core/config.py)
@@ -457,6 +458,11 @@ parse_schedule() → [{subject, section, teacher, room, times}]
 곳 없이 덮어쓰는 쪽이 더 위험합니다(`--no-backup` 으로 생략 가능). 자동 삭제는 없고
 용량은 `/admin/backups` 의 총합으로 봅니다.
 
+⚠️ **스냅샷에는 ksain 글로 만든 기억·자동 일정이 없습니다**(`strip_ksain_derived`) — 원문이 지워지면 같이
+지운다고 약속한 것들이라, 자동으로 안 지우는 백업에 넣지 않습니다. 되돌린 뒤에는 `python -m
+backend.ksain.analyze --reapply` 로 다시 만들고, 손으로 뜰 때도 `cp` 말고 `python -m backend.cli.snapshot`
+을 씁니다 — [core/db.guide.md](core/db.guide.md).
+
 ⚠️ **`Class.id` 는 재수집해도 보존됩니다.** Trade 계획(`UserState.trade`)이 분반을 id 로
 가리켜서, 지웠다 다시 넣으면 남의 계획이 엉뚱한 분반에 붙습니다. 폐강·신설만 행이
 바뀌고, 교사 이름이 바뀐 분반은 키가 달라져 새 id 를 받습니다 — 자세한 건
@@ -513,7 +519,7 @@ python -m backend.cli.create_user <username> <password> [--manager | --admin]
 | `GET` | `/admin/terms` | 데이터가 존재하는 학기 목록 |
 | `POST` | `/admin/sync` | 데이터 재수집 (`{"year": 2026, "semester": 2}` 선택, 생략 시 DB 최신 학기) |
 | `GET` | `/admin/backups` | DB 스냅샷 목록 + 총 용량 |
-| `POST` | `/admin/backups` | 지금 상태로 스냅샷 하나 (수집과 무관하게 손으로) |
+| `POST` | `/admin/backups` | 지금 상태로 스냅샷 하나 (수집과 무관하게 손으로) — ksain 글로 만든 기억·자동 일정은 뺍니다 |
 | `GET·PATCH` | `/admin/features/trade` | 수강 변경 탐색을 언제까지 열지 (`settings` 표) |
 
 `/admin/sync` 에 학기를 주면 **DB에 아직 없는 학기도** 받아옵니다 — 새 학기가 열리면

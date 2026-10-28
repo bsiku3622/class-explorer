@@ -1,3 +1,35 @@
+## 2026-10-29 — 기억·자동 일정을 백업에서 빼기 + 사실에서 학생 이름 거르기 — 브랜치 `feat/backend-overhaul`
+
+- 변경 파일: `backend/services/backup.py`(`strip_ksain_derived`), `backend/cli/material_backup.py`, 신규 `backend/cli/snapshot.py`, `backend/ksain/analyze.py`(`student_names`·`_personal`), `deploy-guide.md`(배포 직전 `cp` → `backend.cli.snapshot`), `frontend/src/pages/PrivacyPage.tsx`, 가이드(`core/db.guide.md`·`ksain.guide.md`·`models.guide.md`·`backend/CLAUDE.md`·`PrivacyPage.guide.md`)
+- 요약: 기억(`facts`)과 자동 일정이 본 DB 에 있어서 자동으로 안 지우는 백업에 그대로 남던 것을, 본 DB 를 복사하는 모든 길에서 빼고 VACUUM 하게 했습니다. 모든 글에서 사실을 뽑으면서 늘어난 학생 이름은 학생 명단으로 한 번 더 거릅니다.
+
+**DB 를 둘로 나눈 이유가 작게 돌아와 있었습니다.** 개인정보처리방침은 "올라온 지 2주 안의 글이 원문에서 삭제되면
+그 글에서 만든 일정·정리한 사실을 지운다" 고 약속합니다. 그런데 기억과 자동 일정은 API 가 고쳐야 해서 본 DB 에
+두었고, 본 DB 백업(재수집 직전·Admin 단추)은 자동으로 지우지 않습니다. 지운 글의 사실이 백업 속에 영영 남는
+구조였습니다 — `core/db.guide.md` 가 DB 를 합치지 않은 이유로 적어 둔 바로 그 문제입니다. 둘 다 ksain.db 의 분석에서
+다시 만들 수 있어서(`--reapply`), 백업에서 빼는 쪽을 골랐습니다.
+
+- ⚠️ **지우기만 하면 안 됩니다 — VACUUM 까지.** sqlite 는 지운 행을 빈 페이지에 두고(`secure_delete` 기본 꺼짐)
+  backup API 는 그 페이지까지 복사합니다. 실험으로 확인했습니다: 지운 문장이 원본에도 백업에도 바이트로 남고,
+  VACUUM 한 사본에서만 사라졌습니다. `facts_fts` 는 행이 아니라 표째 지웁니다(색인 조각에 낱말이 남을 수 있고,
+  앱이 뜰 때 마이그레이션이 다시 만듭니다)
+- ⚠️ **배포 가이드의 손 `cp` 가 같은 구멍이었습니다.** 평소 배포가 매번 `cp backend/ksa_timetable.db …bak-날짜` 로
+  본 DB 를 통째로 떴습니다. `python -m backend.cli.snapshot deploy` 로 바꿨고(같은 함수), 새 코드에 있는 명령이라
+  `git pull` 뒤·재시작 전에 뜹니다. 본 DB 를 복사하는 길은 이제 셋(재수집·Admin, 자료 압축, 배포)이고 전부 한 함수를
+  거칩니다
+- **되돌릴 때의 값**: 백업에서 되돌린 뒤 `--reapply` 로 기억·자동 일정을 다시 만듭니다(사본으로 확인 — 기억 36건·
+  색인 36건·자동 일정 56건). 사람이 고치거나 숨긴 기억은 돌아오지 않습니다. 드문 복구의 편의보다 약속을 골랐습니다
+
+**학생 이름은 지시문만으로 안 막혔습니다.** 2026-10 사본에서 최근 1년 글 710건 중 159건에 학생 이름이 있었고(연구회
+홍보·선발·선거 게시판 순), 실제 모델(gemma4:12b)은 "이우주 학생이 선발되었습니다", "후보 기호 2번 김은호의 공약" 처럼
+이름을 사실에 썼습니다. 지시문에 금지를 넣고, 본 DB 학생 명단의 세 글자 이상 한글 이름과 "이름(KSA18)" 꼴이 든 문장을
+코드가 버립니다. 두 글자 이름은 "이수"·"정보" 같은 낱말과 겹쳐서 뺐고, 명단 패턴에 걸린 상위 15개가 전부 실제
+이름인 것을 확인했습니다. 교사 이름은 거르지 않습니다 — 시간표에 이미 나오고 "문의는 ○○○ 선생님께" 는 쓸모 있습니다.
+
+- 남은 것(기존 문제, 손대지 않음): ① 방침 11절은 "백업본은 보관 주기가 지나면 삭제" 인데 재수집 백업에는 보관 주기가
+  없습니다 — 계정 삭제 같은 다른 데이터도 백업에 영영 남습니다 ② 서버의 기존 `.bak-` 파일들에는 v3 자동 일정이
+  들어 있습니다 ③ 본 DB 자체도 `secure_delete` 가 꺼져 있어 지운 행이 빈 페이지에 남습니다
+
 ## 2026-10-29 — 전공(심화필수 전공 트랙) 조사·반영 + 기억에서 날짜 빼기(분석기 v5) — 브랜치 `feat/backend-overhaul`
 
 - 변경 파일: 신규 `backend/services/majors.py`·`backend/routers/majors.py`, `backend/models.py`(`User.major`·`major_answered_at`, `target_majors` 셋, `Fact.board`), `backend/core/migrations.py`, `backend/ksain/`(analyze v5·apply·models `board_label`), `backend/knowledge/`(facts·text), `backend/agent/`(chat·tools), `backend/routers/`(auth·calendar·agent), 신규 `frontend/src/components/MajorPrompt.tsx`·`MajorPicker.tsx`·`MajorSettings.tsx`·`admin/MajorSurveyPanel.tsx`·`lib/majors.ts`, `ShareMaterialsPrompt` 삭제, `CalendarPage`·`EventFormModal`·`RequestSidebar`·`FactsPanel`·`SettingsPage`·`AdminPage`·`PrivacyPage`, 가이드(`ksain.guide.md`·`agent.guide.md`·`api-guide.md`·`models.guide.md`·`backend/CLAUDE.md`·`deploy-guide.md`·`frontend/CLAUDE.md` …)
