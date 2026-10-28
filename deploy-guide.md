@@ -328,7 +328,8 @@ python3.14 -m backend.knowledge.index           # ksain.db 스키마 맞추기 +
    rsync -a --chmod=D750,F640 "backend/syllabi/" server:/srv/class-explorer/data/syllabi/
    ssh server 'sudo chgrp -R ksaclass /srv/class-explorer/data/syllabi'   # API(ksaclass)가 읽게
    ```
-   `SYLLABI_DIR` 는 비워 둡니다(기본값이 `data/syllabi`). 파일이 없으면 강의계획서만 안 보이고 화면은 그대로입니다
+   `SYLLABI_DIR` 는 비워 둡니다(기본값이 `data/syllabi`). 파일이 없으면 강의계획서만 안 보이고 화면은 그대로입니다.
+   Ask 의 `syllabus` 도구도 이 파일을 읽어서, 없으면 "강의계획서 파일이 없습니다" 로 답합니다(`backend/agent.guide.md`)
 2. **API 접속 로그를 끕니다** — 위 「systemd」 의 `--no-access-log`. 유닛을 고친 뒤 `sudo systemctl daemon-reload`
 3. **journald 를 90일만 둡니다** (서버 전체 로그에 걸립니다)
    ```bash

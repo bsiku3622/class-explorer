@@ -26,11 +26,11 @@ backend/
 │   ├── curriculum.py    → 졸업 요건 상수·누적 이수 이력 (fetch_progress)
 │   ├── majors.py        → 전공(심화필수 전공 트랙)·학부 묶음·대상 이름 풀기·수강 이력으로 짐작하기
 │   ├── materials.py     → 자료 원본의 자리
-│   ├── syllabi.py       → 강의계획서 파일의 자리·목록 — git 밖(`data/syllabi`), 교사 연락처가 들어 있습니다
+│   ├── syllabi.py       → 강의계획서 파일의 자리·목록 — git 밖(`data/syllabi`), 교사 연락처가 들어 있습니다. Ask 가 읽는 본문도
 │   ├── terms.py         → 학년도/학기 해석 (current_term, list_terms, resolve_term)
 │   ├── versioning.py    → 수집 회차 — at_version() (versioning.guide.md)
 │   ├── features.py      → 한시적 기능의 **기간** (`settings` 표) — 시각 판정은 서버가 합니다
-│   ├── subject_names.py → 과목명 분해·정규화 (한글명/영문명/EC 태그)
+│   ├── subject_names.py → 과목명 분해·정규화 (한글명/영문명/EC 태그) + 줄임말로 찾기(미1 → 미적분학1)
 │   ├── zamong_import.py → 사람이 채운 Zamong 워크북 → 자몽 기록
 │   └── backup.py        → 본 DB 스냅샷 (수집 직전 자동 · 1년 뒤 삭제 · 세션·게시글 파생물 제외) → backups/
 ├── routers/             → HTTP 엔드포인트 — **서로 import 하지 않습니다** (같이 쓸 계산은 services/ 로)
