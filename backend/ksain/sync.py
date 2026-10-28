@@ -22,6 +22,7 @@ import json
 
 from backend.core import clock
 from backend.core.db import KsainSession, init_ksain_schema
+from backend.knowledge import index as search_index
 from backend.ksain import extract
 from backend.ksain.client import KsainClient, KsainError
 from backend.ksain.models import Attachment, Board, Gap, Post, State
@@ -222,6 +223,7 @@ def run(do_backfill: bool, refresh_days: int, attachments: bool, attachments_onl
     if attachments_only:
         try:
             summary["attachments"] = extract_attachments(db, client, limit=10000)
+            summary["index"] = search_index.refresh(db)
             summary["ok"] = True
         finally:
             db.close()
@@ -234,6 +236,8 @@ def run(do_backfill: bool, refresh_days: int, attachments: bool, attachments_onl
         summary["changed"], summary["missing"] = refresh(db, client, refresh_days)
         if attachments:
             summary["attachments"] = extract_attachments(db, client, limit=5000 if do_backfill else 300)
+        # 새 글·바뀐 글·새로 읽은 첨부를 검색 색인에 — API 는 ksain.db 에 못 써서 여기서 합니다
+        summary["index"] = search_index.refresh(db)
         summary["posts"] = db.query(Post).count()
         summary["ok"] = True
     except KsainError as error:

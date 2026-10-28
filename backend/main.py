@@ -28,6 +28,7 @@ from backend.routers import (
     classes,
     curriculum,
     exams,
+    facts,
     friends,
     home,
     materials,
@@ -59,3 +60,4 @@ app.include_router(bench.router)            # 사람 1명 조회 · 수강 분�
 app.include_router(materials.router)        # 인증된 과목 자료실 + 업로드
 app.include_router(materials.admin_router)  # 자료 검수
 app.include_router(agent.router)            # Ask — 도구를 부르는 LLM Agent
+app.include_router(facts.router)            # Ask 의 기억 — 매니저가 고치고 숨깁니다

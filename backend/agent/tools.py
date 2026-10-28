@@ -18,10 +18,12 @@ from sqlalchemy.orm import Session, joinedload
 
 from backend import models
 from backend.core import clock
-from backend.core.db import KsainSession
-from backend.ksain import search as ksain_search
+from backend.core.db import KsainSession, db_session
+from backend.knowledge import facts as memory
+from backend.knowledge import search as knowledge
+from backend.knowledge.text import query_terms
 from backend.services import periods
-from backend.services.calendar import event_out, visible_to
+from backend.services.calendar import event_out, grades, visible_to
 from backend.services.exams import exams_for
 from backend.services.meals import fetch_meal
 from backend.services.schoolday import day_status
@@ -140,11 +142,34 @@ class Context:
         self.user = user
         self.year, self.semester = resolve_term(db, None, None)
         self.sources: list[dict] = []
+        # 이 대화에서 모델에게 보인 사실 — 답의 [F번호] 를 출처로 바꿀 때 씁니다 (agent/chat.py)
+        self.facts: dict[int, models.Fact] = {}
         self.profile = profile_of(db, user.effective_stu_id)
 
-    def cite(self, title: str, url: str) -> None:
-        if url and all(s["url"] != url for s in self.sources):
-            self.sources.append({"title": title, "url": url})
+    def cite(self, title: str, url: str, first: bool = False) -> None:
+        if not url:
+            return
+        self.sources = [s for s in self.sources if s["url"] != url] if first else self.sources
+        if all(s["url"] != url for s in self.sources):
+            entry = {"title": title, "url": url}
+            if first:
+                self.sources.insert(0, entry)
+            else:
+                self.sources.append(entry)
+
+    def remember(self, facts: list[models.Fact]) -> list[dict]:
+        """모델에게 보이는 사실 — 번호(F12)를 붙여 돌려주고, 답에서 그 번호를 찾을 수 있게 기억해 둡니다."""
+        out = []
+        for fact in facts:
+            self.facts[fact.id] = fact
+            entry = {"id": f"F{fact.id}", "fact": fact.statement,
+                     "from": " · ".join(x for x in (fact.posted_on.isoformat() if fact.posted_on else None,
+                                                    fact.post_title[:60]) if x)}
+            mine = applies(self.profile, fact.statement, grades(fact.target_grades))
+            if mine is not None:
+                entry["mine"] = mine
+            out.append(entry)
+        return out
 
     # ── 날짜 판정 ────────────────────────────────────────────────────────────
     def day(self, day: datetime.date) -> dict:
@@ -357,7 +382,7 @@ def calendar(ctx: Context, start: str | None = None, end: str | None = None, que
                 visible_to(ctx.user))
         .order_by(models.CalendarEvent.start_date, models.CalendarEvent.id).all()
     )
-    words = ksain_search.terms(query or "")
+    words = query_terms(query or "")
     if words:
         rows = [r for r in rows if any(w in _norm(r.title) or w in _norm(r.note or "") for w in words)]
     events = []
@@ -408,29 +433,27 @@ def course_info(ctx: Context, name: str) -> dict:
     return {"courses": out}
 
 
-def search_ksain(ctx: Context, query: str, since: str | None = None, until: str | None = None, board: str | None = None) -> dict:
-    db = KsainSession()
-    try:
-        posts = ksain_search.search(db, query, since=_date(since) if since else None,
-                                    until=_date(until) if until else None, board=board)
-    finally:
-        db.close()
+def search(ctx: Context, query: str, since: str | None = None, until: str | None = None, board: str | None = None) -> dict:
+    """학교 자료 — 정리해 둔 사실(기억)과 ksain 글(근거 발췌 포함)을 함께."""
+    facts = memory.find(ctx.db, query, grade=ctx.profile["grade"] if ctx.profile else None, limit=5)
+    with db_session(KsainSession) as db:
+        posts = knowledge.search(db, query, since=_date(since) if since else None,
+                                 until=_date(until) if until else None, board=board)
     for post in posts:
         post["items"] = _items(post["items"], ctx.profile)
     for post in posts[:5]:
         ctx.cite(post["title"], post["url"])
-    return {"query": query, "posts": posts}
+    return {"query": query, "facts": ctx.remember(facts), "posts": posts}
 
 
 def read_ksain(ctx: Context, post_id: int) -> dict:
-    db = KsainSession()
-    try:
-        post = ksain_search.read(db, int(post_id))
-    finally:
-        db.close()
+    with db_session(KsainSession) as db:
+        post = knowledge.read(db, int(post_id))
     if post is None:
         return {"error": f"{post_id}번 글이 없습니다"}
     post["items"] = _items(post["items"], ctx.profile)
+    # 이 글에서 정리해 둔 사실 — 사람이 고친 문장이 있으면 그쪽이 더 정확합니다
+    post["facts"] = ctx.remember(memory.by_post(ctx.db, int(post_id)))
     ctx.cite(post["title"], post["url"])
     return post
 
@@ -439,11 +462,8 @@ def ksain_digest(ctx: Context, start: str | None = None, end: str | None = None,
     first = _date(start)
     # end 를 빼먹고 "이번 주" 를 start 만으로 묻는 일이 잦습니다 — 비우면 오늘까지로 잡습니다
     last = _date(end) if end else max(first, clock.today())
-    db = KsainSession()
-    try:
-        out = ksain_search.digest(db, first, last, int(min_importance))
-    finally:
-        db.close()
+    with db_session(KsainSession) as db:
+        out = knowledge.digest(db, first, last, int(min_importance))
     for post in out["posted"]:
         post["items"] = _items(post["items"], ctx.profile)
     out["dated_items"] = _items(out["dated_items"], ctx.profile)
@@ -486,7 +506,8 @@ TOOLS = [
     _fn("my_exams", "질문한 사람의 이번 학기 시험 시간표 (과목·날짜·시각·시험실)"),
     _fn("meal", "급식 메뉴 (아침·점심·저녁)", {"date": DATE}),
     _fn("course_info", "교육과정 과목 정보 — 학점·선수과목·설명", {"name": {"type": "string"}}, ["name"]),
-    _fn("search_ksain", "ksain(학교 커뮤니티) 게시글 검색. 공지·마감·행사·모집 등을 찾을 때",
+    _fn("search", "학교 자료 검색 — 정리해 둔 사실(기억)과 ksain(학교 커뮤니티) 게시글을 같이 찾고, 글마다 "
+                  "질문에 맞는 근거 발췌(passages)를 줍니다. 공지·마감·행사·모집·규칙·방법을 찾을 때",
         {"query": {"type": "string", "description": "핵심 키워드 (예: R&E 최종 보고서 제출)"},
          "since": {"type": "string", "description": "이 날짜 이후 글만 (YYYY-MM-DD)"},
          "until": {"type": "string", "description": "이 날짜 이전 글만"},
@@ -510,7 +531,7 @@ async def execute(ctx: Context, name: str, args: dict) -> dict:
         "calendar": lambda: calendar(ctx, args.get("start"), args.get("end"), args.get("query")),
         "my_exams": lambda: my_exams(ctx),
         "course_info": lambda: course_info(ctx, args.get("name", "")),
-        "search_ksain": lambda: search_ksain(ctx, args.get("query", ""), args.get("since"), args.get("until"), args.get("board")),
+        "search": lambda: search(ctx, args.get("query", ""), args.get("since"), args.get("until"), args.get("board")),
         "read_ksain": lambda: read_ksain(ctx, args.get("post_id", 0)),
         "ksain_digest": lambda: ksain_digest(ctx, args.get("start"), args.get("end"), args.get("min_importance", 2)),
     }

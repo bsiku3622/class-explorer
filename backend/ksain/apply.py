@@ -24,24 +24,13 @@ import re
 
 from backend import models as core
 from backend.core import clock
-from backend.core.db import SessionLocal as CoreSession, init_schema
+from backend.knowledge import facts as memory
 from backend.ksain.models import Analysis, Post
 
 MIN_CONFIDENCE = 0.6
 KEEP_PAST_DAYS = 14
 MAX_SPAN_DAYS = 45
 CATEGORIES = {"exam", "dorm", "academic", "event"}
-
-_schema_ready = False
-
-
-def _core():
-    global _schema_ready
-    if not _schema_ready:
-        init_schema()  # source_ref 컬럼 마이그레이션
-        _schema_ready = True
-    return CoreSession()
-
 
 def _norm(text: str) -> str:
     return re.sub(r"[\s\W_]+", "", (text or "").lower())
@@ -124,17 +113,17 @@ def _event(post: Post, item: dict, index: int) -> core.CalendarEvent:
         # "24:00 까지" 를 모델이 00:00 으로 적습니다 — 그날 자정입니다
         title = f"{title} ({'자정' if start_minute == 0 else item['start_time']}까지)"
         start_minute = end_minute = None
-    clock = start_minute is not None
-    if clock and (end_minute is None or end_minute <= start_minute):
+    timed = start_minute is not None
+    if timed and (end_minute is None or end_minute <= start_minute):
         end_minute = min(start_minute + 60, 23 * 60 + 59)
     category = item["category"] if item["category"] in CATEGORIES else "event"
     return core.CalendarEvent(
         title=title,
         start_date=datetime.date.fromisoformat(item["start_date"]),
         end_date=datetime.date.fromisoformat(item["end_date"]),
-        time_mode="clock" if clock else "allday",
-        start_minute=start_minute if clock else None,
-        end_minute=end_minute if clock else None,
+        time_mode="clock" if timed else "allday",
+        start_minute=start_minute if timed else None,
+        end_minute=end_minute if timed else None,
         category=category,
         target_grades=",".join(str(g) for g in item.get("target_grades") or []) or None,
         source="ksain",
@@ -143,56 +132,53 @@ def _event(post: Post, item: dict, index: int) -> core.CalendarEvent:
     )
 
 
-def apply_post(post: Post, analysis: Analysis) -> int:
-    """이 글에서 온 자동 일정을 분석 결과에 맞춥니다. 새로 만든 일정 수를 돌려줍니다."""
-    db = _core()
-    try:
-        current = db.query(core.CalendarEvent).filter(
-            core.CalendarEvent.source == "ksain",
-            core.CalendarEvent.source_ref.like(f"{post.id}:%"),
-        ).all()
-        alive = {row.id for row in current}
-        suppressed = set(analysis.suppressed or [])
-        for record in analysis.applied or []:
-            if record["event_id"] not in alive:
-                suppressed.add(record["sig"])
-        for row in current:
-            db.delete(row)
-        db.flush()
+def apply_post(db, post: Post, analysis: Analysis) -> int:
+    """이 글에서 온 자동 일정을 분석 결과에 맞춥니다. 새로 만든 일정 수를 돌려줍니다.
 
-        applied = []
-        for index, item in enumerate(desired(analysis, clock.today())):
-            sig = signature(item)
-            if sig in suppressed or duplicate(db, item, post.id):
-                continue
-            event = _event(post, item, index)
-            db.add(event)
-            db.flush()
-            applied.append({"sig": sig, "event_id": event.id})
-        db.commit()
-    finally:
-        db.close()
+    `db` 는 본 DB 세션입니다. 커밋은 부르는 쪽이 합니다(`analyze.run` 이 글마다 한 번).
+    """
+    current = db.query(core.CalendarEvent).filter(
+        core.CalendarEvent.source == "ksain",
+        core.CalendarEvent.source_ref.like(f"{post.id}:%"),
+    ).all()
+    alive = {row.id for row in current}
+    suppressed = set(analysis.suppressed or [])
+    for record in analysis.applied or []:
+        if record["event_id"] not in alive:
+            suppressed.add(record["sig"])
+    for row in current:
+        db.delete(row)
+    db.flush()
+
+    applied = []
+    for index, item in enumerate(desired(analysis, clock.today())):
+        sig = signature(item)
+        if sig in suppressed or duplicate(db, item, post.id):
+            continue
+        event = _event(post, item, index)
+        db.add(event)
+        db.flush()
+        applied.append({"sig": sig, "event_id": event.id})
     analysis.applied = applied
     analysis.suppressed = sorted(suppressed)
     return len(applied)
 
 
-def remove_missing(ksain_db) -> int:
-    """ksain 에서 사라진 글의 자동 일정과 분석(요약에 원문 내용이 들어 있습니다)을 지웁니다."""
+def remove_missing(ksain_db, db) -> int:
+    """ksain 에서 사라진 글의 자동 일정·기억과 분석(요약에 원문 내용이 들어 있습니다)을 지웁니다.
+
+    `ksain_db` 는 ksain.db, `db` 는 본 DB 세션입니다. 커밋은 부르는 쪽이 합니다.
+    """
     rows = ksain_db.query(Analysis).join(Post).filter(Post.missing_since.isnot(None)).all()
     if not rows:
         return 0
-    db = _core()
     removed = 0
-    try:
-        for row in rows:
-            removed += db.query(core.CalendarEvent).filter(
-                core.CalendarEvent.source == "ksain",
-                core.CalendarEvent.source_ref.like(f"{row.post_id}:%"),
-            ).delete(synchronize_session=False)
-        db.commit()
-    finally:
-        db.close()
+    for row in rows:
+        removed += db.query(core.CalendarEvent).filter(
+            core.CalendarEvent.source == "ksain",
+            core.CalendarEvent.source_ref.like(f"{row.post_id}:%"),
+        ).delete(synchronize_session=False)
+    memory.remove_posts(db, [row.post_id for row in rows])
     for row in rows:
         ksain_db.delete(row)
     return removed

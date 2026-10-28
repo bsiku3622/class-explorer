@@ -29,6 +29,12 @@ DEPARTMENT_ORDER = [
 ]
 
 
+# 바이그램 토큰을 띄어 쓴 문자열을 그대로 낱말로 받습니다. `remove_diacritics 0` — 한글 음절을
+# 자모로 풀지 않게 합니다. ksain 글 색인은 **contentless**(위치는 조각 표가 듭니다), 기억(facts)은
+# 고치고 지우는 일이 잦아 토큰을 같이 저장하는 보통 표입니다
+FTS_TOKENIZER = "unicode61 remove_diacritics 0"
+
+
 def _has_column(conn, table: str, column: str) -> bool:
     rows = conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
     return any(row[1] == column for row in rows)
@@ -672,17 +678,26 @@ def run_migrations(engine: Engine) -> None:
         _add_version_ranges(conn)
         _seed_term_versions(conn)
         _seed_october_timetable_overrides(conn)
+        # 기억(facts) 검색 — rowid 가 facts.id 입니다 (knowledge/facts.py)
+        conn.execute(text(
+            f"CREATE VIRTUAL TABLE IF NOT EXISTS facts_fts USING fts5(tokens, tokenize='{FTS_TOKENIZER}')"
+        ))
+        conn.commit()
 
 
 # ksain.db — create_all 은 이미 있는 표에 컬럼을 붙이지 않아서, 나중에 생긴 컬럼은 여기 적습니다
 KSAIN_COLUMNS = [
     ("ksain_analyses", "applied", "JSON NOT NULL DEFAULT '[]'"),
     ("ksain_analyses", "suppressed", "JSON NOT NULL DEFAULT '[]'"),
+    ("ksain_analyses", "facts", "JSON NOT NULL DEFAULT '[]'"),
 ]
-
 
 def run_ksain_migrations(engine: Engine) -> None:
     with engine.begin() as conn:
         for table, column, ddl in KSAIN_COLUMNS:
             if not _has_column(conn, table, column):
                 conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+        conn.exec_driver_sql(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS ksain_search_fts USING fts5"
+            f"(tokens, content='', tokenize='{FTS_TOKENIZER}')"
+        )

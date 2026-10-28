@@ -1,9 +1,12 @@
-"""ksain 글 분석 — 요약 · 중요도 · 태그 · 일정 항목.
+"""ksain 글 분석 — 요약 · 중요도 · 태그 · 일정 항목 · 사실(기억).
 
     python -m backend.ksain.analyze                 # 밀린 글을 최신순으로 (기본 150건)
     python -m backend.ksain.analyze --limit 20 --model local:gemma4:12b
     python -m backend.ksain.analyze --post 3092 --dry-run
-    python -m backend.ksain.analyze --reapply      # LLM 없이 학사일정만 다시 맞춤
+    python -m backend.ksain.analyze --reapply      # LLM 없이 학사일정·기억만 다시 맞춤
+
+분석 결과는 두 곳으로 옮겨 적습니다 — 날짜 있는 일정은 공용 학사일정(`apply.py`), 사실은 기억
+(`knowledge/facts.py`). 둘 다 본 DB 에 있고, 글 하나를 마칠 때마다 커밋합니다.
 
 글 내용(`content_hash`)이나 `ANALYZER_VERSION` 이 바뀐 글만 다시 돌립니다. 모델에 닿지
 않으면(데스크탑이 꺼져 있으면) 그 자리에서 멈추고 다음 주기에 이어갑니다.
@@ -18,13 +21,22 @@ import argparse
 import datetime
 import json
 import re
+import time
+
+from sqlalchemy import and_, or_
 
 from backend.agent import llm
 from backend.core import clock
-from backend.core.db import KsainSession, init_ksain_schema
+from backend.core.db import KsainSession, SessionLocal, init_ksain_schema, init_schema
+from backend.knowledge import facts as memory
 from backend.ksain.models import Analysis, Attachment, Post
 
-ANALYZER_VERSION = 3  # 2: 날짜 근거 검사(grounded) · 3: 시트별 첨부 발췌, 요약에도 근거 없는 날짜 금지
+ANALYZER_VERSION = 4  # 2: 날짜 근거 검사(grounded) · 3: 시트별 첨부 발췌, 요약에도 근거 없는 날짜 금지 · 4: 사실(기억)
+# 버전을 올렸을 때 다시 돌리는 범위 — 최근 1년, 중요도 1 이상(또는 실패했던 글)만. 전부 다시 돌리면
+# 데스크탑 GPU 로 다섯 시간이 넘고, 오래된 잡담 글에서는 쓸 만한 사실이 안 나옵니다.
+# 새 글과 내용이 바뀐 글은 이 범위와 상관없이 늘 돕니다
+REANALYZE_DAYS = 365
+MAX_FACTS = 6
 MAX_BODY = 5000
 MAX_ATTACHMENT = 2500
 MAX_ATTACHMENTS_TOTAL = 6000
@@ -65,8 +77,22 @@ SCHEMA = {
                              "category", "target_grades", "calendar", "confidence"],
             },
         },
+        "facts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "statement": {"type": "string"},
+                    "topic": {"type": "string"},
+                    "valid_until": {"type": "string"},
+                    "target_grades": {"type": "array", "items": {"type": "integer", "enum": [1, 2, 3]}},
+                    "confidence": {"type": "number"},
+                },
+                "required": ["statement", "topic", "valid_until", "target_grades", "confidence"],
+            },
+        },
     },
-    "required": ["summary", "importance", "tags", "mandatory", "target_grades", "items"],
+    "required": ["summary", "importance", "tags", "mandatory", "target_grades", "items", "facts"],
 }
 
 SYSTEM = f"""너는 KAIST 부설 한국과학영재학교(KSA) 커뮤니티 ksain 의 게시글을 정리하는 도우미다.
@@ -92,6 +118,16 @@ SYSTEM = f"""너는 KAIST 부설 한국과학영재학교(KSA) 커뮤니티 ksai
     (행사·교육·시험·귀가/귀교·설명회, R&E 보고서·포스터 제출 같은 학년 단위 마감, 대회·장학 신청 마감)은 true.
     개인 글, 동아리·연구회 내부 일정, 회의 결과 보고, 이미 끝난 일의 결과 발표, 단순 홍보는 false.
   - confidence: 날짜를 글에서 직접 읽었으면 0.9 이상, 추정했으면 0.6 이하.
+- facts: 나중에 학생이 물어볼 만한 사실을 글에서 최대 6개. 없으면 빈 배열.
+  items 에 이미 적은 "언제 무엇을 한다" 는 다시 쓰지 않는다. 그 일정에 딸린 방법·장소·대상·준비물·
+  제출 양식·기준·규칙·바뀐 점·결과(선발·수상)처럼 날짜 하나로 끝나지 않는 정보를 고른다.
+  - statement: 글을 안 읽은 사람이 봐도 뜻이 통하는 한 문장. "이번", "위", "본 행사", "해당" 대신
+    행사·제도의 이름을 쓰고, 날짜에는 연도를 붙인다. 본문·첨부에 적힌 것만 쓴다.
+  - topic: 같은 주제를 묶는 짧은 이름(15자 안팎). 예: "R&E 최종보고서 제출", "외출 신청"
+  - valid_until: 이 사실이 더는 쓸모없어지는 날(YYYY-MM-DD). 규칙·방법처럼 계속 유효하면 "".
+  - target_grades: 대상 학년. 전교생이거나 알 수 없으면 빈 배열.
+  - confidence: 글에 그대로 적혀 있으면 0.9 이상, 해석이 들어갔으면 0.6 이하.
+  - 전화번호·이메일·학번·성적 같은 개인 정보는 쓰지 않는다. 잡담·감사·분실물 같은 개인적인 글이면 빈 배열.
 """
 
 
@@ -215,14 +251,75 @@ def coerce(raw: dict, post: Post) -> dict:
             "grounded": grounded(start, text),
         })
     importance = raw.get("importance")
+    importance = importance if isinstance(importance, int) and 0 <= importance <= 3 else 0
     return {
         "summary": str(raw.get("summary") or "").strip()[:500],
-        "importance": importance if isinstance(importance, int) and 0 <= importance <= 3 else 0,
+        "importance": importance,
         "tags": [t for t in raw.get("tags") or [] if t in TAGS][:5],
         "mandatory": bool(raw.get("mandatory")),
         "target_grades": _grades(raw.get("target_grades")),
         "items": items,
+        # 중요도 0(개인적인 글·잡담·감사)은 기억에 남기지 않습니다 — 묻는 사람이 없고 기억만 흐립니다
+        "facts": coerce_facts(raw.get("facts"), post, text) if importance else [],
     }
+
+
+# 사실 문장에 적힌 날짜 — "11월 29일" · "2026. 11. 29." · "11/29" · "2026-11-29"
+_DATE_MENTION = re.compile(r"(?:(\d{4})\s*[.\-/년]\s*)?(\d{1,2})\s*(?:월|[./])\s*(\d{1,2})")
+# 기억에 남기지 않는 것 — 학번은 사실째 버리고, 전화번호·이메일은 문장에서 걷어냅니다
+_STUDENT_ID = re.compile(r"(?<!\d)\d{2}-\d{3}(?!\d)")
+_CONTACT = re.compile(r"\(?\s*(?:\d{2,3}-\d{3,4}-\d{4}|[\w.+-]+@[\w-]+(?:\.[\w-]+)+)\s*\)?")
+
+
+def _drop_contacts(statement: str) -> str:
+    """전화번호·이메일을 걷어냅니다. 뒤에 조사가 붙어 있으면 앞말에 붙여 "이메일 로" 가 남지 않게."""
+    marked = _CONTACT.sub("\x00", statement)
+    marked = re.sub(r"\s*\x00\s*(?=(?:으로|로|에게|에|을|를)(?:\s|$))", "", marked)
+    return re.sub(r"\s+", " ", marked.replace("\x00", " ")).strip()
+
+
+def _mentioned_dates(statement: str, posted: datetime.date | None) -> list[datetime.date]:
+    out = []
+    for match in _DATE_MENTION.finditer(statement):
+        year = int(match[1]) if match[1] else (posted or clock.today()).year
+        try:
+            out.append(datetime.date(year, int(match[2]), int(match[3])))
+        except ValueError:
+            continue  # "1.5배" 처럼 날짜가 아닌 것
+    return out
+
+
+def coerce_facts(raw: list | None, post: Post, text: str) -> list[dict]:
+    """모델이 뽑은 사실을 거릅니다.
+
+    ⚠️ **문장에 적힌 날짜는 글에 실제로 있어야 합니다**(`grounded`). 일정 항목과 같은 이유입니다 —
+    모델은 글에 없는 날짜를 지어내고, 기억은 질문마다 시스템 프롬프트에 실려서 한 번 들어간 틀린
+    날짜가 오래 갑니다.
+    """
+    posted = post.posted_at.date() if post.posted_at else None
+    out = []
+    for item in raw or []:
+        if not isinstance(item, dict):
+            continue
+        statement = _drop_contacts(str(item.get("statement") or ""))
+        if not 10 <= len(statement) <= 220 or _STUDENT_ID.search(statement):
+            continue
+        if any(not grounded(day, text) for day in _mentioned_dates(statement, posted)):
+            continue
+        until = _date(item.get("valid_until"))
+        until = _fix_year(until, posted) if until else None
+        if until and posted and until < posted:
+            until = None  # 글보다 앞선 "유효 기한" 은 모델의 실수입니다
+        out.append({
+            "statement": statement,
+            "topic": str(item.get("topic") or "").strip()[:40] or statement[:30],
+            "valid_until": until.isoformat() if until else None,
+            "target_grades": _grades(item.get("target_grades")),
+            "confidence": max(0.0, min(1.0, float(item.get("confidence") or 0))),
+        })
+        if len(out) >= MAX_FACTS:
+            break
+    return out
 
 
 def parse(content: str) -> dict:
@@ -244,14 +341,16 @@ def analyze_post(post: Post, model: llm.Model) -> dict:
 
 
 def pending(db, limit: int):
-    from sqlalchemy import or_
+    recent = clock.now_naive() - datetime.timedelta(days=REANALYZE_DAYS)
     return (
         db.query(Post)
         .outerjoin(Analysis, Analysis.post_id == Post.id)
         .filter(Post.missing_since.is_(None), or_(
             Analysis.post_id.is_(None),
             Analysis.content_hash != Post.content_hash,
-            Analysis.version < ANALYZER_VERSION,
+            # 버전업 재분석은 최근 1년의 중요한 글(또는 실패했던 글)만 — REANALYZE_DAYS
+            and_(Analysis.version < ANALYZER_VERSION, Post.posted_at >= recent,
+                 or_(Analysis.importance >= 1, Analysis.error.isnot(None))),
         ))
         # 첨부를 아직 못 읽은 글은 미룹니다 — 날짜가 첨부에만 있는 공지가 많고, 첨부 텍스트는
         # content_hash 에 안 들어가서 한 번 분석하면 다시 돌지 않습니다
@@ -260,6 +359,10 @@ def pending(db, limit: int):
         .limit(limit)
         .all()
     )
+
+
+FAILED = {"summary": None, "importance": 0, "tags": [], "mandatory": False, "target_grades": [], "items": [],
+          "facts": []}
 
 
 def save(db, post: Post, result: dict, model: llm.Model) -> Analysis:
@@ -273,6 +376,7 @@ def save(db, post: Post, result: dict, model: llm.Model) -> Analysis:
     row.mandatory = result["mandatory"]
     row.target_grades = result["target_grades"]
     row.items = result["items"]
+    row.facts = result["facts"]
     row.error = None
     row.analyzed_at = clock.utcnow()
     if post.analysis is None:
@@ -280,19 +384,38 @@ def save(db, post: Post, result: dict, model: llm.Model) -> Analysis:
     return row
 
 
-def run(limit: int, model_id: str | None, post_id: int | None = None, dry_run: bool = False,
-        apply_calendar: bool = True) -> dict:
+def publish(core, post: Post, analysis: Analysis) -> tuple[int, int]:
+    """분석 결과를 본 DB 로 — 학사일정 자동 일정과 기억. (새 일정 수, 새 사실 수)"""
     from backend.ksain import apply
 
+    return apply.apply_post(core, post, analysis), memory.apply_post(core, post, analysis)
+
+
+def run(limit: int, model_id: str | None, post_id: int | None = None, dry_run: bool = False,
+        apply_results: bool = True, minutes: float | None = None) -> dict:
+    """밀린 글을 최신순으로. `minutes` 가 지나면 새 글을 더 잡지 않고 멈춥니다.
+
+    ⚠️ 사실까지 뽑으면서 글 하나가 15~30초 걸립니다(전엔 5~10초). 타이머 유닛은 50분이 지나면
+    작업을 죽이므로, 버전을 올려 밀린 글이 많을 때는 시간으로 끊는 쪽이 안전합니다 — 글마다
+    커밋하니 다음 주기가 이어 받습니다.
+    """
+    from backend.ksain import apply
+
+    deadline = time.monotonic() + minutes * 60 if minutes else None
+
     init_ksain_schema()
+    init_schema()  # 학사일정·기억을 적을 본 DB
     model = llm.resolve(model_id, "analyze")
-    db = KsainSession()
-    counts = {"analyzed": 0, "failed": 0, "events": 0, "model": model.id}
+    db, core = KsainSession(), SessionLocal()
+    counts = {"analyzed": 0, "failed": 0, "events": 0, "facts": 0, "model": model.id}
     try:
         posts = [db.get(Post, post_id)] if post_id else pending(db, limit)
         for post in posts:
             if post is None:
                 continue
+            if deadline and time.monotonic() > deadline:
+                counts["stopped"] = f"{minutes:g}분이 지나 멈춤 — 다음 주기에 이어갑니다"
+                break
             try:
                 result = analyze_post(post, model)
             except llm.LLMError as error:
@@ -304,8 +427,7 @@ def run(limit: int, model_id: str | None, post_id: int | None = None, dry_run: b
                 # 실패도 기록합니다 — 안 남기면 그 글이 "밀린 글" 로 남아 10분마다 같은 실패를
                 # 되풀이하며 GPU 를 씁니다. 글이 바뀌거나 버전을 올리면 다시 돕니다
                 if not dry_run:
-                    failed = save(db, post, {"summary": None, "importance": 0, "tags": [], "mandatory": False,
-                                             "target_grades": [], "items": []}, model)
+                    failed = save(db, post, FAILED, model)
                     failed.error = str(error)[:300]
                     db.commit()
                 continue
@@ -315,47 +437,59 @@ def run(limit: int, model_id: str | None, post_id: int | None = None, dry_run: b
             analysis = save(db, post, result, model)
             db.commit()
             counts["analyzed"] += 1
-            if apply_calendar:
-                counts["events"] += apply.apply_post(post, analysis)
-                db.commit()
-            print(f"  · {post.id} [{result['importance']}] {post.title[:40]} — items {len(result['items'])}", flush=True)
-        if apply_calendar and not dry_run:
-            counts["removed"] = apply.remove_missing(db)
+            if apply_results:
+                events, facts = publish(core, post, analysis)
+                counts["events"] += events
+                counts["facts"] += facts
+                core.commit()
+                db.commit()  # 반영 기록(applied·suppressed)
+            print(f"  · {post.id} [{result['importance']}] {post.title[:40]} — items {len(result['items'])}"
+                  f" · facts {len(result['facts'])}", flush=True)
+        if apply_results and not dry_run:
+            counts["removed"] = apply.remove_missing(db, core)
+            core.commit()
             db.commit()
     finally:
         db.close()
+        core.close()
     return counts
 
 
 def reapply(fresh: bool = False) -> dict:
-    """LLM 을 부르지 않고 저장된 분석으로 학사일정만 다시 맞춥니다.
+    """LLM 을 부르지 않고 저장된 분석으로 학사일정과 기억만 다시 맞춥니다.
 
-    분석을 다른 DB(스테이징)에서 미리 돌렸거나 `apply.py` 규칙을 바꿨을 때 씁니다. 반영
-    기록(`applied`)은 그 DB 의 일정 번호라 여기서는 비우고 시작합니다 — 남겨 두면 "사람이
-    지운 일정" 으로 오해해 전부 막아 버립니다.
+    분석을 다른 DB(스테이징)에서 미리 돌렸거나 `apply.py`·`knowledge/facts.py` 규칙을 바꿨을 때
+    씁니다. 반영 기록(`applied`)은 그 DB 의 일정 번호라 여기서는 비우고 시작합니다 — 남겨 두면
+    "사람이 지운 일정" 으로 오해해 전부 막아 버립니다.
 
     사람이 지워 둔 기록(`suppressed`)은 평소엔 남깁니다. ⚠️ **스테이징에서 만든 분석을 운영에
     처음 반영할 때는 `fresh=True`** 로 그것까지 비우세요 — 스테이징 사본에서 지운 일정이
-    운영에서도 막힙니다.
+    운영에서도 막힙니다. (기억은 사람의 손질이 본 DB 의 사실 행 자체에 있어서 따로 비울 것이 없습니다.)
     """
     from backend.ksain import apply
 
     init_ksain_schema()
-    db = KsainSession()
-    created = 0
+    init_schema()
+    db, core = KsainSession(), SessionLocal()
+    events = facts = 0
     try:
         rows = db.query(Analysis).join(Post).filter(Post.missing_since.is_(None)).all()
         for row in rows:
             row.applied = []
             if fresh:
                 row.suppressed = []
-            created += apply.apply_post(row.post, row)
+            created_events, created_facts = publish(core, row.post, row)
+            events += created_events
+            facts += created_facts
+            core.commit()
             db.commit()
-        removed = apply.remove_missing(db)
+        removed = apply.remove_missing(db, core)
+        core.commit()
         db.commit()
     finally:
         db.close()
-    return {"analyses": len(rows), "events": created, "removed": removed}
+        core.close()
+    return {"analyses": len(rows), "events": events, "facts": facts, "removed": removed}
 
 
 if __name__ == "__main__":
@@ -364,11 +498,13 @@ if __name__ == "__main__":
     parser.add_argument("--model", default=None, help="예: local:gemma4:12b, openai:gpt-5-mini")
     parser.add_argument("--post", type=int, default=None, help="글 하나만")
     parser.add_argument("--dry-run", action="store_true", help="저장하지 않고 결과만 출력")
-    parser.add_argument("--no-calendar", action="store_true", help="학사일정에 반영하지 않음")
-    parser.add_argument("--reapply", action="store_true", help="분석 없이 저장된 결과로 학사일정만 다시 맞춤")
+    parser.add_argument("--no-calendar", action="store_true", help="학사일정·기억에 반영하지 않음")
+    parser.add_argument("--reapply", action="store_true", help="분석 없이 저장된 결과로 학사일정·기억만 다시 맞춤")
     parser.add_argument("--fresh", action="store_true", help="--reapply 때 '사람이 지운 일정' 기록까지 비움 (첫 운영 반영)")
+    parser.add_argument("--minutes", type=float, default=None, help="이 시간이 지나면 새 글을 더 잡지 않고 멈춤")
     args = parser.parse_args()
     if args.reapply:
         print(json.dumps(reapply(args.fresh), ensure_ascii=False))
     else:
-        print(json.dumps(run(args.limit, args.model, args.post, args.dry_run, not args.no_calendar), ensure_ascii=False))
+        print(json.dumps(run(args.limit, args.model, args.post, args.dry_run, not args.no_calendar, args.minutes),
+                         ensure_ascii=False))

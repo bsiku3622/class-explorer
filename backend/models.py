@@ -660,3 +660,45 @@ class Setting(Base):
     key = Column(String, primary_key=True)
     value = Column(JSON, nullable=False)
     updated_at = Column(DateTime, default=clock.utcnow, onupdate=clock.utcnow)
+
+
+class Fact(Base):
+    """
+    **기억** — ksain 글에서 뽑아 둔 사실 한 줄. Ask 가 질문에 맞는 것을 골라 시스템 프롬프트에
+    싣습니다(`knowledge/facts.py`).
+
+    글에 묶인 요약 DB 입니다. 사실마다 출처 글(`post_id`)이 있고, 손으로 지어 넣는 사실은 없습니다.
+    분석(`ksain.analyze`)이 글마다 뽑아 여기 옮겨 적고, 글이 바뀌면 그 글 것만 다시 적습니다. 글이
+    ksain 에서 지워지면 그 글의 사실도 지웁니다 — 개인정보처리방침 4항이 약속한 것입니다.
+
+    **본 DB 에 있는 이유**는 사람이 고치는 결과물이라서입니다(학사일정의 자동 일정과 같습니다).
+    매니저가 틀린 사실을 숨기거나(`status='hidden'`) 고치면(`edited`) 다시 분석해도 그대로 두는데,
+    서버에서 API 가 쓸 수 있는 DB 는 본 DB 뿐입니다 — ksain.db 는 수집 타이머의 파일입니다.
+
+    글 제목·작성일은 출처 표시용으로 같이 적어 둡니다. 화면과 Agent 가 ksain.db 를 따로 열지 않고도
+    어느 공지에서 왔는지 보일 수 있게요.
+    """
+    __tablename__ = "facts"
+    id = Column(Integer, primary_key=True)
+    # ksain 글 번호 — 다른 DB 라 외래키는 없습니다
+    post_id = Column(Integer, nullable=False, index=True)
+    post_title = Column(String, nullable=False, default="")
+    posted_on = Column(Date, nullable=True)
+    # 그 글에서 몇 번째 사실인지 (분석 결과의 순서)
+    seq = Column(Integer, nullable=False, default=0)
+    # 글을 안 읽은 사람이 봐도 뜻이 통하는 한 문장
+    statement = Column(Text, nullable=False)
+    # 같은 주제를 묶는 짧은 이름 — 해마다 다시 오는 공지(귀가·수강 정정)는 새 글의 사실이 앞섭니다
+    topic = Column(String, nullable=False, default="")
+    # 대상 학년. "1,2" 처럼 적고 비어 있으면 전학년입니다 (학사일정과 같은 꼴)
+    target_grades = Column(String, nullable=True)
+    # 이 날이 지나면 기억에서 뺍니다. 비어 있으면 계속 유효한 사실(규칙·방법)
+    valid_until = Column(Date, nullable=True, index=True)
+    confidence = Column(Float, nullable=False, default=0.0)
+    # active | hidden(사람이 숨김 — 다시 분석해도 되살리지 않습니다)
+    status = Column(String, nullable=False, default="active", index=True)
+    # 사람이 고쳤으면 True — 다시 분석해도 덮어쓰지 않습니다
+    edited = Column(Boolean, nullable=False, default=False)
+    edited_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    edited_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=clock.utcnow, nullable=False)
