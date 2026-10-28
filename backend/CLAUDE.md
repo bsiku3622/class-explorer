@@ -26,12 +26,13 @@ backend/
 │   ├── curriculum.py    → 졸업 요건 상수·누적 이수 이력 (fetch_progress)
 │   ├── majors.py        → 전공(심화필수 전공 트랙)·학부 묶음·대상 이름 풀기·수강 이력으로 짐작하기
 │   ├── materials.py     → 자료 원본의 자리
+│   ├── syllabi.py       → 강의계획서 파일의 자리·목록 — git 밖(`data/syllabi`), 교사 연락처가 들어 있습니다
 │   ├── terms.py         → 학년도/학기 해석 (current_term, list_terms, resolve_term)
 │   ├── versioning.py    → 수집 회차 — at_version() (versioning.guide.md)
 │   ├── features.py      → 한시적 기능의 **기간** (`settings` 표) — 시각 판정은 서버가 합니다
 │   ├── subject_names.py → 과목명 분해·정규화 (한글명/영문명/EC 태그)
 │   ├── zamong_import.py → 사람이 채운 Zamong 워크북 → 자몽 기록
-│   └── backup.py        → 본 DB 스냅샷 (수집 직전 자동 · 자동 삭제 없음) → backups/
+│   └── backup.py        → 본 DB 스냅샷 (수집 직전 자동 · 1년 뒤 삭제 · 세션·게시글 파생물 제외) → backups/
 ├── routers/             → HTTP 엔드포인트 — **서로 import 하지 않습니다** (같이 쓸 계산은 services/ 로)
 │   ├── auth.py          → /auth/* — 로그인·세션·학번 확인
 │   ├── admin.py         → /admin/* — 계정·데이터 관리 (admin)
@@ -46,7 +47,8 @@ backend/
 │   ├── materials.py     → /materials/* · /admin/materials/* — 자료실
 │   ├── agent.py         → /agent/* — Ask 질문창, SSE 응답
 │   ├── facts.py         → /facts/* — Ask 의 기억 고치기·숨기기 (manager 이상)
-│   └── majors.py        → /majors/* — 내 전공 고르기 + 조사 현황(인원 수만, admin)
+│   ├── majors.py        → /majors/* — 내 전공 고르기 + 조사 현황(인원 수만, admin)
+│   └── syllabi.py       → /syllabi/* — 강의계획서 목록·파일 (로그인 필요, 예전엔 프론트 번들에 공개)
 ├── agent/               → Ask — 도구를 부르는 LLM Agent (agent.guide.md)
 │   ├── llm.py           → LLM 호출 한 곳 — 모델 목록(데스크탑 게이트웨이·OpenAI) + Chat Completions
 │   ├── chat.py          → 질문 하나 → 답 — 시스템 프롬프트·기억 싣기·도구 호출 루프·SSE
@@ -143,8 +145,8 @@ Class       실제 분반        3분반 · 김효진 · 2026-2         (학기�
 나왔어도 사람이 손대는 결과물(학사일정의 자동 일정, 기억)은 본 DB 에 둡니다 — 서버에서 API 가
 쓸 수 있는 DB 도 본 DB 뿐입니다.
 
-합치지 않는 이유는 둘입니다. 본 DB 스냅샷은 자동으로 지우지 않아서, 합치면 ksain 에서 지워진
-글이 백업 속에 계속 남습니다. 그리고 서버에서 API 와 수집 타이머가 다른 계정으로 돌아, 한 파일을
+합치지 않는 이유는 둘입니다. 본 DB 스냅샷은 1년을 두어서(한동안은 아예 안 지웠습니다), 합치면 ksain 에서
+지워진 글이 백업 속에 그만큼 남습니다. 그리고 서버에서 API 와 수집 타이머가 다른 계정으로 돌아, 한 파일을
 같이 쓰려면 데이터 폴더 권한부터 다시 짜야 합니다. 연결·저널·스키마 초기화의 함정은
 [core/db.guide.md](core/db.guide.md) 에 있습니다.
 
@@ -455,13 +457,13 @@ parse_schedule() → [{subject, section, teacher, room, times}]
 **반영 직전에 DB 스냅샷을 뜹니다** (`services/backup.py` → `backend/backups/`). 학기 하나를
 통째로 갈아 끼우는 작업이라, API 가 이상한 값을 줬거나 학기를 잘못 지정한 걸 나중에
 알아채면 되돌릴 곳이 그 파일뿐입니다. **백업을 못 만들면 수집을 접습니다** — 되돌릴
-곳 없이 덮어쓰는 쪽이 더 위험합니다(`--no-backup` 으로 생략 가능). 자동 삭제는 없고
-용량은 `/admin/backups` 의 총합으로 봅니다.
+곳 없이 덮어쓰는 쪽이 더 위험합니다(`--no-backup` 으로 생략 가능). **1년이 지난 스냅샷은 지웁니다**
+(`KEEP_DAYS`) — 매일 도는 자료 백업 타이머가 지우고, 용량은 `/admin/backups` 의 총합으로 봅니다.
 
-⚠️ **스냅샷에는 ksain 글로 만든 기억·자동 일정이 없습니다**(`strip_ksain_derived`) — 원문이 지워지면 같이
-지운다고 약속한 것들이라, 자동으로 안 지우는 백업에 넣지 않습니다. 되돌린 뒤에는 `python -m
-backend.ksain.analyze --reapply` 로 다시 만들고, 손으로 뜰 때도 `cp` 말고 `python -m backend.cli.snapshot`
-을 씁니다 — [core/db.guide.md](core/db.guide.md).
+⚠️ **스냅샷에는 로그인 세션과 ksain 글로 만든 기억·일정이 없습니다**(`scrub_backup`) — 세션은 토큰을 평문으로
+들고 있고, 기억·일정은 원문이 지워지면 같이 지운다고 약속한 것들입니다. 되돌린 뒤에는 `python -m
+backend.ksain.analyze --reapply` 로 기억·일정을 다시 만들고(모두 다시 로그인합니다), 손으로 뜰 때도 `cp` 말고
+`python -m backend.cli.snapshot` 을 씁니다 — [core/db.guide.md](core/db.guide.md).
 
 ⚠️ **`Class.id` 는 재수집해도 보존됩니다.** Trade 계획(`UserState.trade`)이 분반을 id 로
 가리켜서, 지웠다 다시 넣으면 남의 계획이 엉뚱한 분반에 붙습니다. 폐강·신설만 행이
@@ -508,7 +510,7 @@ python -m backend.cli.create_user <username> <password> [--manager | --admin]
 | `GET` | `/admin/users` | 전체 유저 목록 |
 | `POST` | `/admin/users` | 유저 생성 |
 | `PATCH` | `/admin/users/{id}/role` | 권한 변경 (`user`\|`manager`\|`admin`) |
-| `DELETE` | `/admin/users/{id}` | 유저 삭제 |
+| `DELETE` | `/admin/users/{id}` | 유저 삭제 — 그 계정의 이수 기록·계획·친구·개인 일정·제안·세션도 함께 (`_forget_user`) |
 | `GET` | `/admin/sessions` | 전체 세션 목록 (IP 포함) |
 | `DELETE` | `/admin/sessions/{id}` | 세션 강제 종료 |
 | `GET` | `/admin/students?q=` | 학생 목록 (학번/이름 필터) |
@@ -623,7 +625,14 @@ python -m backend.cli.create_user <username> <password> [--manager | --admin]
 
 ## 보안
 - **Security Headers**: `SecurityHeadersMiddleware` — X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy
-- **Rate Limiting**: `/auth/login` IP당 60초 10회 제한 (초과 시 429, 성공 시 초기화) — `core/ratelimit.py` 의 `SlidingWindow` 를 ksa-bench 사람 조회와 같이 씁니다
+- **Rate Limiting**: `/auth/login` IP당 60초 10회 제한 (초과 시 429, 성공 시 초기화) — `core/ratelimit.py` 의 `SlidingWindow` 를 ksa-bench 사람 조회와 같이 씁니다.
+  ⚠️ IP 는 nginx 가 넣는 `X-Real-IP` 로 봅니다(`routers/auth.py` 의 `_get_client_ip`). `X-Forwarded-For` 의 첫 값은
+  요청한 사람이 아무렇게나 적을 수 있어서, 한동안 IP 를 바꿔 가며 제한을 피할 수 있었고 세션의 IP 도 꾸며졌습니다
+- **계정 삭제**: 그 계정의 기록을 명시적으로 지웁니다 — 본 DB 는 `foreign_keys` 를 켜지 않아 `ON DELETE CASCADE`
+  가 안 돌고, `users.id` 가 AUTOINCREMENT 가 아니라 **다음 계정이 같은 id 를 받아 기록을 물려받았습니다**.
+  남아 있던 것은 마이그레이션(`_purge_orphans`)이 앱이 뜰 때 지웁니다
+- **만료 세션**: 로그인할 때 쓸어 냅니다 — 그 토큰이 다시 와야만 지워져서 IP·기기 이름이 30일을 넘겨 남았습니다
+- **지운 행**: 두 DB 모두 `secure_delete` 로 0 을 덮어씁니다([core/db.guide.md](core/db.guide.md))
 - **입력값 검증**: 모든 Pydantic 스키마에 `max_length`, `pattern`, `Literal` 검증 적용
 - **에러 노출 차단**: subprocess stderr는 server log에만 기록, 클라이언트엔 generic 메시지
 
