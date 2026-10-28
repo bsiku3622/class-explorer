@@ -18,22 +18,21 @@ Trade(수강 변경 탐색)가 "이 분반 수강생 중 내 분반을 받을 �
 안 붙였으니까" 가 방패가 되지 않습니다.
 """
 
-from backend.app_factory import create_app
-from backend.auth_router import router as auth_router
-from backend.admin_router import router as admin_router
-from backend.curriculum_router import (
-    router as curriculum_router,
-    explorer_router as curriculum_explorer_router,
+from backend.core.app import create_app
+from backend.routers import (
+    admin,
+    agent,
+    auth,
+    bench,
+    calendar,
+    classes,
+    curriculum,
+    exams,
+    friends,
+    home,
+    materials,
+    state,
 )
-from backend.state_router import router as state_router
-from backend.calendar_router import router as calendar_router
-from backend.friends_router import router as friends_router
-from backend.home_router import router as home_router
-from backend.exams_router import router as exams_router
-from backend.classes_router import router as classes_router, terms_router
-from backend.bench_router import router as bench_router
-from backend.materials_router import router as materials_router, admin_router as admin_materials_router
-from backend.agent_router import router as agent_router
 
 app = create_app(
     title="class-explorer",
@@ -44,18 +43,19 @@ app = create_app(
     ],
 )
 
-app.include_router(auth_router)
-app.include_router(admin_router)
-app.include_router(curriculum_router)
-app.include_router(curriculum_explorer_router)
-app.include_router(state_router)
-app.include_router(calendar_router)
-app.include_router(friends_router)      # 친구 + 교시 시각표
-app.include_router(home_router)         # 홈 대시보드 (한 요청으로 다)
-app.include_router(exams_router)
-app.include_router(terms_router)
-app.include_router(classes_router)      # GET / — 학기 전체 + 분반 명단
-app.include_router(bench_router)        # 사람 1명 조회 · 수강 분포 · 본인 이수
-app.include_router(materials_router)    # 인증된 과목 자료실 + 업로드
-app.include_router(admin_materials_router)  # 자료 검수
-app.include_router(agent_router)        # 홈 질문창 — 도구를 부르는 LLM Agent
+# 순서가 곧 경로 매칭 순서입니다 — 바꿀 때는 겹치는 경로가 없는지 보세요
+app.include_router(auth.router)
+app.include_router(admin.router)
+app.include_router(curriculum.router)
+app.include_router(curriculum.explorer_router)
+app.include_router(state.router)
+app.include_router(calendar.router)
+app.include_router(friends.router)          # 친구 + 교시 시각표
+app.include_router(home.router)             # 홈 대시보드 (한 요청으로 다)
+app.include_router(exams.router)
+app.include_router(classes.terms_router)
+app.include_router(classes.router)          # GET / — 학기 전체 + 분반 명단
+app.include_router(bench.router)            # 사람 1명 조회 · 수강 분포 · 본인 이수
+app.include_router(materials.router)        # 인증된 과목 자료실 + 업로드
+app.include_router(materials.admin_router)  # 자료 검수
+app.include_router(agent.router)            # Ask — 도구를 부르는 LLM Agent

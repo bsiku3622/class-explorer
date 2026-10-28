@@ -55,7 +55,7 @@ def _xml_text(data: bytes, tag_suffix: str, para_suffix: str | None = None) -> s
 
 
 def _xlsx(data: bytes) -> str:
-    from backend.workbook import Workbook
+    from backend.core.workbook import Workbook
 
     book = Workbook(data)
     parts = []

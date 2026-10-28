@@ -3,22 +3,22 @@
 글 번호는 ksain 의 번호를 그대로 PK 로 씁니다. 구 사이트(ksain.net)에서 쓴 글은 3천 번대,
 새 사이트(ksain.kr)에서 쓴 글은 100000 번대이고 둘은 같은 DB 에 있습니다.
 """
-import datetime
 
 from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
-from backend.ksain.db import Base
+from backend.core import clock
+from backend.core.db import KsainBase
 
 
-class Board(Base):
+class Board(KsainBase):
     __tablename__ = "ksain_boards"
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=clock.utcnow, onupdate=clock.utcnow)
 
 
-class Post(Base):
+class Post(KsainBase):
     """글 하나. `raw` 에 원본 응답을 남겨 정규화를 바꿔도 다시 받지 않게 합니다."""
     __tablename__ = "ksain_posts"
     id = Column(Integer, primary_key=True, autoincrement=False)
@@ -35,7 +35,7 @@ class Post(Base):
     is_anonymous = Column(Boolean, default=False, nullable=False)
     content_hash = Column(String, nullable=False)              # 제목·본문·첨부 목록
     raw = Column(JSON, nullable=True)
-    fetched_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    fetched_at = Column(DateTime, default=clock.utcnow, nullable=False)
     # 다시 물었을 때 없어진 글. 지우지 않고 표시만 합니다 — 학사일정 반영만 걷어냅니다
     missing_since = Column(DateTime, nullable=True)
 
@@ -47,7 +47,7 @@ class Post(Base):
         return f"https://ksain.kr/document/{self.id}"
 
 
-class Attachment(Base):
+class Attachment(KsainBase):
     """첨부 하나. 파일은 저장하지 않고 **텍스트만** 남깁니다 (원본은 ksain 링크로)."""
     __tablename__ = "ksain_attachments"
     id = Column(Integer, primary_key=True)
@@ -72,22 +72,22 @@ class Attachment(Base):
         return f"https://api.ksain.kr/document/{quote(self.path)}"
 
 
-class Gap(Base):
+class Gap(KsainBase):
     """물어봤더니 없던 번호. 백필이 같은 번호를 매번 다시 묻지 않게 합니다."""
     __tablename__ = "ksain_gaps"
     id = Column(Integer, primary_key=True, autoincrement=False)
-    checked_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    checked_at = Column(DateTime, default=clock.utcnow, nullable=False)
 
 
-class State(Base):
+class State(KsainBase):
     """수집 상태 (마지막 수집 시각·결과 등)."""
     __tablename__ = "ksain_state"
     key = Column(String, primary_key=True)
     value = Column(JSON, nullable=True)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=clock.utcnow, onupdate=clock.utcnow)
 
 
-class Analysis(Base):
+class Analysis(KsainBase):
     """LLM 분석 결과. 글 내용(`content_hash`)이나 분석기 버전이 바뀌면 다시 돌립니다."""
     __tablename__ = "ksain_analyses"
     post_id = Column(Integer, ForeignKey("ksain_posts.id", ondelete="CASCADE"), primary_key=True)
@@ -104,6 +104,6 @@ class Analysis(Base):
     applied = Column(JSON, default=list, nullable=False)
     suppressed = Column(JSON, default=list, nullable=False)
     error = Column(String, nullable=True)
-    analyzed_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    analyzed_at = Column(DateTime, default=clock.utcnow, nullable=False)
 
     post = relationship("Post", back_populates="analysis")

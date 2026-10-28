@@ -18,8 +18,8 @@ SQLAlchemy ORM 모델.
 
 from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, UniqueConstraint, DateTime, Date, Text, JSON
 from sqlalchemy.orm import relationship
-from backend.database import Base
-import datetime
+from backend.core import clock
+from backend.core.db import Base
 
 
 # 아래 네 관계는 **지금 열려 있는 행만** 봅니다.
@@ -206,7 +206,7 @@ class TermVersion(Base):
     year = Column(Integer, nullable=False, index=True)
     semester = Column(Integer, nullable=False, index=True)
     version = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=clock.utcnow, nullable=False)
     source = Column(String, nullable=False, default="sync")   # sync | edit | seed
     note = Column(String, nullable=True)                      # source='edit' 일 때 무엇을 고쳤는지
 
@@ -330,7 +330,7 @@ class UserState(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     key = Column(String, nullable=False)
     data = Column(JSON, nullable=False)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=clock.utcnow, onupdate=clock.utcnow)
 
     __table_args__ = (UniqueConstraint('user_id', 'key', name='_user_state_uc'),)
 
@@ -419,7 +419,7 @@ class CalendarEvent(Base):
     owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     series_id = Column(String, nullable=True, index=True)
     note = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=clock.utcnow)
 
 
 class TimetableOverride(Base):
@@ -429,7 +429,7 @@ class TimetableOverride(Base):
     date = Column(Date, nullable=False, unique=True, index=True)
     source_day = Column(String, nullable=False)  # MON ~ FRI
     title = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=clock.utcnow, nullable=False)
 
 
 class ExamPeriod(Base):
@@ -506,7 +506,7 @@ class EventRequest(Base):
     decided_at = Column(DateTime, nullable=True)
     # 허용해서 만들어진 일정. 매니저가 내용을 고쳤다면 원문과 다를 수 있습니다
     event_id = Column(Integer, ForeignKey("calendar_events.id", ondelete="SET NULL"), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=clock.utcnow)
 
 
 class MealMenu(Base):
@@ -525,7 +525,7 @@ class MealMenu(Base):
     breakfast = Column(Text, nullable=True)
     lunch = Column(Text, nullable=True)
     dinner = Column(Text, nullable=True)
-    fetched_at = Column(DateTime, default=datetime.datetime.utcnow)
+    fetched_at = Column(DateTime, default=clock.utcnow)
 
 
 # ─── 과목 자료실 ──────────────────────────────────────────────────────────────
@@ -556,11 +556,11 @@ class Material(Base):
         nullable=True,
     )
     decided_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=clock.utcnow, nullable=False)
     updated_at = Column(
         DateTime,
-        default=datetime.datetime.utcnow,
-        onupdate=datetime.datetime.utcnow,
+        default=clock.utcnow,
+        onupdate=clock.utcnow,
         nullable=False,
     )
 
@@ -591,7 +591,7 @@ class MaterialFile(Base):
     media_type = Column(String, nullable=False)
     preview_media_type = Column(String, nullable=True)
     size_bytes = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=clock.utcnow, nullable=False)
 
     material = relationship("Material", back_populates="files")
 
@@ -614,8 +614,8 @@ class Session(Base):
     #: 이 컬럼이 생기기 전에 만들어진 세션은 `None` 입니다
     device_label = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    last_used_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=clock.utcnow)
+    last_used_at = Column(DateTime, default=clock.utcnow)
     expires_at = Column(DateTime, nullable=False)
     user = relationship("User", back_populates="sessions")
 
@@ -635,7 +635,7 @@ class Friend(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     friend_stu_id = Column(String, ForeignKey("students.stuId"), nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=clock.utcnow)
 
     __table_args__ = (
         UniqueConstraint("user_id", "friend_stu_id", name="_friend_uc"),
@@ -659,4 +659,4 @@ class Setting(Base):
     __tablename__ = "settings"
     key = Column(String, primary_key=True)
     value = Column(JSON, nullable=False)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=clock.utcnow, onupdate=clock.utcnow)

@@ -20,23 +20,23 @@ import datetime
 import hashlib
 import json
 
+from backend.core import clock
+from backend.core.db import KsainSession, init_ksain_schema
 from backend.ksain import extract
 from backend.ksain.client import KsainClient, KsainError
-from backend.ksain.db import SessionLocal, init_ksain_schema
 from backend.ksain.models import Attachment, Board, Gap, Post, State
 
 LEGACY_FIRST, NEW_FIRST = 1, 100001
 SPACES = ((LEGACY_FIRST, NEW_FIRST - 1), (NEW_FIRST, 10**9))
 FORWARD_MISSES = 30
 RECHECK_TAIL = 60
-KST = datetime.timezone(datetime.timedelta(hours=9))
 
 
 def _kst(stamp: str | None) -> datetime.datetime | None:
     if not stamp:
         return None
     moment = datetime.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
-    return moment.astimezone(KST).replace(tzinfo=None)
+    return moment.astimezone(clock.KST).replace(tzinfo=None)
 
 
 def _hash(doc: dict) -> str:
@@ -68,7 +68,7 @@ def store(db, doc: dict) -> tuple[Post, bool]:
     post.is_anonymous = bool(doc.get("isAnonymous"))
     post.content_hash = digest
     post.raw = {k: v for k, v in doc.items() if k not in ("embedding", "content", "engContent")}
-    post.fetched_at = datetime.datetime.utcnow()
+    post.fetched_at = clock.utcnow()
     post.missing_since = None
 
     if changed:
@@ -99,7 +99,7 @@ def fetch(db, client: KsainClient, doc_id: int) -> bool:
     """있으면 저장하고 True. 없으면 빈 번호로 기록합니다."""
     doc = client.document(doc_id)
     if doc is None:
-        db.merge(Gap(id=doc_id, checked_at=datetime.datetime.utcnow()))
+        db.merge(Gap(id=doc_id, checked_at=clock.utcnow()))
         db.commit()
         return False
     store(db, doc)
@@ -165,14 +165,14 @@ def from_lists(db, client: KsainClient) -> int:
 
 
 def refresh(db, client: KsainClient, days: int) -> tuple[int, int]:
-    since = datetime.datetime.now(KST).replace(tzinfo=None) - datetime.timedelta(days=days)
+    since = clock.now_naive() - datetime.timedelta(days=days)
     changed = missing = 0
     for post in db.query(Post).filter(Post.posted_at >= since, Post.missing_since.is_(None)).all():
         doc = client.document(post.id)
         if doc is None:
             # 원문이 지워졌으면 사본의 내용도 지웁니다(개인정보처리방침 4항). 번호만 남겨 다시
             # 묻지 않게 하고, 그 글에서 만든 일정은 analyze 의 remove_missing 이 걷어냅니다
-            post.missing_since = datetime.datetime.utcnow()
+            post.missing_since = clock.utcnow()
             post.title, post.content_text, post.eng_title, post.eng_content_text, post.raw, post.writer = (
                 "", "", None, None, None, None)
             post.attachments = []
@@ -201,14 +201,14 @@ def extract_attachments(db, client: KsainClient, limit: int = 500) -> dict:
                 row.error = None
             except Exception as error:  # 형식이 깨진 파일 하나가 수집 전체를 멈추면 안 됩니다
                 row.status, row.error = "error", f"{type(error).__name__}: {error}"[:300]
-        row.extracted_at = datetime.datetime.utcnow()
+        row.extracted_at = clock.utcnow()
         try:
             db.commit()
         except Exception as error:  # 저장 단계에서 깨져도(인코딩 등) 이 첨부만 실패로 남깁니다
             db.rollback()
             row = db.get(Attachment, row.id)
             row.status, row.text, row.error = "error", None, f"save: {type(error).__name__}"[:300]
-            row.extracted_at = datetime.datetime.utcnow()
+            row.extracted_at = clock.utcnow()
             db.commit()
         counts[row.status] = counts.get(row.status, 0) + 1
     return counts
@@ -217,8 +217,8 @@ def extract_attachments(db, client: KsainClient, limit: int = 500) -> dict:
 def run(do_backfill: bool, refresh_days: int, attachments: bool, attachments_only: bool = False) -> dict:
     init_ksain_schema()
     client = KsainClient()
-    db = SessionLocal()
-    summary: dict = {"started_at": datetime.datetime.utcnow().isoformat(timespec="seconds")}
+    db = KsainSession()
+    summary: dict = {"started_at": clock.utcnow().isoformat(timespec="seconds")}
     if attachments_only:
         try:
             summary["attachments"] = extract_attachments(db, client, limit=10000)
@@ -240,7 +240,7 @@ def run(do_backfill: bool, refresh_days: int, attachments: bool, attachments_onl
         db.rollback()
         summary.update(ok=False, error=str(error))
     finally:
-        summary["finished_at"] = datetime.datetime.utcnow().isoformat(timespec="seconds")
+        summary["finished_at"] = clock.utcnow().isoformat(timespec="seconds")
         db.merge(State(key="sync", value=summary))
         db.commit()
         db.close()

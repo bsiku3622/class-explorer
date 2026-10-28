@@ -15,11 +15,12 @@
 """
 from __future__ import annotations
 
-import os
 import time
 from urllib.parse import quote
 
 import httpx
+
+from backend.core import config
 
 API = "https://api.ksain.kr"
 LIST_API = "https://api.ksain.net/v1/document.php"
@@ -34,13 +35,13 @@ class KsainError(RuntimeError):
 class KsainClient:
     def __init__(self, interval: float = 0.4) -> None:
         headers = {"User-Agent": USER_AGENT}
-        token = os.environ.get("KSAIN_TOKEN")
+        token = config.KSAIN_TOKEN
         if token:
             headers["Authorization"] = f"Bearer {token}"
         self.http = httpx.Client(timeout=30, headers=headers, follow_redirects=True)
         self.interval = interval
         self._last = 0.0
-        self.api_key = os.environ.get("KSAIN_API_KEY", "")
+        self.api_key = config.KSAIN_API_KEY
 
     def _wait(self) -> None:
         # 학교 서비스라 한 번에 몰아치지 않습니다
