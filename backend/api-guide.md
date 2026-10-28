@@ -701,18 +701,23 @@ Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 pre
 
 ## Agent 엔드포인트 (`/agent/*`)
 
-홈 질문창입니다. 설계는 [agent.guide.md](agent.guide.md).
+Ask(질문창)입니다. 설계는 [agent.guide.md](agent.guide.md).
 
 ### `POST /agent/chat` *(인증 필요)*
 ```json
-{ "message": "오늘 형3404 빈 교시 뭐 있어?", "history": [{"role": "user", "content": "…"}], "model": "local:gemma4:12b" }
+{ "message": "오늘 형3404 빈 교시 뭐 있어?", "history": [{"role": "user", "content": "…"}], "model": "local:gemma4:12b", "images": [] }
 ```
+`images` 는 첨부 이미지 data URL(`data:image/jpeg;base64,…`) 최대 3장 — png·jpeg·webp·gif, 한 장
+4MB 이하가 아니면 `422` 입니다. 이번 질문에만 쓰고 저장하지 않습니다.
+
 응답은 **SSE**(`text/event-stream`)입니다. 줄마다 `data: {...}` 하나.
 
 | `type` | 필드 | 뜻 |
 |---|---|---|
 | `start` | `model` | 실제로 쓴 모델 |
-| `tool` | `name`, `args` | 도구를 부르는 중 (여러 번 올 수 있습니다) |
+| `thinking` | `step` | 모델의 차례 — 0 은 질문을 읽는 중, 그 뒤는 도구 결과를 정리하는 중 |
+| `tool` | `id`, `name`, `args` | 도구를 부르기 시작 (여러 번 올 수 있습니다) |
+| `tool_done` | `id`, `name`, `ok`, `ms`, `summary` | 그 도구가 끝남 — `id` 로 `tool` 과 짝을 짓습니다 |
 | `answer` | `text`, `sources[{title,url}]`, `seconds` | 답 — 마지막 이벤트 |
 | `error` | `message` | 모델에 닿지 않음 — 마지막 이벤트 |
 
@@ -720,12 +725,14 @@ Office 문서는 한 번에 10개까지 받고 서버에서 PDF로 변환해 pre
 값을 주면 기본 모델로 갑니다.
 
 ### `GET /agent/models` *(인증 필요)*
-`{ models: [{id, label, provider}], default, gateway: {running, owned, inflight, idle_seconds, idle_limit} | null }`.
-`gateway` 가 `null` 이면 데스크탑에 닿지 않는 것이고, `running=false` 면 첫 답에 1분쯤 걸립니다.
+`{ models: [{id, name, label, provider}], default, gateway: {running, owned, inflight, idle_seconds, idle_limit} | null, me: {name, stu_id, grade, track} | null }`.
+`name` 은 입력창에 보이는 짧은 이름, `label` 은 어디서 도는지까지 붙인 이름입니다. `gateway` 가
+`null` 이면 데스크탑에 닿지 않는 것이고, `running=false` 면 첫 답에 1분쯤 걸립니다. `me` 는 Agent 가
+아는 "나"(학번으로 계산, 화면 인사에 씁니다)이고 학번이 없으면 `null` 입니다.
 
 ### `POST /agent/warmup` *(인증 필요)*
-`{ "model": "local:gemma4:12b" }` → `202`. 로컬 모델을 미리 VRAM 에 올립니다. 질문창에 포커스가
-가면 화면이 부릅니다 (10분에 한 번까지).
+`{ "model": "local:gemma4:12b" }` → `202`. 로컬 모델을 미리 VRAM 에 올립니다. 대화를 펼치면(`/ai`·
+플로팅 버튼 창) 화면이 부릅니다 (10분에 한 번까지).
 
 ### `GET /agent/status` *(admin)*
 수집·분석이 돌고 있는지 — `sync`(마지막 수집 결과), `posts`, `analyzed`(최신 내용 기준),

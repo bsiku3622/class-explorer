@@ -470,8 +470,15 @@ def ksain_digest(ctx: Context, start: str | None = None, end: str | None = None,
     for post in out["posted"]:
         post["items"] = _items(post["items"], ctx.profile)
     out["dated_items"] = _items(out["dated_items"], ctx.profile)
-    for post in out["posted"][:5]:
+    # 근거는 일정이 실린 글부터 — 질문자에게 해당하는 것 먼저. 기간 안의 중요 공지를 먼저 걸었더니
+    # "내 필참교육" 답에 수강신청 OT 공지 대신 SAT·채점 공지가 붙었습니다
+    ranked = sorted(out["dated_items"], key=lambda item: item.get("mine") is not True)
+    for item in ranked:
+        if item.get("url"):
+            ctx.cite(item.get("post_title") or item["title"], item["url"])
+    for post in out["posted"][:2]:
         ctx.cite(post["title"], post["url"])
+    ctx.sources = ctx.sources[:4]
     return {"from": first.isoformat(), "to": last.isoformat(), **out}
 
 

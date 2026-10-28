@@ -1,9 +1,9 @@
-# Agent — 홈 질문창
+# Agent — Ask (질문창)
 
 > [← Backend Guide](CLAUDE.md) · 코드: `agent_router.py` · `agent_tools.py` · `llm.py`
 
-홈 맨 위의 질문창이 "오늘 형3404 빈 교시 뭐 있어?" 같은 질문을 받아, LLM 이 정해진 도구를
-불러 답을 만듭니다. 모델은 SQL 을 만들지 않고 읽기 전용 도구만 부릅니다.
+Ask(`/ai` 페이지, 어느 화면에서든 오른쪽 아래 플로팅 버튼이 여는 창)가 "오늘 형3404 빈 교시 뭐
+있어?" 같은 질문을 받아, LLM 이 정해진 도구를 불러 답을 만듭니다. 모델은 SQL 을 만들지 않고 읽기 전용 도구만 부릅니다.
 
 ## 모델 (`llm.py`)
 
@@ -83,9 +83,24 @@ Ollama 기동 + 7.6GB 적재). 그래서 질문창에 포커스가 가면 화면
 
 ```
 data: {"type":"start","model":"local:gemma4:12b"}
-data: {"type":"tool","name":"room_schedule","args":{"room":"형3404","date":"2026-10-28"}}
+data: {"type":"thinking","step":0}
+data: {"type":"tool","id":"call_1","name":"room_schedule","args":{"room":"형3404","date":"2026-10-28"}}
+data: {"type":"tool_done","id":"call_1","name":"room_schedule","ok":true,"ms":41,"summary":"수업 3개 · 빈 교시 8개"}
+data: {"type":"thinking","step":1}
 data: {"type":"answer","text":"…","sources":[{"title":"…","url":"https://ksain.kr/document/3092"}],"seconds":6.9}
 ```
+
+화면이 "지금 무엇을 하는지" 를 그리게 이벤트를 잘게 나눴습니다. `thinking` 은 모델의 차례(step 0 은
+질문을 읽는 중, 그 뒤는 도구 결과를 정리하는 중), `tool`·`tool_done` 은 도구 하나의 시작과 끝입니다.
+`tool_done` 의 `summary` 는 결과 한 줄(`_summary` — "글 6건", "수업 5개 · 빈 교시 6개")이고, 실패면
+`ok:false` 에 오류 문구가 들어갑니다. ⚠️ **둘은 `id` 로 짝을 짓습니다** — 한 차례에 같은 도구를
+두 번 부르면 이름으로는 어느 쪽이 끝났는지 못 가립니다.
+
+**이미지**(`images`, 최대 3장, png·jpeg·webp·gif data URL, 한 장 4MB 이하)는 **이번 질문에만**
+OpenAI 호환 content 배열(`text` + `image_url`)로 싣습니다 — Ollama(gemma4 가 이미지를 읽습니다)와
+OpenAI 가 같은 모양을 받습니다. 저장하지 않고, 이어 묻는 질문의 `history` 에는 화면이 "(이미지
+n장 첨부)" 로만 적어 보냅니다. ⚠️ 개인정보처리방침이 이렇게 적고 있습니다 — 보관·전송을 바꾸면
+`PrivacyPage` 도 같이 고치세요.
 
 - ⚠️ **스트리밍이라 `Depends(get_db)` 세션이 먼저 닫힐 수 있습니다.** 생성기 안에서 세션을
   직접 열고 닫습니다
@@ -93,4 +108,6 @@ data: {"type":"answer","text":"…","sources":[{"title":"…","url":"https://ksa
 - ksain 글은 아무 학생이나 쓸 수 있는 텍스트라, 시스템 프롬프트가 도구 결과를 **지시가 아닌
   자료**로 다루게 합니다. 도구가 전부 읽기 전용이라 최악의 경우가 "틀린 답" 입니다
 - 하루 질문 수를 사람마다 셉니다 — 로컬 200 · OpenAI 60 (프로세스 메모리, 재시작하면 초기화)
-- 근거 링크(`sources`)는 ksain 검색·본문·`ksain` 출처 학사일정에서 모읍니다
+- 근거 링크(`sources`)는 ksain 검색·본문·`ksain` 출처 학사일정에서 모읍니다. ⚠️ `ksain_digest` 는
+  **일정이 실린 글을 먼저**(질문자에게 해당하는 것부터) 걸고 4개에서 자릅니다 — 기간 안의 중요
+  공지를 먼저 걸었더니 "내 필참교육" 답에 수강신청 OT 공지 대신 SAT·채점 공지가 붙었습니다
