@@ -563,10 +563,10 @@ def main() -> int:
     default_year, default_semester = current_term()
 
     ap = argparse.ArgumentParser(description="KEIS 시간표 학기별 동기화")
-    ap.add_argument("-y", "--year", type=int, default=int(os.environ.get("SYNC_YEAR", default_year)))
+    ap.add_argument("-y", "--year", type=int, default=int(config.SYNC_YEAR or default_year))
     ap.add_argument(
         "-s", "--semester", type=int, choices=[1, 2],
-        default=int(os.environ.get("SYNC_SEMESTER", default_semester)),
+        default=int(config.SYNC_SEMESTER or default_semester),
     )
     ap.add_argument(
         "--prune", action="store_true",

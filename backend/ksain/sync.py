@@ -215,6 +215,15 @@ def extract_attachments(db, client: KsainClient, limit: int = 500) -> dict:
     return counts
 
 
+def _refresh_index(db) -> dict:
+    """검색 색인 갱신. 색인이 깨져도 수집은 성공으로 남깁니다 — 글은 이미 들어왔고, 검색은 LIKE 로 돕니다."""
+    try:
+        return search_index.refresh(db)
+    except Exception as error:  # 색인 하나 때문에 수집 기록까지 실패로 남기지 않습니다
+        db.rollback()
+        return {"error": f"{type(error).__name__}: {error}"[:300]}
+
+
 def run(do_backfill: bool, refresh_days: int, attachments: bool, attachments_only: bool = False) -> dict:
     init_ksain_schema()
     client = KsainClient()
@@ -223,7 +232,7 @@ def run(do_backfill: bool, refresh_days: int, attachments: bool, attachments_onl
     if attachments_only:
         try:
             summary["attachments"] = extract_attachments(db, client, limit=10000)
-            summary["index"] = search_index.refresh(db)
+            summary["index"] = _refresh_index(db)
             summary["ok"] = True
         finally:
             db.close()
@@ -237,7 +246,7 @@ def run(do_backfill: bool, refresh_days: int, attachments: bool, attachments_onl
         if attachments:
             summary["attachments"] = extract_attachments(db, client, limit=5000 if do_backfill else 300)
         # 새 글·바뀐 글·새로 읽은 첨부를 검색 색인에 — API 는 ksain.db 에 못 써서 여기서 합니다
-        summary["index"] = search_index.refresh(db)
+        summary["index"] = _refresh_index(db)
         summary["posts"] = db.query(Post).count()
         summary["ok"] = True
     except KsainError as error:

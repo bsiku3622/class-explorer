@@ -30,7 +30,7 @@ MAX_WORKBOOK_BYTES = 8 * 1024 * 1024
 router = APIRouter(prefix="/curriculum", tags=["curriculum"])
 
 # 학번만 알면 남의 이수 이력을 통째로 볼 수 있는 엔드포인트 — **class-explorer 전용**입니다.
-# ksa-bench 는 `bench_router` 의 `GET /me/progress` 로 본인 것만 봅니다.
+# ksa-bench 는 `routers/bench.py` 의 `GET /me/progress` 로 본인 것만 봅니다.
 explorer_router = APIRouter(prefix="/curriculum", tags=["curriculum"])
 
 def _course_summary(course: models.Course, has_ec: bool = False) -> dict:

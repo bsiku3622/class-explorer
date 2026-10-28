@@ -45,6 +45,9 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 KSAIN_API_KEY = os.environ.get("KSAIN_API_KEY", "")
 #: ksain.kr 로그인 토큰. 비로그인 본문 조회가 막혔을 때만 넣습니다
 KSAIN_TOKEN = os.environ.get("KSAIN_TOKEN", "")
+#: KEIS 시간표 수집(`cli/parser_run.py`)이 기본으로 받을 학기. 비우면 오늘 날짜로 정합니다
+SYNC_YEAR = os.environ.get("SYNC_YEAR", "")
+SYNC_SEMESTER = os.environ.get("SYNC_SEMESTER", "")
 #: 과목 자료 원본을 둘 곳. 비우면 본 DB 의 진짜 위치 옆 `materials/`
 MATERIAL_STORAGE_DIR = os.environ.get("MATERIAL_STORAGE_DIR", "")
 #: 켜면 HSTS 헤더를 붙입니다
