@@ -33,6 +33,7 @@ from backend.exams_router import router as exams_router
 from backend.classes_router import router as classes_router, terms_router
 from backend.bench_router import router as bench_router
 from backend.materials_router import router as materials_router, admin_router as admin_materials_router
+from backend.agent_router import router as agent_router
 
 app = create_app(
     title="class-explorer",
@@ -57,3 +58,4 @@ app.include_router(classes_router)      # GET / — 학기 전체 + 분반 명�
 app.include_router(bench_router)        # 사람 1명 조회 · 수강 분포 · 본인 이수
 app.include_router(materials_router)    # 인증된 과목 자료실 + 업로드
 app.include_router(admin_materials_router)  # 자료 검수
+app.include_router(agent_router)        # 홈 질문창 — 도구를 부르는 LLM Agent
