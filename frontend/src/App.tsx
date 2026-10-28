@@ -27,6 +27,7 @@ import GoogleLinkModal from "./components/GoogleLinkModal";
 import AgentDock from "./components/agent/AgentDock";
 import { useAgentChat } from "./hooks/useAgentChat";
 import type { MyMajor } from "./lib/majors";
+import { clearHistory } from "./lib/searchHistory";
 
 // Pages (lazy loaded for code splitting)
 const SearchPage = React.lazy(() => import("./pages/SearchPage"));
@@ -73,6 +74,28 @@ const clearDataCache = () => {
     Object.keys(localStorage)
         .filter((key) => key.startsWith(CACHE_PREFIX))
         .forEach((key) => localStorage.removeItem(key));
+};
+
+/**
+ * 만료된 학기 캐시를 지웁니다 — TTL 은 읽을 때만 봐서, 다시 안 여는 학기의 응답(전교생 이름·학번·분반 명단)이
+ * 로그아웃 전까지 기기에 계속 남았습니다. 앱을 열 때 한 번 쓸어 냅니다.
+ */
+const purgeExpiredDataCache = () => {
+    try {
+        Object.keys(localStorage)
+            .filter((key) => key.startsWith(CACHE_PREFIX))
+            .forEach((key) => {
+                let timestamp = 0;
+                try {
+                    timestamp = Number(JSON.parse(localStorage.getItem(key) || "{}").timestamp) || 0;
+                } catch {
+                    // 깨진 값은 만료된 것으로 칩니다
+                }
+                if (!(Date.now() - timestamp < CACHE_EXPIRY)) localStorage.removeItem(key);
+            });
+    } catch {
+        // 저장소가 막힌 브라우저 — 지울 것도 없습니다
+    }
 };
 
 const loadSavedTerm = (): Term | null => {
@@ -191,6 +214,11 @@ const App: React.FC = () => {
         return () => window.removeEventListener("keydown", onKey);
     }, [onAiPage, openAsk]);
 
+    useEffect(() => {
+        purgeExpiredDataCache();
+    }, []);
+
+    const resetAsk = askChat.reset;
     const handleLogout = useCallback(async () => {
         if (getSessionToken()) {
             try {
@@ -204,12 +232,17 @@ const App: React.FC = () => {
         // 교육과정·급식·교시 캐시도 같이 비웁니다 — 다음 사람이 앞사람이 보던 걸
         // 이어 보면 안 됩니다 (`lib/cache.ts`)
         clearCache();
+        // Ask 대화와 최근 검색어도 — 대화는 App 에 한 벌이라, 그대로 두면 같은 탭에서 다음 사람이 로그인했을 때
+        // 앞사람의 대화(이미지 포함)가 보이고 다음 질문에 그 기록이 같이 실려 갔습니다
+        resetAsk();
+        setAskOpen(false);
+        clearHistory();
         setSessionToken(null);
         setCurrentUser(null);
         setAllClassesData([]);
         setDisplayData([]);
         setStats(null);
-    }, []);
+    }, [resetAsk]);
 
     const handleLogin = useCallback((token: string) => {
         persistSessionToken(token);
