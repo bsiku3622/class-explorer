@@ -35,13 +35,16 @@ const HeadButton: React.FC<{ label: string; onClick: () => void; children: React
         onClick={onClick}
         aria-label={label}
         title={label}
-        className="grid size-8 place-items-center border-2 border-black bg-white text-black shadow-[2px_2px_0_0_rgba(0,0,0,0.18)] transition-all duration-100 hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none"
+        className="grid size-8 place-items-center border-2 border-black bg-white text-black shadow-[2px_2px_0_0_rgba(0,0,0,0.18)] transition-transform duration-100 hover:scale-95 active:scale-[0.92]"
     >
         {children}
     </button>
 );
 
-/** 창 머리 — 오늘 하루 보지 않기 창(`ShareMaterialsPrompt`)과 같은 보라 띠 + 흰 단추 */
+/**
+ * 창 머리 — 오늘 하루 보지 않기 창(`ShareMaterialsPrompt`)과 같은 보라 띠 + 흰 단추.
+ * ⚠️ 단추는 플로팅 버튼처럼 누르면 **살짝 줄어듭니다**(내려앉지 않음) — 앱 규칙의 예외, 사용자 요청
+ */
 const Header: React.FC<{ chat: AgentChat; onExpand?: () => void; onClose: () => void }> = ({ chat, onExpand, onClose }) => (
     <div className="flex shrink-0 items-center gap-2 border-b-2 border-black bg-retro-secondary py-2.5 pl-4 pr-2.5 text-white">
         <Sparkles size={15} strokeWidth={2.75} />
