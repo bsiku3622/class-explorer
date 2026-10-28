@@ -72,7 +72,6 @@ import TodayCardV2 from "../components/home/TodayCardV2";
 import TodayCardV3 from "../components/home/TodayCardV3";
 import WeekTimetable from "../components/home/WeekTimetable";
 import MySubjects from "../components/home/MySubjects";
-import AgentBox from "../components/home/AgentBox";
 
 /**
  * 수업 없는 날에 덧붙이는 한마디. 날짜로 골라서 **하루 안에는 안 바뀝니다** —
@@ -419,9 +418,6 @@ const HomePage: React.FC<HomePageProps> = ({
                     </button>
                 </div>
             )}
-
-            {/* 자연어 질문창 — 시간표·강의실·학사일정·시험·급식·ksain 공지 (`AgentBox`) */}
-            <AgentBox />
 
             {home.exam_period?.open && (
                 <Link to="/exams" className="group flex items-center justify-between gap-3 border-2 border-black bg-retro-accent2 px-4 py-3 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-1 hover:translate-y-1 hover:shadow-none">

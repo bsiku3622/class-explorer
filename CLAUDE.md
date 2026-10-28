@@ -202,6 +202,7 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | `/trade`            | TradePage       | 수강 변경 탐색 — 기간·학기는 **admin 화면**에서 (`settings` 표) |
 | `/zamong`           | ZamongPage      | 자몽 — 학교 Zamong 워크북 이식 (학번 등록 필요) |
 | `/calendar`         | CalendarPage    | 학사일정 달력 + 개인 일정 + 일정 제안 |
+| `/ai`               | AiPage          | Ask — AI 에게 묻는 큰 화면. 다른 화면에서는 오른쪽 아래 플로팅 버튼이 같은 대화를 엽니다 |
 | `/about`            | SettingsPage    | 기능 가이드북 + About             |
 | `/admin`            | AdminPage       | 계정 관리 (role=admin만)          |
 
@@ -217,7 +218,8 @@ KEIS API → parser_run.py (학기 단위) → ksa_timetable.db
 | ksa-bench 작업 | `bench-frontend/CLAUDE.md` (가이드 사본이 그 안에 따로 있습니다) |
 | 안드로이드 앱·위젯 | `android/CLAUDE.md` |
 | ksain 수집·분석·학사일정 자동 반영 | `backend/ksain.guide.md` |
-| 홈 질문창 Agent·모델·데스크탑 게이트웨이 | `backend/agent.guide.md`, `deploy-guide.md` |
+| Ask(질문창) Agent·모델·데스크탑 게이트웨이 | `backend/agent.guide.md`, `deploy-guide.md` |
+| Ask 화면 (`/ai` · 플로팅 버튼 · 모바일 창 모션) | `frontend/CLAUDE.md` 의 `Ask` 절 |
 
 **어느 프론트를 고치는지 먼저 확인하세요.** 두 디렉토리에 같은 이름의 가이드가 각각
 있어서, `frontend/design-guide.md`를 고치고 ksa-bench 를 손봤다고 생각하기 쉽습니다.

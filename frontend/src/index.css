@@ -127,3 +127,45 @@ body {
 .student-badge {
     @apply inline-block bg-white border-2 px-2 py-1 text-xs font-bold rounded-none shadow-[2px_2px_0_0_rgba(0,0,0,0.1)] cursor-default transition-all;
 }
+
+/* Ask 창이 열릴 때 (AgentDock) — 미니 창은 버튼 자리(오른쪽 아래)에서 자라 나오고, 모바일 창은
+   아래에서 올라옵니다. ⚠️ 닫힐 때는 움직이지 않습니다 — 닫는 모션을 보이려면 창을 그 시간만큼 더
+   들고 있어야 하는데, 그사이 ✕ 를 한 번 더 누르면 뒤 화면이 눌립니다 */
+@keyframes ask-pop {
+    from {
+        opacity: 0;
+        translate: 0 8px;
+        scale: 0.96;
+    }
+}
+
+@keyframes ask-rise {
+    from {
+        opacity: 0;
+        translate: 0 24px;
+    }
+}
+
+.animate-ask-pop {
+    transform-origin: bottom right;
+    animation: ask-pop 140ms ease-out;
+}
+
+.animate-ask-rise {
+    animation: ask-rise 200ms ease-out;
+}
+
+/* 모바일 Ask 창 → `/ai` (lib/askMotion.ts). 입력창은 창 가운데에서 페이지 바닥으로 내려앉고,
+   나머지(창 → 페이지)는 브라우저 기본대로 겹쳐 바랩니다. 입력창이 조금 늦게 멈춰야 "옮겨 갔다" 로
+   읽혀서 바탕(250ms)보다 길게 줍니다 */
+::view-transition-group(ask-composer) {
+    animation-duration: 380ms;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animate-ask-pop,
+    .animate-ask-rise {
+        animation: none;
+    }
+}

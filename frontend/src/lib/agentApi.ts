@@ -10,6 +10,9 @@ import { authHeader } from "./session";
 
 export interface AgentModel {
     id: string;
+    /** 입력창에 보이는 짧은 이름 ("gemma4:12b") */
+    name: string;
+    /** 어디서 도는지까지 붙인 이름 ("gemma4:12b (데스크탑)") */
     label: string;
     provider: "local" | "openai";
 }
@@ -19,6 +22,8 @@ export interface AgentModels {
     default: string;
     /** 데스크탑 게이트웨이. `running` 이 false 면 첫 답에 1분쯤 걸립니다 (모델 적재) */
     gateway: { running: boolean; idle_seconds: number; idle_limit: number } | null;
+    /** Agent 가 아는 "나" — 학번으로 서버가 계산합니다. 학번이 없으면 null */
+    me: { name: string | null; stu_id: string; grade: number; track: "내국인" | "외국인" } | null;
 }
 
 export interface AgentSource {
@@ -28,7 +33,10 @@ export interface AgentSource {
 
 export type AgentEvent =
     | { type: "start"; model: string }
-    | { type: "tool"; name: string; args: Record<string, unknown> }
+    /** 모델이 생각하는 차례. step 0 은 질문을 읽는 중, 그 뒤는 도구 결과를 정리하는 중 */
+    | { type: "thinking"; step: number }
+    | { type: "tool"; id: string; name: string; args: Record<string, unknown> }
+    | { type: "tool_done"; id: string; name: string; ok: boolean; ms: number; summary: string }
     | { type: "answer"; text: string; sources: AgentSource[]; seconds: number }
     | { type: "error"; message: string };
 
@@ -36,24 +44,6 @@ export interface AgentTurn {
     role: "user" | "assistant";
     content: string;
 }
-
-/** 도구 이름 → 진행 중에 보여 줄 말 */
-export const TOOL_LABELS: Record<string, string> = {
-    today_info: "오늘 확인",
-    timetable: "시간표 확인",
-    room_schedule: "강의실 확인",
-    empty_rooms: "빈 강의실 찾기",
-    common_free: "공강 맞추기",
-    class_info: "분반 확인",
-    find_person: "사람 찾기",
-    calendar: "학사일정 확인",
-    my_exams: "시험 시간표 확인",
-    meal: "급식 확인",
-    course_info: "교육과정 확인",
-    search_ksain: "ksain 검색",
-    read_ksain: "ksain 글 읽기",
-    ksain_digest: "ksain 공지 모으기",
-};
 
 export const fetchAgentModels = async (): Promise<AgentModels> =>
     (await api.get<AgentModels>("/agent/models", { headers: authHeader() })).data;
@@ -64,7 +54,7 @@ export const warmupAgent = (model?: string): void => {
 };
 
 export async function askAgent(
-    body: { message: string; history: AgentTurn[]; model?: string },
+    body: { message: string; history: AgentTurn[]; model?: string; images?: string[] },
     onEvent: (event: AgentEvent) => void,
     signal: AbortSignal,
 ): Promise<void> {

@@ -25,6 +25,7 @@ import {
     Map,
     Search,
     ShieldCheck,
+    Sparkles,
     Upload,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -46,6 +47,8 @@ export const NAV_ITEMS: NavItem[] = [
     { id: "search", label: "Search", icon: Search },
     { id: "emptyroomfinder", label: "Rooms", icon: Map },
     { id: "calendar", label: "Calendar", icon: CalendarDays },
+    // AI 에게 묻기 — 하단 바에는 안 올라가지만, 어느 화면에서든 오른쪽 아래 플로팅 버튼이 같은 대화를 엽니다
+    { id: "ai", label: "Ask", icon: Sparkles },
     // 전교생·통계 — 남을 보는 화면
     { id: "browse", label: "Browse", icon: Library },
     { id: "analysis", label: "Analysis", icon: BarChart3 },
