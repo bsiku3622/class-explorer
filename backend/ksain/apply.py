@@ -11,7 +11,7 @@
 건너뛰는 항목:
 - 날짜가 겹치고 제목이 비슷한 공용 일정이 이미 있을 때 (학사일정 PDF, 다른 글)
 - **사람이 지웠거나 고친 일정** — `Analysis.applied` 에 적어 둔 일정이 없어졌으면 그 항목의
-  sig 를 `suppressed` 에 넣고 다시 만들지 않습니다. 고친 일정은 calendar_router 가
+  sig 를 `suppressed` 에 넣고 다시 만들지 않습니다. 고친 일정은 routers/calendar.py 가
   `source='manual'` 로 바꿔 자동 관리에서 빼 줍니다
 
 ⚠️ `holiday`·`term` 분류는 쓰지 않습니다. 홈이 `holiday` 일정으로 그날 수업을 지우고,

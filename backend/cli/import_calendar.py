@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import datetime
 import json
-import os
 import sys
 
 from backend import models
