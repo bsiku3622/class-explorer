@@ -204,6 +204,76 @@ python3.14 -m backend.create_user <username> <password> [--manager|--admin]
 
 ---
 
+## AI · ksain (데스크탑 게이트웨이 + 수집 타이머)
+
+질문창(Agent)과 ksain 자동 분석이 쓰는 LLM 은 **데스크탑(RTX 5060 Ti)의 Ollama** 입니다.
+서버는 WireGuard 로 데스크탑 게이트웨이(`10.8.10.1:11434`)만 부르고, 게이트웨이가 요청이 올 때
+Ollama 를 켜고 1시간 조용하면 끕니다 — 데스크탑에 상시 부담을 주지 않으려는 것입니다.
+
+```
+server(10.8.0.1) ──WireGuard──► desktop 10.8.10.1:11434  gateway.py (예약 작업 "LLM Gateway")
+                                     └──► 127.0.0.1:11435  ollama serve (필요할 때만)
+```
+
+### 데스크탑 — 게이트웨이 설치·갱신
+
+```bash
+scp deploy/llm-gateway/gateway.py deploy/llm-gateway/install.ps1 "desktop:D:/Projects/Scripts/llm-gateway/"
+ssh desktop 'powershell -NoProfile -ExecutionPolicy Bypass -File D:\Projects\Scripts\llm-gateway\install.ps1'
+ssh server 'curl -s http://10.8.10.1:11434/gateway/status'   # {"running": false, ...} 면 정상 (Ollama 는 꺼진 채 대기)
+```
+
+- 예약 작업 `LLM Gateway` 가 로그인 시 `pythonw gateway.py` 를 띄웁니다. 로그는
+  `D:\Projects\Scripts\llm-gateway\gateway.log`
+- 방화벽은 graph-study 때 만든 `GraphStudy Ollama (WireGuard)` 규칙(TCP 11434, 서버만)을 그대로
+  씁니다 — 게이트웨이가 같은 포트에 서므로 새 규칙이 필요 없습니다
+- ⚠️ 사용자 환경변수 `OLLAMA_HOST` 를 `127.0.0.1:11435` 로 바꿉니다. 예전 값
+  `0.0.0.0:11434` 그대로면 데스크탑에서 Ollama 앱을 직접 열었을 때 게이트웨이 포트와 겹치고,
+  `ollama.exe` 방화벽 규칙(모든 주소 허용) 때문에 LAN 에 열립니다
+- ⚠️ 예전 예약 작업 `GraphStudy Gemma OCR`(Ollama 상시 실행)은 꺼 둔 채로 둡니다. graph-study 의
+  `OLLAMA_URL=http://10.8.10.1:11434` 는 이제 게이트웨이를 거쳐 그대로 동작합니다
+- 첫 요청은 Ollama 기동 + 모델 적재로 **80초 안팎** 걸립니다
+- ⚠️ 게이트웨이가 Ollama 를 **컨텍스트 16k**(`OLLAMA_CONTEXT_LENGTH`)로 띄웁니다. 기본 4k 면 긴
+  프롬프트의 앞부분(시스템 지시문)이 잘립니다. 게이트웨이를 고쳐 올릴 때는 **먼저
+  `POST /gateway/stop`** 으로 Ollama 를 내리세요 — 작업을 멈추면 게이트웨이만 죽고 옛 설정의
+  Ollama 가 남아, 새 게이트웨이가 그걸 그대로 씁니다
+
+### 서버 — 처음 한 번
+
+```bash
+cd /srv/class-explorer
+python3.14 -m pip install --user -r requirements.txt        # pypdf · olefile
+sudo mkdir -p /etc/class-explorer
+sudo cp deploy/ai.env.example /etc/class-explorer/ai.env     # KSAIN_API_KEY 등을 채웁니다
+sudo chown baeks:baeks /etc/class-explorer/ai.env && sudo chmod 600 /etc/class-explorer/ai.env
+sudo mkdir -p /etc/systemd/system/class-explorer.service.d
+sudo cp deploy/class-explorer-ai.conf /etc/systemd/system/class-explorer.service.d/ai.conf
+sudo cp deploy/class-explorer-ksain.service deploy/class-explorer-ksain.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now class-explorer-ksain.timer
+sudo systemctl restart class-explorer.service
+```
+
+`ai.env` 는 API 서비스(drop-in)와 수집 타이머가 같이 읽습니다. OpenAI 키가 생기면
+`OPENAI_API_KEY`·`OPENAI_MODELS` 를 채우고 `class-explorer.service` 만 재시작하면 질문창 모델
+목록에 붙습니다.
+
+### ksain 데이터
+
+```bash
+python3.14 -m backend.ksain.sync --backfill      # 처음 한 번 (수십 분, 0.4초 간격)
+python3.14 -m backend.ksain.sync --attachments-only  # 백필이 첨부 단계에서 멈췄을 때
+python3.14 -m backend.ksain.analyze --limit 5000 # 밀린 분석 — 데스크탑 GPU 로 몇 시간
+python3.14 -m backend.ksain.analyze --reapply --fresh  # 스테이징에서 돌린 분석을 운영 학사일정에 처음 반영
+python3.14 -m backend.ksain.analyze --reapply    # apply 규칙을 바꾼 뒤 다시 맞춤 (사람이 지운 일정은 유지)
+journalctl -u class-explorer-ksain -n 50         # 주기 실행 로그
+```
+
+⚠️ **`backend/ksain.db` 는 git 에 없고 언제든 다시 만들 수 있습니다.** 지워도 사용자 데이터는
+그대로입니다 — 자동 일정은 본 DB 에 있으니 `--reapply` 를 다시 돌리세요.
+
+---
+
 ## 처음 세팅할 때만
 
 ```bash

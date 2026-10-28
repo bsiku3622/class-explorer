@@ -101,7 +101,7 @@
 - [x] 홈 화면 — 지금 교시·가야 할 교실·오늘 시간표·방학 메시지·공강인 친구 (`/` → 홈, 검색은 `/search`)
 - [x] Friends 탭 제거 → 홈 위젯 + 모달 (Timetable Compare 가 이미 있어서)
 - [x] 급식 — DB(`meal_menus`)에 쌓고, 없을 때만 ksain API 를 부릅니다
-- [ ] ksain 게시글 API 로 학사일정 보강 (ksalendar 참고)
+- [x] ksain 게시글 API 로 학사일정 보강 (ksalendar 참고) — 아래 ksain 자동 분석으로
 - [ ] [bench] 관리 화면 — `/admin/*` 통째로가 아니라 안전한 것만 골라 새로
 - [ ] [bench] 배포 — systemd 유닛 2번째, nginx 블록, Netlify 사이트 추가
 - [x] 친구 모달 개편 — 검색기 하나로 (등록된 사람 필터 → 없으면 추가), 모달 위치·인풋 크기 정리
@@ -216,3 +216,10 @@
 - [x] 학급모임 13:20~13:30 으로 정정 + 쉬는시간을 `이동`·`공강` 둘로 가르기
 - [x] 2026-1 과목별 syllabus 연결, PDF preview UI, 정적 문서 배포
 - [x] 과목 자료실: 학생 업로드, 관리자 검수, preview, 2026-2 공유 팝업
+- [x] 2026-2 기말고사 시간표 적재 — 1학년 필수 15과목은 수강 정보로 응시 대상 보완
+- [x] 데스크탑 LLM 게이트웨이 — 요청 시 Ollama 기동, 1시간 유휴 시 종료 (`deploy/llm-gateway`)
+- [x] ksain 전 게시글 수집 (`backend/ksain/sync.py`) — 두 번호 공간 백필 + 10분 주기 증분 + 첨부 텍스트
+- [x] ksain 글 LLM 분석 + 학사일정 자동 반영 (`source='ksain'`)
+- [x] 홈 자연어 질문창 (Agent) — 시간표·강의실·학사일정·시험·급식·ksain, 모델 선택
+- [ ] 멘토링 아카이브(Google Drive) 색인 — 다음 차례
+- [ ] 개인정보처리방침에 ksain 공개 글 저장·질문의 LLM 전송 반영 (문구는 사용자가)
