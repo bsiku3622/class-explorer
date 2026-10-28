@@ -45,7 +45,9 @@
 - **AI 모델 제공자** — `backend/agent/llm.py` 에 새 제공자를 붙이거나 분석(`ANALYZE_MODEL`)을 외부
   모델로 돌리면 6절. 지금은 OpenAI 를 "이용자가 고른 경우에만" 으로 적어 두었습니다
 - ksain 수집 범위·보관 — `backend/ksain/` (1·3·4절). 원문이 지워진 글의 사본을 지운다고
-  적었으니 `sync.refresh` 의 그 동작을 빼면 4절도 고쳐야 합니다
+  적었으니 `sync.refresh` 의 그 동작을 빼면 4절도 고쳐야 합니다. 4절은 게시글에서 만든 일정·사실이
+  **백업에 안 들어간다**고도 적었습니다 — `services/backup.py` 의 `strip_ksain_derived` 를 빼거나 본 DB 를
+  복사하는 새 길을 만들면 그 약속이 깨집니다(`backend/core/db.guide.md`)
 - AI 질문의 저장 여부 — 지금은 서버에 남기지 않습니다(4절). 질문 기록을 쌓기 시작하면 고치세요
 
 `UPDATED` 상수가 시행일입니다. 내용을 바꾸면 이 값도 올리세요.

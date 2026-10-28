@@ -27,8 +27,8 @@ git push origin main
 # 2. 백엔드
 ssh server
 cd /srv/class-explorer
-cp backend/ksa_timetable.db backend/ksa_timetable.db.bak-$(date +%Y%m%d)   # DB는 서버에만 있습니다
 git pull --ff-only
+python3.14 -m backend.cli.snapshot deploy   # DB는 서버에만 있습니다 → data/backups/
 sudo cp deploy/class-explorer-materials-backup.service deploy/class-explorer-materials-backup.timer \
         deploy/class-explorer-ksain.service deploy/class-explorer-ksain.timer /etc/systemd/system/
 sudo systemctl daemon-reload
@@ -38,6 +38,13 @@ systemctl is-active class-explorer.service
 ```
 
 의존성이 바뀌었으면 재시작 전에 `pip install -r requirements.txt`를 한 번 돌립니다.
+
+⚠️ **본 DB 를 `cp` 로 떠 두지 않습니다.** 예전엔 여기서 `cp backend/ksa_timetable.db …bak-날짜` 를 했는데,
+그러면 ksain 글로 만든 기억·자동 일정이 백업에 그대로 들어갑니다 — 원문이 지워지면 같이 지운다고
+개인정보처리방침에 약속한 것들이고, 이 백업은 자동으로 지우지 않습니다. `backend.cli.snapshot` 은 그 둘을
+빼고 뜹니다(`services/backup.py`). **당긴 직후, 재시작 전에** 뜨는 건 이 명령이 새 코드에 있어서입니다.
+그 몇 초 사이에 수집 타이머가 새 코드로 돌면 마이그레이션이 먼저 붙을 수 있지만, 마이그레이션은 칼럼·표를
+더하기만 해서 옛 코드로 되돌리는 데 지장이 없습니다.
 
 ⚠️ **타이머 유닛은 배포 때마다 다시 복사합니다.** 유닛 파일이 `python3.14 -m backend.cli.material_backup`
 처럼 모듈 경로를 들고 있어서, 코드만 당기고 유닛을 안 바꾸면 그날 밤 타이머가 `No module named` 로
