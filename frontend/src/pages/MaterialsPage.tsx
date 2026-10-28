@@ -22,7 +22,13 @@ import {
     MATERIAL_CATEGORIES,
     MATERIAL_CATEGORY_LABELS,
 } from "../lib/materialsApi";
-import { findSyllabiForSubject } from "../lib/syllabi";
+import {
+    downloadSyllabus,
+    findSyllabiForSubject,
+    hasSyllabusTerm,
+    type SyllabusDocument,
+} from "../lib/syllabi";
+import { useSyllabusFiles } from "../hooks/useSyllabusFiles";
 
 interface MaterialsPageProps {
     term: Term | null;
@@ -35,9 +41,9 @@ type StaticMaterial = {
     subjectLabel: string;
     title: string;
     department: string;
-    previewUrl: string;
-    downloadUrl: string;
     sourceFormat: "PDF" | "DOCX";
+    /** 미리보기·내려받기에 쓰는 서버 문서 (`lib/syllabi.ts`) */
+    document: SyllabusDocument;
 };
 
 const formatBytes = (bytes: number): string => {
@@ -56,6 +62,8 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
     const [subjectId, setSubjectId] = useState<number | "all">("all");
     const [preview, setPreview] = useState<MaterialPreviewTarget | null>(null);
     const [busyFile, setBusyFile] = useState<number | null>(null);
+    const [busySyllabus, setBusySyllabus] = useState<string | null>(null);
+    const syllabi = useSyllabusFiles(hasSyllabusTerm(term));
 
     useEffect(() => {
         const value = new URLSearchParams(location.search).get("subject");
@@ -86,18 +94,17 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
     const staticMaterials = useMemo<StaticMaterial[]>(() => {
         if (!term) return [];
         return allClassesData.flatMap((subject) =>
-            findSyllabiForSubject(subject, term).map((document) => ({
+            findSyllabiForSubject(subject, term, syllabi.files).map((document) => ({
                 id: document.id,
                 subjectId: subject.subject_id,
                 subjectLabel: subject.subject,
                 title: document.title,
                 department: document.department,
-                previewUrl: document.previewUrl,
-                downloadUrl: document.downloadUrl,
                 sourceFormat: document.sourceFormat,
+                document,
             })),
         );
-    }, [allClassesData, term]);
+    }, [allClassesData, term, syllabi.files]);
 
     const subjects = useMemo(() => {
         const labels = new Map<number, string>();
@@ -139,6 +146,20 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
             setBusyFile(null);
         }
     };
+
+    const handleSyllabusDownload = async (doc: SyllabusDocument) => {
+        setBusySyllabus(doc.id);
+        setError("");
+        try {
+            await downloadSyllabus(doc);
+        } catch {
+            setError("강의계획서를 내려받지 못했습니다.");
+        } finally {
+            setBusySyllabus(null);
+        }
+    };
+
+    const notice = error || (syllabi.error ? "강의계획서 목록을 불러오지 못했습니다." : "");
 
     return (
         <div className="flex flex-col gap-6 pb-20">
@@ -209,9 +230,9 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
                 </div>
             </section>
 
-            {error && (
+            {notice && (
                 <div className="border-2 border-black bg-retro-primary px-4 py-3 text-sm font-black shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]">
-                    {error}
+                    {notice}
                 </div>
             )}
 
@@ -220,7 +241,7 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
                     {visibleDynamic.length + visibleStatic.length} Materials
                 </p>
                 <p className="text-[10px] font-bold text-black/35">
-                    승인된 자료만 표시됩니다
+                    {syllabi.loading ? "강의계획서 목록을 불러오는 중…" : "승인된 자료만 표시됩니다"}
                 </p>
             </div>
 
@@ -320,18 +341,19 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
                                 <div className="flex shrink-0 gap-2">
                                     <button
                                         type="button"
-                                        onClick={() => setPreview({ name: material.title, mediaType: "application/pdf", url: material.previewUrl })}
+                                        onClick={() => setPreview({ name: material.title, mediaType: "application/pdf", syllabusId: material.document.previewId })}
                                         className="flex flex-1 items-center justify-center gap-1.5 border-2 border-black bg-retro-accent1 px-3 py-2 text-xs font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none"
                                     >
                                         <Eye size={14} /> Preview
                                     </button>
-                                    <a
-                                        href={material.downloadUrl}
-                                        download
-                                        className="flex flex-1 items-center justify-center gap-1.5 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none"
+                                    <button
+                                        type="button"
+                                        disabled={busySyllabus === material.id}
+                                        onClick={() => handleSyllabusDownload(material.document)}
+                                        className="flex flex-1 items-center justify-center gap-1.5 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none disabled:opacity-40"
                                     >
-                                        <Download size={14} /> Download
-                                    </a>
+                                        <Download size={14} /> {busySyllabus === material.id ? "…" : "Download"}
+                                    </button>
                                 </div>
                             </div>
                         </article>

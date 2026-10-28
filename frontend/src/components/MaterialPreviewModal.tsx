@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { ExternalLink, FileWarning, LoaderCircle, X } from "lucide-react";
 import { getMaterialFileBlob } from "../lib/materialsApi";
+import { getSyllabusBlob } from "../lib/syllabi";
 
 export interface MaterialPreviewTarget {
     name: string;
     mediaType: string;
+    /** 자료실 파일 — `/materials/files/{id}/preview` */
     fileId?: number;
-    url?: string;
+    /** 2026-1 강의계획서 — `/syllabi/{id}` (`lib/syllabi.ts`) */
+    syllabusId?: string;
 }
 
 interface MaterialPreviewModalProps {
@@ -21,22 +24,27 @@ const MaterialPreviewContent: React.FC<{
     target,
     onClose,
 }) => {
-    const [url, setUrl] = useState<string | null>(target.url ?? null);
+    const [url, setUrl] = useState<string | null>(null);
     const [error, setError] = useState("");
 
     useEffect(() => {
         let active = true;
         let objectUrl: string | null = null;
 
-        if (!target.url && target.fileId !== undefined) {
-            getMaterialFileBlob(target.fileId, "preview")
+        const load = target.syllabusId !== undefined
+            ? getSyllabusBlob(target.syllabusId)
+            : target.fileId !== undefined
+              ? getMaterialFileBlob(target.fileId, "preview")
+              : null;
+        if (load) {
+            load
                 .then((blob) => {
                     if (!active) return;
                     objectUrl = URL.createObjectURL(blob);
                     setUrl(objectUrl);
                 })
                 .catch(() => active && setError("Preview를 불러오지 못했습니다."));
-        } else if (!target.url) {
+        } else {
             Promise.resolve().then(() => active && setError("Preview 주소가 없습니다."));
         }
 
@@ -140,7 +148,7 @@ const MaterialPreviewModal: React.FC<MaterialPreviewModalProps> = ({
     onClose,
 }) => {
     if (!target) return null;
-    const key = target.url ?? String(target.fileId ?? target.name);
+    const key = target.syllabusId ?? String(target.fileId ?? target.name);
     return <MaterialPreviewContent key={key} target={target} onClose={onClose} />;
 };
 

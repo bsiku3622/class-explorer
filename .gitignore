@@ -23,6 +23,11 @@ backend/students.txt
 /data/
 backend/__pycache__/
 
+# 2026-1 강의계획서 원본 — 교사 이메일·전화번호가 든 파일이라 git 과 화면 번들에 두지 않습니다.
+# 서버의 data/syllabi 에 따로 두고 로그인한 사람에게만 줍니다 (backend/services/syllabi.py)
+frontend/src/assets/syllabi/
+backend/syllabi/
+
 # Node / Frontend
 # 프론트가 둘입니다 — frontend(class-explorer) / bench-frontend(ksa-bench)
 node_modules/
