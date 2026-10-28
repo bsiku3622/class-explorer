@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the ksain collector every 10 minutes during the day
+
+[Timer]
+OnCalendar=*-*-* 07..23:00/10:00 Asia/Seoul
+Persistent=true
+RandomizedDelaySec=1m
+Unit=class-explorer-ksain.service
+
+[Install]
+WantedBy=timers.target
