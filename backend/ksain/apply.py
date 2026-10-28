@@ -3,13 +3,17 @@
 글 하나에서 온 일정은 `source_ref = "<글 번호>:<순번>"` 으로 묶여서, 글이 바뀌거나 다시
 분석되면 **그 글 것만** 지우고 새로 만듭니다. PDF·수동 일정은 건드리지 않습니다.
 
+항목의 세부(`detail` — 장소·버스 시각·준비물)는 메모 맨 앞에 들어갑니다. 날짜가 든 정보는 기억(사실)에
+남기지 않고 학사일정이 맡기 때문에, 그 일정에 딸린 내용을 여기 말고는 둘 곳이 없습니다.
+
 반영하는 항목:
 - 모델이 `calendar=true` 로 고르고 확신도가 `MIN_CONFIDENCE` 이상
 - 끝나는 날이 오늘에서 `KEEP_PAST_DAYS` 일 안쪽 (백필한 옛 글이 지난 일정을 쏟아내지 않게)
 - 기간이 `MAX_SPAN_DAYS` 일 이하 (모집 기간 같은 긴 띠는 마감 하루로 들어와야 합니다)
 
 건너뛰는 항목:
-- 날짜가 겹치고 제목이 비슷한 공용 일정이 이미 있을 때 (학사일정 PDF, 다른 글)
+- 날짜가 겹치고 제목이 비슷한 공용 일정이 이미 있을 때 (학사일정 PDF, 다른 글). 대상 학년·전공이
+  서로 겹치지 않으면 이름이 같아도 다른 일정입니다 (`_apart`)
 - **사람이 지웠거나 고친 일정** — `Analysis.applied` 에 적어 둔 일정이 없어졌으면 그 항목의
   sig 를 `suppressed` 에 넣고 다시 만들지 않습니다. 고친 일정은 routers/calendar.py 가
   `source='manual'` 로 바꿔 자동 관리에서 빼 줍니다
@@ -26,6 +30,8 @@ from backend import models as core
 from backend.core import clock
 from backend.knowledge import facts as memory
 from backend.ksain.models import Analysis, Post
+from backend.services import majors
+from backend.services.calendar import grades
 
 MIN_CONFIDENCE = 0.6
 KEEP_PAST_DAYS = 14
@@ -83,6 +89,15 @@ def desired(analysis: Analysis, today: datetime.date) -> list[dict]:
     return out
 
 
+def _apart(row: core.CalendarEvent, item: dict) -> bool:
+    """대상 학년이나 전공이 겹치지 않는 두 일정 — 이름이 같아도 다른 일정입니다("1학년 귀가" 와 "2학년 귀가",
+    학부마다 따로 여는 "학부 설명회"). 대상이 비어 있으면 전체라 늘 겹칩니다."""
+    row_grades, item_grades = set(grades(row.target_grades)), set(item.get("target_grades") or [])
+    row_majors, item_majors = set(majors.split(row.target_majors)), set(item.get("target_majors") or [])
+    return (bool(row_grades and item_grades and not row_grades & item_grades)
+            or bool(row_majors and item_majors and not row_majors & item_majors))
+
+
 def duplicate(db, item: dict, post_id: int) -> bool:
     start = datetime.date.fromisoformat(item["start_date"])
     end = datetime.date.fromisoformat(item["end_date"])
@@ -93,6 +108,8 @@ def duplicate(db, item: dict, post_id: int) -> bool:
     ).all()
     for row in rows:
         if row.source == "ksain" and (row.source_ref or "").startswith(f"{post_id}:"):
+            continue
+        if _apart(row, item):
             continue
         if similar(row.title, item["title"]):
             return True
@@ -126,9 +143,10 @@ def _event(post: Post, item: dict, index: int) -> core.CalendarEvent:
         end_minute=end_minute if timed else None,
         category=category,
         target_grades=",".join(str(g) for g in item.get("target_grades") or []) or None,
+        target_majors=majors.joined(item.get("target_majors")),
         source="ksain",
         source_ref=f"{post.id}:{index}",
-        note=f"ksain 자동 등록 — {post.title}\n{post.url}",
+        note="\n\n".join(part for part in (item.get("detail"), f"ksain 자동 등록 — {post.title}\n{post.url}") if part),
     )
 
 

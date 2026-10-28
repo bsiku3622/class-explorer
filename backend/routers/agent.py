@@ -78,7 +78,7 @@ async def list_models(user: models.User = Depends(get_current_user)):
     default = llm.resolve(None, "agent")
     with db_session() as db:
         # 화면 인사("재원님, …")에 쓰는 이름 — Agent 가 답할 때 쓰는 것과 같은 계산입니다
-        me = profile_of(db, user.effective_stu_id)
+        me = profile_of(db, user.effective_stu_id, user.major)
     return {
         "models": [{"id": m.id, "name": m.name, "label": m.label, "provider": m.provider} for m in llm.available()],
         "default": default.id,
