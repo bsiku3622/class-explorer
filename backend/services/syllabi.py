@@ -20,6 +20,7 @@ URL 에는 경로 대신 경로의 해시(`id`)만 씁니다. 파일 이름에 �
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import threading
 from pathlib import Path
@@ -29,6 +30,10 @@ from backend.core.db import main_db_file
 from backend.ksain import extract
 from backend.knowledge.text import query_terms
 from backend.services.subject_names import abbreviation, squash
+
+# pypdf 는 일부 PDF 를 읽으며 "Ignoring wrong pointing object" 경고를 수십 줄 남깁니다 — 읽기에는 지장이 없어서,
+# 목록을 만들 때마다 API 로그를 덮지 않게 오류만 남깁니다(처음 운영에서 한 번에 42줄)
+logging.getLogger("pypdf").setLevel(logging.ERROR)
 
 MEDIA_TYPES = {
     ".pdf": "application/pdf",
