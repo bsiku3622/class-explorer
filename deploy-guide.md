@@ -116,8 +116,10 @@ WantedBy=multi-user.target
 **`KSAIN_API_KEY`** 를 같이 넣으면 홈에 급식이 뜹니다(`api.ksain.net`). 없으면 급식 칸만
 비고 나머지는 그대로 돕니다 — 홈 전체가 죽지는 않습니다.
 
-로그는 `journalctl --namespace=class-explorer -u class-explorer -f` 로 봅니다 — `--namespace` 를 빼면
-2026-10-29 이후 로그가 안 보입니다.
+로그는 평소처럼 `journalctl -u class-explorer -f` 로 봅니다. 서버 `baeks` 의 `~/.bash_aliases` 가 `journalctl` 에
+`--namespace="*"`(모든 저장소)를 붙여 주기 때문입니다 — 없으면 전용 저장소의 앱 로그가 안 나오고 systemd 의
+시작·종료 줄만 보입니다. ⚠️ 별칭은 대화형 셸에서만 먹습니다. `ssh server '…'` 한 줄이나 스크립트에서는
+`journalctl --namespace='*' -u class-explorer` 처럼 직접 붙이세요(`baeks` 는 `adm` 그룹이라 sudo 없이 읽습니다).
 
 ### nginx — `/etc/nginx/sites-available/class-explorer.conf`
 

@@ -1,3 +1,21 @@
+## 2026-10-29 — 기말고사 배너, 자몽 학기 패널 배포, journalctl 별칭
+
+- 변경 대상: `backend/exam_seed_2026-2-final.json`·운영 DB `exam_periods`(2026-2-final 의 `visible_from`), `backend/exams.guide.md`, 자몽 학기 패널(`b290261`), `backend/services/syllabi.py`, 서버 `~/.bash_aliases`, `deploy-guide.md`
+- 요약: 기말고사 배너를 오늘부터 띄우고, 맥북 원래 폴더에 커밋 안 된 채 있던 자몽 학기 패널을 커밋·배포했습니다. 로그를 전용 저장소로 옮긴 뒤 `journalctl -u class-explorer` 에 앱 로그가 안 나오던 것을 서버 별칭으로 되살렸습니다.
+
+- 기말고사 배너: 홈은 이미 `GET /home` 의 `exam_period` 로 기말 문구까지 그리고 있었고, 운영 DB 에도 기말 회차가
+  들어 있었습니다 — 다만 "시험 1주 전" 규칙으로 11/30 부터 보이게 돼 있었습니다. 운영자 요청으로 시간표가 나온 뒤인
+  10/29 부터로 당겼습니다. seed 와 DB 의 `visible_from` 한 칸만 바꿨고 다시 적재하지 않았습니다(응시 3,380건 그대로).
+  API 계정으로 `active_period` 가 열린 것을 확인했습니다
+- 자몽 학기 패널: 맥북 원래 폴더의 10-15 작업을 그대로 커밋했습니다(파일을 바이트로 대조해 같음을 확인, 빌드·린트
+  기준선). 프론트만 바뀌어 Netlify 가 배포합니다
+- ⚠️ `journalctl -u class-explorer` 는 기본 저장소만 읽어서, 전용 저장소로 옮긴 앱 로그가 안 나오고 systemd 의 시작·종료
+  줄만 보였습니다. 서버 `baeks` 의 `~/.bash_aliases` 에 `journalctl --namespace="*"` 별칭(그리고 `sudo` 뒤에서도 먹게
+  `alias sudo="sudo "`)을 두어 평소 명령이 그대로 됩니다. 별칭은 대화형 셸에서만 먹어서, `ssh server '…'` 한 줄이나
+  스크립트는 `--namespace` 를 직접 붙여야 합니다
+- 강의계획서 목록을 만들 때 pypdf 가 "Ignoring wrong pointing object" 를 42줄 남겨 API 로그를 덮었습니다(질문창을 열 때
+  목록을 미리 만듭니다). 읽기에는 지장이 없어 pypdf 로거는 오류만 남깁니다
+
 ## 2026-10-29 — 공개 레포 기록에서 개인정보 파일 지우기 (강제 푸시)
 
 - 변경 대상: GitHub `main`·`dev`(강제 푸시), 서버·데스크탑·맥북 저장소, 서버 `backend/students.txt` 권한, `deploy-guide.md`
