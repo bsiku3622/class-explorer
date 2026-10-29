@@ -46,6 +46,7 @@ import {
     termSlotOf,
     type HourInput,
     type TermSlot,
+    type TermKey,
     type ZamongEntry,
     type ZamongMap,
 } from "../lib/zamong";
@@ -55,6 +56,7 @@ import RetroCard from "../components/atoms/RetroCard";
 import PageHeader from "../components/molecules/PageHeader";
 import CourseBoard from "../components/zamong/CourseBoard";
 import Roadmap from "../components/zamong/Roadmap";
+import TermPanel from "../components/zamong/TermPanel";
 
 interface ZamongPageProps {
     stuId: string | null;
@@ -90,6 +92,7 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
      */
     const [focused, setFocused] = useState<string | null>(null);
     const [selected, setSelected] = useState<string | null>(null);
+    const [openTerm, setOpenTerm] = useState<TermKey | null>(null);
 
     /**
      * ⚠️ **불러오기에 성공한 뒤에만 저장합니다.**
@@ -568,7 +571,20 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                         onOpenCourse={openCourse}
                         onMoveCourse={(course, term) => update(course, { term })}
                         catalog={curriculum.courses}
+                        onOpenTerm={setOpenTerm}
                     />
+                    {openTerm && (
+                        <TermPanel
+                            key={openTerm}
+                            term={summary.terms.find((term) => term.key === openTerm)!}
+                            catalog={byName}
+                            entries={entries}
+                            slots={slots}
+                            onChange={update}
+                            onClose={() => setOpenTerm(null)}
+                            saveDisabled={loadFailed}
+                        />
+                    )}
 
                     {summary.unscheduled.length > 0 && (
                         <button

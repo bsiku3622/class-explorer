@@ -32,6 +32,7 @@
 import React, { useMemo, useState } from "react";
 import { Route } from "lucide-react";
 import RetroCard from "../atoms/RetroCard";
+import RetroButton from "../atoms/RetroButton";
 import RetroSubTitle from "../atoms/RetroSubTitle";
 import type { Course } from "../../lib/curriculum";
 import {
@@ -51,6 +52,7 @@ interface RoadmapProps {
     onMoveCourse: (course: string, term: TermKey) => void;
     /** 넣을 수 있는 과목 전체 */
     catalog: Course[];
+    onOpenTerm: (term: TermKey) => void;
 }
 
 /**
@@ -118,6 +120,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
     onOpenCourse,
     onMoveCourse,
     catalog,
+    onOpenTerm,
 }) => {
     const credit = (key: string) => summary.creditRequirements.find((row) => row.key === key);
     const hour = (key: string) => summary.hourRequirements.find((row) => row.key === key);
@@ -361,6 +364,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
                         ok={term.ok}
                         courses={term.courses}
                         dropTerm={term.key}
+                        onOpenTerm={() => onOpenTerm(term.key)}
                         catalog={catalog}
                         onOpenCourse={onOpenCourse}
                         onDropCourse={onMoveCourse}
@@ -407,6 +411,7 @@ const TermRow: React.FC<{
     catalog?: Course[];
     onOpenCourse: (name: string) => void;
     onDropCourse?: (course: string, term: TermKey) => void;
+    onOpenTerm?: () => void;
 }> = ({
     name,
     credits,
@@ -417,6 +422,7 @@ const TermRow: React.FC<{
     catalog = [],
     onOpenCourse,
     onDropCourse,
+    onOpenTerm,
 }) => {
     const [over, setOver] = useState(false);
     const [query, setQuery] = useState("");
@@ -478,21 +484,30 @@ const TermRow: React.FC<{
                 const course = event.dataTransfer.getData("text/plain");
                 if (course) onDropCourse!(course.replace(/\(EC\)$/, ""), dropTerm!);
             }}
-            className={`flex flex-col gap-0.5 px-4 py-[3px] transition-colors duration-100 md:flex-row md:items-start md:gap-3 md:px-6 ${
+            className={`flex flex-col gap-0.5 px-4 py-1.5 transition-colors duration-100 md:flex-row md:items-start md:gap-3 md:px-6 ${
                 over ? "bg-retro-primary/15" : ""
             }`}
         >
             {/* ⚠️ 오른쪽 첫 줄과 **같은 높이 상자** 안에서 가운데 정렬합니다. 예전에는
                 `items-baseline` + `pt-1` 로 눈대중해 놨는데, 오른쪽 줄 높이는 입력칸이
                 정해서(그리고 줄이 접히면 더 커져서) 기준선이 매번 어긋났습니다 */}
-            <div className="flex h-7 shrink-0 items-center justify-between md:w-[4.5rem] md:justify-start">
-                <span
-                    className={`text-[12px] font-black uppercase tracking-widest ${
-                        courses.length ? "text-black" : "text-black/25"
-                    }`}
-                >
-                    {name}
-                </span>
+            <div className="flex h-7 shrink-0 items-center justify-between md:w-[6rem] md:justify-start">
+                {onOpenTerm ? (
+                    <RetroButton
+                        type="button"
+                        size="sm"
+                        className="h-7 shrink-0 px-2 py-0"
+                        onClick={onOpenTerm}
+                        aria-label={`${name} 상세 입력`}
+                        aria-haspopup="dialog"
+                    >
+                        {name}
+                    </RetroButton>
+                ) : (
+                    <span className="text-[12px] font-black uppercase tracking-widest">
+                        {name}
+                    </span>
+                )}
                 {/* 좁은 화면에서는 줄이 세로로 쌓여서 오른쪽 끝이라는 게 없습니다 —
                     그때만 이름 옆에 붙입니다 */}
                 <span className="md:hidden">{creditLabel}</span>

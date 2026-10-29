@@ -94,3 +94,6 @@
 - `RetroButton`의 `isSelected`로 선택 상태 처리 (직접 className 조작 금지)
 - `RetroSubTitle`로 소제목 표준 스타일 강제 유지
 - `StudentBadge`로 학번색 자동 매핑 (색상 직접 하드코딩 금지)
+
+### Zamong TermPanel
+`src/components/zamong/TermPanel.tsx` — 로드맵 학기 버튼으로 여는 오른쪽 입력 패널. `term`, `catalog`, `entries`, `slots`, `onChange`, `onClose`, `saveDisabled`를 받고 기존 `CourseCard`를 재사용합니다. [동작 가이드](src/lib/zamong.guide.md#학기별-상세-입력-termpanel).

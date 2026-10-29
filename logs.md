@@ -389,6 +389,15 @@ drop-in · 타이머를 깔고 `--reapply --fresh` 로 스테이징 분석 1,659
 **30일 전에** 알린다고 약속하고 있는데 이번 개정은 당일 시행입니다 — 문구를 고칠지 사용자 판단으로
 남겼습니다. 멘토링 아카이브(Google Drive)는 다음 차례입니다.
 
+## 2026-10-15 — 자몽 학기별 상세 입력 패널
+
+- 변경 파일: `frontend/src/components/zamong/Roadmap.tsx`, `frontend/src/components/zamong/TermPanel.tsx`, `frontend/src/pages/ZamongPage.tsx`, 관련 가이드, `tasks.md`
+- 요약: 학기 라벨을 버튼으로 바꾸고 오른쪽 패널에 학기별 과목 카드를 모아 평어·EC·학기를 입력하도록 연결했습니다.
+
+입력 상태와 자동 저장은 기존 학과 판과 공유했습니다. 별도 초안을 만들면 패널을 닫을 때 반영 여부가 갈리므로 즉시 같은 기록을 수정합니다. 학기 요약의 과목명에는 `(EC)` 접미사가 붙어 있어, 카탈로그 조회와 카드 key에는 접미사를 제거한 원래 이름을 써야 합니다. native dialog로 키보드 포커스를 제한하고 닫을 때 학기 버튼으로 복구합니다.
+
+검증: 프로덕션 빌드와 변경 파일 ESLint 통과. 모의 API 브라우저에서 평어→GPA 반영, EC 토글, 학기 이동, 빈 학기·P/F·390px 모바일, Esc·바깥 클릭과 포커스 복구 확인. 전체 lint는 기존 미수정 파일 오류 7건·경고 5건으로 실패했습니다.
+
 ## 2026-10-05 — 개인 중간고사 시간표
 
 - 변경 파일: `backend/exam_seed.json`, `backend/models.py`, `backend/import_exams.py`, `backend/exams.py`, `backend/exams_router.py`, `backend/home_router.py`, `backend/main.py`, `frontend/src/pages/ExamsPage.tsx`, `frontend/src/pages/HomePage.tsx`, 관련 API·가이드 및 `.gitignore`
