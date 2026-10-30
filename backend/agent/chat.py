@@ -80,6 +80,8 @@ SYSTEM = """너는 classes.bsiku.dev(KAIST 부설 한국과학영재학교 수�
   기간 안의 중요 공지를 모아 보려면 ksain_digest 를 쓴다. 결과의 facts·summary 는 요약이다 — 답은 발췌
   (passages, 원문)로 확인한 내용으로 하고, 발췌에 없으면 read_ksain 으로 본문과 첨부를 읽어 확인한다.
   근거가 된 글의 제목을 답에 적는다.
+- 시험 유형·공부법·과목 분위기·기출·선배 자료·전공 안내를 물으면 archive 를 부른다(멘토링 아카이브). 학생들이 만든 비공식 자료라고
+  밝히고 자료의 연도를 적는다. 공식 일정·범위·비율은 archive 로 답하지 말고 syllabus·calendar 를 쓴다.
 - 기간을 묻는 질문("이번 주", "이번 달")은 start 와 end 를 모두 넣는다.
 - 마감·일정을 물으면 올해(최근) 공지를 우선한다. 이미 지난 날짜만 찾았으면 지난 것이라고 밝힌다.
 - 같은 도구를 같은 값으로 두 번 부르지 않는다. 결과가 비어 있으면 다른 도구나 다른 키워드를 쓰거나, 없다고 답한다.
@@ -303,6 +305,8 @@ def summarize(result: dict) -> str:
         parts.append("메뉴 있음" if result["menu"] else "메뉴 없음")
     if "content" in result:
         parts.append(f"본문·첨부 {len(result.get('attachments') or [])}개 읽음")
+    if "materials" in result:
+        parts.append(f"아카이브 자료 {len(result.get('results') or [])}건")
     if "time" in result and "term" in result:
         parts.append(f"{result.get('date')} {result['time']}")
     return " · ".join(parts) or "완료"
@@ -387,6 +391,9 @@ async def run(user_id: int, message: str, history: list[dict], images: list[str]
     try:
         user = db.get(models.User, user_id)
         ctx = Context(db, user)
+        ctx.local_model = model.provider == "local"
+        # OpenAI 로 물을 때는 아카이브를 명세에서도 뺍니다 — 불러 봐야 거절되는 도구를 고르지 않게
+        tools = TOOLS if ctx.local_model else [t for t in TOOLS if t["function"]["name"] != "archive"]
         yield _event("start", model=model.id)
 
         # ① 기억·일정 요약 — 화면의 단계 줄에는 도구와 같은 모양으로 "기억에서 찾기 · 사실 3건" 을 보입니다
@@ -462,7 +469,7 @@ async def run(user_id: int, message: str, history: list[dict], images: list[str]
             # 화면의 "생각 중" / "답 정리 중" — 첫 차례는 질문을 읽는 중, 그 뒤는 도구 결과를 정리하는 중입니다
             yield _event("thinking", step=step)
             try:
-                reply = await llm.chat(model, messages, tools=None if final else TOOLS, max_tokens=2500)
+                reply = await llm.chat(model, messages, tools=None if final else tools, max_tokens=2500)
             except llm.LLMError as error:
                 yield _event("error", message=f"모델에 닿지 않습니다 — {error}"[:300])
                 return

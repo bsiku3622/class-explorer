@@ -57,7 +57,8 @@ backend/
 │   ├── text.py          → 정규화·한글 바이그램 토큰·검색어 뽑기·비슷한 문장 판정
 │   ├── index.py         → ksain 글·첨부 FTS5 색인 (ksain.db, 수집 타이머가 갱신)
 │   ├── search.py        → 글 검색(BM25 + IDF 재정렬 + 근거 발췌) · 글 읽기 · 기간 요약
-│   └── facts.py         → 기억 — 분석이 뽑은 사실을 적고 질문에 맞는 것을 고릅니다 (본 DB)
+│   ├── facts.py         → 기억 — 분석이 뽑은 사실을 적고 질문에 맞는 것을 고릅니다 (본 DB)
+│   └── archive.py       → 멘토링 아카이브 색인 읽기 (archive.db, 읽기 전용 — agent.guide.md)
 ├── ksain/               → ksain 게시글 수집·분석·학사일정 자동 반영 (ksain.guide.md)
 ├── cli/                 → 손으로(또는 타이머가) 돌리는 명령 — python -m backend.cli.<이름>
 │   ├── parser_run.py    → 학기별 KEIS 시간표 수집 (parser_run.guide.md)
@@ -72,6 +73,7 @@ backend/
 │   ├── snapshot.py      → 본 DB 를 손으로 떠 두기 (배포 직전) — `cp` 대신 이걸 씁니다
 │   ├── scan_syllabi.py  → 받아 둔 문서 폴더에서 강의계획서 고르기 (로컬 Gemma 판정 → data/syllabi/<학기>/)
 │   ├── index_syllabi.py → 강의계획서마다 평가표 뽑아 두기 (로컬 Gemma, 원문 대조 → syllabi/.assessments.json, 수집 타이머가 부름)
+│   ├── index_archive.py → 멘토링 아카이브 색인 만들기 (맥북에서, 이름·학번 제거 → archive.db 만 서버로)
 │   └── material_backup.py → 자료 원본 + 본 DB 압축 백업 (systemd 타이머)
 ├── curriculum_seed.json → 교육과정 카탈로그 145과목 + 선수관계 117개
 ├── calendar_seed.json · exam_seed*.json → 학사일정·시험 seed (경로는 core/config.py)

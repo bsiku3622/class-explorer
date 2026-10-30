@@ -110,6 +110,8 @@ export function stepLabel(name: string, args: Record<string, unknown>): string {
             return "원문으로 확인·정리";
         case "search":
             return `'${short(args.query)}' 자료 찾기`;
+        case "archive":
+            return `멘토링 아카이브에서 ${short(args.subject ?? args.query)} 찾기`;
         case "read_ksain":
             return `ksain 글 #${short(args.post_id)} 읽기`;
         case "ksain_digest": {
