@@ -71,6 +71,7 @@ backend/
 │   ├── create_user.py   → 계정 생성
 │   ├── snapshot.py      → 본 DB 를 손으로 떠 두기 (배포 직전) — `cp` 대신 이걸 씁니다
 │   ├── scan_syllabi.py  → 받아 둔 문서 폴더에서 강의계획서 고르기 (로컬 Gemma 판정 → data/syllabi/<학기>/)
+│   ├── index_syllabi.py → 강의계획서마다 평가표 뽑아 두기 (로컬 Gemma, 원문 대조 → syllabi/.assessments.json, 수집 타이머가 부름)
 │   └── material_backup.py → 자료 원본 + 본 DB 압축 백업 (systemd 타이머)
 ├── curriculum_seed.json → 교육과정 카탈로그 145과목 + 선수관계 117개
 ├── calendar_seed.json · exam_seed*.json → 학사일정·시험 seed (경로는 core/config.py)

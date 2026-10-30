@@ -308,6 +308,22 @@ sudo systemctl restart class-explorer.service
 `OPENAI_API_KEY`·`OPENAI_MODELS` 를 채우고 `class-explorer.service` 만 재시작하면 질문창 모델
 목록에 붙습니다.
 
+### 강의계획서 올리기
+
+```bash
+# 맥북 — 받아 둔 폴더에서 Gemma 가 고릅니다 (게이트웨이는 서버에서만 열려 있어 터널로 부릅니다)
+ssh -f -N -L 18435:10.8.10.1:11434 server
+LLM_GATEWAY_URL=http://127.0.0.1:18435 python -m backend.cli.scan_syllabi ~/School/KSA --out /tmp/scan
+# ⚠️ /tmp/scan/report.json 의 staged 목록을 훑어본 뒤 올립니다 — 올린 파일은 로그인한 모두가 받아 봅니다
+scp /tmp/scan/syllabi/2026-2/* server:/srv/class-explorer/data/syllabi/2026-2/
+ssh server 'cd /srv/class-explorer/data/syllabi && chgrp -R ksaclass 2026-2 && chmod 750 2026-2 && chmod 640 2026-2/*'
+```
+
+Ask 는 재시작 없이 다음 질문부터 읽고(목록은 파일이 바뀌면 다시 만듭니다), 평가표는 수집 타이머가 10분 안에 뽑습니다.
+docx 는 화면이 못 그려서 같은 자리에 `<이름>.preview.pdf` 를 둡니다(`soffice --headless --convert-to pdf`). 한꺼번에 많이
+올렸으면 `python3.14 -m backend.cli.index_syllabi --minutes 180` 으로 바로 돌려도 됩니다 — 타이머와 겹치면 하나만 돕니다.
+⚠️ 맥에서 만든 파일은 이름의 한글이 조합형(NFD)일 수 있습니다. `scan_syllabi` 는 NFC 로 맞춥니다.
+
 ### ksain 데이터
 
 ```bash

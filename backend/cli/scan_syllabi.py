@@ -34,6 +34,7 @@ import re
 import shutil
 import subprocess
 import sys
+import unicodedata
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path, PurePosixPath
@@ -192,7 +193,8 @@ def stage(rows: list[dict], items: dict[str, tuple], out: Path) -> list[str]:
     for row in rows:
         if row.get("status") != "judged" or not row.get("is_syllabus") or row["ext"] not in SERVABLE:
             continue
-        name = items[row["origin"]][0]
+        # 맥에서 온 이름은 한글이 조합형(NFD)일 수 있습니다 — 서버의 다른 파일과 같게 맞춥니다
+        name = unicodedata.normalize("NFC", items[row["origin"]][0])
         term = row["term"] or "unknown-term"
         if row["term"] and syllabi._term(Path(name).stem, "") != row["term"]:
             name = f"{row['term']} {name}"

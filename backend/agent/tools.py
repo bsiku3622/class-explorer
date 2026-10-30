@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import json
 import re
 import unicodedata
 
@@ -222,6 +223,7 @@ class Context:
         self._mine: list[models.Class] | None = None
         self._names: list[str] | None = None
         self._term: dict | None = None
+        self._week_ends: dict[int, datetime.date] = {}
 
     def cite(self, title: str, url: str, first: bool = False, weak: bool = False) -> None:
         if not url:
@@ -398,6 +400,7 @@ class Context:
             .order_by(models.CalendarEvent.start_date, models.CalendarEvent.id).all()
         )
         ends = {int(m.group(1)): row.start_date for row in rows if (m := re.fullmatch(r"(\d+)\s*주차\s*종료", row.title.strip()))}
+        self._week_ends = ends
 
         def week(day: datetime.date) -> str:
             number = next((n for n, end in sorted(ends.items()) if day <= end), None)
@@ -414,6 +417,12 @@ class Context:
             self._term["weeks"] = [f"{n}주차 {(end - datetime.timedelta(days=6)):%m-%d}~{end:%m-%d}"
                                    for n, end in sorted(ends.items())]
         return self._term
+
+    def week_span(self, first: int, last: int | None = None) -> tuple[datetime.date, datetime.date] | None:
+        """N주차(또는 N~M주차)의 실제 날짜 — 주차표에 없으면 None."""
+        self.term_dates()
+        start, end = self._week_ends.get(first), self._week_ends.get(last or first)
+        return (start - datetime.timedelta(days=6), end) if start and end else None
 
     def rooms(self) -> list[str]:
         names = set()
@@ -795,6 +804,93 @@ def ksain_digest(ctx: Context, start: str | None = None, end: str | None = None,
 # 강의계획서 본문을 얼마나 싣는가 — 결과 전체가 MAX_TOOL_CHARS(9,000자, agent/chat.py)에 들어가야 합니다
 SYLLABUS_CHARS = 6000
 SYLLABUS_EACH = 600  # 내 과목 전부일 때 과목 하나에
+SYLLABUS_ALL = 7500  # 내 과목 전부일 때 평가표·대목을 다 합쳐서 (주차표 몫을 남깁니다)
+# 근거 링크 — 파일은 로그인 헤더가 있어야 받으므로 앱 화면으로 겁니다(frontend 의 `/syllabus/:id`)
+SYLLABUS_URL = "https://classes.bsiku.dev/syllabus/{}"
+_MONTHS = {m: i for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1)}
+_DAY_NUMBER = re.compile(r"(?<!\d)(\d{1,2})\s*(?:월|\.|/)\s*(\d{1,2})(?!\d)")
+_DAY_ENGLISH = re.compile(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*(\d{1,2})(?:\s*[~–-]\s*(\d{1,2}))?", re.I)
+
+
+def _syllabus_days(text: str, year: int, semester: int) -> tuple[datetime.date, datetime.date] | None:
+    """계획서에 적힌 날짜("10.12.~10.16." · "10월 17일" · "June 15–19") → `(첫날, 끝날)`. 2학기의 1·2월은 다음 해입니다."""
+    def day(month: int, number: int) -> datetime.date | None:
+        try:
+            return datetime.date(year + (1 if semester == 2 and month <= 2 else 0), month, number)
+        except ValueError:
+            return None
+
+    english = _DAY_ENGLISH.search(text or "")
+    if english:
+        month = _MONTHS[english.group(1).lower()]
+        start = day(month, int(english.group(2)))
+        end = day(month, int(english.group(3))) if english.group(3) else start
+    else:
+        days = [d for d in (day(int(m), int(n)) for m, n in _DAY_NUMBER.findall(text or "")) if d]
+        start, end = (days[0], days[-1]) if days else (None, None)
+    return (start, end) if start and end and start <= end else None
+
+
+def _schedule_item(ctx: Context, item: dict, current: bool) -> dict:
+    """평가 일정 하나 — 언제인지·지났는지는 코드가 셉니다(12B 모델은 날짜 셈을 틀립니다).
+
+    이번 학기 계획서만 적힌 날짜를 믿습니다. 지난 학기 계획서의 "10.12." 는 올해 날짜가 아니라서 그대로 적어만
+    두고, 주차만 이번 학기 주차표로 옮깁니다 — 답에서 밝히라는 건 `caution` 이 시킵니다.
+    """
+    out = {"what": item.get("what", "")}
+    numbers = [int(n) for n in re.findall(r"\d+", item.get("week") or "")][:2]
+    span = ctx.week_span(*numbers) if numbers else None
+    label = f"{'~'.join(map(str, numbers))}주차" if numbers else ""
+    dated = _syllabus_days(item.get("date", ""), ctx.year, ctx.semester) if current else None
+    if dated:
+        out["when"] = _when(dated[0].isoformat(), dated[1].isoformat()) + (f" · {label}" if label else "")
+    elif span:
+        out["when"] = f"{label}({span[0]:%m-%d}~{span[1]:%m-%d})"
+    elif label or item.get("date"):
+        out["when"] = label or f"계획서 표기 {item['date']}"
+    if not current and item.get("date"):
+        out["written_date"] = item["date"]
+    period = dated or span
+    if current and period:
+        today = clock.today()
+        monday = today - datetime.timedelta(days=today.weekday())
+        out["status"] = ("지남" if period[1] < today
+                         else "이번 주" if period[0] <= monday + datetime.timedelta(days=6)
+                         else "앞으로")
+    if item.get("scope"):
+        out["scope"] = item["scope"]
+    if item.get("quote"):
+        out["quote"] = item["quote"][:100]
+    return out
+
+
+def _assessment(ctx: Context, entry: dict) -> dict | None:
+    """미리 뽑아 둔 평가표(`cli/index_syllabi.py`)를 모델에게 보일 꼴로. 아직 안 읽은 파일이면 None."""
+    row = syllabi.assessment(entry)
+    if not row or not (row.get("grading") or row.get("schedule") or row.get("policies")):
+        return None
+    current = entry["term"] == f"{ctx.year}-{ctx.semester}"
+    return {
+        "grading": [{"item": g.get("item"), "weight": g.get("weight"), "quote": (g.get("quote") or "")[:100]}
+                    for g in row.get("grading", [])[:12]],
+        "schedule": [_schedule_item(ctx, s, current) for s in row.get("schedule", [])[:20]],
+        "policies": [p.get("rule") for p in row.get("policies", [])[:6]],
+    }
+
+
+def _assessment_brief(full: dict) -> dict:
+    """내 과목 전부일 때 — 한 줄씩. 지난 일정은 앞으로 올 게 있으면 뺍니다."""
+    def line(item: dict) -> str:
+        parts = [item.get("when"), item.get("status"), f"범위 {item['scope']}" if item.get("scope") else None]
+        return f"{item['what']} — " + " · ".join(p for p in parts if p)
+
+    ahead = [s for s in full["schedule"] if s.get("status") != "지남"]
+    return {"grading": " · ".join(f"{g['item']} {g['weight']}" for g in full["grading"]),
+            "schedule": [line(s) for s in (ahead or full["schedule"])[:6]]}
+
+
+def _cite_syllabus(ctx: Context, subject: str, entry: dict, weak: bool = False) -> None:
+    ctx.cite(f"{subject} 강의계획서 ({entry['term'] or '학기 표기 없음'})", SYLLABUS_URL.format(entry["id"]), weak=weak)
 
 
 def _syllabus_names(subject: models.Subject) -> list[str]:
@@ -862,7 +958,14 @@ async def syllabus(ctx: Context, subject: str | None = None, query: str | None =
         out["caution"] = (f"이번 학기({term}) 계획서가 아니라 {best['term'] or '학기를 알 수 없는'} 계획서다. 범위·주차·"
                           "날짜가 이번 학기와 다를 수 있다고 답에 밝힌다")
     out["this_term"] = ctx.term_dates()
-    out["text"] = syllabi.excerpt(body, query, SYLLABUS_CHARS)
+    assessment = _assessment(ctx, best)
+    budget = SYLLABUS_CHARS
+    if assessment:
+        out["assessment"] = assessment
+        # 결과 전체가 MAX_TOOL_CHARS 에 들어가게 — 평가표가 큰 만큼 본문을 덜 싣습니다
+        budget = max(1500, SYLLABUS_CHARS - len(json.dumps(assessment, ensure_ascii=False)))
+    out["text"] = syllabi.excerpt(body, query, budget)
+    _cite_syllabus(ctx, target["subject"], best)
     others = [e for e in found[1:] if e["fit"] == best["fit"] and e["name"] != best["name"]]
     if others:
         out["other_files"] = [f"{e['name']} ({e['term'] or '학기 표기 없음'})" for e in others[:3]]
@@ -880,6 +983,8 @@ async def _my_syllabi(ctx: Context, query: str | None) -> dict:
     if not targets:
         return {"error": "이번 학기 수업이 없습니다 — 학번을 연결하지 않은 계정이면 내 과목을 알 수 없습니다"}
 
+    each = SYLLABUS_ALL // len(targets)
+
     def read() -> list[dict]:
         out = []
         for target in targets:
@@ -888,8 +993,17 @@ async def _my_syllabi(ctx: Context, query: str | None) -> dict:
                 out.append({"subject": target["subject"], "syllabus": None})
                 continue
             best = found[0]
-            out.append({"subject": target["subject"], "syllabus": f"{best['name']} ({best['term'] or '학기 표기 없음'})",
-                        "excerpt": syllabi.excerpt(syllabi.text(best), query, SYLLABUS_EACH, header=0)})
+            row = {"subject": target["subject"], "syllabus": f"{best['name']} ({best['term'] or '학기 표기 없음'})"}
+            full = _assessment(ctx, best)
+            if full:
+                row["assessment"] = _assessment_brief(full)
+            # 평가표가 있으면 대목은 남는 자리만큼 — 평가표에 없는 것(교재·진도)을 물을 수 있어서 아주 빼지는 않습니다
+            room = min(SYLLABUS_EACH, each - len(json.dumps(row, ensure_ascii=False)))
+            if room >= 120:
+                row["excerpt"] = syllabi.excerpt(syllabi.text(best), query, room, header=0)
+            # 내 과목 전부를 읽어도 답이 그 과목을 말했을 때만 링크로 남습니다 — "다음 시험" 답 밑에 생활음악이 붙었습니다
+            _cite_syllabus(ctx, target["subject"], best, weak=True)
+            out.append(row)
         return out
 
     return {"this_term": ctx.term_dates(), "subjects": await asyncio.to_thread(read),

@@ -44,6 +44,7 @@ const HomePage = React.lazy(() => import("./pages/HomePage"));
 const ExamsPage = React.lazy(() => import("./pages/ExamsPage"));
 const ZamongPage = React.lazy(() => import("./pages/ZamongPage"));
 const CalendarPage = React.lazy(() => import("./pages/CalendarPage"));
+const SyllabusFilePage = React.lazy(() => import("./pages/SyllabusFilePage"));
 const MaterialsPage = React.lazy(() => import("./pages/MaterialsPage"));
 const UploadPage = React.lazy(() => import("./pages/UploadPage"));
 // 개발 전용 — funky-ui 토큰 작업용 컴포넌트 표본집. 메뉴에 올리지 않습니다
@@ -798,6 +799,7 @@ const App: React.FC = () => {
                                 path="/upload"
                                 element={<UploadPage term={term} />}
                             />
+                            <Route path="/syllabus/:id" element={<SyllabusFilePage />} />
                             <Route
                                 path="/about"
                                 element={<SettingsPage onMajorSaved={applyMajor} />}

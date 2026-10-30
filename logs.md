@@ -1,3 +1,22 @@
+## 2026-10-30 — 과목별 평가표: Ask 가 평가 비율·퀴즈·시험 일정을 미리 알게
+
+- 변경 파일: `backend/cli/index_syllabi.py`(새로), `backend/services/syllabi.py`(`assessment`), `backend/agent/tools.py`
+  (`_assessment`·`_schedule_item`·`week_span`), `backend/agent/chat.py`(지시문·`_named`), `backend/agent/llm.py`(`_limits`),
+  `deploy/class-explorer-ksain.service`, `frontend/src/pages/SyllabusFilePage.tsx`(새로), `frontend/src/App.tsx`, 가이드 문서들
+- 요약: 운영자 요구는 "강의자료·클래스룸은 몰라도 일정·실라버스·그 과목의 평가는 알아야 한다" 입니다. 강의계획서마다
+  Gemma 가 평가 항목·비율, 평가 일정·범위, 성적 규정을 뽑아 원문과 대조해 저장하고, `syllabus` 도구가 같이 줍니다.
+
+새 도구를 늘리지 않았습니다 — 12B 모델이 고를 게 많아지면 잘못 고르고, 지시문은 이미 평가 질문을 `syllabus` 로 보냅니다.
+"다음 시험이나 퀴즈 뭐 있어?" 같은 질문이 도구 한 번에 답합니다.
+
+- ⚠️ `quote` 대조를 글자 일치로만 하면 PDF 표에서 맞는 값이 떨어집니다(Calculus 2 비율 4개). 낱말 90% + 숫자 전부로
+  넓혔고 숫자는 여전히 엄격합니다
+- ⚠️ 지난 학기 계획서의 날짜를 올해 날짜로 옮기지 않습니다. 주차만 이번 학기 주차표로 옮기고 `caution` 이 밝히게 합니다
+- 2026-2 과목 109개 중 계획서를 찾는 건 104개(이번 학기 것 9개), 없는 건 5개(생활체육2·Medical Neuroscience·
+  물리학및실험Ⅱ·Cognitive Neuroscience·물리학기초Ⅱ)입니다
+- 출처 링크: 파일이 로그인 헤더를 요구해서 앱 화면 `/syllabus/:id` 로 겁니다. GES docx 의 미리보기 PDF 는 `soffice` 로 만들었습니다
+- 연결 대기를 10초로 줄였습니다 — 데스크탑이 꺼져 있을 때 "질문 읽는 중" 으로 4분 멈추던 것을 바로 알립니다
+
 ## 2026-10-30 — Ask 가 요약만 보고 답하지 않게: 원문 확인 단계
 
 - 변경 파일: `backend/agent/chat.py`, `backend/agent/tools.py`(`ksain_events`·`Context.originals`),

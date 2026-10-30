@@ -55,6 +55,7 @@ src/
 │   ├── ExamsPage.tsx         → 본인 시험 시간표 — 실제 시각·분반별 시험실·별도 실시
 │   ├── CalendarPage.tsx      → 학사일정 달력 + 개인 일정 + 일정 제안 + "내 학년·전공 것만"
 │   ├── AiPage.tsx            → Ask 큰 화면 — 대화 + 화면 아래 붙은 입력창
+│   ├── SyllabusFilePage.tsx  → 강의계획서 한 장 (`/syllabus/:id`) — Ask 답의 근거 링크가 엽니다. 파일에 로그인 헤더가 필요해서 서버 주소를 못 겁니다
 │   └── SettingsPage.tsx      → 기능 가이드북 + 전공 + 로그인한 기기 + About
 └── components/
     ├── atoms/                → 재사용 원자 컴포넌트 9종
