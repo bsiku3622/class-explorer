@@ -866,9 +866,10 @@ Agent(`/agent/chat`)가 도구로 찾아 답합니다(`backend/agent.guide.md`).
   스트림으로 읽습니다(`lib/agentApi.ts`). 이벤트는 `thinking` · `tool` · `tool_done` · `answer` ·
   `error` 이고, 화면 상태로 바꾸는 건 `lib/agentChat.ts` 의 순수 함수들입니다. 답이 도는 동안은
   단계가 펼쳐지고, 끝나면 "작업 N단계 · 초" 한 줄로 접힙니다
-- **기억(ksain 글에서 정리한 사실)을 쓰면 맨 앞에 "기억에서 찾기" 단계가 붙습니다.** 서버가 질문 전에
-  고른 것이라 모델이 부른 도구는 아니지만, 화면에는 도구와 같은 모양(`name: "recall"` 인 `tool`·
-  `tool_done`)으로 옵니다 — 라벨은 `stepLabel` 의 `recall`. 학교 자료 검색 도구는 `search` 입니다
+- **기억(ksain 글에서 정리한 사실)·자동 일정을 쓰면 맨 앞에 "기억에서 찾기" → "출처 원문 읽기" → "원문으로
+  확인·정리" 단계가 붙습니다.** 서버가 질문 전에 요약을 고르고 그 출처 글의 원문으로 확인하는 단계라 모델이
+  부른 도구는 아니지만, 화면에는 도구와 같은 모양(`name` 이 `recall`·`originals`·`verify` 인 `tool`·
+  `tool_done`)으로 옵니다 — 라벨은 `stepLabel`(`backend/agent.guide.md` 「확인 단계」). 학교 자료 검색 도구는 `search` 입니다
   (예전 이름 `search_ksain`). 기억 관리 화면은 Admin 의 `Ask Memory`(`components/admin/FactsPanel.tsx`)
 - **모델을 고릅니다** — 데스크탑 Gemma 가 기본이고, 서버에 OpenAI 키가 있으면 목록에 붙습니다.
   고른 값은 이 기기에 남습니다(`ksa_agent_model`)

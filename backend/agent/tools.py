@@ -212,6 +212,8 @@ class Context:
         self.sources: list[dict] = []
         # 이 대화에서 모델에게 보인 사실 — 답의 [F번호] 를 출처로 바꿀 때 씁니다 (agent/chat.py)
         self.facts: dict[int, models.Fact] = {}
+        # 확인 단계에서 원문을 연 글 — 답의 [P번호] 를 출처로 바꿀 때 씁니다 (agent/chat.py 의 `verify`)
+        self.originals: dict[int, dict] = {}
         self.profile = profile_of(db, user.effective_stu_id, user.major)
         # 걸어만 둔 근거 — 답이 그 제목을 말할 때만 남깁니다(`agent/chat.py` 의 `finish_text`). 학사일정 도구가
         # 찾은 일정마다 원문을 걸었더니 "오늘 일정" 답 밑에 답과 상관없는 수강신청·SAT 링크가 붙었습니다
@@ -629,6 +631,32 @@ def calendar(ctx: Context, start: str | None = None, end: str | None = None, que
             "start_period", "end_period")})
     result = {"from": first.isoformat(), "to": last.isoformat(), "events": events}
     return {**result, "hint": hint} if hint else result
+
+
+def ksain_events(ctx: Context, query: str, limit: int = 4) -> list[dict]:
+    """일정 요약 — 질문 낱말에 맞는, ksain 글에서 자동으로 넣은 공용 일정과 그 글 번호(지난 반년 ~ 1년 뒤).
+
+    `agent/chat.py` 의 확인 단계가 기억과 함께 "출처 글" 을 고르는 데 씁니다. 자동 일정은 분석 모델이 글을 읽고
+    만든 요약이라 날짜·대상을 잘못 옮길 수 있어서, 답하기 전에 원문을 엽니다. 낱말이 없으면 고르지 않습니다 —
+    "이번 주 일정" 에 몇 달 치 공지를 다 열 이유가 없습니다.
+    """
+    words = [w for w in query_terms(query) if w not in _GENERIC]
+    if not words:
+        return []
+    today = clock.today()
+    out = []
+    for row in _events(ctx, today - datetime.timedelta(days=183), today + datetime.timedelta(days=365)):
+        url = re.search(r"https://ksain\.kr/document/(\d+)", row.note or "")
+        if row.owner_id is not None or not url or not _event_matches(row, words):
+            continue
+        event = event_out(row)
+        timed = event["time_mode"] == "clock" and event["start_minute"] is not None
+        out.append((row.end_date < today, {"title": row.title, "post_id": int(url.group(1)), "when": _when(
+            event["start_date"], event["end_date"], periods.hhmm(event["start_minute"]) if timed else None,
+            periods.hhmm(event["end_minute"]) if timed and event["end_minute"] is not None else None)}))
+    # 아직 안 끝난 것부터 — 지난 일정은 뒤로 (sort 는 안정적이라 그 안에서는 날짜순 그대로)
+    out.sort(key=lambda pair: pair[0])
+    return [entry for _past, entry in out[:limit]]
 
 
 def today_events(ctx: Context) -> list[str]:
