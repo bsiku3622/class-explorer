@@ -37,6 +37,7 @@ from fastapi import HTTPException
 from backend import models
 from backend.agent import llm
 from backend.agent.tools import TOOLS, WEEKDAYS, Context, canonical, execute, ksain_events, today_events
+from backend.agent.tools import archive as archive_lookup
 from backend.core import clock
 from backend.core.db import KsainSession, SessionLocal, db_session
 from backend.knowledge import facts as memory
@@ -82,6 +83,7 @@ SYSTEM = """너는 classes.bsiku.dev(KAIST 부설 한국과학영재학교 수�
   근거가 된 글의 제목을 답에 적는다.
 - 시험 유형·공부법·과목 분위기·기출·선배 자료·전공 안내를 물으면 archive 를 부른다(멘토링 아카이브). 학생들이 만든 비공식 자료라고
   밝히고 자료의 연도를 적는다. 공식 일정·범위·비율은 archive 로 답하지 말고 syllabus·calendar 를 쓴다.
+  archive 결과나 '멘토링 아카이브에서 찾은 것' 에 없는 내용을 멘토링 아카이브에서 봤다고 말하지 않는다.
 - 기간을 묻는 질문("이번 주", "이번 달")은 start 와 end 를 모두 넣는다.
 - 마감·일정을 물으면 올해(최근) 공지를 우선한다. 이미 지난 날짜만 찾았으면 지난 것이라고 밝힌다.
 - 같은 도구를 같은 값으로 두 번 부르지 않는다. 결과가 비어 있으면 다른 도구나 다른 키워드를 쓰거나, 없다고 답한다.
@@ -133,6 +135,19 @@ VERIFIED = """
 출처 글(원문 대목):
 {originals}
 """
+
+ARCHIVE_FOUND = """
+멘토링 아카이브에서 찾은 것 — 학생들이 만든 비공식 자료다. 질문과 맞으면 이 내용으로 답하고, 비공식 자료라고 밝히며 자료 이름을
+그대로 적는다. 질문과 안 맞으면 쓰지 않는다.
+{lines}
+"""
+_ARCHIVE_WORDS = re.compile(r"설명회|기출|모의고사|족보|선배|공부법|학업보조|책자|멘토링|아카이브")
+
+
+def archive_line(item: dict) -> str:
+    parts = [item.get("summary"), f"대목: {item['passage'][:300]}" if item.get("passage") else None]
+    return f"- {item.get('title', '')}: " + " / ".join(p for p in parts if p)
+
 
 # 확인 단계(④)가 실패했을 때 — 요약과 원문 대목을 그대로 싣고 확인은 답하는 모델에게 맡깁니다
 MEMORY = """
@@ -458,6 +473,16 @@ async def run(user_id: int, message: str, history: list[dict], images: list[str]
                     summary, ok = f"정리 실패 — 원문을 그대로 넘깁니다 ({type(error).__name__})", False
                 yield _event("tool_done", id="verify", name="verify", ok=ok,
                              ms=round((time.monotonic() - stage_started) * 1000), summary=summary)
+
+        # 아카이브를 묻는 말이면 서버가 먼저 찾습니다 — 모델이 안 부르고도 "아카이브로 확인했다" 고 답했습니다
+        if ctx.local_model and _ARCHIVE_WORDS.search(message):
+            stage_started = time.monotonic()
+            yield _event("tool", id="archive-first", name="archive", args={"query": message[:60]})
+            found = archive_lookup(ctx, message)
+            yield _event("tool_done", id="archive-first", name="archive", ok="error" not in found,
+                         ms=round((time.monotonic() - stage_started) * 1000), summary=summarize(found))
+            if found.get("results"):
+                extra += ARCHIVE_FOUND.format(lines="\n".join(archive_line(item) for item in found["results"]))
 
         messages = [{"role": "system", "content": system_prompt(ctx, extra)}]
         messages += history[-8:]
