@@ -1,9 +1,10 @@
 """멘토링 아카이브 색인 만들기 — 맥북에서 돌려 `archive.db` 만 서버에 올립니다. 원본 파일은 서버에 안 올립니다.
 
-    python -m backend.cli.index_archive --list list.json --out archive.db [--files 푼_폴더 ...] [--minutes N]
+    python -m backend.cli.index_archive --list list.json --out archive.db [--zips 받은.zip ...] [--minutes N]
 
 - `--list`: Drive 화면에서 모은 목록(묶음·파일의 이름 해시·과목·연도·유형·Drive id). 이름·학번은 이미 빠져 있습니다
-- `--files`: 내려받아 푼 폴더. 폴더·파일 이름의 해시로 목록과 짝지어 글을 읽습니다. 안 받은 묶음은 링크만 남습니다
+- `--zips`: Drive 에서 받은 zip. **풀지 않고 안에서 바로 읽습니다** — 폴더 이름에 학생 이름이 줄줄이 들어 있어 디스크에 풀면
+  "File name too long" 으로 실패합니다. 폴더·파일 이름의 해시로 목록과 짝짓고, 안 받은 묶음은 링크만 남습니다
 - 묶음마다 로컬 모델이 첫머리를 읽어 한두 문장으로 요약합니다(개인 폴더처럼 바깥 모델로 보내지 않습니다)
 - ⚠️ **학생 이름·학번을 지웁니다.** 폴더 이름의 이름(`서승재(24-045)`)을 글에서 찾아 지우고, 학번 꼴과 연락처도 지웁니다.
   그래도 글 속의 다른 이름은 남을 수 있습니다 — 서버에 올리기 전에 `--check` 로 학번 꼴이 남았는지 봅니다
@@ -19,10 +20,12 @@ import re
 import sqlite3
 import time
 import unicodedata
-from pathlib import Path
+import zipfile
+from collections import defaultdict
+from pathlib import Path, PurePosixPath
 
 from backend.agent import llm
-from backend.cli.scan_syllabi import _pdf_head, documents
+from backend.cli.scan_syllabi import READ, _pdf_head, _zip_name
 from backend.knowledge import archive
 from backend.knowledge.index import chunks as cut
 from backend.knowledge.text import tokens
@@ -35,6 +38,7 @@ FILE_URL = "https://drive.google.com/file/d/{}/view"
 HEAD_CHARS = 3000
 MAX_DOCS = 8          # 묶음 하나에서 읽을 문서 수
 MAX_CHUNKS = 60       # 문서 하나에서 색인할 조각 수 — 책 한 권이 색인을 채우지 않게
+MAX_BYTES = 60 * 1024 * 1024
 _PERSON = re.compile(r"([가-힣]{2,4})\s*\(\s*\d\d-\d{3}\s*\)")
 _STUDENT_ID = re.compile(r"(?<![\d-])\d\d-\d{3}(?![\d-])")
 _CONTACT = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\(?0\d{1,2}\)?[-.\s]?\d{3,4}[-.\s]\d{4}")
@@ -66,6 +70,8 @@ def names_in(leaf: str) -> set[str]:
 
 def scrub(text: str, names: set[str]) -> str:
     """이름은 글자 그대로만 지웁니다 — 일반 낱말과 겹칠 수 있어 폴더 이름에 있던 것만 봅니다."""
+    # PDF 에서 뽑은 글에 외톨이 서로게이트가 섞이면 SQLite 에 넣을 때 터집니다(`_pdf_head` 는 `attachment_text` 를 안 거칩니다)
+    text = text.encode("utf-8", "ignore").decode("utf-8")
     text = _PERSON.sub("[학생]", text)
     for name in names:
         text = text.replace(name, "[학생]")
@@ -125,6 +131,21 @@ def read_pack(db: sqlite3.Connection, model: llm.Model, row: sqlite3.Row, docs: 
     return pieces
 
 
+def packs_in(zf: zipfile.ZipFile, keys: set[str]) -> list[tuple[str, list[zipfile.ZipInfo]]]:
+    """zip 안의 묶음 — `(폴더나 파일 이름, 읽을 문서들)`. 목록에 없는 것(입시·대회의 "기출" 폴더 등)은 건너뜁니다."""
+    groups: dict[str, list[zipfile.ZipInfo]] = defaultdict(list)
+    for info in zf.infolist():
+        if info.is_dir() or info.file_size > MAX_BYTES:
+            continue
+        parts = PurePosixPath(_zip_name(info)).parts
+        if parts[-1].startswith(("~$", ".")) or extract.extension(parts[-1]) not in READ - {"doc"}:
+            continue
+        leaf = next((part for part in parts if key_of(part) in keys), None)
+        if leaf:
+            groups[leaf].append(info)
+    return sorted(groups.items())
+
+
 def check(db: sqlite3.Connection) -> None:
     """올리기 전에 학번 꼴이 남았는지."""
     left = sum(1 for r in db.execute("SELECT text FROM chunks") if _STUDENT_ID.search(r[0]))
@@ -142,7 +163,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--list", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--files", type=Path, nargs="*", default=[])
+    parser.add_argument("--zips", type=Path, nargs="*", default=[])
     parser.add_argument("--minutes", type=float, default=None)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -155,29 +176,18 @@ def main() -> None:
 
     started = time.monotonic()
     done = 0
-    model = llm.resolve(None, "analyze") if args.files else None
-    for root in args.files:
-        # 폴더 하나가 묶음입니다 — 폴더 이름이 목록에 있으면 그 아래 문서를 한 묶음으로 읽습니다. 책자·설명회는 파일이 곧 묶음입니다
-        for folder in sorted(p for p in [root, *root.rglob("*")] if p.is_dir()):
-            if args.minutes and time.monotonic() - started > args.minutes * 60:
-                log.info("time budget used")
-                break
-            row = db.execute("SELECT * FROM packs WHERE key = ?", (key_of(folder.name),)).fetchone()
-            if row is None or row["status"] != "listed":
-                continue
-            docs = list(documents([folder]))
-            read_pack(db, model, row, docs, names_in(unicodedata.normalize("NFC", folder.name)))
-            done += 1
-            log.info("[%d] %s %s", done, row["title"], row["kind"])
-        for path in sorted(p for p in root.rglob("*") if p.is_file()):
-            if args.minutes and time.monotonic() - started > args.minutes * 60:
-                break
-            row = db.execute("SELECT * FROM packs WHERE key = ?", (key_of(path.name),)).fetchone()
-            if row is None or row["status"] != "listed":
-                continue
-            read_pack(db, model, row, list(documents([path])), names_in(unicodedata.normalize("NFC", path.name)))
-            done += 1
-            log.info("[%d] %s", done, row["title"])
+    model = llm.resolve(None, "analyze") if args.zips else None
+    for path in args.zips:
+        with zipfile.ZipFile(path) as zf:
+            for leaf, infos in packs_in(zf, {r["key"] for r in db.execute("SELECT key FROM packs WHERE status = 'listed'")}):
+                if args.minutes and time.monotonic() - started > args.minutes * 60:
+                    log.info("time budget used")
+                    break
+                row = db.execute("SELECT * FROM packs WHERE key = ?", (key_of(leaf),)).fetchone()
+                docs = [(PurePosixPath(_zip_name(i)).name, _zip_name(i), zf.read(i), None) for i in infos[:MAX_DOCS]]
+                pieces = read_pack(db, model, row, docs, names_in(unicodedata.normalize("NFC", leaf)))
+                done += 1
+                log.info("[%d] %s — %d pieces", done, row["title"], pieces)
     check(db)
     db.close()
 
