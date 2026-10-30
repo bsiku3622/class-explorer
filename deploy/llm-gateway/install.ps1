@@ -24,13 +24,15 @@ $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoi
 # S4U — 비밀번호를 저장하지 않고 로그인 없이 이 계정으로 돕니다 (로컬 자원만 씁니다)
 $principal = New-ScheduledTaskPrincipal -UserId "$env:COMPUTERNAME\$env:USERNAME" -LogonType S4U -RunLevel Limited
 Register-ScheduledTask -TaskName $name -Action $action -Trigger $trigger -Settings $settings `
-  -Principal $principal -Description "Always-on Ollama gateway for class-explorer (10.8.10.1:11434)" -Force | Out-Null
+  -Principal $principal -Description "On-demand Ollama gateway for class-explorer (10.8.10.1:11434), starts at boot" -Force | Out-Null
 
 Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
 # 작업을 멈추면 게이트웨이만 죽고 옛 설정으로 뜬 Ollama 가 남습니다. 새 게이트웨이가 그걸 그대로
-# 쓰면 컨텍스트·keep_alive 가 옛 값이라 같이 내립니다
-Get-NetTCPConnection -LocalPort 11435 -State Listen -ErrorAction SilentlyContinue |
-  ForEach-Object { taskkill /PID $_.OwningProcess /T /F | Out-Null }
+# 쓰면 컨텍스트·keep_alive 가 옛 값이고 게이트웨이가 끄지도 못해서(owned=false) 같이 내립니다.
+# ⚠️ `-State Listen` 으로 거르지 마세요 — session 0 에서 뜬 Ollama 는 State 가 비어 있어 걸리지 않았습니다
+Get-NetTCPConnection -LocalPort 11435 -ErrorAction SilentlyContinue |
+  Select-Object -ExpandProperty OwningProcess -Unique |
+  ForEach-Object { taskkill /PID $_ /T /F | Out-Null }
 Start-ScheduledTask -TaskName $name
 Start-Sleep -Seconds 3
 (Get-ScheduledTask -TaskName $name).State

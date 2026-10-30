@@ -1,12 +1,13 @@
-"""데스크탑 Ollama 게이트웨이 — Ollama 를 상시로 띄워 두고 서버 요청을 중계합니다.
+"""데스크탑 Ollama 게이트웨이 — 요청이 올 때 Ollama 를 켜고, 한동안 조용하면 끕니다.
 
 서버(10.8.0.1)는 WireGuard 로 이 게이트웨이(10.8.10.1:11434)만 부릅니다. Ollama 자체는
-127.0.0.1:11435 에만 열어 두고, `/api/*`·`/v1/*` 요청을 그대로 중계합니다.
+127.0.0.1:11435 에만 열어 두고, `/api/*`·`/v1/*` 요청이 오면 켠 뒤 그대로 중계합니다.
+마지막 요청이 끝나고 IDLE_SECONDS(기본 1시간)가 지나면 직접 띄운 Ollama 프로세스 트리를
+종료합니다. 서버는 질문뿐 아니라 **로그인한 사람이 사이트를 쓰는 동안** 5분에 한 번 깨우는
+요청을 보내서(`backend/agent/llm.py` 의 `nudge`), 쓰는 사람이 있는 동안은 켜져 있습니다.
 
-기본은 **상시 모드**(IDLE_SECONDS=0)입니다. 게이트웨이가 뜨자마자 Ollama 를 켜고 PRELOAD
-모델을 VRAM 에 올리며, 30초마다 Ollama 가 꺼졌거나 모델이 내려갔으면 다시 올립니다.
-IDLE_SECONDS 를 양수로 주면 예전처럼 요청이 올 때 켜고, 마지막 요청 뒤 그만큼 조용하면
-직접 띄운 Ollama 프로세스 트리를 종료합니다.
+IDLE_SECONDS=0 이면 **상시 모드**입니다 — 뜨자마자 Ollama 를 켜고 PRELOAD 모델을 올리며,
+30초마다 꺼졌거나 모델이 내려갔으면 다시 올립니다.
 
 Ollama 를 깨우지 않는 경로:
   GET  /gateway/status   켜져 있는지, 유휴 시간, 처리 중인 요청 수
@@ -34,9 +35,11 @@ LISTEN_HOST = os.environ.get("GATEWAY_HOST", "10.8.10.1")
 LISTEN_PORT = int(os.environ.get("GATEWAY_PORT", "11434"))
 UPSTREAM_HOST = "127.0.0.1"
 UPSTREAM_PORT = int(os.environ.get("GATEWAY_OLLAMA_PORT", "11435"))
-# 0 이면 끄지 않습니다(상시 모드). 한때 1시간 조용하면 껐는데, 질문할 때마다 1분 넘게 기다렸습니다
-IDLE_SECONDS = int(os.environ.get("GATEWAY_IDLE_SECONDS", "0"))
+# 0 이면 끄지 않습니다(상시 모드). 데스크탑에 상시 부담을 주지 않으려고 1시간이 기본입니다
+IDLE_SECONDS = int(os.environ.get("GATEWAY_IDLE_SECONDS", "3600"))
 ALWAYS_ON = IDLE_SECONDS <= 0
+# 모델은 Ollama 가 떠 있는 동안 내리지 않습니다 — 언제 끌지는 IDLE_SECONDS 하나가 정합니다.
+# 예전 15m 이면 프로세스는 1시간 살아 있는데 모델만 15분 뒤 내려가, 그 사이 질문이 적재를 기다렸습니다
 KEEP_ALIVE = os.environ.get("GATEWAY_KEEP_ALIVE", "-1")
 # 상시 모드에서 미리 올려 두고, 내려가면 다시 올리는 모델 (쉼표로 여럿)
 PRELOAD = [m.strip() for m in os.environ.get("GATEWAY_PRELOAD", "gemma4:12b").split(",") if m.strip()]
@@ -195,7 +198,7 @@ def without_keep_alive(body: bytes) -> bytes:
     """요청이 실어 온 keep_alive 를 걷어내 Ollama 기본값(KEEP_ALIVE)을 따르게 합니다.
 
     서버의 warmup 이 `keep_alive: 15m` 을 실어 보내서, 깨울 때마다 15분 뒤 모델이 내려갔습니다.
-    상시 모드에서는 언제 내릴지를 게이트웨이가 정합니다.
+    언제 내릴지는 게이트웨이(IDLE_SECONDS)가 정합니다.
     """
     if b'"keep_alive"' not in body:
         return body
@@ -251,7 +254,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         length = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(length) if length else None
-        if ALWAYS_ON and body and self.path.startswith("/api/"):
+        if body and self.path.startswith("/api/"):
             body = without_keep_alive(body)
         OLLAMA.touch(+1)
         try:

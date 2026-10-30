@@ -5,15 +5,17 @@
 | `local:<이름>` (예: `local:gemma4:12b`) | 데스크탑 게이트웨이 `LLM_GATEWAY_URL` (WireGuard 10.8.10.1) | 게이트웨이에 설치된 모델 |
 | `openai:<이름>` | `OPENAI_BASE_URL` | `OPENAI_API_KEY` 가 있을 때, `OPENAI_MODELS` 에 적은 것 |
 
-데스크탑 Ollama 는 게이트웨이(`deploy/llm-gateway/gateway.py`)가 상시로 띄우고 모델을 VRAM 에
-올려 둡니다. 데스크탑이 막 켜졌거나 게이트웨이가 모델을 다시 올리는 중이면 **첫 호출이 1분
-넘게 걸릴 수 있어서**(모델 적재), 화면은 질문창을 누를 때 `warmup()` 으로 미리 깨웁니다.
+데스크탑 Ollama 는 상시로 떠 있지 않습니다. 게이트웨이(`deploy/llm-gateway/gateway.py`)가
+요청이 오면 켜고 1시간 조용하면 끕니다. 꺼진 상태의 **첫 호출은 1분 넘게 걸려서**(모델 적재),
+둘이 미리 깨웁니다 — 로그인한 사람이 사이트를 쓰면 `nudge()`(5분에 한 번), 질문창을 누르면
+`warmup()`. 깨우는 요청도 게이트웨이의 1시간을 다시 채웁니다.
 
 Gemma 4 는 기본으로 생각(thinking) 토큰을 먼저 쓰고 답합니다. 짧은 `max_tokens` 를 주면
 본문이 빈 채로 끝나서, 로컬 모델에는 `reasoning_effort: "none"` 을 붙입니다.
 """
 from __future__ import annotations
 
+import asyncio
 import time
 from dataclasses import dataclass
 
@@ -181,3 +183,26 @@ async def warmup(model: Model) -> None:
             await client.post(f"{GATEWAY_URL}/api/generate", json={"model": model.name})
     except httpx.HTTPError:
         pass
+
+
+NUDGE_EVERY = 300
+_nudged_at = float("-inf")
+# 이벤트 루프는 태스크를 약하게만 붙잡아서, 참조를 안 남기면 도는 중에 사라질 수 있습니다
+_nudges: set[asyncio.Task] = set()
+
+
+def nudge() -> None:
+    """로그인한 사람이 사이트를 쓰는 중 — 데스크탑 모델을 깨워 둡니다(5분에 한 번, 기다리지 않음).
+
+    질문창을 열 때만 깨우면 첫 답이 적재(1분 넘게)를 통째로 기다렸습니다. 사이트에 들어온 순간 깨우면
+    질문할 즈음엔 올라와 있고, 깨우는 요청이 게이트웨이의 유휴 1시간을 다시 채워 쓰는 동안 꺼지지 않습니다.
+    ⚠️ `resolve()` 를 거치지 않습니다 — 게이트웨이 목록을 동기로 물어서 미들웨어에서 부르면 이벤트 루프가 멈춥니다.
+    """
+    global _nudged_at
+    now = time.monotonic()
+    if now - _nudged_at < NUDGE_EVERY:
+        return
+    _nudged_at = now
+    task = asyncio.get_running_loop().create_task(warmup(Model(f"local:{LOCAL_DEFAULT}", "local", LOCAL_DEFAULT)))
+    _nudges.add(task)
+    task.add_done_callback(_nudges.discard)
