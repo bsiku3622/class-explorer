@@ -819,8 +819,9 @@ def archive(ctx: Context, query: str | None = None, subject: str | None = None) 
         return {"error": "멘토링 아카이브 색인이 아직 없습니다"}
     if subject and found["course"] is None:
         return {"error": f"'{subject}' 과목의 자료를 멘토링 아카이브에서 찾지 못했습니다"}
-    for item in found["results"][:3]:
-        ctx.cite(f"멘토링 아카이브 · {item.get('title', '')}"[:60], item.get("url", ""))
+    # 답이 그 묶음을 말했을 때만 링크로 남습니다(`chat._named`) — "법과학 모의고사" 답 밑에 정리 묶음이 따라붙었습니다
+    for item in found["results"]:
+        ctx.cite(f"멘토링 아카이브 · {item.get('title', '')}", item.get("url", ""), weak=True)
     found["caution"] = "학생들이 만든 비공식 자료다. 그렇다고 밝히고, 연도가 오래됐으면 연도도 밝힌다. 공식 일정·범위는 syllabus·calendar 로 확인한다"
     return found
 

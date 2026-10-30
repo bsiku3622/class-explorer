@@ -147,6 +147,7 @@ MEMORY = """
 
 # [F12] · [P1, P2] · [ F 12 ] — 모델이 붙이는 꼴이 조금씩 다릅니다
 _MARK = re.compile(r"\s*\[\s*[FP]\s*\d+(?:\s*,\s*[FP]?\s*\d+)*\s*\]")
+_TOOL_MARK = re.compile(r"\s*\[\s*(?:" + "|".join(t["function"]["name"] for t in TOOLS) + r")\s*\]")
 
 
 def check_limit(user: models.User, model: llm.Model) -> None:
@@ -318,6 +319,10 @@ def _named(title: str, flat: str) -> bool:
     강의계획서 근거("법과학 강의계획서 (2026-2)")는 과목명만 봅니다. 과목명은 짧고("법과학") 답에는 부제·(EC) 없이
     나오기 쉬워서 괄호를 다 떼고 두 글자부터 받습니다.
     """
+    if title.startswith("멘토링 아카이브 · "):
+        # "일반물리학1_2024_모의고사" — 답에는 "일반물리학1 … 2024년 모의고사" 처럼 흩어져 나옵니다
+        parts = [squeeze(part) for part in title.removeprefix("멘토링 아카이브 · ").split("_")]
+        return all(part in flat for part in parts if part)
     core = squeeze(re.sub(r"\s*\([^)]*\)\s*$", "", title))
     if core.endswith("강의계획서"):
         subject = re.sub(r"\([^)]*\)", "", core[:-len("강의계획서")])
@@ -340,6 +345,7 @@ def finish_text(text: str, ctx: Context) -> str:
         for prefix, number in re.findall(r"([FP]?)\s*(\d+)", mark):
             letter = prefix or letter
             (posts if letter == "P" else used).append(int(number))
+    text = _TOOL_MARK.sub("", text)   # 모델이 도구 이름을 출처처럼 적기도 합니다 — "… 있습니다. [archive]"
     text = re.sub(r"[ \t]+\n", "\n", _MARK.sub("", text)).strip()
     flat = squeeze(text)
     mentioned = [s for s in ctx.sources if (len(squeeze(s["title"])) >= 6 and squeeze(s["title"])[:24] in flat)
