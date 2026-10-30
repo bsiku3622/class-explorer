@@ -14,6 +14,8 @@ Environment=PYTHONWARNINGS=ignore::DeprecationWarning
 # 수집이 실패해도(ksain 일시 장애) 밀린 분석은 이어서 돌립니다
 ExecStart=-/usr/bin/env python3.14 -m backend.ksain.sync
 ExecStart=/usr/bin/env python3.14 -m backend.ksain.analyze --limit 150 --minutes 40
+# 새로 올린 강의계획서의 평가표 — 바뀐 파일이 없으면 모델을 부르지 않습니다
+ExecStart=-/usr/bin/env python3.14 -m backend.cli.index_syllabi --minutes 8
 TimeoutStartSec=50min
 # 로그는 class-explorer 전용 저장소에 90일만 둡니다(/etc/systemd/journald@class-explorer.conf — deploy-guide.md)
 LogNamespace=class-explorer

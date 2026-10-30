@@ -24,6 +24,7 @@ URL 에는 경로 대신 경로의 해시(`id`)만 씁니다. 파일 이름에 �
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
 import threading
@@ -263,6 +264,27 @@ def matching(names: list[str], teacher: str | None = None, ec: bool | None = Non
         place = fit[0]
         scored.append(((place[0], teacher_miss, place[1], ec_miss, -term), {**entry, "fit": place[0]}))
     return [entry for _key, entry in sorted(scored, key=lambda pair: pair[0])]
+
+
+def assessment_file() -> Path:
+    """평가표 저장소 — `cli/index_syllabi.py` 가 쓰고 API 는 읽기만 합니다. 점으로 시작해 목록에는 안 나옵니다."""
+    return root() / ".assessments.json"
+
+
+_assessments: dict = {"mtime": None, "files": {}}
+
+
+def assessment(entry: dict) -> dict | None:
+    """이 파일에서 미리 뽑아 둔 평가표 — 아직 안 읽었거나 글자가 없는 스캔본이면 None. 파일이 바뀌면 다시 읽습니다."""
+    path = assessment_file()
+    try:
+        mtime = path.stat().st_mtime
+        if _assessments["mtime"] != mtime:
+            _assessments.update(mtime=mtime, files=json.loads(path.read_text(encoding="utf-8")).get("files", {}))
+    except (OSError, ValueError):
+        return None
+    row = _assessments["files"].get(entry["path"])
+    return row if row and row.get("status") == "ok" else None
 
 
 def text(entry: dict) -> str:

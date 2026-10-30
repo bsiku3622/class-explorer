@@ -127,6 +127,15 @@ def _body(model: Model, messages: list[dict], tools: list[dict] | None, schema: 
     return body
 
 
+def _limits(timeout: float) -> httpx.Timeout:
+    """답을 기다리는 시간과 연결을 기다리는 시간은 다릅니다.
+
+    ⚠️ 게이트웨이가 죽어 있으면 Windows 방화벽이 패킷을 버려서 연결이 거절되지 않습니다. 답 시간(240초)을 그대로
+    쓰면 질문이 "질문 읽는 중" 에서 4분을 멈춥니다(2026-10-30). 모델 적재를 기다리는 건 연결 뒤라 영향이 없습니다.
+    """
+    return httpx.Timeout(timeout, connect=10)
+
+
 def _message(res: httpx.Response) -> dict:
     if res.status_code != 200:
         raise LLMError(f"HTTP {res.status_code}: {res.text[:300]}")
@@ -145,7 +154,7 @@ def _message(res: httpx.Response) -> dict:
 async def chat(model: Model, messages: list[dict], *, tools: list[dict] | None = None,
                schema: dict | None = None, max_tokens: int | None = None, timeout: float = 240) -> dict:
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx.AsyncClient(timeout=_limits(timeout)) as client:
             res = await client.post(model.url, json=_body(model, messages, tools, schema, max_tokens),
                                     headers=model.headers)
     except httpx.HTTPError as error:
@@ -157,7 +166,7 @@ def chat_sync(model: Model, messages: list[dict], *, schema: dict | None = None,
               max_tokens: int | None = None, timeout: float = 300) -> dict:
     try:
         res = httpx.post(model.url, json=_body(model, messages, None, schema, max_tokens),
-                         headers=model.headers, timeout=timeout)
+                         headers=model.headers, timeout=_limits(timeout))
     except httpx.HTTPError as error:
         raise LLMError(f"{model.label} 에 닿지 않습니다: {error}") from error
     return _message(res)
@@ -179,7 +188,7 @@ async def warmup(model: Model) -> None:
     if model.provider != "local":
         return
     try:
-        async with httpx.AsyncClient(timeout=180) as client:
+        async with httpx.AsyncClient(timeout=_limits(180)) as client:
             await client.post(f"{GATEWAY_URL}/api/generate", json={"model": model.name})
     except httpx.HTTPError:
         pass

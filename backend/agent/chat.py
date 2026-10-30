@@ -70,9 +70,12 @@ SYSTEM = """너는 classes.bsiku.dev(KAIST 부설 한국과학영재학교 수�
   공지에 시각만 있으면 이 표로 교시 번호를 맞추고, 표에 없는 시각이면 교시 번호를 쓰지 않는다.
 - 도구 결과의 "when" 은 이미 맞춰 둔 일시다. 항목마다 그 항목의 title 과 when 을 그대로 짝지어 옮긴다.
 - 과목 이름은 줄임말(미1, 선대, 일물2)이어도 그대로 도구에 넘긴다. 담당 교사·분반·시간은 class_info, 학점·선수과목은 course_info 로 찾는다.
-- 강의계획서 내용(평가 방법·비율, 주차별 진도, 시험 범위, 과제)이나 시험 범위를 물으면 syllabus 를 부른다. 질문한 사람의
-  과목 전부를 물으면 subject 를 "me" 로 한다. 계획서가 이번 학기 것이 아니면 몇 학기 계획서인지 밝히고, 계획서의 주차는
-  결과의 이번 학기 주차표(this_term)로 날짜를 맞춘다. 계획서에 없는 범위는 지어내지 않는다.
+- 강의계획서 내용(평가 방법·비율, 퀴즈·시험·과제 일정, 주차별 진도, 시험 범위, 출석·재시험 규정)을 물으면 syllabus 를
+  부른다. 질문한 사람의 과목 전부("내 과목", "이번 주 퀴즈 있는 과목")를 물으면 subject 를 "me" 로 한다.
+  결과의 assessment 는 계획서에서 뽑아 원문과 대조해 둔 평가표다 — grading 은 비율, schedule 은 일정·범위, quote 는 원문이다.
+  schedule 의 when·status(지남·이번 주·앞으로)는 코드가 계산한 값이니 다시 계산하지 말고 그대로 옮긴다.
+  계획서가 이번 학기 것이 아니면 몇 학기 계획서인지 꼭 밝히고, 날짜·비율이 이번 학기와 다를 수 있다고 적는다.
+  계획서에 없는 범위·일정은 지어내지 않는다.
 - 학교 공지·마감·행사·모집·규칙·방법을 물으면 search 로 찾는다(정리해 둔 사실과 ksain 글을 같이 찾는다).
   기간 안의 중요 공지를 모아 보려면 ksain_digest 를 쓴다. 결과의 facts·summary 는 요약이다 — 답은 발췌
   (passages, 원문)로 확인한 내용으로 하고, 발췌에 없으면 read_ksain 으로 본문과 첨부를 읽어 확인한다.
@@ -277,10 +280,11 @@ def summarize(result: dict) -> str:
         return str(result["note"])[:80]
     parts = []
     if isinstance(result.get("syllabus"), dict):
-        parts.append(f"강의계획서 {result['syllabus']['term']}")
+        parts.append(f"강의계획서 {result['syllabus']['term']}" + (" · 평가표" if result.get("assessment") else ""))
     elif isinstance(result.get("subjects"), list) and "this_term" in result:
         found = sum(1 for subject in result["subjects"] if subject.get("syllabus"))
-        parts.append(f"과목 {len(result['subjects'])}개 · 계획서 {found}개")
+        graded = sum(1 for subject in result["subjects"] if subject.get("assessment"))
+        parts.append(f"과목 {len(result['subjects'])}개 · 계획서 {found}개 · 평가표 {graded}개")
     if result.get("no_class_reason"):
         parts.append(f"{result['no_class_reason']} — 수업 없음")
     counted = [("facts", "사실 {}건"), ("posts", "글 {}건"), ("posted", "공지 {}건"), ("dated_items", "일정 {}건"),
@@ -305,8 +309,15 @@ def summarize(result: dict) -> str:
 
 
 def _named(title: str, flat: str) -> bool:
-    """답이 이 일정을 말했는가 — 자동 일정 제목 끝의 괄호("(23:59까지)", "(~11.30)")는 떼고 봅니다."""
+    """답이 이 일정·과목을 말했는가 — 자동 일정 제목 끝의 괄호("(23:59까지)", "(~11.30)")는 떼고 봅니다.
+
+    강의계획서 근거("법과학 강의계획서 (2026-2)")는 과목명만 봅니다. 과목명은 짧고("법과학") 답에는 부제·(EC) 없이
+    나오기 쉬워서 괄호를 다 떼고 두 글자부터 받습니다.
+    """
     core = squeeze(re.sub(r"\s*\([^)]*\)\s*$", "", title))
+    if core.endswith("강의계획서"):
+        subject = re.sub(r"\([^)]*\)", "", core[:-len("강의계획서")])
+        return len(subject) >= 2 and subject in flat
     return len(core) >= 4 and core[:24] in flat
 
 
