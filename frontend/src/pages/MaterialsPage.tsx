@@ -193,7 +193,7 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
                 }
             />
 
-            <Card as="section" padding="0">
+            <Card shadow="raised" as="section" padding="0">
                 <Card.Header title="Find Materials" tone="bar" accent="cyan" />
                 <div className="grid gap-3 p-4 lg:grid-cols-[1fr_15rem]">
                     <SearchInput
@@ -245,7 +245,7 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
             </div>
 
             {loading && materials.length === 0 ? (
-                <Card padding="0" className="p-10 text-center">
+                <Card shadow="raised" padding="0" className="p-10 text-center">
                     <Text variant="overline" tone="primary">Loading materials…</Text>
                 </Card>
             ) : visibleDynamic.length + visibleStatic.length === 0 ? (
@@ -254,7 +254,7 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
                     icon={BookOpen}
                     title="아직 조건에 맞는 자료가 없습니다."
                     action={
-                        <Button accent="yellow" variant="solid" shadow onClick={() => navigate("/upload")}>
+                        <Button size="lg" accent="yellow" variant="solid" shadow onClick={() => navigate("/upload")}>
                             첫 자료 공유하기
                         </Button>
                     }
@@ -262,7 +262,7 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
             ) : (
                 <div className="grid items-start gap-5 xl:grid-cols-2">
                     {visibleDynamic.map((material) => (
-                        <Card as="article" key={`dynamic-${material.id}`} padding="0">
+                        <Card shadow="raised" as="article" key={`dynamic-${material.id}`} padding="0">
                             <Card.Strip accent="yellow" placement="top" className="flex items-start justify-between gap-3 py-3">
                                 <div className="min-w-0">
                                     <Text as="p" variant="overline">
@@ -329,7 +329,7 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
                     ))}
 
                     {visibleStatic.map((material) => (
-                        <Card as="article" key={`static-${material.id}`} padding="0">
+                        <Card shadow="raised" as="article" key={`static-${material.id}`} padding="0">
                             <Card.Strip accent="yellow" placement="top" className="flex items-start justify-between gap-3 py-3">
                                 <div className="min-w-0">
                                     <Text as="p" variant="overline">{material.subjectLabel}</Text>

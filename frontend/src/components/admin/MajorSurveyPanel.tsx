@@ -80,7 +80,7 @@ const MajorSurveyPanel: React.FC = () => {
                 </Button>
             </div>
 
-            {error && <Text as="p" variant="caption" tone="red">{error}</Text>}
+            {error && <Text as="p" variant="caption" tone="error">{error}</Text>}
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <Stat size="sm" label="Response" value={rate} unit="%" />

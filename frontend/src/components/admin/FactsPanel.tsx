@@ -204,9 +204,9 @@ const FactEditor: React.FC<FactEditorProps> = ({
                 고친 사실은 <b>글을 다시 분석해도 그대로 남습니다.</b>
             </Text>
             {error ? (
-                <Text as="p" variant="caption" tone="red">{error}</Text>
+                <Text as="p" variant="caption" tone="error">{error}</Text>
             ) : (
-                problem && <Text as="p" variant="caption" tone="orange">⚠ {problem}</Text>
+                problem && <Text as="p" variant="caption" tone="warning">⚠ {problem}</Text>
             )}
 
             <div className="flex justify-end gap-2">
@@ -338,7 +338,7 @@ const FactRow: React.FC<FactRowProps> = ({
                     </Button>
                 </div>
             </div>
-            {error && <Text as="p" variant="caption" tone="red" className="mt-2">{error}</Text>}
+            {error && <Text as="p" variant="caption" tone="error" className="mt-2">{error}</Text>}
         </Surface>
     );
 };
@@ -520,7 +520,7 @@ const FactsPanel: React.FC = () => {
                 <Notice
                     role="alert"
                     action={
-                        <Button size="xs" accent="red" variant="outline" onClick={() => setNonce((n) => n + 1)}>
+                        <Button size="xs" accent="error" variant="outline" onClick={() => setNonce((n) => n + 1)}>
                             다시 시도
                         </Button>
                     }
@@ -553,7 +553,7 @@ const FactsPanel: React.FC = () => {
                     }`}
                 >
                     {data.posts.map((post) => (
-                        <Card key={post.post_id} padding="0">
+                        <Card shadow="raised" key={post.post_id} padding="0">
                             <div className="px-4 py-3">
                                 <Text as="p" variant="caption" tone="muted">
                                     {[post.posted_on, boardOf(post), `#${post.post_id}`, `사실 ${post.facts.length}`]

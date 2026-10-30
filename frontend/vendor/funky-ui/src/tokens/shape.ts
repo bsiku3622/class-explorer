@@ -29,22 +29,28 @@ export const SWATCH = {
 
 /** 컨트롤 사다리 — 높이가 원본이고, 나머지는 그 높이에 맞춘 값입니다 */
 export const CONTROL = {
-  height: { xs: 24, sm: 32, md: 40, lg: 48 },
+  height: { xs: 28, sm: 32, md: 40, lg: 48, xl: 64 },
   /** 좌우 여백 */
-  inset: { xs: 8, sm: 12, md: 16, lg: 24 },
+  inset: { xs: 8, sm: 12, md: 16, lg: 24, xl: 40 },
   /** 아이콘과 글자 사이 */
-  gap: { xs: 4, sm: 6, md: 8, lg: 8 },
+  gap: { xs: 4, sm: 6, md: 8, lg: 8, xl: 8 },
   /** 컨트롤 안 아이콘 */
-  icon: { xs: 12, sm: 14, md: 16, lg: 18 },
+  icon: { xs: 12, sm: 14, md: 16, lg: 18, xl: 24 },
 } as const satisfies Record<string, Record<ControlSize, number>>;
+
+/** `xl` 입력 칸의 좁은 화면 높이 */
+export const FIELD_XL_NARROW = 56;
 
 /** 배지 — 읽는 라벨이라 컨트롤보다 낮습니다 */
 export const BADGE = {
-  height: { sm: 18, md: 22, lg: 26 },
-  inset: { sm: 4, md: 6, lg: 8 },
-  font: { sm: 10, md: 11, lg: 12 },
-  icon: { sm: 10, md: 12, lg: 14 },
+  height: { sm: 18, md: 22, lg: 26, xl: 36 },
+  inset: { sm: 4, md: 6, lg: 8, xl: 12 },
+  font: { sm: 10, md: 11, lg: 12, xl: 14 },
+  icon: { sm: 10, md: 12, lg: 14, xl: 16 },
 } as const satisfies Record<string, Record<BadgeSize, number>>;
+
+/** 배지 그림자 (px) — 컨트롤의 4px 보다 낮습니다 */
+export const BADGE_SHADOW = 3;
 
 /** 낱개 아이콘 크기 (Icon primitive) */
 export const ICON = {

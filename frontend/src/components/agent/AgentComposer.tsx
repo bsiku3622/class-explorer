@@ -193,7 +193,7 @@ const AgentComposer: React.FC<AgentComposerProps> = ({
                     <div className="relative flex h-10 shrink-0 items-center gap-1.5 px-2">
                         {local && gateway !== undefined && (
                             <Swatch
-                                accent={gateway === null ? "red" : gateway.running ? "green" : "black"}
+                                accent={gateway === null ? "error" : gateway.running ? "green" : "black"}
                                 rung={gateway === null || gateway.running ? "solid" : "soft"}
                                 title={gateway === null ? "데스크탑에 닿지 않습니다" : gateway.running ? "데스크탑 모델이 켜져 있습니다" : "데스크탑 모델이 쉬는 중 — 첫 답은 1분쯤 걸려요"}
                                 className="shrink-0"

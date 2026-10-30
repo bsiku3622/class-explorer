@@ -21,10 +21,14 @@ export const pageHeaderRow = style(
   }),
 );
 
+/** 머리 카드의 여백 — 넓은 화면에서 32px */
+export const pageHeaderPad = style(c({ padding: px(24), "@media": { [`(min-width: ${BREAKPOINT.md}px)`]: { padding: px(32) } } }));
+
 export const pageHeaderIcon = style(
   c({
-    width: px(48),
-    height: px(48),
+    width: px(40),
+    height: px(40),
+    "@media": { [`(min-width: ${BREAKPOINT.md}px)`]: { width: px(48), height: px(48) } },
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

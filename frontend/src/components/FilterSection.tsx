@@ -37,8 +37,9 @@ const FilterSection: React.FC<FilterSectionProps> = ({
                         </Text>
                     )}
                     <Button
-                        size="xs"
+                        size="sm"
                         variant="ghost"
+                        className="h-auto px-0"
                         icon={RotateCcw}
                         iconMotion="turn"
                         onClick={onRefresh}

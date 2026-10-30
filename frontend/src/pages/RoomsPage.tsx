@@ -107,7 +107,7 @@ const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData, onRoomSearch }) =
                 subtitle="Hyung-seol Hall"
                 icon={MapPin}
                 action={
-                    <Button variant="paper" shadow onClick={resetSelection} icon={RefreshCcw}>
+                    <Button size="lg" variant="paper" shadow onClick={resetSelection} icon={RefreshCcw}>
                         Reset Selection
                     </Button>
                 }

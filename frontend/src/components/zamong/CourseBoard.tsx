@@ -246,10 +246,10 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
             </div>
 
             {edges.left && (
-                <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-[var(--fk-ink-faint)] to-transparent" />
+                <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-black/20 to-transparent" />
             )}
             {edges.right && (
-                <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[var(--fk-ink-faint)] to-transparent" />
+                <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-black/20 to-transparent" />
             )}
         </div>
     );

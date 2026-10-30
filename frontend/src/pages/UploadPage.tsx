@@ -312,7 +312,7 @@ const UploadPage: React.FC<UploadPageProps> = ({ term }) => {
 
                 <Card.Strip accent="yellow" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <Text variant="caption" tone="secondary">업로드 후 관리자 승인 전까지 다른 사용자에게 보이지 않습니다.</Text>
-                    <Button
+                    <Button size="lg"
                         type="submit"
                         variant="filled"
                         shadow
@@ -395,8 +395,8 @@ const UploadPage: React.FC<UploadPageProps> = ({ term }) => {
                     accent="cyan"
                     footerAccent="yellow"
                     footer={<>
-                        <Button variant="paper" onClick={() => setEditing(null)}>Cancel</Button>
-                        <Button variant="filled" disabled={busy} onClick={saveEdit}>Save</Button>
+                        <Button size="lg" variant="paper" onClick={() => setEditing(null)}>Cancel</Button>
+                        <Button size="lg" variant="filled" disabled={busy} onClick={saveEdit}>Save</Button>
                     </>}
                 >
                     <div className="space-y-4">

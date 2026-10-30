@@ -13,10 +13,16 @@ export const accordionHeader = style(
     alignItems: "center",
     gap: px(SPACE.lg),
     width: "100%",
-    padding: px(SPACE["2xl"]),
+    padding: px(SPACE.xl),
     border: 0,
     textAlign: "start",
+    "@media": { [`(min-width: ${BREAKPOINT.md}px)`]: { padding: px(SPACE["2xl"]) } },
   }),
+);
+
+/** 넓은 줄 — 화면의 주인공 목록(검색 결과의 과목). 머리가 넓고 그림자가 한 단 깊으며, 본문과의 사이는 검정 선입니다 */
+export const accordionHeaderLg = style(
+  c({ "@media": { [`(min-width: ${BREAKPOINT.sm}px)`]: { padding: px(SPACE["3xl"]) } } }),
 );
 
 /**
@@ -60,5 +66,11 @@ export const accordionChevron = style(
 export const accordionChevronOpen = style(c({ transform: "rotate(180deg)" }));
 
 export const accordionBody = style(
-  c({ padding: px(SPACE["2xl"]), borderTop: `${vars.stroke.base} solid ${vars.line.subtle}` }),
+  c({
+    padding: px(SPACE.xl),
+    borderTop: `${vars.stroke.base} solid ${vars.line.subtle}`,
+    "@media": { [`(min-width: ${BREAKPOINT.md}px)`]: { padding: px(SPACE["2xl"]) } },
+  }),
 );
+
+export const accordionBodyLg = style(c({ padding: px(SPACE.xl), borderTop: `${vars.stroke.base} solid ${vars.line.base}` }));

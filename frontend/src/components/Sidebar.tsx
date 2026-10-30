@@ -20,24 +20,24 @@ interface SidebarProps {
 }
 
 const SystemStatus: React.FC = () => (
-    <Surface border="line" shadow="raised" padding="xl">
+    <Surface border="line" padding="xl" className="shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
         <Stack gap="lg">
             <Text variant="overline">System Status</Text>
             <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
-                    <Swatch accent="green" shape="round" pulse />
-                    <Text variant="micro">NETWORK</Text>
+                    <Swatch accent="success" shape="round" pulse />
+                    <Text variant="micro" weight="bold">NETWORK</Text>
                 </span>
-                <Text variant="micro" tone="green">
+                <Text variant="micro" weight="bold" tone="success">
                     ONLINE
                 </Text>
             </div>
             <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
-                    <Swatch accent="sky" shape="round" />
-                    <Text variant="micro">DATABASE</Text>
+                    <Swatch accent="info" shape="round" />
+                    <Text variant="micro" weight="bold">DATABASE</Text>
                 </span>
-                <Text variant="micro" tone="sky">
+                <Text variant="micro" weight="bold" tone="info">
                     STABLE
                 </Text>
             </div>

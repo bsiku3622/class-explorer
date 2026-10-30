@@ -100,7 +100,7 @@ const MaterialPreviewContent: React.FC<{
                     </div>
                 )}
                 {error && (
-                    <Card className="m-5 flex max-w-sm flex-col items-center gap-3 text-center">
+                    <Card shadow="raised" className="m-5 flex max-w-sm flex-col items-center gap-3 text-center">
                         <FileWarning size={28} />
                         <Text as="p" weight="black">{error}</Text>
                     </Card>

@@ -190,7 +190,7 @@ const EditableRow: React.FC<EditableRowProps> = ({
     onStartEdit, onSave, onCancel, saving, placeholder, children,
 }) => {
     return (
-        <Card padding="0" className="px-4 py-3">
+        <Card shadow="raised" padding="0" className="px-4 py-3">
             <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                     <Text weight="black" truncate className="block">{label}</Text>
@@ -218,7 +218,7 @@ const EditableRow: React.FC<EditableRowProps> = ({
                         placeholder={placeholder}
                         className="flex-1"
                     />
-                    <IconButton icon={Check} size="sm" accent="green" label="저장" onClick={onSave} disabled={saving} className="shrink-0" />
+                    <IconButton icon={Check} size="sm" accent="success" label="저장" onClick={onSave} disabled={saving} className="shrink-0" />
                     <IconButton icon={X} size="sm" label="취소" onClick={onCancel} className="shrink-0" />
                 </div>
             ) : (
@@ -628,10 +628,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                 title="Fetch from KEIS"
                 footer={
                     <>
-                        <Button variant="hairline" onClick={() => setShowSyncConfirm(false)}>
+                        <Button size="lg" variant="hairline" onClick={() => setShowSyncConfirm(false)}>
                             취소
                         </Button>
-                        <Button variant="filled" onClick={handleSync} disabled={!termValid}>
+                        <Button size="lg" variant="filled" onClick={handleSync} disabled={!termValid}>
                             확인
                         </Button>
                     </>
@@ -696,7 +696,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
             {error && (
                 <Notice
                     role="alert"
-                    action={<Button size="xs" accent="red" variant="outline" onClick={() => setError("")}>닫기</Button>}
+                    action={<Button size="xs" accent="error" variant="outline" onClick={() => setError("")}>닫기</Button>}
                 >
                     {error}
                 </Notice>
@@ -719,7 +719,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                         <SectionTitle title="Accounts" />
                         <div className="space-y-2">
                             {users.map((u) => (
-                                <Card key={u.id} padding="0" className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+                                <Card shadow="raised" key={u.id} padding="0" className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
                                     <Text weight="black" truncate className="flex-1 min-w-0">{u.username}</Text>
                                     {u.demo_stu_id && (
                                         <Badge
@@ -746,7 +746,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                                             onChange={(role) => handleSetRole(u.id, role)}
                                             options={ROLE_OPTIONS}
                                         />
-                                        <IconButton icon={Trash2} size="sm" accent="red" label="계정 삭제" onClick={() => handleDeleteUser(u.id)} className="shrink-0" />
+                                        <IconButton icon={Trash2} size="sm" accent="error" label="계정 삭제" onClick={() => handleDeleteUser(u.id)} className="shrink-0" />
                                     </div>
                                 </Card>
                             ))}
@@ -768,7 +768,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                                         required
                                     />
                                     {usernameWarning && (
-                                        <Text as="p" variant="caption" tone="orange">⚠ {usernameWarning}</Text>
+                                        <Text as="p" variant="caption" tone="warning">⚠ {usernameWarning}</Text>
                                     )}
                                 </div>
                                 <div className="flex-1 space-y-1">
@@ -782,7 +782,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                                         required
                                     />
                                     {passwordWarning && (
-                                        <Text as="p" variant="caption" tone="orange">⚠ {passwordWarning}</Text>
+                                        <Text as="p" variant="caption" tone="warning">⚠ {passwordWarning}</Text>
                                     )}
                                 </div>
                             </div>
@@ -822,7 +822,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                                     {createLoading ? "..." : "Create"}
                                 </Button>
                             </div>
-                            {createError && <Text as="p" variant="caption" tone="red">{createError}</Text>}
+                            {createError && <Text as="p" variant="caption" tone="error">{createError}</Text>}
                         </form>
                     </div>
                 </div>
@@ -844,7 +844,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                     />
                     <div className="space-y-2">
                         {sessions.map((s) => (
-                            <Card key={s.id} padding="0" className="flex items-start gap-3 px-4 py-3">
+                            <Card shadow="raised" key={s.id} padding="0" className="flex items-start gap-3 px-4 py-3">
                                 <div className="flex-1 min-w-0 space-y-1">
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <Text weight="black">{s.username}</Text>
@@ -856,7 +856,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                                         <p>Expires: {formatDate(s.expires_at)}</p>
                                     </Text>
                                 </div>
-                                <IconButton icon={Trash2} size="sm" accent="red" label="세션 폐기" onClick={() => handleRevokeSession(s.id)} className="shrink-0" />
+                                <IconButton icon={Trash2} size="sm" accent="error" label="세션 폐기" onClick={() => handleRevokeSession(s.id)} className="shrink-0" />
                             </Card>
                         ))}
                         {sessions.length === 0 && <Text as="p" tone="muted">No active sessions.</Text>}
@@ -1109,10 +1109,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                         <Label className="block space-y-1.5">날짜<Input required type="date" size="sm" value={overrideDate} onChange={(e) => setOverrideDate(e.target.value)} /></Label>
                         <Label className="block space-y-1.5">가져올 시간표<Select size="sm" value={overrideDay} onChange={(e) => setOverrideDay(e.target.value)}>{WEEKDAYS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}</Select></Label>
                         <Label className="block space-y-1.5">이벤트 이름<Input required size="sm" maxLength={100} value={overrideTitle} onChange={(e) => setOverrideTitle(e.target.value)} placeholder="월요일 시간표 운영" /></Label>
-                        <Button type="submit" variant="filled" icon={Plus} className="justify-center">Create</Button>
+                        <Button size="lg" type="submit" variant="filled" icon={Plus} className="justify-center">Create</Button>
                     </form>
                     <div className="space-y-2">
-                        {overrides.map((event) => <Card key={event.id} padding="0" className="flex items-center justify-between gap-3 px-3 py-2"><div><Text as="div" weight="black">{event.date} · {event.title}</Text><Text variant="caption" tone="muted">{WEEKDAYS.find((d) => d.value === event.source_day)?.label ?? event.source_day} 시간표</Text></div><IconButton icon={Trash2} accent="red" label="대체시간표 삭제" onClick={() => deleteOverride(event.id)} /></Card>)}
+                        {overrides.map((event) => <Card shadow="raised" key={event.id} padding="0" className="flex items-center justify-between gap-3 px-3 py-2"><div><Text as="div" weight="black">{event.date} · {event.title}</Text><Text variant="caption" tone="muted">{WEEKDAYS.find((d) => d.value === event.source_day)?.label ?? event.source_day} 시간표</Text></div><IconButton icon={Trash2} accent="error" label="대체시간표 삭제" onClick={() => deleteOverride(event.id)} /></Card>)}
                         {overrides.length === 0 && <Text as="p" tone="muted">등록된 대체시간표 이벤트가 없습니다.</Text>}
                     </div>
                 </div>
@@ -1226,7 +1226,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                         </div>
 
                         {tradeError && (
-                            <Text as="p" variant="caption" tone="red">{tradeError}</Text>
+                            <Text as="p" variant="caption" tone="error">{tradeError}</Text>
                         )}
                     </div>
                 )}
@@ -1250,7 +1250,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
 
                     <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
                         {backups.map((b) => (
-                            <Card
+                            <Card shadow="raised"
                                 key={b.name}
                                 padding="0"
                                 className="px-4 py-3 flex items-center justify-between gap-3"

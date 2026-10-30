@@ -10,13 +10,13 @@ import { enterClass } from "../styles/enter.css";
 import { truncateClass } from "../styles/typography.css";
 import type { AccordionSize, AccordionTitle } from "../tokens/vocabulary";
 import { Card } from "./Card";
-import { accordionBody, accordionBodySm, accordionChevron, accordionChevronOpen, accordionHead, accordionHeader, accordionHeaderSm, accordionTitle, accordionTitleSection } from "./Accordion.css";
+import { accordionBody, accordionBodyLg, accordionBodySm, accordionChevron, accordionChevronOpen, accordionHead, accordionHeader, accordionHeaderLg, accordionHeaderSm, accordionTitle, accordionTitleSection } from "./Accordion.css";
 
 export interface AccordionProps {
   title: ReactNode;
   /** 제목의 글자 (기본 `heading` — 20px). `section` 은 대문자 섹션 제목입니다 — 좁은 화면 14px, 넓은 화면 20px */
   titleStyle?: AccordionTitle;
-  /** `sm` 은 12px 제목의 촘촘한 줄입니다 (기본 `md`). 이때 `titleStyle` 은 쓰지 않습니다 */
+  /** `sm` 은 12px 제목의 촘촘한 줄입니다 (기본 `md`). 이때 `titleStyle` 은 쓰지 않습니다. `lg` 는 화면의 주인공 목록 — 머리가 넓고 그림자가 6px 입니다 */
   size?: AccordionSize;
   icon?: IconComponent;
   /** 제목 옆 — 개수 배지 같은 것. 넓은 화면에서는 오른쪽 끝에 모이고, 좁은 화면에서는 제목 아래로 내려갑니다 */
@@ -35,6 +35,7 @@ export interface AccordionProps {
  */
 export function Accordion({ title, titleStyle = "heading", size = "md", icon, trailing, open, defaultOpen = false, onOpenChange, className, children }: AccordionProps) {
   const small = size === "sm";
+  const large = size === "lg";
   const [inner, setInner] = useState(defaultOpen);
   const isOpen = open ?? inner;
   const id = useId();
@@ -44,8 +45,8 @@ export function Accordion({ title, titleStyle = "heading", size = "md", icon, tr
     onOpenChange?.(!isOpen);
   };
   return (
-    <Card padding="0" className={className}>
-      <Pressable id={headerId} className={cx(surfaceClass({ fill: "none", hoverable: true }), accordionHeader, small && accordionHeaderSm)} aria-expanded={isOpen} aria-controls={isOpen ? id : undefined} onClick={toggle}>
+    <Card padding="0" shadow={large ? "floating" : "raised"} className={className}>
+      <Pressable id={headerId} className={cx(surfaceClass({ fill: "none", hoverable: true }), accordionHeader, small && accordionHeaderSm, large && accordionHeaderLg)} aria-expanded={isOpen} aria-controls={isOpen ? id : undefined} onClick={toggle}>
         {icon && <Icon icon={icon} size={small ? "sm" : "lg"} strokeWidth={3} />}
         <span className={accordionHead}>
           {small ? (
@@ -61,10 +62,10 @@ export function Accordion({ title, titleStyle = "heading", size = "md", icon, tr
           )}
           {trailing}
         </span>
-        <ChevronDownGlyph size={small ? 16 : 22} strokeWidth={3} className={cx(accordionChevron, isOpen && accordionChevronOpen)} />
+        <ChevronDownGlyph size={small ? 16 : 24} strokeWidth={3} className={cx(accordionChevron, isOpen && accordionChevronOpen)} />
       </Pressable>
       {isOpen && (
-        <div id={id} role="region" aria-labelledby={headerId} className={cx(accordionBody, small && accordionBodySm, enterClass.fade)}>
+        <div id={id} role="region" aria-labelledby={headerId} className={cx(accordionBody, small && accordionBodySm, large && accordionBodyLg, enterClass.fade)}>
           {children}
         </div>
       )}

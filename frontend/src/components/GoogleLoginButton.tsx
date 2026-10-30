@@ -46,7 +46,7 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
     onStart,
     disabled = false,
 }) => (
-    <Button
+    <Button size="lg"
         variant="paper"
         shadow
         fullWidth

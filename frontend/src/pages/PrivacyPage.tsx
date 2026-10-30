@@ -123,7 +123,7 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack }) => (
                 시행일 {UPDATED}
             </Text>
 
-            <Card padding="0" className="mt-8 p-5">
+            <Card shadow="raised" padding="0" className="mt-8 p-5">
                 <P>
                     Class Explorer(이하 &lsquo;서비스&rsquo;)는 한국과학영재학교 구성원이
                     수업 시간표를 찾아보는 웹 서비스입니다. 학교가 공식으로 운영하는
@@ -489,7 +489,7 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack }) => (
                 서비스의 개인정보 처리에 관한 업무를 총괄해 책임지며, 관련 문의와 불만,
                 피해 구제를 접수합니다.
             </P>
-            <Card padding="0" className="mt-4 p-5">
+            <Card shadow="raised" padding="0" className="mt-4 p-5">
                 <Text as="p" variant="caption" tone="muted">
                     개인정보 보호책임자 · 운영자
                 </Text>

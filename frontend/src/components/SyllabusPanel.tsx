@@ -90,7 +90,7 @@ const SyllabusPanel: React.FC<SyllabusPanelProps> = ({ subject, term }) => {
 
     return (
         <>
-            <Card
+            <Card shadow="raised"
                 as="section"
                 padding="0"
                 aria-label={`${subject.subject} syllabus`}

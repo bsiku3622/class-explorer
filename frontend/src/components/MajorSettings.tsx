@@ -92,8 +92,7 @@ const MajorSettings: React.FC<MajorSettingsProps> = ({ onSaved }) => {
                         {error}
                     </Text>
                 ) : (
-                    // 넓은 화면에서 카드 폭을 다 쓰면 트랙 단추 하나가 500px 을 넘어 늘어집니다 — 묻는 창과 같은 폭에서 멈춥니다
-                    <div className="max-w-lg space-y-3">
+                    <div className="space-y-3">
                         {info.suggestion && (
                             <Text as="p" variant="caption" tone="secondary">
                                 수강 이력으로 보면 {info.suggestion.major} 트랙 같아요 (

@@ -22,10 +22,14 @@
 | `accent="yellow"` | 노랑 | 급식 아침, 여름방학 막대 |
 | `accent="orange"` | 주황 | 급식 점심, 분반 상태 |
 | `accent="sky"` | 하늘 | 겨울방학 막대, 생활관 일정 |
-| `accent="green"` | 초록 | 빈 교실, 성공 상태 |
+| `accent="green"` | 초록 | 빈 교실 |
+| `accent="success"` | 초록(고정) | 상태 — 연결됨, 저장됨 |
+| `accent="error"` | 빨강(고정) | 상태 — 오류, 삭제 |
+| `accent="warning"` | 주황(고정) | 상태 — 경고, 충돌 |
+| `accent="info"` | 파랑(고정) | 상태 — 안내 |
 
-⚠️ **글자는 네온과 다른 칸입니다.** `tone="pink"` 는 #ff4eba 가 아니라 같은 색의 진한 글자
-(#a0006e, AA)입니다. 크림·흰 위의 네온 글자는 읽히지 않습니다.
+⚠️ **뜻을 말하는 색과 브랜드 색을 가르세요.** 네온(`green`·`red`·`orange`)은 면과 구조에 쓰고, 맞다·틀리다·조심은
+상태색으로 씁니다. `tone="pink"`·`tone="error"` 는 그 색의 원색입니다. 진한 글자가 필요하면 Paint 안에서 `tone="accent"` 입니다.
 
 ⚠️ **실행 중에 정해지는 색은 Tone 부품으로 칠합니다** — 면은 `ToneBox`·`ToneButton`,
 칩은 `ToneChip`, 글자는 `ToneText`. 면을 꽉 채운 칸의 글자색은 `toneInk` 가 고릅니다.
@@ -338,7 +342,7 @@ PNG 내보내기:    `html-to-image` 의 `toPng` · **스크롤 상자가 아니
 
 ### 통계 바 차트
 `BarChartRow` 가 funky-ui `Meter accent="pink"` 를 그립니다. 높이·홈·채움은 Meter 가 정합니다.
-값 글자(`42 Students`)는 검정입니다 — 크림 위 네온 핑크 글자는 AA 에 못 미칩니다.
+값 글자(`42 Students`)는 Analysis 에서 핑크입니다(`captionTone="pink"`).
 
 ### 학생 배지
 ```

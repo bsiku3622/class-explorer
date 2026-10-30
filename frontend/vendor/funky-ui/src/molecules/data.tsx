@@ -15,7 +15,8 @@ export interface StatProps {
   label: ReactNode;
   value: ReactNode;
   unit?: ReactNode;
-  size?: "sm" | "lg";
+  /** `xs` 는 30px 숫자에 12px 이름표 — 네온 면 위 요약 카드 */
+  size?: "xs" | "sm" | "lg";
   /** 숫자를 accent 의 진한 글자로 */
   accent?: Accent;
   /** 이름표의 글자색 (기본은 역할의 약한 잉크). 네온 면 위에서는 약한 잉크가 안 읽히므로 `inherit` 를 줍니다 */
@@ -27,8 +28,8 @@ export interface StatProps {
 export function Stat({ label, value, unit, size = "lg", accent, labelTone, className }: StatProps) {
   const accentCls = useAccent(accent);
   return (
-    <Stack gap="xs" className={cx(accentCls, className)}>
-      <Text variant={size === "lg" ? "subtitle" : "overline"} tone={labelTone}>
+    <Stack gap={size === "xs" ? "0" : "xs"} className={cx(accentCls, className)}>
+      <Text variant={size === "lg" ? "subtitle" : size === "sm" ? "overline" : "eyebrow"} tone={labelTone}>
         {label}
       </Text>
       <Inline gap="sm" align="baseline">

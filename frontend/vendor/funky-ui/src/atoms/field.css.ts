@@ -9,7 +9,8 @@ import { style, styleVariants } from "@vanilla-extract/css";
 
 import { ACCENT_COLORS } from "../tokens/color";
 import { components } from "../tokens/layers.css";
-import { CONTROL } from "../tokens/shape";
+import { BREAKPOINT } from "../tokens/layout";
+import { CONTROL, FIELD_XL_NARROW } from "../tokens/shape";
 import { INPUT_TEXT, WEIGHT, px } from "../tokens/typography";
 import { vars } from "../tokens/variables";
 import type { ControlSize } from "../tokens/vocabulary";
@@ -34,8 +35,8 @@ export const field = style(
     selectors: {
       "&:disabled": { opacity: 0.4, cursor: "not-allowed" },
       // 막지 않는 경고 — 값은 받되 한 번 더 보라는 뜻입니다. 틀림이 뒤에 와서 둘이 겹치면 빨강이 이깁니다
-      "&[data-warning]": { borderColor: ACCENT_COLORS.orange.solid },
-      "&[aria-invalid='true']": { borderColor: ACCENT_COLORS.red.solid },
+      "&[data-warning]": { borderColor: ACCENT_COLORS.warning.solid },
+      "&[aria-invalid='true']": { borderColor: ACCENT_COLORS.error.solid },
       // 비어 있거나 해당 없는 칸 — 옅게 물러나 있다가 hover 때 테두리가 진해집니다
       "&[data-quiet]": { borderColor: vars.line.soft, color: vars.ink.muted },
       "&[data-quiet]:hover:not(:disabled)": { borderColor: vars.ink.muted },
@@ -46,7 +47,15 @@ export const field = style(
 );
 
 export const fieldSize = styleVariants(CONTROL.height, (h, size) =>
-  c({ height: px(h), paddingInline: px(CONTROL.inset[size as ControlSize] - 2), fontSize: px(INPUT_TEXT[size as ControlSize]) }),
+  c({
+    height: px(h),
+    paddingInline: px(CONTROL.inset[size as ControlSize] - 2),
+    fontSize: px(INPUT_TEXT[size as ControlSize]),
+    // 화면의 주인공 칸 — 좁은 화면에서는 한 단 낮고 글자도 본문 크기입니다
+    ...(size === "xl"
+      ? { "@media": { [`(max-width: ${BREAKPOINT.md - 1}px)`]: { height: px(FIELD_XL_NARROW), fontSize: px(INPUT_TEXT.md) } } }
+      : {}),
+  }),
 );
 
 /**
@@ -57,6 +66,9 @@ export const fieldSize = styleVariants(CONTROL.height, (h, size) =>
  * InventoryPage 가 "focus 규칙이 서로 반대" 를 시스템의 빈칸으로 짚었고 이쪽이 다수(10 : 2 — 반대는 Trade 둘)였습니다
  */
 export const fieldShadow = style(c({ boxShadow: vars.shadow.raised, selectors: { "&:focus-visible": { boxShadow: FLAT_SHADOW } } }));
+
+/** `xl` 칸의 그림자 — 화면의 주인공이라 한 단 깊습니다 */
+export const fieldShadowXl = style(c({ boxShadow: vars.shadow.floating, selectors: { "&:focus-visible": { boxShadow: FLAT_SHADOW } } }));
 
 /**
  * 줄 안에서 치는 칸 — 면 · 테두리 · 높이가 없고 글자는 바깥 것을 씁니다 (표 칸의 숫자 · 글자 입력). 숫자 칸의 위아래 단추도 숨깁니다

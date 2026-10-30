@@ -100,6 +100,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                     className="inline-flex h-6 min-w-6 items-center justify-center px-1"
                                 >
                                     <Text
+                                        variant="small"
                                         weight="black"
                                         tone={
                                             isToday
@@ -140,6 +141,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                                 <Swatch accent="green" className="shrink-0 rotate-45" />
                                             )}
                                             <Text
+                                                className="leading-tight"
                                                 variant="label"
                                                 weight="bold"
                                                 tone="inherit"
@@ -154,12 +156,12 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                     );
                                 })}
                                 {events.length > MAX_CHIPS && (
-                                    <Text as="div" variant="label" tone="muted" className="px-1">
+                                    <Text as="div" variant="label" tone="muted" className="px-1 leading-tight">
                                         +{events.length - MAX_CHIPS}
                                     </Text>
                                 )}
                                 {ongoing > 0 && (
-                                    <Text as="div" variant="label" weight="bold" tone="muted" className="px-1">
+                                    <Text as="div" variant="label" weight="bold" tone="faint" className="px-1 leading-tight">
                                         ⋯ {ongoing}
                                     </Text>
                                 )}

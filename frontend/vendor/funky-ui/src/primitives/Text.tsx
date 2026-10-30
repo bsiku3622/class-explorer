@@ -14,8 +14,8 @@ export interface TextOwnProps {
   /** 줄 높이 — 여러 줄 문단이면 `relaxed` (기본은 역할이 정한 고정값) */
   leading?: Leading;
   /**
-   * 글자색 — `accent` 는 지금 accent 의 진한 글자, `accentSoft` 는 연한 글자. 색 이름(`pink` · `red` …)은 그 색의
-   * 진한 글자이고, 이 글자만 칠합니다 — 안쪽의 accent 를 바꾸지 않습니다
+   * 글자색 — `accent` 는 지금 accent 의 진한 글자, `accentSoft` 는 연한 글자. 색 이름(`pink` · `error` …)은 그 색의
+   * 원색이고, 이 글자만 칠합니다 — 안쪽의 accent 를 바꾸지 않습니다
    */
   tone?: Tone;
   family?: Family;

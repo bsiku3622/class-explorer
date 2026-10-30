@@ -48,15 +48,18 @@ export interface TextRole {
 export const TEXT_ROLES = {
   hero: { size: 36, leading: 40, weight: "black", tracking: -0.05, uppercase: true, md: { size: 60, leading: 60 } },
   display: { size: 36, leading: 40, weight: "black", tracking: -0.05, uppercase: true },
+  headline: { size: 24, leading: 32, weight: "black", tracking: -0.025, md: { size: 30, leading: 38 } },
   title: { size: 24, leading: 32, weight: "black", tracking: -0.025 },
   heading: { size: 20, leading: 28, weight: "black", tracking: -0.025 },
   subheading: { size: 16, leading: 24, weight: "black", tracking: 0 },
   body: { size: 14, leading: 20, weight: "bold", tracking: 0 },
+  small: { size: 13, leading: 20, weight: "bold", tracking: 0 },
   caption: { size: 12, leading: 16, weight: "bold", tracking: 0 },
   label: { size: 11, leading: 16, weight: "black", tracking: 0 },
   micro: { size: 10, leading: 14, weight: "black", tracking: 0 },
   overline: { size: 10, leading: 14, weight: "black", tracking: 0.1, uppercase: true, tone: "muted" },
-  subtitle: { size: 14, leading: 20, weight: "black", tracking: 0.1, uppercase: true, tone: "muted" },
+  eyebrow: { size: 12, leading: 16, weight: "black", tracking: 0.05, uppercase: true, tone: "secondary" },
+  subtitle: { size: 14, leading: 20, weight: "bold", tracking: 0.1, uppercase: true, tone: "muted" },
 } as const satisfies Record<TextVariant, TextRole>;
 
 /**
@@ -79,10 +82,11 @@ export const WORDMARK = {
  * 작을수록 자간을 넓혀 10px 에서도 낱자가 붙지 않게 합니다.
  */
 export const CONTROL_TEXT = {
-  xs: { size: 10, tracking: 0.08 },
-  sm: { size: 12, tracking: 0.05 },
-  md: { size: 14, tracking: 0.02 },
-  lg: { size: 16, tracking: 0.02 },
+  xs: { size: 11, tracking: 0 },
+  sm: { size: 12, tracking: 0 },
+  md: { size: 14, tracking: 0 },
+  lg: { size: 14, tracking: 0 },
+  xl: { size: 18, tracking: 0 },
 } as const satisfies Record<ControlSize, { size: number; tracking: number }>;
 
 /** 입력값 글자 — 값은 읽는 내용이라 900 이 아니라 700 입니다 */
@@ -91,10 +95,12 @@ export const INPUT_TEXT = {
   sm: 13,
   md: 14,
   lg: 16,
+  xl: 20,
 } as const satisfies Record<ControlSize, number>;
 
 /** 큰 숫자 (Stat) — 역할 사다리 밖의 단 하나의 예외 */
 export const NUMERAL = {
+  xs: { size: 30, leading: 36, tracking: 0 },
   sm: { size: 36, leading: 36, tracking: -0.05 },
   lg: { size: 48, leading: 48, tracking: -0.05 },
 } as const;

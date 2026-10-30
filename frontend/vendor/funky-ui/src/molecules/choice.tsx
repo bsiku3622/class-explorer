@@ -72,6 +72,7 @@ export function SegmentedControl<V extends string>({
           variant={variant}
           size={size}
           shadow={shadow}
+          grow={!attached}
           icon={o.icon}
           disabled={o.disabled}
           className={fill ? choiceItemFill : undefined}

@@ -97,7 +97,7 @@ export const wordmarkPress = style(
   }),
 );
 
-export const required = style(c({ marginLeft: "0.25em", color: ACCENT_COLORS.red.softInk }));
+export const required = style(c({ marginLeft: "0.25em", color: ACCENT_COLORS.error.solid }));
 
 export const divider = styleVariants({
   horizontal: c({ width: "100%", height: 0, borderTopStyle: "solid", borderTopWidth: vars.stroke.base, flexShrink: 0 }),

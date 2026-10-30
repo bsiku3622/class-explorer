@@ -79,7 +79,7 @@ export function SearchField({
   };
   return (
     <span ref={anchor} className={cx(searchWrap, className)} onFocus={() => setFocused(true)} onBlur={onBlur}>
-      <SearchGlyph size={icon} strokeWidth={3} className={searchIcon[size]} />
+      <SearchGlyph size={icon} strokeWidth={2} className={searchIcon[size]} />
       <Input
         type="search"
         size={size}

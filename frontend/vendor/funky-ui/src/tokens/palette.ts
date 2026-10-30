@@ -17,8 +17,6 @@ export const NEUTRALS = {
   creamDeep: "#fff0b8",
   /** 본문 글자. 테두리는 이게 아니라 `black` 입니다 */
   ink: "#222222",
-  /** 보조 글자 (크림 위 8.3:1) */
-  inkSecondary: "#4d4d4d",
   /** 약한 글자 — 크림 위 4.60 · 흰 면 5.02, AA 를 지키는 가장 옅은 회색 */
   gray: "#6f6f6f",
   /** 약한 선 · 옅은 면 — 흰 면 대비 1.35 */
@@ -37,6 +35,17 @@ export const NEONS = {
   sky: "#00c8ff",
   green: "#00c22a",
   red: "#ff3b3b",
+} as const;
+
+/**
+ * 상태색 — 맞다 · 틀리다 · 조심 · 알림을 말하는 고정색입니다. 네온은 브랜드의 인장이라 여기에 뜻을 실으면 구조와 섞여서 따로 둡니다.
+ * 값은 class-explorer 가 쓰던 색입니다.
+ */
+export const STATUS = {
+  success: "#00c950",
+  error: "#e7000b",
+  warning: "#f54a00",
+  info: "#2b7fff",
 } as const;
 
 /**
@@ -69,7 +78,7 @@ export const LADDER = {
   },
   purple: {
     ink: NEUTRALS.white, // 7.15 (보라 위) — 검정 글자는 2.2:1 이라 흰색
-    solidInk: "#5b009f", // 9.89 — 원색이 이미 AA 라 softInk 와 갈라지도록 한 단 더 내렸습니다
+    solidInk: NEONS.purple, // 7.15 — 원색이 이미 AA 라 그대로 씁니다
     solid: NEONS.purple,
     soft: "#e4d4f4",
     softInk: NEONS.purple, // 6.55
@@ -115,6 +124,35 @@ export const LADDER = {
     solid: NEONS.red,
     soft: "#ffd2d2",
     softInk: "#df041d", // 4.61
+  },
+  /** 상태색 네 줄 — `solid` 가 글자로도 쓰는 원색이고, 나머지 칸은 같은 계열의 진한 · 연한 값입니다 */
+  success: {
+    ink: NEUTRALS.ink, // 7.18
+    solidInk: "#008236",
+    solid: STATUS.success,
+    soft: "#dcfce7",
+    softInk: "#00a63e",
+  },
+  error: {
+    ink: NEUTRALS.white, // 4.77
+    solidInk: "#c10007",
+    solid: STATUS.error,
+    soft: "#ffe2e2",
+    softInk: "#fb2c36",
+  },
+  warning: {
+    ink: NEUTRALS.ink, // 4.44
+    solidInk: "#ca3500",
+    solid: STATUS.warning,
+    soft: "#ffedd4",
+    softInk: "#ff6900",
+  },
+  info: {
+    ink: NEUTRALS.ink, // 4.23
+    solidInk: "#1447e6",
+    solid: STATUS.info,
+    soft: "#dbeafe",
+    softInk: "#155dfc",
   },
 } as const;
 

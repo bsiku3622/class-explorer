@@ -1,3 +1,14 @@
+## 2026-10-31 — funky-ui 이관 후 원본과 달라진 곳 복구
+
+- 변경 파일: `frontend/vendor/funky-ui/`(`xl` 크기·상태색·글자 역할), `StatsCards`, `SearchInput`, `SubjectAccordionItem`, `MajorPicker`, `MajorSettings`, `Sidebar`, `BarChartRow`, `CalendarGrid`, `FilterSection`, `zamong/Roadmap`, `zamong/CourseBoard`, `AdminPage`, `AnalysisPage` 외 `Card` 쓰는 화면, 가이드 문서
+- 요약: 재원님이 짚은 곳부터 고치고, 이관 전 앱과 지금 앱의 전 화면 스타일을 글자 단위로 대조해 체계적인 차이를 funky-ui 토큰에서 되돌렸습니다.
+- 대조 방법: 이관 전 커밋을 `~/Bufs/Claude Files/2026-10-31/ce-base` 에 풀어 5192 에 띄우고, 같은 16개 화면의 계산된 스타일을 수집해 글자별로 비교했습니다(`compare.py`). 눈으로만 보면 또 어긋날 자리입니다.
+- ⚠️ `tone` 의 색 이름을 다시 원색으로 돌렸습니다. AA 를 맞춘다고 진한 글자로 모았던 것이 "글자가 어둡다" 는 지적으로 돌아왔습니다. 이 앱은 원래 원색 글자를 씁니다.
+- ⚠️ 빨강·주황 경고·연결 상태는 네온이 아니라 상태색(`error`·`warning`·`success`·`info`)입니다. `tone="red"` 로 되돌리면 네온 빨강(#ff3b3b)이 나옵니다.
+- ⚠️ `Button` 의 기본 크기는 40px 이고 이 앱의 기본 버튼은 48px(`size="lg"`)입니다. `size` 를 빼면 한 단 작아집니다. `Card` 기본 그림자는 6px 이고 카드 안의 작은 카드는 `shadow="raised"` 입니다.
+- 폭을 꽉 채운 버튼은 골라져도 커지지 않습니다. 105% 가 폭에 비례해서 Major 의 넓은 버튼이 옆 칸을 덮었습니다. "색 버튼도 예외 없이 커짐" 결정의 유일한 예외입니다.
+- Zamong 의 스크롤 그림자는 원본에도 있던 "옆으로 더 있음" 표시입니다. 없애지 않고 원본 농도(검정 20%)로 돌렸습니다.
+
 ## 2026-10-31 — 포커스 링을 Tab 으로 왔을 때만 표시
 
 - 변경 파일: `frontend/vendor/funky-ui/`, `frontend/CLAUDE.md`, `frontend/design-guide.md`

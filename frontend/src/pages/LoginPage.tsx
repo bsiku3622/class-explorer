@@ -55,7 +55,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     </Text>
                 </div>
 
-                <Card padding="0" className="p-8">
+                <Card shadow="none" padding="0" className="shadow-[8px_8px_0_0_rgba(0,0,0,0.2)] p-8">
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <FormField label="Username">
                             <Input

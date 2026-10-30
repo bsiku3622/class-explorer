@@ -64,8 +64,8 @@ export const tileMetaWrap = style(c({ whiteSpace: "normal" }));
 
 export const tileTitle = style(
   c({
-    fontSize: px(TEXT_ROLES.caption.size),
-    lineHeight: px(TEXT_ROLES.caption.leading),
+    fontSize: px(TEXT_ROLES.small.size),
+    lineHeight: 1.2,
     fontWeight: WEIGHT.black,
     overflow: "hidden",
     textOverflow: "ellipsis",

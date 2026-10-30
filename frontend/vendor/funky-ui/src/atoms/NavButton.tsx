@@ -7,7 +7,7 @@ import { Icon, type IconComponent } from "../primitives/Icon";
 import { usePressable } from "../primitives/Pressable";
 import { useSelectable } from "../primitives/Selectable";
 import { CONTROL } from "../tokens/shape";
-import { buttonBase, buttonSize, iconEndTurn, squareSize } from "./Button.css";
+import { buttonBase, buttonSize, iconEndTurn, navButtonText, squareSize } from "./Button.css";
 
 export interface NavButtonOwnProps {
   icon?: IconComponent;
@@ -55,7 +55,7 @@ export function NavButton<E extends ElementType = "button">({
         pressProps.className,
         selectProps.className,
         buttonBase,
-        buttonSize[size],
+        buttonSize[size], navButtonText,
         iconOnly && squareSize[size],
         glassClass({ selected: Boolean(selected), hoverable: true }),
         className,

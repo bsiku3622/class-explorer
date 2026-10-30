@@ -12,7 +12,7 @@ const c = (rule: Record<string, unknown>) => ({ "@layer": { [components]: rule }
 
 export const searchWrap = style(c({ position: "relative", display: "block", width: "100%", minWidth: 0 }));
 
-export const fieldError = style(c({ color: ACCENT_COLORS.red.solidInk }));
+export const fieldError = style(c({ color: ACCENT_COLORS.error.solid }));
 export const fieldWarning = style(c({ color: ACCENT_COLORS.orange.solidInk }));
 
 /** 입력 아래에 붙는 제안 목록 — 고르는 동안에도 포커스는 입력에 남습니다 */
@@ -59,7 +59,8 @@ export const suggestRemove = style(
   }),
 );
 
-const edge = (size: ControlSize) => CONTROL.inset[size] - 2;
+// `xl` 은 넓은 여백이 버튼의 것이고, 검색칸의 아이콘은 테두리 가까이 붙습니다
+const edge = (size: ControlSize) => (size === "xl" ? SPACE.md : CONTROL.inset[size] - 2);
 
 export const searchIcon = styleVariants(CONTROL.height, (_, size) =>
   c({
@@ -75,7 +76,7 @@ export const searchIcon = styleVariants(CONTROL.height, (_, size) =>
 /** 앞 아이콘과 뒤 지우기 자리를 비웁니다. 브라우저의 기본 지우기 버튼은 숨깁니다 */
 export const searchInput = styleVariants(CONTROL.height, (_, size) =>
   c({
-    paddingLeft: px(edge(size as ControlSize) + CONTROL.icon[size as ControlSize] + CONTROL.gap[size as ControlSize]),
+    paddingLeft: px(edge(size as ControlSize) + CONTROL.icon[size as ControlSize] + CONTROL.gap[size as ControlSize] + (size === "xl" ? SPACE.md : 0)),
     paddingRight: px(edge(size as ControlSize) + CONTROL.icon[size as ControlSize] + CONTROL.gap[size as ControlSize]),
     "::-webkit-search-cancel-button": { display: "none" },
   }),

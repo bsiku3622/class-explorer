@@ -74,14 +74,14 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
 
     return (
         <Accordion
-            title={getKoreanName(subject.subject)}
-            titleStyle="section"
+            title={<span className="uppercase text-black max-sm:text-base">{getKoreanName(subject.subject)}</span>}
+            size="lg"
             trailing={
                 <div className="flex gap-2 sm:gap-3 shrink-0">
-                    <Badge size="lg" accent={isSingleStudentSearch ? "cyan" : "yellow"} variant="solid">
+                    <Badge size="xl" shadow accent={isSingleStudentSearch ? "cyan" : "yellow"} variant="solid" className="max-sm:h-7 max-sm:px-2 max-sm:text-xs">
                         {sectionDisplayText}
                     </Badge>
-                    <Badge size="lg" accent="pink" variant="solid">
+                    <Badge size="xl" shadow accent="pink" variant="solid" className="max-sm:h-7 max-sm:px-2 max-sm:text-xs">
                         {visibleStudentCount} STUDENTS
                     </Badge>
                 </div>
@@ -94,9 +94,7 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
                 <SyllabusPanel subject={subject} term={term} />
                 <Surface
                     border="line"
-                    shadow="raised"
-                    padding="md"
-                    className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-4"
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-4 p-2.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]"
                 >
                     <Text variant="subtitle" className="flex items-center gap-2">
                         <Users size={16} /> Teachers :

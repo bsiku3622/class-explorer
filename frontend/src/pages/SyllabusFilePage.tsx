@@ -59,7 +59,7 @@ const SyllabusFilePage: React.FC = () => {
             {found.kind === "loading" && <Spinner />}
             {found.kind === "missing" && <p>강의계획서를 찾지 못했습니다.</p>}
             {found.kind === "download" && (
-                <Button
+                <Button size="lg"
                     variant="paper"
                     shadow
                     icon={Download}

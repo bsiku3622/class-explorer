@@ -328,7 +328,7 @@ const HomePage: React.FC<HomePageProps> = ({
      */
     if (!home || liveMinute === null) {
         return (
-            <Card padding="0" className="px-5 py-12 text-center">
+            <Card shadow="raised" padding="0" className="px-5 py-12 text-center">
                 <Text as="p" tone="secondary">
                     화면을 불러오지 못했습니다.
                 </Text>

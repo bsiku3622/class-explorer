@@ -18,8 +18,8 @@ export interface CardOwnProps {
    * 없습니다 — 색이 있는 박스는 Paint
    */
   fill?: Exclude<SurfaceFill, "none" | "brand">;
-  /** 기본 `raised`(4px). 모달이 아니면 `floating` 을 쓰지 않습니다. `motion` 을 주면 몸짓이 그림자를 가집니다 */
-  shadow?: "raised" | "none";
+  /** 기본 `floating`(6px) — 영역을 나누는 카드입니다. 카드 안의 작은 카드와 접히는 줄은 `raised`(4px). `motion` 을 주면 몸짓이 그림자를 가집니다 */
+  shadow?: "raised" | "floating" | "none";
   /** 기본 `3xl`(24px). 머리 막대를 붙이려면 `0` 을 주고 `Card.Header` · `Card.Section` 으로 나눕니다 */
   padding?: Space;
   /** 카드 전체가 누르는 물건이면 — 가라앉거나(sink) · 떠오르거나(lift) · 그림자가 올라옵니다(raise). `none` 은 누르지만 움직이지 않습니다 */
@@ -37,7 +37,7 @@ const PressableRoot = Pressable as ElementType;
 export function Card<E extends ElementType = "div">({
   as,
   fill = "raised",
-  shadow = "raised",
+  shadow = "floating",
   padding = "3xl",
   motion,
   className,

@@ -48,6 +48,11 @@ export interface ButtonOwnProps {
   /** 긴 문장 라벨 — 줄바꿈되고 높이가 글자를 따라 늘어납니다 */
   wrap?: boolean;
   fullWidth?: boolean;
+  /**
+   * 골라지면 105% 로 커집니다 (기본 켜짐). 칸이 맞닿은 줄이면 끕니다. `fullWidth` 는 저절로 꺼집니다 — 5% 가 폭에 비례해서
+   * 넓은 버튼은 옆 칸을 덮습니다
+   */
+  grow?: boolean;
   disabled?: boolean;
   className?: string;
   children?: ReactNode;
@@ -100,6 +105,7 @@ export function Button<E extends ElementType = "button">({
   uppercase = true,
   wrap = false,
   fullWidth = false,
+  grow: growProp = true,
   disabled,
   className,
   children,
@@ -107,7 +113,7 @@ export function Button<E extends ElementType = "button">({
 }: ButtonProps<E>) {
   const { motion, grow } = pressOf(variant, shadow, selected);
   const { Comp, pressProps } = usePressable({ as, motion, disabled });
-  const { selectProps } = useSelectable({ selected, role, grow });
+  const { selectProps } = useSelectable({ selected, role, grow: grow && growProp && !fullWidth });
   const iconSize = CONTROL.icon[size];
   return (
     <Comp

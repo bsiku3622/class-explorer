@@ -49,7 +49,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
             onValueChange={onChange}
             clearLabel="검색어 지우기"
             placeholder={placeholder}
-            size={size}
+            size={size === "lg" ? "xl" : "md"}
             shadow={size === "lg"}
             autoFocus={autoFocus}
             enterKeyHint={onEnter ? "search" : undefined}

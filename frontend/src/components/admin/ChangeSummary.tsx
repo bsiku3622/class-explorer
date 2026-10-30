@@ -22,7 +22,7 @@ export interface ChangeSummaryData {
 /** `+3` / `-2` — 0 이면 아무것도 그리지 않습니다 */
 const Delta: React.FC<{ value: number }> = ({ value }) =>
     value === 0 ? null : (
-        <Text variant="caption" weight="black" tone={value > 0 ? "green" : "red"}>
+        <Text variant="caption" weight="black" tone={value > 0 ? "success" : "error"}>
             {value > 0 ? "+" : ""}{value}
         </Text>
     );

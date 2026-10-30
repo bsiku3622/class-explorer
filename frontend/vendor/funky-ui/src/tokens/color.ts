@@ -28,11 +28,12 @@ export const SURFACE = {
 /** 글자 */
 export const INK = {
   primary: NEUTRALS.ink,
-  secondary: NEUTRALS.inkSecondary,
-  /** AA 를 지키는 가장 옅은 글자 */
-  muted: NEUTRALS.gray,
-  /** 장식 · placeholder · 꺼진 자리 전용 — 필수 정보에 쓰지 않습니다 (AA 미달) */
-  faint: alpha(NEUTRALS.black, 0.3),
+  /** 보조 글자 — 반투명이라 크림 · 흰 면 · 네온 어디서든 그 면 위의 같은 농도로 읽힙니다 */
+  secondary: alpha(NEUTRALS.black, 0.6),
+  /** 약한 글자 — 소제목 · 이름표 · 부연 */
+  muted: alpha(NEUTRALS.black, 0.4),
+  /** 장식 · placeholder · 꺼진 자리 전용 — 필수 정보에 쓰지 않습니다 */
+  faint: alpha(NEUTRALS.black, 0.25),
   inverse: NEUTRALS.white,
   /** 어두운 면 위의 보조 글자 */
   inverseMuted: alpha(NEUTRALS.white, 0.6),

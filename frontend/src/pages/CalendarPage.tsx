@@ -297,7 +297,7 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId, major }) => {
                 />
 
                 <div className="space-y-4">
-                    <Card padding="0" className="p-4">
+                    <Card shadow="raised" padding="0" className="p-4">
                         {selected ? (
                             <>
                                 <div className="flex items-baseline justify-between">
@@ -358,7 +358,7 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId, major }) => {
                                                         icon={Trash2}
                                                         label="지우기"
                                                         size="xs"
-                                                        accent="red"
+                                                        accent="error"
                                                         variant="ghostMuted"
                                                         className="shrink-0"
                                                         onClick={() =>
@@ -396,7 +396,7 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId, major }) => {
                         )}
                     </Card>
 
-                    <Card padding="0" className="p-4">
+                    <Card shadow="raised" padding="0" className="p-4">
                         <SectionTitle title="Legend" />
                         <div className="mt-2 space-y-1.5">
                             {(Object.keys(CATEGORY_LABEL) as (keyof typeof CATEGORY_LABEL)[]).map(

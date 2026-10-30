@@ -3,7 +3,7 @@ import { createContext, useContext, type ComponentPropsWithRef, type ReactNode }
 import { cx } from "../internal/cx";
 import { surfaceClass } from "../primitives/Surface";
 import type { TableHead as TableHeadTone } from "../tokens/vocabulary";
-import { table, tableCell, tableDivided, tableHeadCell, tableNumeric, tableRowHeader, tableRowHover, tableWrap } from "./Table.css";
+import { table, tableCell, tableCellPlain, tableDivided, tableDividedPlain, tableHeadCell, tableNumeric, tableRowHeader, tableRowHover, tableWrap } from "./Table.css";
 
 const HeadTone = createContext<TableHeadTone>("inverse");
 
@@ -64,7 +64,7 @@ export interface TableHeadCellProps extends ComponentPropsWithRef<"th"> {
 
 function TableHeadCell({ numeric, divided, className, ...rest }: TableHeadCellProps) {
   const tone = useContext(HeadTone);
-  return <th scope="col" className={cx(tableHeadCell[tone], numeric && tableNumeric, divided && tableDivided, className)} {...rest} />;
+  return <th scope="col" className={cx(tableHeadCell[tone], numeric && tableNumeric, divided && (tone === "plain" ? tableDividedPlain : tableDivided), className)} {...rest} />;
 }
 
 export interface TableCellProps extends ComponentPropsWithRef<"td"> {
@@ -77,7 +77,8 @@ export interface TableCellProps extends ComponentPropsWithRef<"td"> {
 }
 
 function TableCell({ header, numeric, divided, className, ...rest }: TableCellProps) {
-  const cls = cx(tableCell, header && tableRowHeader, numeric && tableNumeric, divided && tableDivided, className);
+  const plain = useContext(HeadTone) === "plain";
+  const cls = cx(tableCell, header && tableRowHeader, numeric && tableNumeric, divided && tableDivided, plain && tableCellPlain, plain && divided && tableDividedPlain, className);
   return header ? <th scope="row" className={cls} {...rest} /> : <td className={cls} {...rest} />;
 }
 

@@ -80,8 +80,8 @@ const Th: React.FC<{ children: React.ReactNode; divided?: boolean }> = ({ childr
 
 /** 행 이름 — 왼쪽 첫 칸 */
 const Rh: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <Table.Cell header className="h-7 whitespace-nowrap py-0 pr-3 text-left align-middle">
-        <Text variant="overline">{children}</Text>
+    <Table.Cell header className="h-7 whitespace-nowrap py-0 pl-0 pr-3 text-left align-middle">
+        <Text variant="label" tone="muted" uppercase className="tracking-widest">{children}</Text>
     </Table.Cell>
 );
 
@@ -95,7 +95,7 @@ const Td: React.FC<{
 }> = ({ children, tone, bold = false, divided, title }) => (
     <Table.Cell divided={divided} title={title} className="h-7 px-2 py-0 text-center align-middle">
         {children !== undefined && (
-            <Text weight={bold ? "bold" : "black"} tone={tone} numeric>
+            <Text variant="small" weight={bold ? "bold" : "black"} tone={tone} numeric>
                 {children}
             </Text>
         )}
@@ -152,7 +152,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
 
             {/* ── 워크북 행 2~5 · 학기별 ───────────────────────────────────── */}
             <Surface fill="none" border="subtle" borderSide="bottom" className="px-4 py-1.5 md:px-6">
-                <Table head="well" frameClassName="border-0" className="min-w-[44rem]" aria-label="학기별 학점">
+                <Table head="plain" frameClassName="border-0" className="min-w-[44rem]" aria-label="학기별 학점">
                     <Table.Head>
                         <Table.Row>
                             <Table.HeadCell className="h-7 py-0 text-left align-middle">학기</Table.HeadCell>
@@ -214,7 +214,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
 
             {/* ── 워크북 행 7~10 · 졸업 요건 ───────────────────────────────── */}
             <Surface fill="none" border="subtle" borderSide="bottom" className="px-4 py-1.5 md:px-6">
-                <Table head="well" frameClassName="border-0" className="min-w-[44rem]" aria-label="졸업 요건">
+                <Table head="plain" frameClassName="border-0" className="min-w-[44rem]" aria-label="졸업 요건">
                     <Table.Head>
                         <Table.Row>
                             <Table.HeadCell className="h-7 py-0 align-middle">
@@ -345,7 +345,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
             </Surface>
 
             {/* ── 워크북 행 14~22 · 학기별 과목 ────────────────────────────── */}
-            <div className="divide-y-2 divide-[var(--fk-line-subtle)]">
+            <div className="divide-y divide-[var(--fk-line-subtle)]">
                 {terms.map((term) => (
                     <TermRow
                         key={term.key}
@@ -484,7 +484,7 @@ const TermRow: React.FC<{
                         variant="paper"
                         shadow
                         size="sm"
-                        className="h-7 shrink-0 px-2 py-0"
+                        className="h-7 shrink-0 py-0"
                         onClick={onOpenTerm}
                         aria-label={`${name} 상세 입력`}
                         aria-haspopup="dialog"

@@ -7,7 +7,7 @@ import { Icon, type IconComponent } from "../primitives/Icon";
 import { Inline, Stack } from "../primitives/layout";
 import { Text } from "../primitives/Text";
 import { Card } from "./Card";
-import { pageHeaderIcon, pageHeaderRow, pageTitle, sectionTitle } from "./headers.css";
+import { pageHeaderIcon, pageHeaderPad, pageHeaderRow, pageTitle, sectionTitle } from "./headers.css";
 
 export interface SectionTitleProps {
   title: ReactNode;
@@ -49,8 +49,8 @@ export interface PageHeaderProps {
 /** 페이지 머리 — 검정 아이콘 칸 + 이름표 + 큰 제목 */
 export function PageHeader({ title, subtitle, icon, action, children, className }: PageHeaderProps) {
   return (
-    <Card as="header" className={className}>
-      <Stack gap="3xl">
+    <Card as="header" padding="0" className={className}>
+      <Stack gap="3xl" className={pageHeaderPad}>
         <div className={pageHeaderRow}>
           <Inline gap="xl" align="center">
             {icon && (
@@ -60,7 +60,7 @@ export function PageHeader({ title, subtitle, icon, action, children, className 
             )}
             <Stack gap="2xs">
               {subtitle && <Text variant="overline">{subtitle}</Text>}
-              <Text as="h1" variant="title" uppercase className={pageTitle}>
+              <Text as="h1" variant="headline" uppercase className={pageTitle}>
                 {title}
               </Text>
             </Stack>

@@ -210,7 +210,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
     const renderWarning = () => {
         if (!searchResult.warning) return null;
         return (
-            <Notice accent="orange" shadow icon={AlertCircle} title="Search Warning" className="mb-8">
+            <Notice accent="warning" shadow icon={AlertCircle} title="Search Warning" className="mb-8">
                 {searchResult.warning}
             </Notice>
         );
@@ -555,7 +555,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                                 </div>
                                 {conflictData && (
                                     <Notice
-                                        accent="orange"
+                                        accent="warning"
                                         icon={AlertCircle}
                                         title={`${conflictData.count} Schedule Conflict${conflictData.count > 1 ? "s" : ""}`}
                                         className="mb-6"

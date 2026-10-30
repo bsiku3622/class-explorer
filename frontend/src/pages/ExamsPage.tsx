@@ -46,7 +46,7 @@ const ExamsPage: React.FC<{ term: Term | null }> = ({ term }) => {
             : <>
                 {conflicts.size > 0 && <Notice role="alert">공지에 시험 시간이 겹치는 과목이 있습니다. 두 과목의 일정을 모두 표시했으니 담당 교사의 안내를 확인하세요.</Notice>}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5 items-start">
-                    {days.map((day) => <Card key={day.date} padding="0" className="overflow-hidden">
+                    {days.map((day) => <Card shadow="raised" key={day.date} padding="0" className="overflow-hidden">
                         <Surface fill="inverse" className="px-4 py-3">
                             <Text as="h2" variant="subheading" tone="inherit">{day.label}</Text>
                             <Text as="p" variant="caption" tone="inverseMuted">{day.exams.length}개 시험</Text>
@@ -61,7 +61,7 @@ const ExamsPage: React.FC<{ term: Term | null }> = ({ term }) => {
                                             <Text as="p" variant="caption" tone="muted">{exam.duration}분</Text>
                                         </div>
                                         <Text as="h3" variant="subheading" className="break-keep">{exam.subject}</Text>
-                                        {conflicts.has(exam.id) && <Text as="p" variant="caption" tone="red">다른 시험과 시간 겹침</Text>}
+                                        {conflicts.has(exam.id) && <Text as="p" variant="caption" tone="error">다른 시험과 시간 겹침</Text>}
                                         {exam.section && <Text as="p" variant="caption" tone="muted">{exam.section}{exam.teacher ? ` · ${exam.teacher}` : ""}</Text>}
                                         <Text as="div" weight="black" className="flex items-start gap-1.5">
                                             <MapPin size={15} className="mt-0.5 shrink-0" />
@@ -73,7 +73,7 @@ const ExamsPage: React.FC<{ term: Term | null }> = ({ term }) => {
                         </div>
                     </Card>)}
                 </div>
-                {separate.length > 0 && <Card padding="0" className="p-5 space-y-3">
+                {separate.length > 0 && <Card shadow="raised" padding="0" className="p-5 space-y-3">
                     <SectionTitle title="Separate Exams" />
                     {separate.map((exam) => <div key={exam.id} className="space-y-1"><Text as="p" weight="black">{exam.subject}</Text><Text as="p" tone="secondary">{exam.note}</Text></div>)}
                 </Card>}

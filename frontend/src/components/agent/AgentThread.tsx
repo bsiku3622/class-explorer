@@ -29,10 +29,10 @@ const StepRow: React.FC<{ step: AgentStep }> = ({ step }) => {
                 ) : step.status === "done" ? (
                     <Icon icon={CircleCheck} size={14} strokeWidth={2.75} tone="green" />
                 ) : (
-                    <Icon icon={CircleX} size={14} strokeWidth={2.75} tone="red" />
+                    <Icon icon={CircleX} size={14} strokeWidth={2.75} tone="error" />
                 )}
             </span>
-            <Text variant="caption" tone={step.status === "failed" ? "red" : undefined} truncate className="min-w-0 flex-1">
+            <Text variant="caption" tone={step.status === "failed" ? "error" : undefined} truncate className="min-w-0 flex-1">
                 {step.label}
                 {step.summary && <Text variant="caption" tone="muted" className="ml-1.5">— {step.summary}</Text>}
             </Text>

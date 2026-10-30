@@ -176,7 +176,7 @@ const MaterialReviewPanel: React.FC = () => {
                         const key = `${material.term.year}-${material.term.semester}`;
                         const options = subjectOptions[key] ?? [material.subject];
                         return (
-                            <Card as="article" key={material.id} padding="0" onMouseEnter={() => ensureSubjects(material)}>
+                            <Card shadow="raised" as="article" key={material.id} padding="0" onMouseEnter={() => ensureSubjects(material)}>
                                 <Card.Strip accent="yellow" placement="top" className="flex flex-wrap items-start justify-between gap-2 py-3">
                                     <div>
                                         <Text as="p" variant="overline">#{material.id} · {material.term.year}-{material.term.semester}</Text>

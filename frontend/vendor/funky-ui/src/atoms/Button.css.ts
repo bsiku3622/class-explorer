@@ -39,6 +39,9 @@ export const buttonSize = styleVariants(
     }),
 );
 
+/** 색 바 위의 버튼 — 글자 사이가 넓습니다 (학기 선택 · 로그아웃) */
+export const navButtonText = style(c({ letterSpacing: em(0.1) }));
+
 /** 아이콘만 있는 버튼 — 정사각형 */
 export const squareSize = styleVariants(CONTROL.height, (height) => c({ width: px(height), paddingInline: 0 }));
 

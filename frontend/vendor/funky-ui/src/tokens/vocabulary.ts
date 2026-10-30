@@ -6,7 +6,7 @@
  */
 
 /** Accent — 색 이름. `black` 이 시스템 기본입니다 */
-export const ACCENTS = ["black", "pink", "purple", "cyan", "yellow", "orange", "sky", "green", "red"] as const;
+export const ACCENTS = ["black", "pink", "purple", "cyan", "yellow", "orange", "sky", "green", "red", "success", "error", "warning", "info"] as const;
 export type AccentName = (typeof ACCENTS)[number];
 
 /** Accent 역할 별칭 — 색에 뜻을 붙여 부를 때. 별칭은 색으로 풀립니다 */
@@ -14,8 +14,6 @@ export const ACCENT_ROLES = {
   system: "black",
   primary: "pink",
   secondary: "purple",
-  success: "green",
-  error: "red",
 } as const satisfies Record<string, AccentName>;
 export type AccentRole = keyof typeof ACCENT_ROLES;
 
@@ -46,11 +44,11 @@ export const VARIANTS = [
 export type Variant = (typeof VARIANTS)[number];
 
 /** 누르는 컨트롤의 크기 — Button · IconButton · Input · Select · SegmentedControl */
-export const CONTROL_SIZES = ["xs", "sm", "md", "lg"] as const;
+export const CONTROL_SIZES = ["xs", "sm", "md", "lg", "xl"] as const;
 export type ControlSize = (typeof CONTROL_SIZES)[number];
 
 /** 읽는 라벨의 크기 — Badge */
-export const BADGE_SIZES = ["sm", "md", "lg"] as const;
+export const BADGE_SIZES = ["sm", "md", "lg", "xl"] as const;
 export type BadgeSize = (typeof BADGE_SIZES)[number];
 
 /**
@@ -85,14 +83,17 @@ export type Space = (typeof SPACES)[number];
 export const TEXT_VARIANTS = [
   "hero",
   "display",
+  "headline",
   "title",
   "heading",
   "subheading",
   "body",
+  "small",
   "caption",
   "label",
   "micro",
   "overline",
+  "eyebrow",
   "subtitle",
 ] as const;
 export type TextVariant = (typeof TEXT_VARIANTS)[number];
@@ -131,6 +132,10 @@ export const TONES = [
   "sky",
   "green",
   "red",
+  "success",
+  "error",
+  "warning",
+  "info",
 ] as const;
 export type Tone = (typeof TONES)[number];
 
@@ -189,7 +194,7 @@ export const NOTICE_VARIANTS = ["plain", "solid"] as const;
 export type NoticeVariant = (typeof NOTICE_VARIANTS)[number];
 
 /** 접는 카드의 크기 — `sm` 은 12px 제목의 촘촘한 줄 */
-export const ACCORDION_SIZES = ["md", "sm"] as const;
+export const ACCORDION_SIZES = ["lg", "md", "sm"] as const;
 export type AccordionSize = (typeof ACCORDION_SIZES)[number];
 
 /** 떠 있는 판을 여는 법 — 마우스를 올리면 · 누르면 · 부르는 쪽이 `open` 으로 */
@@ -197,7 +202,7 @@ export const POPOVER_TRIGGERS = ["hover", "click", "manual"] as const;
 export type PopoverTrigger = (typeof POPOVER_TRIGGERS)[number];
 
 /** 표 머리의 칠 */
-export const TABLE_HEADS = ["inverse", "well"] as const;
+export const TABLE_HEADS = ["inverse", "well", "plain"] as const;
 export type TableHead = (typeof TABLE_HEADS)[number];
 
 /** 서랍이 붙는 가장자리 */

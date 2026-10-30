@@ -6,7 +6,7 @@ import { ChevronDownGlyph } from "../internal/glyphs";
 import { surfaceClass } from "../primitives/Surface";
 import { CONTROL } from "../tokens/shape";
 import type { ControlSize } from "../tokens/vocabulary";
-import { field, fieldBare, fieldShadow, fieldSize, select, selectArrow, selectArrowPos, selectPad, selectWrap, textarea, textareaSize } from "./field.css";
+import { field, fieldBare, fieldShadow, fieldShadowXl, fieldSize, select, selectArrow, selectArrowPos, selectPad, selectWrap, textarea, textareaSize } from "./field.css";
 
 export interface FieldStateProps {
   /** 틀린 값 — 빨간 테두리 + `aria-invalid` */
@@ -47,9 +47,9 @@ export type InputProps = Omit<ComponentPropsWithRef<"input">, "size"> &
   };
 
 export function Input({ size = "md", invalid, warning, quiet, shadow, bare = false, className, ...rest }: InputProps) {
-  const { fieldProps } = useField({ invalid, warning, quiet, shadow });
+  const { fieldProps } = useField({ invalid, warning, quiet, shadow: shadow && size !== "xl" });
   if (bare) return <input aria-invalid={invalid || undefined} className={cx(fieldBare, className)} {...rest} />;
-  return <input {...fieldProps} className={cx(fieldProps.className, fieldSize[size], className)} {...rest} />;
+  return <input {...fieldProps} className={cx(fieldProps.className, fieldSize[size], shadow && size === "xl" && fieldShadowXl, className)} {...rest} />;
 }
 
 export type TextareaProps = ComponentPropsWithRef<"textarea"> & FieldOwnProps;

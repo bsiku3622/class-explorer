@@ -438,10 +438,10 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                     },
                 ].map((s, i) => (
                     <Card key={i} padding="0" className="p-4 flex flex-col justify-center items-center">
-                        <Text variant="overline" className="mb-1">
+                        <Text variant="caption" tone="muted" uppercase className="mb-1">
                             {s.label}
                         </Text>
-                        <Text variant="title">
+                        <Text variant="title" className="tracking-normal">
                             {s.value}
                         </Text>
                     </Card>
@@ -541,7 +541,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                 icon={Clock}
                             />
                             {conflictCount > 0 && (
-                                <Badge accent="orange" variant="plain" size="sm">
+                                <Badge accent="warning" variant="plain" size="sm">
                                     {conflictCount} Conflict{conflictCount > 1 ? "s" : ""}
                                 </Badge>
                             )}
@@ -689,6 +689,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                 label={getKoreanName(s.name)}
                                 value={s.studentCount}
                                 maxValue={maxStudents}
+                                captionTone="pink"
                                 caption={`${s.studentCount} Students`}
                                     onLabelClick={() => handleSearch(getKoreanName(s.name))}
                                 tooltipContent={
@@ -720,6 +721,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                             label={`${s.periods} Periods`}
                             value={s.students}
                             maxValue={Math.max(1, ...periodStats.weeklyPeriodsStats.map((r) => r.students))}
+                            captionTone="pink"
                             caption={`${s.students} Students`}
                             onLabelClick={() => navigate(`/students?q=periods:${s.periods}`)}
                             tooltipContent={
@@ -745,6 +747,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                             label={`${s.subjectCount} Subjects`}
                             value={s.students}
                             maxValue={Math.max(1, ...subjectStats.subjectCountStats.map((r) => r.students))}
+                            captionTone="pink"
                             caption={`${s.students} Students`}
                             onLabelClick={() => navigate(`/students?q=subcount:${s.subjectCount}`)}
                             tooltipContent={
@@ -770,6 +773,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                             label={`${s.periods} Periods`}
                             value={s.teachers}
                             maxValue={Math.max(1, ...teacherLoadDistribution.map((r) => r.teachers))}
+                            captionTone="pink"
                             caption={`${s.teachers} Teacher${s.teachers > 1 ? "s" : ""}`}
                         />
                     ))}
@@ -792,6 +796,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                     label={`${t.name} T.`}
                                     value={t.periods}
                                     maxValue={maxTeacherPeriods}
+                                    captionTone="pink"
                                     caption={`${t.periods} PDS | ${t.sections} SEC`}
                                             onLabelClick={() => handleSearch(t.name, true)}
                                 />
@@ -820,6 +825,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                     label={r.name}
                                     value={r.periods}
                                     maxValue={maxRoomPeriods}
+                                    captionTone="pink"
                                     caption={`${r.periods} HRS | ${r.sectionCount} CLS`}
                                             onLabelClick={() => handleSearch(r.name, false, true)}
                                 />

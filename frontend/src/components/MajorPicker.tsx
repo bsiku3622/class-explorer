@@ -38,7 +38,9 @@ const MajorPicker: React.FC<MajorPickerProps> = ({ options, value, onChange, sug
         .find((m) => m.name === value)?.requirement;
 
     return (
-        <div className="space-y-3">
+        // 칸 폭으로 재는 이유 — 묻는 창(512px)에서는 쌓이고, `/about` 의 넓은 카드에서는 학부 셋이 한 줄에 섭니다
+        <div className="@container space-y-3">
+            <div className="grid gap-3 @2xl:grid-cols-3 @2xl:gap-6">
             {options.map(({ division, majors }) => (
                 <div key={division}>
                     <Text as="p" variant="overline" className="mb-1.5">
@@ -48,6 +50,7 @@ const MajorPicker: React.FC<MajorPickerProps> = ({ options, value, onChange, sug
                         {majors.map(({ name }) => (
                             <ToneButton
                                 key={name}
+                                size="lg"
                                 tone={getDepartmentColor(name)}
                                 selected={value === name}
                                 disabled={disabled}
@@ -70,6 +73,7 @@ const MajorPicker: React.FC<MajorPickerProps> = ({ options, value, onChange, sug
                     </div>
                 </div>
             ))}
+            </div>
 
             <Surface fill="well" border="subtle" paddingX="lg" paddingY="md" className="min-h-[4.25rem]">
                 {value ? (

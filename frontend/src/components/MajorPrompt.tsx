@@ -103,7 +103,7 @@ const MajorPrompt: React.FC<MajorPromptProps> = ({ userId, onAnswered }) => {
             footer={
                 /* 좁은 화면에서는 저장이 맨 아래 한 줄을 통째로 씁니다 — 엄지가 닿는 자리입니다 */
                 <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:justify-end">
-                    <Button
+                    <Button size="lg"
                         variant="paper"
                         shadow
                         disabled={busy}
@@ -112,10 +112,10 @@ const MajorPrompt: React.FC<MajorPromptProps> = ({ userId, onAnswered }) => {
                     >
                         나중에
                     </Button>
-                    <Button variant="paper" shadow disabled={busy} onClick={() => void answer(null)}>
+                    <Button size="lg" variant="paper" shadow disabled={busy} onClick={() => void answer(null)}>
                         아직 정하지 않았어요
                     </Button>
-                    <Button
+                    <Button size="lg"
                         variant="filled"
                         shadow
                         disabled={busy || !choice}

@@ -28,3 +28,4 @@ export const borderStyleClass = styleVariants({
 
 /** 그림자 하나 — Paint 의 `shadow`. 움직임이 없는 색 면(지표 카드)에 씁니다 */
 export const raisedClass = style({ "@layer": { [primitives]: { boxShadow: vars.shadow.raised } } });
+export const floatingClass = style({ "@layer": { [primitives]: { boxShadow: vars.shadow.floating } } });

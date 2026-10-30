@@ -63,13 +63,14 @@ export const sideNavFixed = style(
 );
 export const sideNavBody = style(c({ flex: 1, minHeight: 0, overflowY: "auto", padding: px(SPACE["3xl"]) }));
 export const sideNavFooter = style(c({ padding: px(SPACE["3xl"]), paddingTop: 0 }));
-export const sideSection = style(c({ display: "flex", flexDirection: "column", gap: px(SPACE.md), marginBottom: px(SPACE["3xl"]) }));
+export const sideSection = style(c({ display: "flex", flexDirection: "column", gap: px(SPACE.xs), marginBottom: px(SPACE["3xl"]) }));
 export const sideSectionLabel = style(
   c({
     margin: 0,
     marginBottom: px(SPACE.xs),
     paddingInline: px(SPACE.xs),
     fontSize: px(TEXT_ROLES.overline.size),
+    lineHeight: px(15),
     fontWeight: WEIGHT.black,
     letterSpacing: em(0.2),
     textTransform: "uppercase",
@@ -90,6 +91,7 @@ export const sideItem = style(
     letterSpacing: em(-0.025),
     textTransform: "uppercase",
     textAlign: "start",
+    selectors: { "&:not([aria-current])": { color: vars.ink.secondary } },
   }),
 );
 

@@ -17,10 +17,10 @@ const StatsCards: React.FC<StatsCardsProps> = ({ stats }) => {
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {statItems.map((stat, i) => (
-                <Paint key={i} accent={stat.accent} variant="solid" shadow>
+                <Paint key={i} accent={stat.accent} variant="solid" shadow="floating">
                     <div className="flex flex-row items-center gap-5 p-6">
                         <stat.icon size={32} />
-                        <Stat label={stat.label} value={stat.value} labelTone="inherit" />
+                        <Stat size="xs" label={stat.label} value={stat.value} />
                     </div>
                 </Paint>
             ))}

@@ -8,19 +8,19 @@ import { vars } from "../tokens/variables";
 const c = (rule: Record<string, unknown>) => ({ "@layer": { [components]: rule } });
 
 export const statValue = styleVariants(NUMERAL, (n) =>
-  c({ fontSize: px(n.size), lineHeight: px(n.leading), letterSpacing: em(n.tracking), fontWeight: WEIGHT.black, fontVariantNumeric: "tabular-nums" }),
+  c({ fontSize: px(n.size), lineHeight: px(n.leading), letterSpacing: em(n.tracking), fontWeight: WEIGHT.black }),
 );
 
 export const statValueAccent = style(c({ color: vars.accent.solidInk }));
 
-export const statUnit = styleVariants({ sm: TEXT_ROLES.micro, lg: TEXT_ROLES.caption }, (r) =>
+export const statUnit = styleVariants({ xs: TEXT_ROLES.micro, sm: TEXT_ROLES.micro, lg: TEXT_ROLES.caption }, (r) =>
   c({ fontSize: px(r.size), fontWeight: WEIGHT.black, textTransform: "uppercase", color: vars.ink.muted }),
 );
 
 export const meterTrack = style(
   c({
     position: "relative",
-    height: px(16),
+    height: px(20),
     overflow: "hidden",
   }),
 );

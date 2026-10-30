@@ -12,6 +12,7 @@ funky-ui `Meter` 에 이 앱의 핑크와 대문자 이름을 얹은 막대 한 
 | `value` | `number` | 필수 | 현재 값 |
 | `maxValue` | `number` | 필수 | 최대 값 (바 길이 계산용) |
 | `caption` | `string` | - | 바 옆 보조 텍스트 |
+| `captionTone` | `Tone` | - | 보조 텍스트의 색. Analysis 는 `pink` |
 | `layout` | `"horizontal" \| "vertical"` | `"vertical"` | `horizontal` 은 넓은 화면에서 한 줄(`Meter layout="row"`), `vertical` 은 쌓기 |
 | `onLabelClick` | `() => void` | - | 라벨 클릭 핸들러 |
 | `tooltipContent` | `ReactNode` | - | 막대에 올렸을 때 위에 뜨는 판 (`Meter tooltip`) |
@@ -29,7 +30,7 @@ vertical:
 
 ## 바 스타일
 ```
-높이·홈·채움:  Meter 가 정합니다 (accent="pink")
+높이(20px)·홈·채움:  Meter 가 정합니다 (accent="pink")
 비율:          width = (value / maxValue) * 100%, maxValue 는 0 이어도 1 로 받습니다
 ```
 

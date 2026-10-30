@@ -3,7 +3,7 @@ import type { ElementType } from "react";
 import { cx } from "../internal/cx";
 import type { PolyProps } from "../internal/polymorphic";
 import { accentClass } from "../styles/accent.css";
-import { borderSideClass, borderStyleClass, raisedClass } from "../styles/border.css";
+import { borderSideClass, borderStyleClass, floatingClass, raisedClass } from "../styles/border.css";
 import { variantClass } from "../styles/variant.css";
 import { SELECTED_VARIANT } from "../tokens/color-recipes";
 import { resolveAccent, type Accent, type BorderSide, type BorderStyle, type Variant } from "../tokens/vocabulary";
@@ -23,7 +23,8 @@ export interface PaintOwnProps extends BoxOwnProps {
   /** 테두리의 선 (기본 `solid`) */
   borderStyle?: BorderStyle;
   /** 4px 그림자 — 움직이지 않는 색 면(지표 카드 · 알림 띠). 누르는 물건의 그림자는 Pressable 의 몸짓이 가집니다 */
-  shadow?: boolean;
+  /** `true` 는 4px, `"floating"` 은 6px 입니다 */
+  shadow?: boolean | "floating";
   /** 골라진 상태 — 같은 accent 의 filled 로 칠합니다. 알리는 aria 와 골라진 모양(커지기)은 `Selectable` 입니다 */
   selected?: boolean;
   /**
@@ -51,7 +52,7 @@ export function useAccent(accent: Accent | undefined): string | undefined {
 /** Paint 의 prop 을 class 로 — 다른 primitive(Pressable)에 색을 얹을 때 씁니다 */
 export function paintClass({ accent, variant = "outline", selected = false, hoverable = false, borderSide = "all", borderStyle = "solid", shadow = false, ...box }: PaintOwnProps): string {
   const painted: Variant = selected ? SELECTED_VARIANT : variant;
-  return cx(accentOf(accent), variantClass[painted], paintBase, borderSideClass[borderSide], borderStyleClass[borderStyle], shadow && raisedClass, hoverable && hoverableClass, boxClass(box));
+  return cx(accentOf(accent), variantClass[painted], paintBase, borderSideClass[borderSide], borderStyleClass[borderStyle], shadow && (shadow === "floating" ? floatingClass : raisedClass), hoverable && hoverableClass, boxClass(box));
 }
 
 /**

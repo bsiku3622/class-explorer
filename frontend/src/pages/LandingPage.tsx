@@ -90,7 +90,7 @@ const Display: React.FC<{
    ⚠️ 여기 이름과 과목은 **전부 지어낸 것**입니다. 실제 명단을 넣지 마세요 */
 
 const MockNow: React.FC = () => (
-    <Card padding="0" className="p-5">
+    <Card shadow="none" padding="0" className="shadow-[8px_8px_0_0_rgba(0,0,0,0.2)] p-5">
         <div className="flex items-baseline justify-between gap-3">
             <Kicker>지금</Kicker>
             <Badge accent="pink" variant="solid" size="sm">
@@ -117,7 +117,7 @@ const MockNow: React.FC = () => (
 );
 
 const MockEmptyRooms: React.FC = () => (
-    <Card padding="0" className="p-5">
+    <Card shadow="none" padding="0" className="shadow-[8px_8px_0_0_rgba(0,0,0,0.2)] p-5">
         <Kicker>비어 있는 교실</Kicker>
         <div className="mt-3 grid grid-cols-3 gap-2">
             {[
@@ -143,7 +143,7 @@ const MockEmptyRooms: React.FC = () => (
 );
 
 const MockSearch: React.FC = () => (
-    <Card padding="0" className="p-4">
+    <Card shadow="none" padding="0" className="shadow-[8px_8px_0_0_rgba(0,0,0,0.2)] p-4">
         <Surface border="line" className="flex items-center gap-2 px-3 py-2">
             <Icon icon={Search} size={15} strokeWidth={2.5} tone="muted" className="shrink-0" />
             <Text weight="black">월1 &amp; 물리</Text>
@@ -284,10 +284,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart, onPrivacy }) => (
                             찾습니다.
                         </Text>
                         <div className="flex flex-wrap gap-3">
-                            <Button variant="filled" shadow onClick={onStart} icon={ArrowRight}>
+                            <Button size="lg" variant="filled" shadow onClick={onStart} icon={ArrowRight}>
                                 로그인
                             </Button>
-                            <Button as="a" href="#features" variant="paper" shadow>
+                            <Button size="lg" as="a" href="#features" variant="paper" shadow>
                                 기능 보기
                             </Button>
                         </div>
@@ -434,7 +434,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart, onPrivacy }) => (
             <Kicker>자주 묻는 것</Kicker>
             <div className="mt-8 grid gap-4 md:grid-cols-2">
                 {FAQ.map((f) => (
-                    <Card key={f.q} padding="0" className="p-5">
+                    <Card shadow="raised" key={f.q} padding="0" className="p-5">
                         <Text as="h3" variant="subheading">{f.q}</Text>
                         <Text as="p" tone="secondary" leading="relaxed" className="mt-2">
                             {f.a}
@@ -453,7 +453,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart, onPrivacy }) => (
                     <Display color={ACCENT_COLORS.yellow.solid} className="text-4xl md:text-6xl">됩니다.</Display>
                 </h2>
                 {/* 이 구역은 글자가 흰색이지만 `paper` 버튼은 자기 글자색(검정)을 가집니다 */}
-                <Button variant="paper" shadow onClick={onStart} icon={ArrowRight}>
+                <Button size="lg" variant="paper" shadow onClick={onStart} icon={ArrowRight}>
                     로그인
                 </Button>
             </div>
