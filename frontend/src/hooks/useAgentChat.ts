@@ -8,7 +8,8 @@
  * - 정지하면 그 답의 늦은 이벤트는 버립니다 (DiskLens 와 같은 규칙)
  * - 대화가 안 보일 때(`/ai` 도 아니고 창도 닫혀 있을 때) 답이 오면 `unread` 를 켭니다 — 플로팅
  *   버튼에 점이 찍힙니다
- * - 데스크탑 모델은 평소 꺼져 있어서, 대화를 펼치면 `warm()` 으로 미리 깨웁니다(10분에 한 번)
+ * - 데스크탑 모델은 상시로 떠 있지만 데스크탑이 막 켜졌으면 적재 중이라, 대화를 펼치면 `warm()`
+ *   으로 미리 깨웁니다(10분에 한 번)
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { askAgent, fetchAgentModels, warmupAgent, type AgentEvent, type AgentModels } from "../lib/agentApi";

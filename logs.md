@@ -1,3 +1,31 @@
+## 2026-10-30 — 데스크탑 Gemma 상시 켜 두기, 업데이트 재부팅 뒤 게이트웨이가 안 뜨던 문제
+
+- 변경 파일: `deploy/llm-gateway/gateway.py`, `deploy/llm-gateway/install.ps1`, `backend/agent/llm.py`,
+  `backend/agent.guide.md`, `frontend/src/hooks/useAgentChat.ts`(주석), `frontend/CLAUDE.md`, `deploy-guide.md`,
+  데스크탑 예약 작업 `LLM Gateway`
+- 요약: 게이트웨이를 상시 모드로 바꿨습니다 — 유휴 종료를 끄고(`IDLE_SECONDS=0`), `keep_alive=-1` 로 띄우고,
+  뜨자마자 `gemma4:12b` 를 올리며 30초마다 꺼졌거나 내려갔으면 다시 올립니다. 예약 작업은 로그인 시 → 부팅 시(S4U).
+
+운영자가 "질문 읽는 중" 만 한참 뜨고 깨우기가 안 된다고 했습니다. 깨우기 로직이 아니라 **깨우는 주체가 죽어
+있었습니다.** 데스크탑이 03:33 Windows 업데이트(TrustedInstaller)로 재부팅됐고 아무도 로그인하지 않았는데,
+게이트웨이 예약 작업이 AtLogOn 이라 한 번도 안 떴습니다(데스크탑 ping·SSH 는 되는데 11434 만 닫힘). 서버의
+`warmup()` 은 `HTTPError` 를 삼키고, 질문은 Windows 방화벽이 닫힌 포트의 SYN 을 **거절하지 않고 버려서**
+`chat()` 타임아웃(240초)까지 첫 `thinking` 단계("질문 읽는 중")에 멈춰 있었습니다.
+
+- ⚠️ 예약 작업을 AtLogOn 으로 되돌리지 마세요. S4U 는 비밀번호를 저장하지 않고 로그인 없이 돌며, session 0 에서도
+  `LOCALAPPDATA` 가 잡히고(Ollama 경로 그대로) GPU 에 올라가는 것을 확인했습니다. 등록에 관리자 권한이 필요한데
+  `ssh desktop` 이 이미 High 무결성이라 그대로 됩니다
+- 부팅 직후 WireGuard 주소가 아직 없을 수 있어 bind 를 10초마다 다시 시도합니다. 작업 스케줄러의 "실패 시 다시
+  시작" 은 프로세스가 오류로 끝나는 경우를 잡아 주지 않아서 게이트웨이 안에서 기다립니다
+- 서버 warmup 이 `keep_alive: 15m` 을 실어 보내서, 상시 모드여도 깨울 때마다 15분 뒤 모델이 내려갔을 겁니다.
+  서버 쪽도 걷어냈지만 **서버 재배포 없이 바로 먹게** 게이트웨이가 `/api/*` 본문의 `keep_alive` 를 걷어냅니다.
+  graph-study 도 같은 모델(`gemma4:12b`)이라 VRAM 을 다툴 다른 모델은 없습니다
+- ⚠️ `install.ps1` 이 첫 시도에서 "Trigger 가 null" 로 실패했습니다. PowerShell 5.1 이 BOM 없는 UTF-8 을 CP949 로
+  읽어 한글 주석 끝 줄바꿈을 삼키고 `$trigger = …` 줄을 주석으로 만든 것입니다. 원래 파일도 BOM 이 없었는데 그때
+  주석은 우연히 안 걸렸을 뿐입니다 — UTF-8 BOM 으로 저장했습니다
+- 재설치 때 11435 를 잡은 옛 Ollama 를 `install.ps1` 이 같이 내립니다. 예전엔 문서에 "먼저 `/gateway/stop`" 이라고만
+  적혀 있었는데, 상시 모드에선 stop 해도 30초 안에 다시 켜져서 그 절차가 통하지 않습니다
+
 ## 2026-10-29 — 기말고사 배너, 자몽 학기 패널 배포, journalctl 별칭
 
 - 변경 대상: `backend/exam_seed_2026-2-final.json`·운영 DB `exam_periods`(2026-2-final 의 `visible_from`), `backend/exams.guide.md`, 자몽 학기 패널(`b290261`), `backend/services/syllabi.py`, 서버 `~/.bash_aliases`, `deploy-guide.md`

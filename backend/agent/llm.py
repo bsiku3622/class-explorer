@@ -5,9 +5,9 @@
 | `local:<이름>` (예: `local:gemma4:12b`) | 데스크탑 게이트웨이 `LLM_GATEWAY_URL` (WireGuard 10.8.10.1) | 게이트웨이에 설치된 모델 |
 | `openai:<이름>` | `OPENAI_BASE_URL` | `OPENAI_API_KEY` 가 있을 때, `OPENAI_MODELS` 에 적은 것 |
 
-데스크탑 Ollama 는 상시로 떠 있지 않습니다. 게이트웨이(`deploy/llm-gateway/gateway.py`)가
-요청이 오면 켜고 1시간 조용하면 끕니다. 그래서 **첫 호출은 1분 넘게 걸릴 수 있고**(모델
-적재), 화면은 질문창을 누를 때 `warmup()` 으로 미리 깨웁니다.
+데스크탑 Ollama 는 게이트웨이(`deploy/llm-gateway/gateway.py`)가 상시로 띄우고 모델을 VRAM 에
+올려 둡니다. 데스크탑이 막 켜졌거나 게이트웨이가 모델을 다시 올리는 중이면 **첫 호출이 1분
+넘게 걸릴 수 있어서**(모델 적재), 화면은 질문창을 누를 때 `warmup()` 으로 미리 깨웁니다.
 
 Gemma 4 는 기본으로 생각(thinking) 토큰을 먼저 쓰고 답합니다. 짧은 `max_tokens` 를 주면
 본문이 빈 채로 끝나서, 로컬 모델에는 `reasoning_effort: "none"` 을 붙입니다.
@@ -170,11 +170,14 @@ async def gateway_status() -> dict | None:
 
 
 async def warmup(model: Model) -> None:
-    """로컬 모델을 미리 VRAM 에 올립니다. 프롬프트 없는 generate 가 Ollama 의 적재 요청입니다."""
+    """로컬 모델을 미리 VRAM 에 올립니다. 프롬프트 없는 generate 가 Ollama 의 적재 요청입니다.
+
+    언제 내릴지(keep_alive)는 싣지 않습니다 — 게이트웨이가 정합니다(상시 모드에선 내리지 않음).
+    """
     if model.provider != "local":
         return
     try:
         async with httpx.AsyncClient(timeout=180) as client:
-            await client.post(f"{GATEWAY_URL}/api/generate", json={"model": model.name, "keep_alive": "15m"})
+            await client.post(f"{GATEWAY_URL}/api/generate", json={"model": model.name})
     except httpx.HTTPError:
         pass

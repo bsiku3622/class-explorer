@@ -238,12 +238,13 @@ python3.14 -m backend.cli.create_user <username> <password> [--manager|--admin]
 ## AI · ksain (데스크탑 게이트웨이 + 수집 타이머)
 
 질문창(Agent)과 ksain 자동 분석이 쓰는 LLM 은 **데스크탑(RTX 5060 Ti)의 Ollama** 입니다.
-서버는 WireGuard 로 데스크탑 게이트웨이(`10.8.10.1:11434`)만 부르고, 게이트웨이가 요청이 올 때
-Ollama 를 켜고 1시간 조용하면 끕니다 — 데스크탑에 상시 부담을 주지 않으려는 것입니다.
+서버는 WireGuard 로 데스크탑 게이트웨이(`10.8.10.1:11434`)만 부르고, 게이트웨이가 Ollama 를
+**상시로** 띄워 `gemma4:12b` 를 VRAM 에 올려 둡니다(약 9GB). 한때 요청이 올 때 켜고 1시간 조용하면
+껐는데, 질문할 때마다 1분 넘게 기다려서 운영자 요청으로 상시로 바꿨습니다(2026-10-30).
 
 ```
-server(10.8.0.1) ──WireGuard──► desktop 10.8.10.1:11434  gateway.py (예약 작업 "LLM Gateway")
-                                     └──► 127.0.0.1:11435  ollama serve (필요할 때만)
+server(10.8.0.1) ──WireGuard──► desktop 10.8.10.1:11434  gateway.py (예약 작업 "LLM Gateway", 부팅 시)
+                                     └──► 127.0.0.1:11435  ollama serve (상시, gemma4:12b 적재)
 ```
 
 ### 데스크탑 — 게이트웨이 설치·갱신
@@ -251,11 +252,26 @@ server(10.8.0.1) ──WireGuard──► desktop 10.8.10.1:11434  gateway.py (�
 ```bash
 scp deploy/llm-gateway/gateway.py deploy/llm-gateway/install.ps1 "desktop:D:/Projects/Scripts/llm-gateway/"
 ssh desktop 'powershell -NoProfile -ExecutionPolicy Bypass -File D:\Projects\Scripts\llm-gateway\install.ps1'
-ssh server 'curl -s http://10.8.10.1:11434/gateway/status'   # {"running": false, ...} 면 정상 (Ollama 는 꺼진 채 대기)
+ssh server 'curl -s http://10.8.10.1:11434/gateway/status'   # {"running": true, ...} 면 정상
+ssh server 'curl -s http://10.8.10.1:11434/api/ps'           # gemma4:12b · size_vram · expires_at 이 먼 미래
 ```
 
-- 예약 작업 `LLM Gateway` 가 로그인 시 `pythonw gateway.py` 를 띄웁니다. 로그는
-  `D:\Projects\Scripts\llm-gateway\gateway.log`
+- 예약 작업 `LLM Gateway` 가 **부팅 시**(로그인 없이, S4U) `pythonw gateway.py` 를 띄웁니다. 로그는
+  `D:\Projects\Scripts\llm-gateway\gateway.log`. `install.ps1` 은 **관리자 권한**으로 돌려야 합니다
+  (`ssh desktop` 은 이미 관리자 권한입니다)
+- ⚠️ **`install.ps1` 은 UTF-8 BOM 으로 둡니다.** Windows PowerShell 5.1 은 BOM 없는 파일을 CP949 로 읽어서
+  한글 주석 끝의 줄바꿈을 삼키고 다음 줄을 주석으로 만듭니다 — `$trigger = …` 가 먹혀 `Register-ScheduledTask`
+  가 "Trigger 가 null" 로 실패했습니다. 에디터가 BOM 을 지우지 않는지 확인하세요
+- ⚠️ **로그인 시(AtLogOn)로 되돌리지 마세요.** 2026-10-30 새벽 Windows 업데이트가 데스크탑을
+  재부팅했고, 아무도 로그인하지 않아 게이트웨이가 하루 종일 안 떴습니다. 서버의 warmup 은 실패를
+  조용히 삼키고, 질문은 방화벽이 닫힌 포트의 패킷을 버려서 타임아웃까지 "질문 읽는 중" 에 멈췄습니다
+- 부팅 직후엔 WireGuard 주소(10.8.10.1)가 아직 없을 수 있어서, 게이트웨이가 10초마다 bind 를 다시
+  시도합니다 — 로그의 `cannot listen … yet` 은 처음 몇 줄이면 정상입니다
+- 상시 모드는 `GATEWAY_IDLE_SECONDS=0`(기본)입니다. 양수로 주면 예전처럼 그 시간 조용하면 끕니다.
+  올려 둘 모델은 `GATEWAY_PRELOAD`(기본 `gemma4:12b`, 쉼표로 여럿)
+- ⚠️ 상시 모드에서는 요청이 실어 온 `keep_alive` 를 게이트웨이가 걷어냅니다. 서버 warmup 이 한때
+  `15m` 을 실어 보내 깨울 때마다 15분 뒤 모델이 내려갔습니다. `POST /gateway/stop` 도 30초 안에
+  다시 켜지니, 정말 내리려면 예약 작업을 멈추세요
 - 방화벽은 graph-study 때 만든 `GraphStudy Ollama (WireGuard)` 규칙(TCP 11434, 서버만)을 그대로
   씁니다 — 게이트웨이가 같은 포트에 서므로 새 규칙이 필요 없습니다
 - ⚠️ 사용자 환경변수 `OLLAMA_HOST` 를 `127.0.0.1:11435` 로 바꿉니다. 예전 값
@@ -263,11 +279,11 @@ ssh server 'curl -s http://10.8.10.1:11434/gateway/status'   # {"running": false
   `ollama.exe` 방화벽 규칙(모든 주소 허용) 때문에 LAN 에 열립니다
 - ⚠️ 예전 예약 작업 `GraphStudy Gemma OCR`(Ollama 상시 실행)은 꺼 둔 채로 둡니다. graph-study 의
   `OLLAMA_URL=http://10.8.10.1:11434` 는 이제 게이트웨이를 거쳐 그대로 동작합니다
-- 첫 요청은 Ollama 기동 + 모델 적재로 **80초 안팎** 걸립니다
+- 부팅 뒤 첫 적재는 Ollama 기동 + 모델 적재로 **80초 안팎** 걸립니다
 - ⚠️ 게이트웨이가 Ollama 를 **컨텍스트 16k**(`OLLAMA_CONTEXT_LENGTH`)로 띄웁니다. 기본 4k 면 긴
-  프롬프트의 앞부분(시스템 지시문)이 잘립니다. 게이트웨이를 고쳐 올릴 때는 **먼저
-  `POST /gateway/stop`** 으로 Ollama 를 내리세요 — 작업을 멈추면 게이트웨이만 죽고 옛 설정의
-  Ollama 가 남아, 새 게이트웨이가 그걸 그대로 씁니다
+  프롬프트의 앞부분(시스템 지시문)이 잘립니다. 작업을 멈추면 게이트웨이만 죽고 옛 설정의 Ollama 가
+  남아 새 게이트웨이가 그걸 그대로 쓰므로, `install.ps1` 이 11435 를 잡고 있는 프로세스를 같이
+  내립니다 — 손으로 다시 띄울 때도 그렇게 하세요
 - 동시 처리는 2개(`OLLAMA_NUM_PARALLEL`)입니다. 1개면 밀린 ksain 분석이 도는 동안 질문창 답이
   그 뒤에 줄을 서서 40~60초씩 걸렸습니다(2개로 4~20초, VRAM 9.1GB)
 
