@@ -20,8 +20,8 @@
 grid grid-cols-3 gap-4
 
 각 카드:
-RetroCard + bg-white + p-6
-RetroStatItem (label, value, size="lg")
+Paint accent solid shadow (cyan · yellow · pink) + p-6
+Stat (label, value, size="lg")
 ```
 
 ## 언제 렌더링되는가

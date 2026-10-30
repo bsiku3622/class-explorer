@@ -7,7 +7,7 @@
 src/
 ├── App.tsx                   → 라우터 + 전역 상태 관리 (prop drilling 허브)
 ├── main.tsx                  → React 앱 진입점 (BrowserRouter)
-├── index.css                 → Tailwind v4 테마 + 전역 스타일
+├── index.css                 → CSS 레이어 순서 + Pretendard + Tailwind (색은 funky-ui 가 맡습니다)
 ├── types/
 │   └── index.ts              → 공통 TypeScript 인터페이스
 ├── lib/
@@ -58,11 +58,31 @@ src/
 │   ├── SyllabusFilePage.tsx  → 강의계획서 한 장 (`/syllabus/:id`) — Ask 답의 근거 링크가 엽니다. 파일에 로그인 헤더가 필요해서 서버 주소를 못 겁니다
 │   └── SettingsPage.tsx      → 기능 가이드북 + 전공 + 로그인한 기기 + About
 └── components/
-    ├── atoms/                → 재사용 원자 컴포넌트 9종
-    ├── molecules/            → 복합 컴포넌트 3종
+    ├── atoms/                → funky-ui 에 앱의 데이터를 얹은 조각 5종
+    ├── molecules/            → `BarChartRow` 1종
     ├── agent/                → Ask — 플로팅 버튼·창·빈 화면·대화·입력창 (아래 `Ask` 절)
-    └── (root)                → 오거니즘 컴포넌트 16종 (`SyllabusPanel` 포함)
+    └── (root)                → 오거니즘 컴포넌트 (`SyllabusPanel` 포함)
 ```
+
+## 디자인 시스템 (`vendor/funky-ui`)
+
+버튼·카드·칩·모달·셸은 전부 [funky-ui](https://funky-ui.bsiku.dev) 에서 옵니다. npm 에 올리지 않은 패키지라
+소스 사본을 `frontend/vendor/funky-ui/` 에 두고 `package.json` 의 `file:./vendor/funky-ui` 로 씁니다.
+**사본을 직접 고치지 마세요.** funky-ui 를 고친 뒤 맞춥니다.
+
+```bash
+rsync -a --delete "<funky-ui>/workspace/packages/funky-ui/src/" frontend/vendor/funky-ui/src/
+```
+
+- Vite 에 `@vanilla-extract/vite-plugin` 이 있어야 사본의 `.css.ts` 를 읽습니다. ESLint 는 `vendor` 를 건너뜁니다
+- ⚠️ **CSS 순서가 뜻입니다.** `index.css` 맨 위의 `@layer theme, base, fk, components, utilities;` 로 preflight <
+  funky < Tailwind 유틸리티가 되고, 레이어 순서는 처음 선언된 대로 굳으므로 `main.tsx` 가 `index.css` 를 먼저 읽습니다.
+  순서가 틀리면 preflight 가 funky 의 여백·테두리를 지우거나, `className="mt-4"` 가 funky 에 집니다
+- 앱의 Tailwind 유틸리티는 funky 를 이기지만, 같은 뜻의 prop(`Text uppercase`, `tone`, `Stat labelTone`)이 있으면 그쪽을
+  씁니다. funky-ui 안에서는 Text 역할(`fk.utilities`)을 `fk.components` 로 덮을 수 없어서 prop 으로 열어 둔 것입니다
+- 실행 중에 정해지는 색은 Tone 부품으로 칠합니다. 면을 꽉 채운 칸의 글자색은 `toneInk` 가 고르고, 경계는 **0.179**
+  (WCAG 교차점)입니다. 옛 `readableInk` 의 0.35 는 학과색 다섯(화학·생물학·지구과학·외국어·예체능)에서 흰 글자가
+  2.94~3.74:1 이라 AA 에 못 미쳤습니다. ⚠️ 글자가 검정이 된 것은 버그가 아닙니다
 
 ## 상태 관리 (App.tsx)
 모든 전역 상태는 `App.tsx`에서 관리되고 각 페이지에 props로 전달됩니다.
@@ -323,7 +343,7 @@ ref 로 보고 `visible` 을 읽는 것까지 "렌더 중 ref 접근" 으로 막
 ## 학기 전환
 - 선택 학기: `ksa_selected_term`에 `{ year, semester }` 저장 → 새로고침 시 유지
 - 저장된 학기가 없으면 학기 파라미터 없이 요청 → 서버가 최신 학기를 응답 (`term` 필드)
-- UI: `<TermSwitcher />` (Navigation 우측). 학기가 1개뿐이면 렌더링하지 않음
+- UI: funky-ui 의 `<TermSwitcher />` (Navigation 우측). 학기가 1개뿐이면 렌더링하지 않음
 
 ## 관련 가이드
 | 파일 | 내용 |
@@ -573,7 +593,7 @@ ref 로 보고 `visible` 을 읽는 것까지 "렌더 중 ref 접근" 으로 막
   칸이 99px 이 되어 세 줄이 다 읽힙니다. ⚠️ `xl` 에서 푸는 걸 잊으면 격자가 오늘 목록과
   2열로 서는 데스크톱에 **없던 가로 스크롤**이 생깁니다
 - **교시 열과 요일 머리는 고정입니다**(`sticky left-0` · `sticky top-0`, 모서리는 둘 다).
-  ⚠️ **고정된 칸의 배경은 불투명해야 합니다** — `bg-black/[0.03]`·`bg-retro-primary/25`
+  ⚠️ **고정된 칸의 배경은 불투명해야 합니다** — 옅은 회색·25% 핑크
   는 97%·75% 가 비어 있어서 아래로 흐르는 칩이 요일 글자를 통과해 보입니다. 같은 색을
   흰색과 미리 섞은 값(`#f7f7f7`·`#ffd3ee`)을 박아 둡니다
 - **열 때 오늘 열을 가운데로** 맞춥니다 — 목요일인 사람이 매번 손으로 밀지 않게. 다
@@ -778,8 +798,8 @@ DEV 바에 줄이 둘 있습니다 — **상태**(실제/수업중/공강/…)�
 
 | 색 | 뜻 |
 |---|---|
-| `retro-primary` (핑크) | **지금** — 진행 중인 수업 줄, 카드 머리의 교시 칩 (자에서는 검은 캐럿이 짚습니다) |
-| `retro-accent1` (시안) | 지금만 열려 있는 **한시 기능** — Trade 배너, 시간표 전환의 `트레이드 계획` 과 `계획` 표식 |
+| `accent="pink"` (핑크) | **지금** — 진행 중인 수업 줄, 카드 머리의 교시 칩 (자에서는 검은 캐럿이 짚습니다) |
+| `accent="cyan"` (시안) | 지금만 열려 있는 **한시 기능** — Trade 배너, 시간표 전환의 `트레이드 계획` 과 `계획` 표식 |
 | 끼니색 (`MealCard`) | 아침 노랑 · 점심 주황 · 저녁 보라. **고른 것만** 채웁니다 |
 
 같은 색이 두 뜻을 갖지 않게 하세요. 배너를 노랑으로 뒀을 때 급식의 "지금 끼니" 강조와
@@ -833,9 +853,9 @@ Agent(`/agent/chat`)가 도구로 찾아 답합니다(`backend/agent.guide.md`).
 - **어느 창으로 그릴지는 지금 화면 폭이 정합니다**(`useMediaQuery`). 열림은 하나라 태블릿을
   돌리면 창 모양만 바뀝니다
 - ⚠️ z 순서: 버튼 `z-30`(하단 바 More 판의 덮개 `z-40` 아래 — 판이 열리면 같이 덮입니다), 미니 창
-  `z-[45]`(페이지 모달 `z-50~` 아래), 모바일 창 `z-[1100]`(탑 바 `z-1000` 까지 덮습니다)
+  `z-[45]`(페이지 모달 `z-50~` 아래), 모바일 창 `z-[1100]`(탑 바 `z-100` 까지 덮습니다)
 - ⚠️ **플로팅 버튼(흰 바탕 + 보라 아이콘)과 창 머리 단추(✎·⤢·✕)는 누르면 살짝 줄어듭니다**
-  (`hover:scale-95` · `active:scale-[0.92]`, 그림자는 그대로). 사용자 요청으로 앱 규칙(hover 때 그림자를
+  (`IconButton variant="paper" shadow="shrink"`, 플로팅 버튼은 `accent="purple"` — 그림자는 그대로). 사용자 요청으로 앱 규칙(hover 때 그림자를
   숨기며 내려앉기)에서 뺀 자리입니다 — 규칙에 맞춘다고 되돌리지 마세요. `/ai` 의 `새 대화` 는 규칙대로입니다
 
 ### 보내면 입력창이 내려앉습니다 (`lib/askMotion.ts`)

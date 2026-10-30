@@ -20,16 +20,15 @@
 
 ## 스타일
 ```
-fixed left-0 top-16  z-40
+funky-ui 의 SideNav (크림 바탕, 오른쪽 2px 선)
 hidden md:flex flex-col
-w-64  bg-retro-bg
-border-r-2 border-black
+메뉴 줄의 칠 · 골라짐은 SideNav 가 맡습니다
 ```
 
 ## 활성 상태
 ```
-활성 메뉴:  bg-black text-white scale-[1.02] shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]
-비활성:     hover:bg-retro-accent-light
+활성 메뉴:  검정 면 + 흰 글자 + 그림자 (SideNav.Item 의 active)
+비활성:     hover 때 옅은 면
 ```
 
 ## 하단 시스템 상태 패널

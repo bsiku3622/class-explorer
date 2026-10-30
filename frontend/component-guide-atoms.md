@@ -2,52 +2,7 @@
 
 > [← Component Guide](component-guide.md)
 
-## RetroButton
-```tsx
-<RetroButton
-  variant="primary" | "secondary" | "white" | "black"
-  size="sm" | "md" | "lg"
-  isSelected={boolean}
-  icon={<ReactNode>}
-  onClick={fn}
->
-  텍스트
-</RetroButton>
-```
-- `isSelected=true` → 검정 배경 + scale-105, 호버 시 translate 없음
-- 물리 피드백: 호버 시 쉐도우 숨김 + translate(1,1)
-- `icon` prop으로 왼쪽 아이콘 삽입
-
-## RetroCard
-```tsx
-<RetroCard shadow="sm" | "md" | "lg" className="bg-white p-4">
-  내용
-</RetroCard>
-```
-- `border-2 border-black` 기본 적용
-- 배경색은 `className`으로 별도 지정 (기본값 없음)
-- `shadow`: sm=4px, md=6px, lg=8px 하드 쉐도우
-
-## RetroStatItem
-```tsx
-<RetroStatItem
-  label="SUBJECTS"
-  value={42}
-  unit="개"
-  size="sm" | "lg"
-/>
-```
-- `lg`: `text-5xl font-black` 숫자
-- `sm`: `text-4xl font-black` 숫자
-- label: `text-xs font-bold text-black/40 uppercase`
-
-## RetroSubTitle
-```tsx
-<RetroSubTitle title="섹션 제목" icon={SomeIcon} />
-```
-- 스타일 고정: `text-sm font-bold text-black/40 uppercase tracking-widest`
-- 아이콘: `size={18} className="text-black/40"` 자동 적용
-- 섹션 소제목은 반드시 이 컴포넌트 사용 (직접 스타일링 금지)
+`atoms/` 에는 funky-ui 에 이 앱의 데이터를 얹은 조각만 있습니다. 버튼·카드·칩은 [funky-ui](https://funky-ui.bsiku.dev) 를 보세요.
 
 ## StudentBadge
 ```tsx
@@ -55,12 +10,13 @@
   studentId="25-001"
   studentName="홍길동"
   size="xs" | "sm" | "md"
+  fullId={false}
+  buzz={false}
   onClick={fn}
 />
 ```
-- 표시 형식: `"25 홍길동"`
+- 표시 형식: `"25 홍길동"` (`fullId` 면 `"25-001 홍길동"`)
 - 색상: `getStudentColor(studentId)` 자동 매핑
-- 스타일: `border-2 border-[color] bg-[color]/15 text-[color]`
 - `onClick` 있으면 클릭 가능 (Tooltip 제거 등에 활용)
 
 ## SearchInput
@@ -73,10 +29,7 @@
   onEnter={() => submit()}   // 선택 — Enter 로 확정하는 검색일 때
 />
 ```
-- 아이콘 + `<input>` 을 직접 조합합니다. 예전에는 HeroUI `Input` 이었는데, 히스토리·
-  지우기·포커스를 원래부터 이 파일이 직접 다루고 있어서 남길 이유가 없었습니다
-- 높이 `h-16`, 좌측 Search 아이콘, 값 있을 때 X 버튼 (절대위치 우측)
-- 스타일 고정: `border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.1)]`
+- funky-ui `SearchField` 위에 최근 검색어(`enableHistory`)를 얹습니다
 - `onEnter` — 글자마다 서버에 물을 수 없는 검색(Admin 기억 패널)은 Enter 로 확정합니다.
   **한글 조합 중의 Enter 는 이 안에서 거릅니다**(`isComposing`) — 안 거르면 한 번 누른 Enter 가
   두 번 들어옵니다. 주면 모바일 키보드의 Enter 자리에 "검색" 이 뜹니다(`enterKeyHint`)
@@ -90,9 +43,9 @@
   onClick={fn}
 />
 ```
-- 좌 패널: stuId + 이름 (학번 색상 배경), 우 패널: Enrolled Classes 2열 그리드
-- `onClick` 있으면 버튼 형태 (물리 피드백 shadow/translate 적용)
-- 주로 Tooltip 내부 콘텐츠로 사용
+- funky-ui `PersonCard` — 좌 패널: 학번 + 이름 (학번 색상 배경), 우 패널: Enrolled Classes 2열
+- `onClick` 있으면 누르는 카드가 됩니다
+- 주로 Popover 내부 콘텐츠로 사용
 
 ## TeacherCard
 ```tsx
@@ -102,6 +55,6 @@
   onClick={fn}
 />
 ```
-- 좌 패널: 교사 이름 (`bg-retro-secondary/10`), 우 패널: Assigned Classes 목록
-- `onClick` 있으면 버튼 형태 (물리 피드백 shadow/translate 적용)
-- 주로 Tooltip 내부 콘텐츠로 사용
+- funky-ui `PersonCard` — 좌 패널: 교사 이름, 우 패널: Assigned Classes 목록
+- `onClick` 있으면 누르는 카드가 됩니다
+- 주로 Popover 내부 콘텐츠로 사용

@@ -32,11 +32,13 @@
 
 ## Tooltip (학생 시간표)
 ```tsx
-<Tooltip
-  isDisabled={!isModifierPressed}
+<Popover
+  trigger="manual"
+  open={isModifierPressed && hoveredItemId === student.stuId}
+  padding="0"
   content={/* 학생의 전체 수업 목록 */}
 >
-  <StudentBadge />
-</Tooltip>
+  <StudentBadge buzz={isMatch} />
+</Popover>
 ```
-- `isModifierPressed=false`일 때 비활성화 (기본 UI 깔끔 유지)
+- `isModifierPressed=false`일 때 닫힘 (기본 UI 깔끔 유지)

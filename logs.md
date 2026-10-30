@@ -1,3 +1,15 @@
+## 2026-10-31 — UI 를 funky-ui 디자인 시스템으로 이관
+
+- 변경 파일: `frontend/vendor/funky-ui/`, `frontend/{package.json,package-lock.json,vite.config.ts,eslint.config.js}`, `frontend/src/{main.tsx,index.css,App.tsx}`, `frontend/src/components/**`, `frontend/src/pages/**`, `dev-start.sh`, 가이드 문서
+- 요약: `Retro*` 부품과 `@theme` 색을 걷어내고 모든 화면을 funky-ui 로 옮겼습니다. `InventoryPage` 는 할 일을 마쳐 지웠습니다. 서버 코드는 손대지 않았습니다.
+- ⚠️ `index.css` 맨 위의 `@layer theme, base, fk, components, utilities;` 와 `main.tsx` 의 import 순서(`index.css` 먼저)를 바꾸지 마세요. `fk` 가 `base` 앞에 서면 preflight 가 funky 의 여백·테두리를 전부 지웁니다. 처음에 funky 문서대로 `fk` 를 맨 앞에 뒀다가 그렇게 깨졌고, 문서 쪽을 고쳤습니다.
+- ⚠️ 학과색 다섯(화학·생물학·지구과학·외국어·예체능)의 면 위 글자가 흰색에서 검정으로 바뀐 것은 버그가 아닙니다. `readableInk` 의 경계 0.35 는 이 색들에서 2.94~3.74:1 이었고, `toneInk` 의 0.179 로 5.61~7.15:1 이 됩니다. 맞춘다고 되돌리면 AA 가 깨집니다.
+- 패키지를 npm 에 올리지 않아 소스 사본을 `frontend/vendor/funky-ui` 에 두고 `file:` 로 읽습니다. 사본은 직접 고치지 않고 funky-ui 를 고친 뒤 `rsync` 로 맞춥니다(`frontend/CLAUDE.md` 의 `디자인 시스템` 절).
+- 일부러 바뀐 모양: 고른 색 버튼도 105% 로 커집니다(결정). 통계 막대의 값 글자는 크림 위 네온 핑크가 AA 미달이라 검정이 됐고, 그래서 쓰는 곳이 없어진 `BarChartRow` 의 `captionClassName` 을 지웠습니다. 값이 흩어져 있던 크기·색은 funky-ui 사다리의 가까운 칸으로 모였습니다.
+- 복사해 쓰지 않은 앱 조각: `withAlpha`·`readableInk`(`lib/utils.ts`), `CATEGORY_STYLE`(`lib/calendar.ts`). 일정 분류색은 `components/calendarAccent.ts` 로 옮겼습니다.
+- 함정: Zamong 사이드바의 검은 띠처럼 보이는 것은 상태 카드에 가려 스크롤로 잘린 활성 메뉴입니다(사이드바 메뉴만 스크롤합니다). `Text` 역할은 funky 의 `fk.utilities` 라 Tailwind 유틸리티는 이기지만 funky 안의 `fk.components` 는 지므로, 필요한 값은 `Text uppercase` · `Stat labelTone` 처럼 prop 으로 열었습니다.
+- 검증: `npm run build` · `npm run lint`(남은 12건은 작업 전과 같은 파일·규칙), 복사본 DB 로 전 화면을 데스크톱과 390px 에서 눌러 봤습니다. 원본 DB 는 그대로입니다.
+
 ## 2026-10-30 — 멘토링 아카이브 내용 색인 (2단계: 기출·모의고사·책자·설명회)
 
 - 변경 파일: `backend/cli/index_archive.py`, `backend/agent/chat.py`(`_TOOL_MARK`·`_named`), `backend/agent/tools.py`, 서버 `data/archive.db`

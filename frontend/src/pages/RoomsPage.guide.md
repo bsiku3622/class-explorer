@@ -22,8 +22,8 @@
 ```
 [좌] 주간 시간표 그리드 (5×11)       [우] 층별 강의실 맵
   - 셀 클릭: selectedSlots 토글          - 강의실 버튼 클릭: selectedRoom 설정
-  - 점유된 셀: bg-black/[0.07]            - 사용중: bg-black text-white
-  - 선택된 셀: bg-black                   - 빈 교실: bg-retro-green/20
+  - 점유된 셀: SlotCell busy              - 사용중: Button paper selected (검정)
+  - 선택된 셀: SlotCell selected          - 빈 교실: Button paper
 
 강의실 선택 시 subtitle 옆 Search 버튼 노출 → onRoomSearch(selectedRoom)
 ```
@@ -46,8 +46,8 @@ const availableRooms = 형설관 강의실 목록.filter(r => !occupiedRooms.has
 
 ## 색상 규칙 (design-guide.md 참조)
 ```
-빈 교실:  bg-retro-green/20 border-retro-green
-점유됨:   bg-black/5 border-black/20
-선택됨:   bg-black text-white
-호버:     ring-2 ring-black
+빈 시간:  SlotCell free (초록 면)
+점유됨:   SlotCell busy (well 면)
+선택됨:   SlotCell selected (검정 면) · 강의실 Button selected (검정)
+호버:     Button shadow 속으로 가라앉음
 ```
