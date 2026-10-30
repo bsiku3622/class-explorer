@@ -821,7 +821,7 @@ def archive(ctx: Context, query: str | None = None, subject: str | None = None) 
         return {"error": f"'{subject}' 과목의 자료를 멘토링 아카이브에서 찾지 못했습니다"}
     for item in found["results"][:3]:
         ctx.cite(f"멘토링 아카이브 · {item.get('title', '')}"[:60], item.get("url", ""))
-    found["note"] = "학생들이 만든 비공식 자료다. 그렇다고 밝히고, 연도가 오래됐으면 연도도 밝힌다. 공식 일정·범위는 syllabus·calendar 로 확인한다"
+    found["caution"] = "학생들이 만든 비공식 자료다. 그렇다고 밝히고, 연도가 오래됐으면 연도도 밝힌다. 공식 일정·범위는 syllabus·calendar 로 확인한다"
     return found
 
 
