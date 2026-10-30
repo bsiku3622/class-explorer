@@ -12,7 +12,9 @@
 - 파일이 그대로면(sha256) 다시 읽지 않습니다. 수집 타이머(`class-explorer-ksain.service`)가 10분마다 부르므로
   `data/syllabi/` 에 파일을 올리면 알아서 읽힙니다. 한 건마다 저장해서 도중에 끊겨도 이어집니다
 - 글자가 없는 스캔본은 `no-text` 로 적고 건너뜁니다
-- 모델이 연달아 실패하면 멈춥니다(게이트웨이가 꺼진 데스크탑) — 다음 차례에 이어서 합니다
+- ⚠️ 읽기에 실패한 파일은 `failed` 로 적고 `MAX_ATTEMPTS` 번까지만 다시 읽습니다. 타이머가 부를 때마다 모델을 깨우므로,
+  끝없이 다시 읽으면 유휴 1시간이 계속 되살아나 낮 내내 모델이 안 꺼집니다
+- 게이트웨이에 닿지 않으면 이번 차례를 멈춥니다(횟수에 안 넣음) — 다음 차례에 이어서 합니다
 """
 from __future__ import annotations
 
@@ -36,7 +38,8 @@ log = logging.getLogger("index_syllabi")
 VERSION = 1           # 프롬프트·스키마를 바꾸면 올립니다 — 전부 다시 읽습니다
 TEXT_CHARS = 14000    # 16k 컨텍스트에 프롬프트·답과 함께 들어갑니다
 MIN_TEXT = 200
-MAX_FAILURES = 3
+MAX_FAILURES = 3      # 연달아 이만큼 실패하면 이번 차례를 멈춥니다
+MAX_ATTEMPTS = 3      # 한 파일을 몇 번까지 다시 읽는가 — 파일이 바뀌거나 --force 면 처음부터
 
 _QUOTED = {"quote": {"type": "string"}}
 SCHEMA = {
@@ -109,6 +112,26 @@ def supported(quote: str, source: str) -> bool:
     return False
 
 
+def _weight_near(item: dict, source: str) -> bool:
+    """비율의 숫자가 인용 안에, 또는 파일에서 그 항목 바로 근처에 있는가.
+
+    모델은 표에서 항목 이름만 인용하기도 합니다("Mid-term Project") — 숫자는 표의 다른 칸이라 인용 안에 없습니다.
+    인용 안만 보면 12개 파일의 맞는 비율이 전부 떨어졌습니다. 근처(±300자)까지만 보는 건 지어낸 숫자를 막기 위해서입니다.
+    """
+    digits = re.findall(r"\d+", item.get("weight", ""))
+    if all(d in _words(item.get("quote", "")) for d in digits):
+        return True
+    words = _words(item.get("quote", "")) + _words(item.get("item", ""))
+    if not words:
+        return False
+    lowered = source.lower()
+    for match in re.finditer(re.escape(max(words, key=len)), lowered):
+        window = set(_words(lowered[max(0, match.start() - 300):match.end() + 300]))
+        if all(d in window for d in digits):
+            return True
+    return False
+
+
 def _quoted(items: list, source: str) -> tuple[list[dict], int]:
     """인용이 계획서에 실제로 있는 항목만. `(남은 것, 버린 수)`."""
     kept = [item for item in items or [] if isinstance(item, dict) and supported(item.get("quote", ""), source)]
@@ -117,8 +140,8 @@ def _quoted(items: list, source: str) -> tuple[list[dict], int]:
 
 def clean(verdict: dict, text: str) -> dict:
     grading, dropped = _quoted(verdict.get("grading"), text)
-    # 비율의 숫자는 인용 안에 있어야 합니다 — 인용은 맞게 베끼고 숫자만 지어내는 일이 있습니다
-    numbers = [g for g in grading if all(d in _words(g["quote"]) for d in re.findall(r"\d+", g.get("weight", "")))]
+    # 인용은 맞게 베끼고 숫자만 지어내는 일이 있어서 숫자는 따로 봅니다
+    numbers = [g for g in grading if _weight_near(g, text)]
     dropped += len(grading) - len(numbers)
     schedule, lost = _quoted(verdict.get("schedule"), text)
     dropped += lost
@@ -142,6 +165,7 @@ def write_store(path, store: dict) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--force", action="store_true", help="이미 읽은 것도 다시")
+    parser.add_argument("--retry-dropped", action="store_true", help="비율이 전부 탈락한 파일을 다시 (대조 규칙을 고친 뒤)")
     parser.add_argument("--only", help="경로에 이 글자가 든 파일만")
     parser.add_argument("--minutes", type=float, default=None, help="이만큼 돌고 멈춤 — 남은 건 다음 차례에")
     parser.add_argument("--out", help="저장할 파일 (기본: syllabi/.assessments.json)")
@@ -176,7 +200,10 @@ def main() -> None:
         if args.only and args.only not in entry["path"]:
             continue
         digest = hashlib.sha256((syllabi.root() / entry["path"]).read_bytes()).hexdigest()
-        if args.force or store["files"].get(entry["path"], {}).get("sha256") != digest:
+        saved = store["files"].get(entry["path"], {})
+        lost = args.retry_dropped and saved.get("status") == "ok" and not saved.get("grading") and saved.get("dropped")
+        retry = saved.get("status") == "failed" and saved.get("attempts", 0) < MAX_ATTEMPTS
+        if args.force or lost or retry or saved.get("sha256") != digest:
             todo.append((entry, digest))
     if changed:
         write_store(path, store)
@@ -197,21 +224,28 @@ def main() -> None:
         text = syllabi.text(entry)
         row = {"sha256": digest, "term": entry["term"], "analyzed_at": clock.now_naive().isoformat(timespec="seconds"),
                "model": model.id}
+        saved = store["files"].get(entry["path"], {})
+        attempts = saved.get("attempts", 0) if saved.get("sha256") == digest and saved.get("status") == "failed" else 0
         if len(text) < MIN_TEXT:
             row["status"] = "no-text"
         else:
             try:
+                # 다시 읽을 때는 줄여서 — 답이 앞에서 잘린 건 긴 계획서가 컨텍스트를 다 먹은 것입니다
                 message = llm.chat_sync(model, [{"role": "user", "content": PROMPT.format(
-                    name=entry["name"], text=text[:TEXT_CHARS])}], schema=SCHEMA, max_tokens=3000, timeout=300)
+                    name=entry["name"], text=text[:TEXT_CHARS // (attempts + 1)])}],
+                    schema=SCHEMA, max_tokens=3000, timeout=300)
                 row.update(status="ok", **clean(json.loads(message.get("content") or "{}"), text))
                 failures = 0
             except (llm.LLMError, ValueError, AttributeError) as error:
                 log.warning("%s: %s", entry["path"], str(error)[:200])
                 failures += 1
-                if failures >= MAX_FAILURES:
-                    log.error("model keeps failing — stopping")
+                # 게이트웨이가 꺼진 건 이 파일 탓이 아닙니다 — 횟수에 넣지 않고 다음 차례로 넘깁니다
+                if asyncio.run(llm.gateway_status()) is None or failures >= MAX_FAILURES:
+                    log.error("model unavailable or keeps failing — stopping")
                     sys.exit(1)
-                continue
+                # ⚠️ 실패도 적습니다. 안 적으면 타이머가 10분마다 다시 시도하면서 Gemma 를 깨우고 유휴 1시간을 되살려,
+                # 파일 하나 때문에 낮 내내 모델이 안 꺼집니다(2026-10-30 화학및실험). 파일이 바뀌면 다시 읽습니다
+                row.update(status="failed", attempts=attempts + 1, error=str(error)[:200])
         store["files"][entry["path"]] = row
         write_store(path, store)
         done += 1
