@@ -4,7 +4,7 @@ import { IdCard, LogOut } from "lucide-react";
 import api from "../lib/api";
 import { authHeader } from "../lib/session";
 import { GOOGLE_LOGIN_READY, takeGoogleRedirect } from "../lib/googleAuth";
-import RetroButton from "./atoms/RetroButton";
+import { Button, Modal, Notice, Text } from "@studio-baeks/funky-ui";
 import GoogleLoginButton from "./GoogleLoginButton";
 
 interface GoogleLinkModalProps {
@@ -70,59 +70,56 @@ const GoogleLinkModal: React.FC<GoogleLinkModalProps> = ({ username, onLinked, o
     }, [submit]);
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-            <div className="w-full max-w-md border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]">
-                <div className="flex items-center gap-2 border-b-2 border-black bg-retro-secondary px-5 py-3 text-white">
+        <Modal
+            open
+            closable={false}
+            onClose={() => {}}
+            size="sm"
+            title={
+                <span className="flex items-center gap-2">
                     <IdCard size={18} strokeWidth={2.5} />
-                    <span className="text-sm font-black uppercase tracking-widest">
-                        학교 계정 연결
-                    </span>
+                    학교 계정 연결
+                </span>
+            }
+            footer={
+                <div className="flex w-full items-center justify-between gap-3">
+                    <Text variant="micro" tone="muted">
+                        연결 전에는 이용할 수 없습니다.
+                    </Text>
+                    <Button size="sm" variant="paper" shadow onClick={onLogout} icon={LogOut}>
+                        로그아웃
+                    </Button>
                 </div>
+            }
+        >
+            <div className="space-y-4">
+                <Text as="p" variant="caption" tone="secondary" leading="relaxed">
+                    <Text tone="primary">{username}</Text> 계정은 아직 학교 구글
+                    계정과 이어져 있지 않습니다. 한 번 연결하면 학번이 확인되고, 그동안
+                    기록한 내용은 그대로 남습니다.
+                </Text>
 
-                <div className="space-y-4 p-5">
-                    <p className="text-xs font-bold leading-relaxed text-black/60">
-                        <span className="text-black">{username}</span> 계정은 아직 학교 구글
-                        계정과 이어져 있지 않습니다. 한 번 연결하면 학번이 확인되고, 그동안
-                        기록한 내용은 그대로 남습니다.
-                    </p>
+                {/* ⚠️ 버튼이 없을 때 **빈 자리로 두면 안 됩니다.** 이 창은 닫을 수
+                    없어서, 연결할 방법이 사라지면 로그아웃 말고 할 수 있는 게 없는
+                    막다른 길이 됩니다 — 실제로 배포에 `VITE_GOOGLE_CLIENT_ID` 가
+                    빠져 그 상태로 나간 적이 있습니다 */}
+                {GOOGLE_LOGIN_READY ? (
+                    <GoogleLoginButton onStart={() => setError(null)} disabled={busy} />
+                ) : (
+                    <Notice role="alert">
+                        지금은 학교 계정 연결을 할 수 없습니다. 관리자에게 알려주세요.
+                    </Notice>
+                )}
 
-                    {/* ⚠️ 버튼이 없을 때 **빈 자리로 두면 안 됩니다.** 이 창은 닫을 수
-                        없어서, 연결할 방법이 사라지면 로그아웃 말고 할 수 있는 게 없는
-                        막다른 길이 됩니다 — 실제로 배포에 `VITE_GOOGLE_CLIENT_ID` 가
-                        빠져 그 상태로 나간 적이 있습니다 */}
-                    {GOOGLE_LOGIN_READY ? (
-                        <GoogleLoginButton onStart={() => setError(null)} disabled={busy} />
-                    ) : (
-                        <p className="border-2 border-retro-primary bg-retro-primary/10 px-3 py-2 text-xs font-bold leading-relaxed text-retro-primary">
-                            지금은 학교 계정 연결을 할 수 없습니다. 관리자에게 알려주세요.
-                        </p>
-                    )}
+                {busy && (
+                    <Text as="p" variant="caption" tone="muted" align="center">
+                        확인 중...
+                    </Text>
+                )}
 
-                    {busy && (
-                        <p className="text-center text-xs font-bold text-black/40">확인 중...</p>
-                    )}
-
-                    {error && (
-                        <p className="border-2 border-retro-primary bg-retro-primary/10 px-3 py-2 text-xs font-bold text-retro-primary">
-                            {error}
-                        </p>
-                    )}
-
-                    <div className="flex items-center justify-between gap-3 border-t-2 border-black/10 pt-3">
-                        <p className="text-[10px] font-bold text-black/40">
-                            연결 전에는 이용할 수 없습니다.
-                        </p>
-                        <RetroButton
-                            size="sm"
-                            onClick={onLogout}
-                            icon={<LogOut size={14} strokeWidth={2.5} />}
-                        >
-                            로그아웃
-                        </RetroButton>
-                    </div>
-                </div>
+                {error && <Notice role="alert">{error}</Notice>}
             </div>
-        </div>
+        </Modal>
     );
 };
 

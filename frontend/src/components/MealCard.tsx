@@ -20,10 +20,15 @@ import {
     type MealMenu,
     type MealSlot,
 } from "../lib/friendsApi";
-import RetroButton from "./atoms/RetroButton";
-import RetroCard from "./atoms/RetroCard";
-import RetroSubTitle from "./atoms/RetroSubTitle";
-import RetroSpinner from "./atoms/RetroSpinner";
+import {
+    Card,
+    IconButton,
+    Link,
+    SectionTitle,
+    Spinner,
+    Text,
+    ToneButton,
+} from "@studio-baeks/funky-ui";
 
 /** 서버가 여는 범위와 같습니다 (`MEAL_RANGE_DAYS`) */
 const RANGE_DAYS = 31;
@@ -116,59 +121,62 @@ const MealCard: React.FC<MealCardProps> = ({ meal, fill = false, bare = false })
 
     // ⚠️ `fill` 없이 `h-full` 을 걸면 안 됩니다 — grid item 이라 100% 가 **행 높이**
     // 로 풀려서, 아래에 따로 놓았을 때 옆 카드만큼 늘어나 아래가 빈 상자가 됩니다
-    const Frame = bare ? "div" : RetroCard;
+    const Frame: React.ElementType = bare ? "div" : Card;
 
     return (
         <Frame
-            className={`flex min-h-0 flex-col p-4 ${bare ? "" : "bg-white"} ${
-                fill ? "h-full" : ""
-            }`}
+            {...(bare ? {} : { padding: "0" })}
+            className={`flex min-h-0 flex-col p-4 ${fill ? "h-full" : ""}`}
         >
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <RetroSubTitle title="Meal" icon={UtensilsCrossed} iconSize={15} />
+                <SectionTitle title="Meal" icon={UtensilsCrossed} />
                 <div className="flex items-center gap-1">
-                    <button
+                    <IconButton
+                        icon={ChevronLeft}
+                        label="하루 전"
+                        size="xs"
+                        variant="paper"
                         onClick={() => move(offset - 1)}
                         disabled={offset <= -RANGE_DAYS}
-                        aria-label="하루 전"
-                        className="border-2 border-black bg-white p-0.5 transition-all duration-100 hover:bg-retro-accent-light active:scale-95 disabled:opacity-25"
-                    >
-                        <ChevronLeft size={14} strokeWidth={3} />
-                    </button>
-                    <button
-                        onClick={() => move(0)}
-                        disabled={offset === 0}
-                        className="px-1.5 text-center text-[11px] font-black tabular-nums disabled:cursor-default"
-                    >
-                        {label}
-                        <span className="ml-1 font-bold text-black/40">
-                            {date.getMonth() + 1}/{date.getDate()} (
-                            {WEEKDAYS[date.getDay()]})
-                        </span>
-                    </button>
-                    <button
+                    />
+                    <Text as="span" variant="label" numeric className="px-1.5 text-center">
+                        <Link
+                            as="button"
+                            type="button"
+                            underline="hover"
+                            onClick={() => move(0)}
+                            disabled={offset === 0}
+                        >
+                            {label}
+                            <Text as="span" variant="label" weight="bold" tone="muted" className="ml-1">
+                                {date.getMonth() + 1}/{date.getDate()} (
+                                {WEEKDAYS[date.getDay()]})
+                            </Text>
+                        </Link>
+                    </Text>
+                    <IconButton
+                        icon={ChevronRight}
+                        label="하루 뒤"
+                        size="xs"
+                        variant="paper"
                         onClick={() => move(offset + 1)}
                         disabled={offset >= RANGE_DAYS}
-                        aria-label="하루 뒤"
-                        className="border-2 border-black bg-white p-0.5 transition-all duration-100 hover:bg-retro-accent-light active:scale-95 disabled:opacity-25"
-                    >
-                        <ChevronRight size={14} strokeWidth={3} />
-                    </button>
+                    />
                 </div>
             </div>
 
             <div className="mt-2.5 flex gap-1.5">
                 {SLOTS.map(({ key, label: slotLabel, color }) => (
-                    <RetroButton
+                    <ToneButton
                         key={key}
                         size="sm"
-                        color={color}
-                        isSelected={slot === key}
+                        tone={color}
+                        selected={slot === key}
                         onClick={() => setSlot(key)}
                         className="flex-1"
                     >
                         {slotLabel}
-                    </RetroButton>
+                    </ToneButton>
                 ))}
             </div>
 
@@ -178,13 +186,13 @@ const MealCard: React.FC<MealCardProps> = ({ meal, fill = false, bare = false })
             <div className="mt-3 flex-1">
                 {loading ? (
                     <div className="flex h-full min-h-24 items-center justify-center">
-                        <RetroSpinner />
+                        <Spinner />
                     </div>
                 ) : items.length === 0 ? (
                     <div className="flex h-full min-h-24 items-center justify-center">
-                        <p className="text-xs font-black uppercase tracking-widest text-black/25">
+                        <Text as="p" variant="overline" tone="faint">
                             No Data Found
-                        </p>
+                        </Text>
                     </div>
                 ) : (
                     /* 글자 크기는 옆 칸(홈의 `오늘 일정`, 옛 12px)과 **딱 가운데**서
@@ -192,9 +200,9 @@ const MealCard: React.FC<MealCardProps> = ({ meal, fill = false, bare = false })
                        정보인데 무게가 달라 보입니다 */
                     <ul className="space-y-1">
                         {items.map((item) => (
-                            <li key={item} className="text-[13.5px] font-bold leading-snug">
+                            <Text as="li" key={item}>
                                 {item}
-                            </li>
+                            </Text>
                         ))}
                     </ul>
                 )}

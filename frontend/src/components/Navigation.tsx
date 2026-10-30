@@ -6,10 +6,9 @@
  * 옮겼고(`BottomNav`), 거기서는 두 번 눌러야 실행됩니다 — 자주 쓰지도 않는데 잘못
  * 누르면 되돌릴 방법이 다시 로그인뿐입니다.
  */
-
 import React from "react";
 import { LogOut, ShieldCheck } from "lucide-react";
-import TermSwitcher from "./TermSwitcher";
+import { AppBar, NavButton, TermSwitcher, Text } from "@studio-baeks/funky-ui";
 import type { Term } from "../types";
 
 interface NavigationProps {
@@ -22,6 +21,8 @@ interface NavigationProps {
     onTermChange?: (term: Term) => void;
 }
 
+const termLabel = (term: Term) => `${term.year}-${term.semester}`;
+
 const Navigation: React.FC<NavigationProps> = ({
     onLogoClick,
     onLogout,
@@ -30,44 +31,36 @@ const Navigation: React.FC<NavigationProps> = ({
     terms = [],
     currentTerm = null,
     onTermChange,
-}) => {
-    return (
-        <nav className="fixed top-0 left-0 right-0 z-1000 flex h-20 items-center justify-between gap-4 border-b border-black bg-retro-secondary px-6 shadow-[0_4px_0_0_rgba(0,0,0,0.2)]">
-            <div className="flex items-center">
-                <button
-                    onClick={onLogoClick}
-                    className="transform text-2xl font-black uppercase -skew-x-6 tracking-tighter text-white transition-transform hover:scale-105 active:scale-95"
-                >
-                    Class Explorer
-                </button>
-            </div>
-            <div className="flex items-center justify-end gap-3 sm:gap-6">
+}) => (
+    <AppBar
+        fixed
+        brand="Class Explorer"
+        onBrandClick={onLogoClick}
+        actions={
+            <>
                 {onTermChange && (
                     <TermSwitcher
-                        terms={terms}
-                        current={currentTerm}
-                        onChange={onTermChange}
+                        terms={terms.map((term) => ({ value: termLabel(term), label: termLabel(term) }))}
+                        value={currentTerm ? termLabel(currentTerm) : ""}
+                        onChange={(value) => {
+                            const next = terms.find((term) => termLabel(term) === value);
+                            if (next) onTermChange(next);
+                        }}
                     />
                 )}
                 {username && (
-                    <span className="hidden sm:flex items-center gap-1.5 text-white/50 text-[11px] font-black uppercase tracking-widest">
-                        {isAdmin && <ShieldCheck size={12} className="text-white/60" />}
+                    <Text variant="label" tone="inverseMuted" className="hidden items-center gap-1.5 uppercase tracking-widest sm:flex">
+                        {isAdmin && <ShieldCheck size={12} />}
                         {username}
-                    </span>
+                    </Text>
                 )}
                 {/* 좁은 화면에서는 하단 바의 More 안에 있습니다 */}
-                <button
-                    onClick={onLogout}
-                    className="hidden items-center gap-2 border-2 border-white/30 bg-white/10 px-3 py-1.5 text-white transition-all duration-100 hover:border-white hover:bg-white/20 sm:flex"
-                >
-                    <LogOut size={14} strokeWidth={2.5} />
-                    <span className="text-xs font-black uppercase tracking-widest">
-                        Logout
-                    </span>
-                </button>
-            </div>
-        </nav>
-    );
-};
+                <NavButton icon={LogOut} onClick={onLogout} className="hidden sm:inline-flex">
+                    Logout
+                </NavButton>
+            </>
+        }
+    />
+);
 
 export default Navigation;

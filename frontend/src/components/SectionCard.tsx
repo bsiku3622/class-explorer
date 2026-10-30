@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from "react";
-import RetroTooltip from "./atoms/RetroTooltip";
+import { Button, Icon, Link, Paint, Popover, Text } from "@studio-baeks/funky-ui";
 import { User, MapPin, Users, Clock } from "lucide-react";
-import { getStudentColor, getKoreanName, DAY_MAP, DAYS_ORDER, extractSearchTerms } from "../lib/utils";
+import { getKoreanName, DAY_MAP, DAYS_ORDER, extractSearchTerms } from "../lib/utils";
 import type { Section } from "../types";
 import StudentCard from "./atoms/StudentCard";
 import TeacherCard from "./atoms/TeacherCard";
+import StudentBadge from "./atoms/StudentBadge";
 
 interface SectionCardProps {
     section: Section;
@@ -71,16 +72,20 @@ const SectionCard: React.FC<SectionCardProps> = ({
     return (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
             <div className="md:col-span-4 space-y-2.5">
-                <h3 className="text-base font-black bg-retro-accent1 border-2 border-black px-3 py-1 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] inline-block uppercase">
-                    {section.section}
-                </h3>
+                <Paint as="h3" accent="cyan" variant="solid" shadow className="inline-block px-3 py-1">
+                    <Text variant="subheading" tone="inherit">
+                        {section.section}
+                    </Text>
+                </Paint>
                 <div className="space-y-1.5">
-                                        <RetroTooltip
-                        isOpen={
+                    <Popover
+                        trigger="manual"
+                        open={
                             isModifierPressed &&
                             hoveredItemId === `teacher-${section.id}`
                         }
-                        offset={15}
+                        padding="0"
+                        block
                         content={
                             <TeacherCard
                                 name={section.teacher}
@@ -88,12 +93,14 @@ const SectionCard: React.FC<SectionCardProps> = ({
                             />
                         }
                     >
-                        <div
-                            className={`flex items-center gap-3 text-sm font-black cursor-pointer transition-all h-8 px-3 py-0 -ml-2 border ${
-                                isTeacherSearching
-                                    ? "bg-retro-secondary text-white border-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] scale-105"
-                                    : "hover:text-retro-secondary border-transparent"
-                            }`}
+                        <Button
+                            accent="purple"
+                            variant="ghost"
+                            size="sm"
+                            uppercase={false}
+                            icon={User}
+                            selected={isTeacherSearching}
+                            className="-ml-2 justify-start"
                             onMouseEnter={() =>
                                 setHoveredItemId(`teacher-${section.id}`)
                             }
@@ -102,44 +109,32 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                 handleSearchToggle(section.teacher, true)
                             }
                         >
-                            <User
-                                size={20}
-                                className={
-                                    isTeacherSearching
-                                        ? "text-white"
-                                        : "text-retro-secondary"
-                                }
-                            />
-                            <span>{section.teacher}</span>
-                        </div>
-                    </RetroTooltip>
+                            {section.teacher}
+                        </Button>
+                    </Popover>
 
-                    <div
-                        className={`flex items-center gap-3 text-sm font-black h-8 px-3 py-0 -ml-2 border transition-all cursor-pointer ${
-                            isRoomSearching
-                                ? "bg-retro-primary text-white border-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] scale-105"
-                                : "text-black/70 border-transparent hover:text-retro-primary"
-                        }`}
-                        onClick={() => handleSearchToggle(section.room, false, true)}
-                    >
-                        <MapPin
-                            size={20}
-                            className={
-                                isRoomSearching
-                                    ? "text-white"
-                                    : "text-retro-primary"
-                            }
-                        />
-                        <span>{section.room}</span>
+                    <div>
+                        <Button
+                            accent="pink"
+                            variant="ghost"
+                            size="sm"
+                            uppercase={false}
+                            icon={MapPin}
+                            selected={isRoomSearching}
+                            className="-ml-2 justify-start"
+                            onClick={() => handleSearchToggle(section.room, false, true)}
+                        >
+                            {section.room}
+                        </Button>
                     </div>
-                    <div className="flex items-center gap-3 text-sm font-black text-black/70 h-8 px-3 py-0 -ml-2 border-2 border-transparent">
-                        <Users size={20} className="text-retro-accent4" />
+                    <Text as="div" weight="black" tone="secondary" className="flex items-center gap-3 h-8 px-3.5 -ml-2">
+                        <Icon icon={Users} size="lg" tone="orange" />
                         <span>{section.student_count} Students</span>
-                    </div>
+                    </Text>
 
                     {section.times && section.times.length > 0 && (
-                        <div className="flex items-center gap-3 text-sm font-black text-black/70 h-8 px-3 py-0 -ml-2 border-2 border-transparent">
-                            <Clock size={20} className="text-retro-accent5" />
+                        <Text as="div" weight="black" tone="secondary" className="flex items-center gap-3 h-8 px-3.5 -ml-2">
+                            <Icon icon={Clock} size="lg" tone="sky" />
                             <div className="flex flex-wrap gap-x-2">
                                 {(() => {
                                     const grouped: Record<string, number[]> = {};
@@ -158,9 +153,12 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                         );
                                         return (
                                             <span key={day} className="flex gap-0.5 items-center mr-2">
-                                                <span className={`transition-colors ${isAnyPeriodMatch ? "font-black text-retro-accent5" : "text-black/60"}`}>
+                                                <Text
+                                                    tone={isAnyPeriodMatch ? "sky" : "secondary"}
+                                                    weight="black"
+                                                >
                                                     {DAY_MAP[day]}
-                                                </span>
+                                                </Text>
                                                 {periods.map((p, idx) => {
                                                     const isThisMatch = effectiveSearchTerms.some(
                                                         (term) =>
@@ -169,17 +167,19 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                                     );
                                                     return (
                                                         <React.Fragment key={p}>
-                                                            <span
-                                                                className={`hover:text-retro-accent5 cursor-pointer transition-colors ${isThisMatch ? "font-black" : ""}`}
-                                                                style={{ color: isThisMatch ? "#00c8ff" : "inherit" }}
-                                                                onClick={(e) => {
+                                                            <Link
+                                                                as="button"
+                                                                type="button"
+                                                                underline="hover"
+                                                                accent={isThisMatch ? "sky" : undefined}
+                                                                onClick={(e: React.MouseEvent) => {
                                                                     e.stopPropagation();
                                                                     handleSearchToggle(`${DAY_MAP[day]}${p}`);
                                                                 }}
                                                             >
                                                                 {p}
-                                                            </span>
-                                                            {idx < periods.length - 1 && <span className="text-black/30">,</span>}
+                                                            </Link>
+                                                            {idx < periods.length - 1 && <Text tone="faint">,</Text>}
                                                         </React.Fragment>
                                                     );
                                                 })}
@@ -188,15 +188,13 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                     });
                                 })()}
                             </div>
-                        </div>
+                        </Text>
                     )}
                 </div>
             </div>
             <div className="md:col-span-8">
                 <div className="flex flex-wrap gap-2.5">
                     {filteredStudents.map((student) => {
-                        const color = getStudentColor(student.stuId);
-
                         // 하이라이트는 일치하는 검색어가 있으면 항상 표시 (일반 검색 포함)
                         const isMatch = effectiveSearchTerms.some(
                             (term) =>
@@ -208,13 +206,14 @@ const SectionCard: React.FC<SectionCardProps> = ({
                             studentSubjectMap[student.stuId] || [];
 
                         return (
-                                                        <RetroTooltip
+                            <Popover
                                 key={student.stuId}
-                                isOpen={
+                                trigger="manual"
+                                open={
                                     isModifierPressed &&
                                     hoveredItemId === student.stuId
                                 }
-                                offset={15}
+                                padding="0"
                                 content={
                                     <StudentCard
                                         stuId={student.stuId}
@@ -223,42 +222,38 @@ const SectionCard: React.FC<SectionCardProps> = ({
                                     />
                                 }
                             >
-                                <div
-                                    /* ⚠️ **안 맞는 사람을 흐리게 하지 않습니다.** 예전에는
-                                       `grayscale opacity-30` 으로 지웠는데, 명단을 보는
-                                       이유의 절반이 "누구랑 같이 듣나" 라서 나머지가 안
-                                       보이면 화면이 반쯤 죽습니다. 전부 제 색으로 두고,
-                                       찾는 사람만 **잠깐 진동하게** 합니다 (`index.css`) —
-                                       움직임은 색을 뺏지 않고도 제일 먼저 눈에 띕니다.
+                                {/* ⚠️ **안 맞는 사람을 흐리게 하지 않습니다.** 예전에는
+                                    `grayscale opacity-30` 으로 지웠는데, 명단을 보는
+                                    이유의 절반이 "누구랑 같이 듣나" 라서 나머지가 안
+                                    보이면 화면이 반쯤 죽습니다. 전부 제 색으로 두고,
+                                    찾는 사람만 **잠깐 진동하게** 합니다 (`buzz`) —
+                                    움직임은 색을 뺏지 않고도 제일 먼저 눈에 띕니다.
 
-                                       모션을 끈 환경(`prefers-reduced-motion`)에서도
-                                       구분되도록 **면을 조금 더 채우고 그림자를 세게**
-                                       둡니다 — 움직임 하나에만 기대면 안 됩니다.
+                                    모션을 끈 환경(`prefers-reduced-motion`)에서도
+                                    구분되도록 **면을 조금 더 채우고 그림자를 세게**
+                                    둡니다(`StudentBadge` 가 `buzz` 와 함께 그립니다) —
+                                    움직임 하나에만 기대면 안 됩니다.
 
-                                       ⚠️ **호버 효과는 없습니다.** 마우스가 지나가는
-                                       자리마다 배지가 커지면, 정작 움직여야 할 것(찾는
-                                       사람의 진동)이 그 소음에 묻힙니다 */
-                                    className={`student-badge cursor-pointer active:scale-95 transition-all duration-200 ${
-                                        isMatch
-                                            ? "animate-badge-buzz z-10 shadow-[3px_3px_0_0_rgba(0,0,0,0.2)]"
-                                            : ""
-                                    }`}
-                                    style={{
-                                        borderColor: color,
-                                        backgroundColor: `${color}${isMatch ? "38" : "20"}`,
-                                        color: color,
-                                    }}
+                                    ⚠️ **호버 효과는 없습니다.** 마우스가 지나가는
+                                    자리마다 배지가 커지면, 정작 움직여야 할 것(찾는
+                                    사람의 진동)이 그 소음에 묻힙니다 */}
+                                <span
+                                    className="inline-flex"
                                     onMouseEnter={() =>
                                         setHoveredItemId(student.stuId)
                                     }
                                     onMouseLeave={() => setHoveredItemId(null)}
-                                    onClick={() =>
-                                        handleSearchToggle(student.stuId)
-                                    }
                                 >
-                                    {student.stuId.split("-")[0]} {student.name}
-                                </div>
-                            </RetroTooltip>
+                                    <StudentBadge
+                                        studentId={student.stuId}
+                                        studentName={student.name}
+                                        buzz={isMatch}
+                                        onClick={() =>
+                                            handleSearchToggle(student.stuId)
+                                        }
+                                    />
+                                </span>
+                            </Popover>
                         );
                     })}
                 </div>

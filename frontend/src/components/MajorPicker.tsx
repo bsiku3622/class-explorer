@@ -1,7 +1,7 @@
 import React from "react";
 import type { MajorDivision } from "../lib/majors";
 import { getDepartmentColor } from "../lib/utils";
-import RetroButton from "./atoms/RetroButton";
+import { Badge, Surface, Text, ToneButton } from "@studio-baeks/funky-ui";
 
 interface MajorPickerProps {
     /** 서버가 주는 목록(`GET /majors` 의 `options`) — 학부별 트랙과 심화필수 조건 */
@@ -28,7 +28,7 @@ interface MajorPickerProps {
  * └─────────────────────────────────┘
  * ```
  *
- * 고른 트랙만 **학과색**으로 채웁니다(`RetroButton` 의 `color` — 홈의 학과색과 같은 값). 심화필수
+ * 고른 트랙만 **학과색**으로 채웁니다(`ToneButton` 의 `tone` — 홈의 학과색과 같은 값). 심화필수
  * 조건은 고른 트랙 하나만 아래에 펼칩니다 — 여섯 개를 다 늘어놓으면 물리학 한 줄이 세 줄이라 창이
  * 화면을 넘깁니다. 상자는 고르기 전에도 자리를 지켜서 고르는 순간 아래 버튼이 밀리지 않습니다.
  */
@@ -41,48 +41,52 @@ const MajorPicker: React.FC<MajorPickerProps> = ({ options, value, onChange, sug
         <div className="space-y-3">
             {options.map(({ division, majors }) => (
                 <div key={division}>
-                    <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-black/40">
+                    <Text as="p" variant="overline" className="mb-1.5">
                         {division}
-                    </p>
+                    </Text>
                     <div className="grid grid-cols-2 gap-2">
                         {majors.map(({ name }) => (
-                            <RetroButton
+                            <ToneButton
                                 key={name}
-                                type="button"
-                                color={getDepartmentColor(name)}
-                                isSelected={value === name}
+                                tone={getDepartmentColor(name)}
+                                selected={value === name}
                                 disabled={disabled}
                                 onClick={() => onChange(name)}
-                                className="relative w-full disabled:opacity-50"
+                                fullWidth
+                                className="relative"
                             >
                                 {name}
                                 {suggested === name && (
-                                    <span className="absolute -right-1.5 -top-2 border-2 border-black bg-white px-1 text-[9px] font-black text-black">
+                                    <Badge
+                                        size="sm"
+                                        variant="paper"
+                                        className="absolute -right-1.5 -top-2"
+                                    >
                                         추천
-                                    </span>
+                                    </Badge>
                                 )}
-                            </RetroButton>
+                            </ToneButton>
                         ))}
                     </div>
                 </div>
             ))}
 
-            <div className="min-h-[4.25rem] border-2 border-black/10 bg-black/[0.03] px-3 py-2.5">
+            <Surface fill="well" border="subtle" paddingX="lg" paddingY="md" className="min-h-[4.25rem]">
                 {value ? (
                     <>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                        <Text as="p" variant="overline">
                             {value} 심화필수
-                        </p>
-                        <p className="mt-1 text-xs font-bold leading-relaxed text-black/70">
+                        </Text>
+                        <Text as="p" variant="caption" tone="secondary" leading="relaxed" className="mt-1">
                             {requirement ?? "교육과정에 적힌 조건이 아직 없습니다."}
-                        </p>
+                        </Text>
                     </>
                 ) : (
-                    <p className="text-xs font-bold leading-relaxed text-black/40">
+                    <Text as="p" variant="caption" tone="muted" leading="relaxed">
                         트랙을 누르면 심화필수 조건이 여기 보입니다.
-                    </p>
+                    </Text>
                 )}
-            </div>
+            </Surface>
         </div>
     );
 };

@@ -1,4 +1,5 @@
 import React from "react";
+import { Button } from "@studio-baeks/funky-ui";
 import { startGoogleLogin } from "../lib/googleAuth";
 
 /** 구글 공식 로고 */
@@ -45,18 +46,20 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({
     onStart,
     disabled = false,
 }) => (
-    <button
-        type="button"
+    <Button
+        variant="paper"
+        shadow
+        fullWidth
+        uppercase={false}
         disabled={disabled}
         onClick={() => {
             onStart?.();
             startGoogleLogin();
         }}
-        className="flex w-full items-center justify-center gap-2.5 border-2 border-black bg-white px-4 py-3 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-1 hover:translate-y-1 hover:shadow-none disabled:pointer-events-none disabled:opacity-50"
     >
         <GoogleMark />
-        <span className="text-sm font-bold text-black">ksa.hs.kr 계정으로 로그인</span>
-    </button>
+        ksa.hs.kr 계정으로 로그인
+    </Button>
 );
 
 export default GoogleLoginButton;

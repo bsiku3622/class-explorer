@@ -20,6 +20,7 @@ import { hasRole } from "./lib/utils";
 import { searchInClient } from "./lib/searchEngine";
 import { isTradeAvailable, type TradeConfig } from "./lib/features";
 import { useModifierKey } from "./hooks/useModifierKey";
+import { Text } from "@studio-baeks/funky-ui";
 import Navigation from "./components/Navigation";
 import Sidebar from "./components/Sidebar";
 import BottomNav from "./components/BottomNav";
@@ -48,7 +49,6 @@ const SyllabusFilePage = React.lazy(() => import("./pages/SyllabusFilePage"));
 const MaterialsPage = React.lazy(() => import("./pages/MaterialsPage"));
 const UploadPage = React.lazy(() => import("./pages/UploadPage"));
 // 개발 전용 — funky-ui 토큰 작업용 컴포넌트 표본집. 메뉴에 올리지 않습니다
-const InventoryPage = React.lazy(() => import("./pages/InventoryPage"));
 // 플로팅 버튼을 누를 때 미리 받아 둡니다 — 모바일 창은 보내는 순간 `/ai` 로 옮겨 갑니다
 const loadAiPage = () => import("./pages/AiPage");
 const AiPage = React.lazy(loadAiPage);
@@ -581,8 +581,8 @@ const App: React.FC = () => {
     };
 
     const pageFallback = (
-        <div className="min-h-screen bg-retro-bg flex items-center justify-center">
-            <p className="font-black uppercase tracking-widest text-black/30 animate-pulse">Loading...</p>
+        <div className="min-h-screen flex items-center justify-center">
+            <Text as="p" weight="black" tone="faint" pulse className="uppercase tracking-widest">Loading...</Text>
         </div>
     );
 
@@ -638,7 +638,7 @@ const App: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-retro-bg text-retro-fg font-sans">
+        <div className="min-h-screen">
             <Navigation
                 onLogoClick={() => navigate("/")}
                 onLogout={handleLogout}
@@ -663,7 +663,7 @@ const App: React.FC = () => {
                 />
                 <main className="flex-1 p-4 md:p-10 transition-all duration-300 md:ml-64 min-w-0 pb-20 md:pb-10">
                     <div className="max-w-6xl mx-auto">
-                        <Suspense fallback={<div className="py-40 flex items-center justify-center"><p className="font-black uppercase tracking-widest text-black/30 animate-pulse">Loading...</p></div>}>
+                        <Suspense fallback={<div className="py-40 flex items-center justify-center"><Text as="p" weight="black" tone="faint" pulse className="uppercase tracking-widest">Loading...</Text></div>}>
                         <Routes>
                             <Route
                                 path="/"
@@ -817,12 +817,6 @@ const App: React.FC = () => {
                                             myName={currentUser?.student_name ?? null}
                                         />
                                     }
-                                />
-                            )}
-                            {import.meta.env.DEV && (
-                                <Route
-                                    path="/inventory"
-                                    element={<InventoryPage />}
                                 />
                             )}
                             {/* 역할·학기에 따라 붙는 라우트가 있어서, `/auth/me` 가 아직

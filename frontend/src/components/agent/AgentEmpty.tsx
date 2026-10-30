@@ -9,6 +9,7 @@
  */
 import React from "react";
 import { CalendarCheck, CalendarDays, DoorOpen, FileText, Newspaper, Utensils } from "lucide-react";
+import { Icon, Pressable, surfaceClass, Text } from "@studio-baeks/funky-ui";
 import type { AgentChat } from "../../hooks/useAgentChat";
 
 const SUGGESTIONS = [
@@ -40,26 +41,22 @@ interface AgentEmptyProps {
 const AgentEmpty: React.FC<AgentEmptyProps> = ({ chat, name, composer, onPick, compact = false }) => {
     const displayName = chat.models?.me?.name || name;
     const pick = onPick ?? ((text: string) => chat.send(text));
-    const Heading = compact ? "h2" : "h1";
     return (
         <div className={`flex flex-col ${compact ? "gap-5" : "gap-8"}`}>
-            <Heading
-                className={`text-center font-black leading-tight tracking-tight ${compact ? "text-[20px]" : "text-[24px] md:text-[28px]"}`}
-            >
+            <Text as={compact ? "h2" : "h1"} variant={compact ? "heading" : "title"} align="center">
                 {displayName ? `${givenName(displayName)}님, 무엇이 궁금하세요?` : "무엇이 궁금하세요?"}
-            </Heading>
+            </Text>
             {composer}
             <ul className="flex flex-col">
-                {SUGGESTIONS.map(({ icon: Icon, text }) => (
+                {SUGGESTIONS.map(({ icon, text }) => (
                     <li key={text}>
-                        <button
-                            type="button"
+                        <Pressable
                             onClick={() => pick(text)}
-                            className={`flex w-full items-center gap-3.5 px-3 text-left font-bold text-black/50 transition-colors duration-100 hover:bg-black/[0.04] hover:text-black ${compact ? "py-2 text-[14px]" : "py-2.5 text-[14.5px]"}`}
+                            className={`${surfaceClass({ fill: "none", hoverable: true })} flex w-full items-center gap-3.5 px-3 text-left ${compact ? "py-2" : "py-2.5"}`}
                         >
-                            <Icon size={compact ? 17 : 18} strokeWidth={2.25} className="shrink-0" />
-                            {text}
-                        </button>
+                            <Icon icon={icon} size={compact ? 17 : 18} tone="secondary" className="shrink-0" />
+                            <Text tone="secondary">{text}</Text>
+                        </Pressable>
                     </li>
                 ))}
             </ul>

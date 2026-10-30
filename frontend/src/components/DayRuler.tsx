@@ -22,7 +22,8 @@
 
 import React, { useLayoutEffect, useRef } from "react";
 import type { BreakTime, PeriodTime, TodayClass } from "../lib/friendsApi";
-import { getDepartmentColor, hhmm, withAlpha } from "../lib/utils";
+import { getDepartmentColor, hhmm } from "../lib/utils";
+import { BreakBand, ClassTile, Text, TimeCaret } from "@studio-baeks/funky-ui";
 import { continuesClass, gapName, mergeSpans } from "../lib/schedule";
 
 /** 자 위에서 뭔가를 가리킬 때. 양 끝은 카드 밖으로 삐져나가지 않게 붙입니다 */
@@ -151,9 +152,9 @@ const DayRuler: React.FC<DayRulerProps> = ({
                     빗금은 늘 **수업이 놓일 수 없는 구간**을 뜻합니다 — 교시 사이 10분
                     쉬는시간(칸과 칸 사이의 빈틈)과 구별됩니다 */}
                 {voids.map((v) => (
-                    <span
+                    <BreakBand
                         key={`void-${v.start}`}
-                        className="absolute inset-y-0 bg-[repeating-linear-gradient(-45deg,rgba(0,0,0,0.13)_0_3px,transparent_3px_7px)]"
+                        className="absolute inset-y-0"
                         style={{
                             left: `${pct(v.start + restGap)}%`,
                             width: `${Math.max(0, v.end - v.start - restGap * 2) / span * 100}%`,
@@ -165,16 +166,16 @@ const DayRuler: React.FC<DayRulerProps> = ({
                 {periods
                     .filter((p) => !mine.has(p.period))
                     .map((p) => (
-                        <span
+                        <ClassTile
                             key={`free-${p.period}`}
+                            state="free"
+                            title={p.period}
                             style={{
                                 left: `${pct(p.start_minute)}%`,
                                 width: `${((p.end_minute - p.start_minute) / span) * 100}%`,
                             }}
-                            className="absolute inset-y-0 flex items-center justify-center border-2 border-dashed border-black/20 text-[11px] font-black tabular-nums text-black/25"
-                        >
-                            {p.period}
-                        </span>
+                            className="absolute inset-y-0 items-center"
+                        />
                     ))}
 
                 {/* 내 수업 — 연강이면 한 칸으로 이어집니다 */}
@@ -189,50 +190,36 @@ const DayRuler: React.FC<DayRulerProps> = ({
                     // **면을 채우는 건 "지금" 하나뿐** — 남은 수업까지 칠했더니 하루가
                     // 통째로 쨍했습니다.
                     //
-                    // ⚠️ **지난 수업도 회색으로 덮지 않습니다.** `bg-black/15` 로 칠했을
+                    // ⚠️ **지난 수업도 회색으로 덮지 않습니다.** 회색으로 칠했을
                     // 때 저녁에 열면 지나간 칸이 예닐곱이라 자가 잿빛 덩어리였습니다 —
-                    // 같은 학과색을 **투명도**로 낮추면 뭘 들었는지가 남습니다.
+                    // 같은 학과색을 **투명도**로 낮추면 뭘 들었는지가 남습니다
+                    // (`ClassTile state="past"`).
                     //
                     // ⚠️ **"지금" 도 꽉 채우지 않습니다.** 형광 핑크 100% 는 칸 하나가
                     // 자 전체를 눌렀습니다 — 다른 칸과 같은 문법(옅은 채움 + 진한
-                    // 테두리)에 색만 핑크입니다.
+                    // 테두리)에 색만 핑크입니다 (`ClassTile state="now"`).
                     return (
-                        <span
+                        <ClassTile
                             key={`class-${b.start.period}`}
+                            state={live ? "now" : past ? "past" : "upcoming"}
+                            color={color}
+                            title={
+                                b.periods.length > 1
+                                    ? `${b.periods[0]}–${b.periods[b.periods.length - 1]}`
+                                    : b.start.period
+                            }
                             style={{
                                 left: `${pct(b.start.start_minute)}%`,
                                 width: `${((b.end.end_minute - b.start.start_minute) / span) * 100}%`,
-                                borderColor: live ? "#ff4eba" : color,
-                                backgroundColor: live
-                                    ? "rgba(255, 78, 186, 0.22)"
-                                    : withAlpha(color, 0.14),
-                                opacity: !live && past ? 0.4 : 1,
                             }}
-                            className={`absolute inset-y-0 flex items-center justify-center border-2 text-[11px] font-black tabular-nums ${
-                                live
-                                    ? "text-black shadow-[3px_3px_0_0_rgba(0,0,0,0.18)]"
-                                    : past
-                                      ? "text-black/70"
-                                      : "text-black shadow-[2px_2px_0_0_rgba(0,0,0,0.2)]"
-                            }`}
-                        >
-                            {b.periods.length > 1
-                                ? `${b.periods[0]}–${b.periods[b.periods.length - 1]}`
-                                : b.start.period}
-                        </span>
+                            className="absolute inset-y-0 items-center"
+                        />
                     );
                 })}
 
                 {/* 지금 — 하루 어디쯤 와 있는지. 분이 바뀌면 미끄러집니다.
                     마름모는 이 앱이 시간표에서 쓰는 표식과 같은 모양입니다 */}
-                {caret !== null && (
-                    <span
-                        className="absolute -top-2.5 -bottom-2.5 z-10 w-0.5 bg-black transition-[left] duration-700 ease-out"
-                        style={{ left: `${caret}%` }}
-                    >
-                        <span className="absolute -top-0.5 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-black" />
-                    </span>
-                )}
+                {caret !== null && <TimeCaret position={caret} />}
             </div>
 
             {/* 눈금 — 덩어리의 양 끝과 그 사이 구멍의 이름.
@@ -244,30 +231,36 @@ const DayRuler: React.FC<DayRulerProps> = ({
                         { minute: b.end, edge: index === blocks.length - 1 },
                     ])
                     .map(({ minute, edge }) => (
-                        <span
+                        <Text
                             key={minute}
-                            className={`absolute text-[9px] font-bold tabular-nums text-black/30 ${
-                                edge ? "" : "hidden sm:block"
-                            }`}
+                            variant="micro"
+                            weight="bold"
+                            tone="muted"
+                            numeric
+                            className={`absolute ${edge ? "" : "hidden sm:block"}`}
                             style={anchor(pct(minute))}
                         >
                             {hhmm(minute)}
-                        </span>
+                        </Text>
                     ))}
 
                 {voids.map(
                     (v) =>
                         v.name && (
-                            <span
+                            <Text
                                 key={v.start}
-                                className="absolute hidden text-center text-[9px] font-bold text-black/25 sm:block"
+                                variant="micro"
+                                weight="bold"
+                                tone="muted"
+                                align="center"
+                                className="absolute hidden sm:block"
                                 style={{
                                     left: `${pct(v.start)}%`,
                                     width: `${((v.end - v.start) / span) * 100}%`,
                                 }}
                             >
                                 {v.name}
-                            </span>
+                            </Text>
                         ),
                 )}
                 </div>

@@ -2,9 +2,16 @@ import React, { useState, useMemo } from "react";
 import { Calendar, MapPin, RefreshCcw, Search } from "lucide-react";
 import type { SubjectData } from "../types";
 import { DAYS_ORDER, PERIODS } from "../lib/utils";
-import RetroButton from "../components/atoms/RetroButton";
-import RetroSubTitle from "../components/atoms/RetroSubTitle";
-import PageHeader from "../components/molecules/PageHeader";
+import {
+    Button,
+    PageHeader,
+    SectionTitle,
+    SlotCell,
+    Surface,
+    Swatch,
+    Text,
+    TimetableGrid,
+} from "@studio-baeks/funky-ui";
 
 interface RoomsPageProps {
     allClassesData: SubjectData[];
@@ -100,9 +107,9 @@ const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData, onRoomSearch }) =
                 subtitle="Hyung-seol Hall"
                 icon={MapPin}
                 action={
-                    <RetroButton onClick={resetSelection} icon={<RefreshCcw size={18} strokeWidth={2.5} />}>
+                    <Button variant="paper" shadow onClick={resetSelection} icon={RefreshCcw}>
                         Reset Selection
-                    </RetroButton>
+                    </Button>
                 }
             />
 
@@ -110,71 +117,66 @@ const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData, onRoomSearch }) =
                 {/* Left: Timetable */}
                 <div className="lg:col-span-5 space-y-4">
                     <div className="flex items-center justify-between">
-                        <RetroSubTitle
+                        <SectionTitle
                             title={selectedRoom ? `Schedule: ${selectedRoom}` : "Select Time Slots"}
                             icon={Calendar}
                         />
                         {selectedRoom && onRoomSearch && (
-                            <RetroButton
+                            <Button
+                                variant="paper"
+                                shadow
                                 onClick={() => onRoomSearch(selectedRoom)}
-                                icon={<Search size={14} strokeWidth={2.5} />}
+                                icon={Search}
                                 size="sm"
                             >
                                 Search
-                            </RetroButton>
+                            </Button>
                         )}
                     </div>
                     <div className="overflow-x-auto">
-                    <div className="bg-white border-2 border-black overflow-hidden shadow-[4px_4px_0_0_rgba(0,0,0,0.1)] min-w-[280px]">
-                        <div className="grid grid-cols-[40px_repeat(5,1fr)] divide-x divide-black/10 border-b border-black bg-black text-white">
-                            <div className="p-2 text-[10px] font-black text-center">Pd</div>
-                            {DAYS.map(day => (
-                                <div key={day} className="p-2 text-[10px] font-black text-center">{day}</div>
-                            ))}
-                        </div>
-                        {PERIODS.map(period => (
-                            <div key={period} className="grid grid-cols-[40px_repeat(5,1fr)] divide-x divide-black/10 border-b last:border-b-0 border-black/10">
-                                <div className="bg-black/5 flex items-center justify-center text-[10px] font-black border-r border-black/10">{period}</div>
-                                {DAYS.map(day => {
-                                    const key = `${day}-${period}`;
-                                    const isSelected = selectedTimes.includes(key);
-                                    
-                                    if (selectedRoom) {
-                                        const isOccupied = roomScheduleMap[selectedRoom]?.has(key);
-                                        return (
-                                            <div key={day} className={`h-10 transition-all duration-75 relative ${isOccupied ? "bg-black/[0.07] grayscale" : "bg-retro-green/20"}`} />
-                                        );
-                                    }
+                        <TimetableGrid
+                            flush
+                            className="min-w-[280px]"
+                            days={DAYS.map((day) => ({ key: day, label: day }))}
+                            periods={PERIODS.map((period) => ({ key: String(period), label: period }))}
+                            renderCell={(day, periodKey) => {
+                                const period = Number(periodKey);
+                                const key = `${day}-${period}`;
+                                const isSelected = selectedTimes.includes(key);
 
-                                    return (
-                                        <div
-                                            key={day}
-                                            onClick={() => toggleTime(day, period)}
-                                            className={`h-10 cursor-pointer transition-all duration-75 relative group ${isSelected ? "bg-black" : "hover:bg-retro-accent-light"}`}
-                                        />
-                                    );
-                                })}
-                            </div>
-                        ))}
+                                if (selectedRoom) {
+                                    const isOccupied = roomScheduleMap[selectedRoom]?.has(key);
+                                    return <SlotCell state={isOccupied ? "busy" : "free"} className="h-10" />;
+                                }
+
+                                return (
+                                    <SlotCell
+                                        state={isSelected ? "selected" : "empty"}
+                                        onToggle={() => toggleTime(day, period)}
+                                        label={`${day} ${period}교시`}
+                                        className="h-10"
+                                    />
+                                );
+                            }}
+                        />
                     </div>
-                    </div>
-                    <p className="text-[10px] font-bold text-black/30">
+                    <Text as="p" variant="micro" weight="bold" tone="muted">
                         {selectedRoom 
                             ? `* ${selectedRoom} 강의실의 주간 시간표입니다. (다른 강의실을 보려면 지도를 확인하세요)`
                             : "* 시간표를 클릭하여 빈교실 확인 / 지도의 교실을 클릭하여 상세 시간표 확인"}
-                    </p>
+                    </Text>
                 </div>
 
                 {/* Right: Map */}
                 <div className="lg:col-span-7 space-y-4">
-                    <RetroSubTitle title="Hyung-seol Hall Floor Map" icon={MapPin} />
+                    <SectionTitle title="Hyung-seol Hall Floor Map" icon={MapPin} />
                     <div className="space-y-6">
                         {Object.keys(HYUNGSEOL_ROOMS).reverse().map((floorStr) => {
                             const floor = parseInt(floorStr);
                             const rooms = HYUNGSEOL_ROOMS[floor];
                             return (
                                 <div key={floor} className="space-y-2">
-                                    <div className="relative border-b-2 border-black/5 pb-2">
+                                    <Surface fill="none" border="subtle" borderSide="bottom" className="relative pb-2">
                                         <div className="flex flex-row-reverse flex-wrap gap-2 pb-2">
                                             {rooms.map((room) => {
                                                 const isClassroom = ROOM_LABELS[room] === "교실";
@@ -184,51 +186,56 @@ const RoomsPage: React.FC<RoomsPageProps> = ({ allClassesData, onRoomSearch }) =
                                                 const shouldShowAsAvailable = selectedRoom ? isSelected : isClassroom && (isEmpty || selectedTimes.length === 0);
 
                                                 return (
-                                                    <button
+                                                    <Button
                                                         key={room}
-                                                        disabled={isTimeSelecting || !isClassroom}
+                                                        variant={shouldShowAsAvailable || isSelected ? "paper" : "muted"}
+                                                        shadow={shouldShowAsAvailable || isSelected ? (isTimeSelecting && !isSelected ? "static" : true) : false}
+                                                        selected={isSelected}
+                                                        uppercase={false}
+                                                        disabled={!isSelected && !shouldShowAsAvailable}
                                                         onClick={() => isClassroom && handleRoomClick(room)}
-                                                        className={`min-w-[72px] sm:min-w-[85px] h-14 sm:h-16 border-2 p-1.5 sm:p-2 flex flex-col items-center justify-center transition-all duration-100 group relative ${
-                                                            isSelected
-                                                                ? "bg-black text-white border-black scale-105 z-10 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] hover:shadow-[0_0_0_0_rgba(0,0,0,0.2)] active:scale-100"
-                                                                : shouldShowAsAvailable
-                                                                    ? `bg-white border-black shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] ${isTimeSelecting ? "cursor-default" : "hover:shadow-[0_0_0_0_rgba(0,0,0,0.2)] hover:translate-x-1 hover:translate-y-1"}`
-                                                                    : "bg-black/5 border-black/10 opacity-40 grayscale pointer-events-none"
-                                                        }`}
+                                                        className="relative min-w-[72px] sm:min-w-[85px] h-14 sm:h-16 p-1.5 sm:p-2 flex-col"
                                                     >
-                                                        <span className={`text-xs font-black ${isSelected ? "text-white" : "text-black"}`}>{room}</span>
-                                                        <div className={`text-[8px] font-bold truncate w-full text-center mt-0.5 leading-tight ${isSelected ? "text-white/60" : "text-black/40"}`}>
+                                                        <Text variant="caption" weight="black" tone="inherit">{room}</Text>
+                                                        <Text
+                                                            as="div"
+                                                            variant="micro"
+                                                            weight="bold"
+                                                            tone={isSelected ? "inverseMuted" : "muted"}
+                                                            truncate
+                                                            className="w-full text-center mt-0.5"
+                                                        >
                                                             {ROOM_LABELS[room]}
-                                                        </div>
+                                                        </Text>
                                                         {isClassroom && isEmpty && !isSelected && !selectedRoom && selectedTimes.length > 0 && (
-                                                            <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-retro-green border border-black rounded-full" />
+                                                            <Swatch accent="green" shape="round" className="absolute top-1 right-1" />
                                                         )}
-                                                    </button>
+                                                    </Button>
                                                 );
                                             })}
                                         </div>
-                                    </div>
+                                    </Surface>
                                 </div>
                             );
                         })}
                     </div>
                     
-                    <div className="bg-retro-bg/50 border-2 border-black p-4 space-y-2">
+                    <Surface fill="canvas" border="line" padding="xl" className="space-y-2">
                         <div className="flex flex-wrap items-center gap-4">
                             <div className="flex items-center gap-1.5">
-                                <div className="w-3 h-3 bg-white border border-black" />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Available</span>
+                                <Surface border="line" className="w-3 h-3" />
+                                <Text variant="overline" tone="primary">Available</Text>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <div className="w-3 h-3 bg-black/5 border border-black/10 opacity-40" />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Unavailable / Non-Classroom</span>
+                                <Surface fill="well" border="soft" className="w-3 h-3 opacity-40" />
+                                <Text variant="overline" tone="primary">Unavailable / Non-Classroom</Text>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <div className="w-3 h-3 bg-black" />
-                                <span className="text-[10px] font-black uppercase tracking-widest">Selected</span>
+                                <Surface fill="inverse" className="w-3 h-3" />
+                                <Text variant="overline" tone="primary">Selected</Text>
                             </div>
                         </div>
-                    </div>
+                    </Surface>
                 </div>
             </div>
         </div>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, type ComponentProps } from "react";
 import type { SectionInfo, SlotKey } from "../lib/tradeEngine";
 import {
     DAYS_ORDER,
@@ -6,6 +6,13 @@ import {
     getSectionNumber,
     formatSectionTimes,
 } from "../lib/utils";
+import {
+    Badge,
+    Button,
+    Surface,
+    Text,
+    TimetableGrid as FunkyTimetableGrid,
+} from "@studio-baeks/funky-ui";
 
 interface SectionsTimetableProps {
     /** 한 과목의 전체 분반 */
@@ -25,10 +32,16 @@ interface CellEntry {
 }
 
 /** 내 분반만 진하게, 나머지는 연하게. 충돌은 주황으로 구분합니다 */
-const STATE_STYLE: Record<CellState, string> = {
-    current: "bg-retro-accent1 border-black text-black",
-    free: "bg-retro-green/25 border-retro-green text-black",
-    blocked: "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4",
+const STATE_BUTTON: Record<CellState, ComponentProps<typeof Button>> = {
+    current: { accent: "cyan", variant: "solid" },
+    free: { accent: "green", variant: "outline" },
+    blocked: { accent: "orange", variant: "plain" },
+};
+
+const STATE_BADGE: Record<CellState, ComponentProps<typeof Badge>> = {
+    current: { accent: "cyan", variant: "solid" },
+    free: { accent: "green", variant: "solidMuted" },
+    blocked: { accent: "orange", variant: "solidMuted" },
 };
 
 const STATE_LABEL: Record<CellState, string> = {
@@ -89,98 +102,72 @@ const SectionsTimetable: React.FC<SectionsTimetableProps> = ({
     return (
         <div className="space-y-2">
             <div className="overflow-x-auto">
-                <div className="border-2 border-black bg-white min-w-[320px] shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
-                    <div className="grid grid-cols-[36px_repeat(5,1fr)] border-b-2 border-black bg-black text-white">
-                        <div className="p-1 text-[9px] font-black text-center bg-black/50">
-                            Pd
-                        </div>
-                        {DAYS_ORDER.map((day) => (
-                            <div
-                                key={day}
-                                className="p-1 text-[10px] font-black text-center uppercase"
-                            >
-                                {day}
+                <FunkyTimetableGrid
+                    className="min-w-[320px]"
+                    days={DAYS_ORDER.map((day) => ({ key: day, label: day }))}
+                    periods={periods.map((period) => ({
+                        key: String(period),
+                        label: period,
+                    }))}
+                    renderCell={(day, periodKey) => {
+                        const entries = cells.get(`${day}-${Number(periodKey)}`) ?? [];
+                        return (
+                            <div className="flex flex-wrap items-start content-start gap-0.5">
+                                {entries.map(({ section, state }) => {
+                                    const dimmed =
+                                        hoveredId !== null &&
+                                        hoveredId !== section.id;
+                                    return (
+                                        <Button
+                                            key={section.id}
+                                            size="xs"
+                                            {...STATE_BUTTON[state]}
+                                            onMouseEnter={() =>
+                                                setHoveredId(section.id)
+                                            }
+                                            onMouseLeave={() =>
+                                                setHoveredId(null)
+                                            }
+                                            onClick={() =>
+                                                onSectionClick?.(section)
+                                            }
+                                            className={`min-w-[20px] px-1 ${dimmed ? "opacity-25" : ""}`}
+                                        >
+                                            {getSectionNumber(section.section)}
+                                        </Button>
+                                    );
+                                })}
                             </div>
-                        ))}
-                    </div>
-                    {periods.map((period) => (
-                        <div
-                            key={period}
-                            className="grid grid-cols-[36px_repeat(5,1fr)] border-b border-black/10 last:border-b-0 min-h-[38px]"
-                        >
-                            <div className="bg-black/5 flex items-center justify-center text-[10px] font-black border-r border-black/10">
-                                {period}
-                            </div>
-                            {DAYS_ORDER.map((day) => {
-                                const entries = cells.get(`${day}-${period}`) ?? [];
-                                return (
-                                    <div
-                                        key={day}
-                                        className="border-l border-black/10 p-1 flex flex-wrap gap-0.5 items-start content-start"
-                                    >
-                                        {entries.map(({ section, state }) => {
-                                            const dimmed =
-                                                hoveredId !== null &&
-                                                hoveredId !== section.id;
-                                            return (
-                                                <button
-                                                    key={section.id}
-                                                    onMouseEnter={() =>
-                                                        setHoveredId(section.id)
-                                                    }
-                                                    onMouseLeave={() =>
-                                                        setHoveredId(null)
-                                                    }
-                                                    onClick={() =>
-                                                        onSectionClick?.(section)
-                                                    }
-                                                    className={`min-w-[20px] px-1 py-0.5 border-2 text-[10px] font-black leading-none transition-all duration-100 ${STATE_STYLE[state]} ${dimmed ? "opacity-25" : ""}`}
-                                                >
-                                                    {getSectionNumber(section.section)}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ))}
-                </div>
+                        );
+                    }}
+                />
             </div>
 
             {/* 호버한 분반의 상세 — 자리를 항상 차지해 레이아웃이 흔들리지 않게 합니다 */}
-            <div className="border-2 border-black bg-white px-2 py-1.5 min-h-[34px] flex items-center">
+            <Surface border="line" className="flex min-h-[34px] items-center px-2 py-1.5">
                 {hovered ? (
-                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] font-bold">
-                        <span className="font-black text-xs">
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                        <Text variant="caption" weight="black">
                             {getSectionNumber(hovered.section)}분반
-                        </span>
-                        <span>{hovered.teacher}</span>
-                        <span className="text-black/50">{hovered.room}</span>
-                        <span className="text-black/50">
+                        </Text>
+                        <Text variant="micro" weight="bold">{hovered.teacher}</Text>
+                        <Text variant="micro" weight="bold" tone="muted">{hovered.room}</Text>
+                        <Text variant="micro" weight="bold" tone="muted">
                             {formatSectionTimes(hovered.times)}
-                        </span>
-                        <span className="text-black/50">{hovered.studentCount}명</span>
+                        </Text>
+                        <Text variant="micro" weight="bold" tone="muted">{hovered.studentCount}명</Text>
                         {hoveredState && (
-                            <span
-                                className={`border-2 border-black px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest ${
-                                    hoveredState === "current"
-                                        ? "bg-retro-accent1"
-                                        : hoveredState === "free"
-                                          ? "bg-retro-green/25"
-                                          : "bg-retro-accent4/30"
-                                }`}
-                            >
+                            <Badge size="sm" {...STATE_BADGE[hoveredState]}>
                                 {STATE_LABEL[hoveredState]}
-                            </span>
+                            </Badge>
                         )}
                     </div>
                 ) : (
-                    <p className="text-[10px] font-bold text-black/35">
+                    <Text as="p" variant="micro" weight="bold" tone="muted">
                         칸에 마우스를 올리면 분반 정보가 나옵니다
-                    </p>
+                    </Text>
                 )}
-            </div>
+            </Surface>
         </div>
     );
 };

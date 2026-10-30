@@ -1,7 +1,15 @@
-import React from "react";
-import type { CalendarEvent } from "../types";
+import React, { type ElementType } from "react";
 import {
-    CATEGORY_STYLE,
+    Card,
+    Paint,
+    Pressable,
+    Surface,
+    Swatch,
+    Text,
+} from "@studio-baeks/funky-ui";
+import type { CalendarEvent } from "../types";
+import { CATEGORY_ACCENT } from "./calendarAccent";
+import {
     WEEKDAY_LABEL,
     inMonth,
     isSameDay,
@@ -20,6 +28,8 @@ interface CalendarGridProps {
     selected: string | null;
     onSelect: (key: string) => void;
 }
+
+const SurfaceRoot = Surface as ElementType;
 
 /** 한 칸에 이만큼만 적고 나머지는 숫자로 접습니다 */
 const MAX_CHIPS = 3;
@@ -42,23 +52,20 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
     const today = new Date();
 
     return (
-        <div className="border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]">
-            <div className="grid grid-cols-7 border-b-2 border-black">
+        <Card padding="0">
+            <Surface border="line" borderSide="bottom" className="grid grid-cols-7">
                 {WEEKDAY_LABEL.map((label, i) => (
-                    <div
+                    <Text
                         key={label}
-                        className={`py-2 text-center text-[11px] font-black uppercase tracking-widest ${
-                            i === 0
-                                ? "text-retro-primary"
-                                : i === 6
-                                  ? "text-retro-accent5"
-                                  : "text-black/40"
-                        }`}
+                        variant="overline"
+                        tone={i === 0 ? "pink" : i === 6 ? "sky" : undefined}
+                        align="center"
+                        className="py-2"
                     >
                         {label}
-                    </div>
+                    </Text>
                 ))}
-            </div>
+            </Surface>
 
             <div className="grid grid-cols-7">
                 {days.map((date, index) => {
@@ -76,36 +83,44 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                     const holiday = events.some((e) => e.category === "holiday");
 
                     return (
-                        <button
+                        <SurfaceRoot
+                            as={Pressable}
                             key={key}
+                            fill={isSelected || outside ? "well" : "none"}
+                            hoverable={!outside}
                             onClick={() => onSelect(key)}
-                            className={`relative min-h-[92px] border-black/10 border-b border-r p-1.5 text-left align-top transition-colors duration-100 ${
+                            className={`relative min-h-[92px] border-b-2 border-r-2 border-[var(--fk-line-subtle)] p-1.5 text-left align-top ${
                                 index % 7 === 6 ? "border-r-0" : ""
-                            } ${index >= 35 ? "border-b-0" : ""} ${
-                                outside ? "bg-black/[0.02]" : "hover:bg-retro-accent-light"
-                            } ${isSelected ? "bg-retro-accent-light" : ""}`}
+                            } ${index >= 35 ? "border-b-0" : ""}`}
                         >
                             <div className="flex items-center justify-between">
-                                <span
-                                    className={`inline-flex h-6 min-w-6 items-center justify-center px-1 text-[13px] font-black ${
-                                        isToday ? "bg-black text-white" : ""
-                                    } ${
-                                        outside
-                                            ? "text-black/20"
-                                            : holiday || date.getDay() === 0
-                                              ? "text-retro-primary"
-                                              : date.getDay() === 6
-                                                ? "text-retro-accent5"
-                                                : "text-black"
-                                    }`}
+                                <Surface
+                                    as="span"
+                                    fill={isToday ? "inverse" : "none"}
+                                    className="inline-flex h-6 min-w-6 items-center justify-center px-1"
                                 >
-                                    {date.getDate()}
-                                </span>
+                                    <Text
+                                        weight="black"
+                                        tone={
+                                            isToday
+                                                ? "inverse"
+                                                : outside
+                                                  ? "faint"
+                                                  : holiday || date.getDay() === 0
+                                                    ? "pink"
+                                                    : date.getDay() === 6
+                                                      ? "sky"
+                                                      : undefined
+                                        }
+                                    >
+                                        {date.getDate()}
+                                    </Text>
+                                </Surface>
                                 {/* 주차는 그 주의 첫 칸에만 — 매 칸에 적으면 격자가 시끄러워집니다 */}
                                 {week !== null && index % 7 === 0 && (
-                                    <span className="text-[10px] font-black text-black/25">
+                                    <Text variant="micro" tone="faint">
                                         {week}주
-                                    </span>
+                                    </Text>
                                 )}
                             </div>
 
@@ -113,40 +128,47 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                 {events.slice(0, MAX_CHIPS).map((event) => {
                                     const time = timeLabel(event);
                                     return (
-                                        <div
+                                        <Paint
                                             key={`${event.id}-${key}`}
-                                            className={`flex items-center gap-1 px-1 py-0.5 text-[11px] font-bold leading-tight ${
-                                                CATEGORY_STYLE[event.category].chip
-                                            } ${outside ? "opacity-40" : ""}`}
+                                            accent={CATEGORY_ACCENT[event.category]}
+                                            variant="wash"
+                                            className={`flex items-center gap-1 px-1 py-0.5 ${
+                                                outside ? "opacity-40" : ""
+                                            }`}
                                         >
                                             {event.is_personal && (
-                                                <span className="h-1.5 w-1.5 shrink-0 rotate-45 bg-retro-green" />
+                                                <Swatch accent="green" className="shrink-0 rotate-45" />
                                             )}
-                                            <span className="truncate">
+                                            <Text
+                                                variant="label"
+                                                weight="bold"
+                                                tone="inherit"
+                                                truncate
+                                            >
                                                 {time && (
                                                     <span className="mr-1 opacity-60">{time}</span>
                                                 )}
                                                 {event.title}
-                                            </span>
-                                        </div>
+                                            </Text>
+                                        </Paint>
                                     );
                                 })}
                                 {events.length > MAX_CHIPS && (
-                                    <div className="px-1 text-[11px] font-black text-black/35">
+                                    <Text as="div" variant="label" tone="muted" className="px-1">
                                         +{events.length - MAX_CHIPS}
-                                    </div>
+                                    </Text>
                                 )}
                                 {ongoing > 0 && (
-                                    <div className="px-1 text-[11px] font-bold text-black/25">
+                                    <Text as="div" variant="label" weight="bold" tone="muted" className="px-1">
                                         ⋯ {ongoing}
-                                    </div>
+                                    </Text>
                                 )}
                             </div>
-                        </button>
+                        </SurfaceRoot>
                     );
                 })}
             </div>
-        </div>
+        </Card>
     );
 };
 

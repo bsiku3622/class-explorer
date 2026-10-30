@@ -12,8 +12,18 @@
  * 정작 알고 싶은 건 "그 사이가 몇 분인가" 입니다.
  */
 
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { type ElementType } from "react";
+import { Link as RouterLink } from "react-router-dom";
+import {
+    Divider,
+    Link,
+    Paint,
+    Surface,
+    Swatch,
+    Text,
+    ToneSwatch,
+    ToneText,
+} from "@studio-baeks/funky-ui";
 import type { PeriodTime, TodayClass } from "../lib/friendsApi";
 import { getDepartmentColor, getKoreanName } from "../lib/utils";
 import { duration } from "../lib/homeView";
@@ -43,8 +53,17 @@ import {
  */
 const ROW_REM = 3.25;
 
-/** "지금" 을 뜻하는 핑크 — 면·띠·글자가 모두 같은 값을 씁니다 */
-const NOW_PINK = "#ff4eba";
+/**
+ * 한 줄의 바탕 — 진행 중이면 위아래 핑크 선이 있는 면(`Paint`), 아니면 그냥 `li` 입니다.
+ * "지금" 을 뜻하는 핑크 — 면·띠·글자가 모두 같은 accent 를 씁니다
+ */
+const rowRoot = (live: boolean, variant: "plain" | "outline"): [ElementType, object] =>
+    live
+        ? [Paint, { as: "li", accent: "pink", variant, borderSide: "y" }]
+        : ["li", { className: undefined }];
+
+/** 지나지 않은 줄 사이의 가는 선 — 진행 중인 줄은 자기 핑크 선을 갖습니다 */
+const DIVIDE = "border-t-2 border-[var(--fk-line-subtle)] first:border-t-0";
 
 type Row =
     | {
@@ -175,7 +194,7 @@ const TodayTimeline: React.FC<TodayTimelineProps> = ({
         : buildRows(today, periods);
 
     return (
-        <ul className="divide-y divide-black/10 border-y border-black/10">
+        <Surface as="ul" fill="none" border="subtle" borderSide="y">
             {rows.map((row) => {
                 if (row.kind === "free") {
                     const past = nowMinute !== null && nowMinute >= row.time.end_minute;
@@ -188,11 +207,14 @@ const TodayTimeline: React.FC<TodayTimelineProps> = ({
                     // 목록에는 자와 달리 **캐럿이 없어서** 공강 시간에는 어디가 지금인지
                     // 짚어 주는 게 하나도 없었습니다.
                     //
-                    // ⚠️ 대신 **수업 줄보다 옅게**(8% vs 12%) 칠하고 글자만 핑크로
-                    // 둡니다 — 진행 중인 수업이 화면에서 여전히 더 무거워야 합니다
+                    // ⚠️ 대신 **수업 줄보다 옅게** 칠합니다 — 수업 줄은 면이 있는 `plain`,
+                    // 공강 줄은 면 없이 선만 있는 `outline` 입니다. 진행 중인 수업이
+                    // 화면에서 여전히 더 무거워야 합니다
+                    const [Root, rootProps] = rowRoot(live, "outline");
                     return (
-                        <li
+                        <Root
                             key={row.key}
+                            {...rootProps}
                             // ⚠️ **공강도 수업과 같은 높이입니다.** 한때 낮게 눌러
                             // 놨는데(`py-1.5` · 12px), 같은 50분인데 칸 높이가 다르면
                             // 목록이 시간을 재는 물건이 아니게 됩니다 — 5교시 공강과
@@ -200,63 +222,69 @@ const TodayTimeline: React.FC<TodayTimelineProps> = ({
                             style={{ minHeight: `${ROW_REM}rem` }}
                             className={`flex items-center gap-3 py-2 ${
                                 live
-                                    ? `border-y-2 border-retro-primary bg-retro-primary/[0.08] ${
-                                          bleed ? "-mx-5 px-5 md:-mx-6 md:px-6" : "px-3"
-                                      }`
-                                    : past
-                                      ? "opacity-55"
-                                      : ""
+                                    ? bleed
+                                        ? "-mx-5 px-5 md:-mx-6 md:px-6"
+                                        : "px-3"
+                                    : `${DIVIDE} ${past ? "opacity-55" : ""}`
                             } ${!live && !bleed ? "px-3" : ""}`}
                         >
                             {/* 수업 줄의 학과색 띠와 **자리를 맞춥니다** — 색만 없고
                                 폭은 같아야 시각 숫자가 세로로 정렬됩니다 */}
-                            <span
-                                className="-mb-2 -mt-2 w-1 shrink-0 self-stretch"
-                                style={live ? { backgroundColor: NOW_PINK } : undefined}
-                            />
+                            {live ? (
+                                <Swatch accent="pink" shape="rail" className="-my-2 self-stretch" />
+                            ) : (
+                                <ToneSwatch shape="rail" className="-my-2" />
+                            )}
                             <span className="w-[5.5rem] shrink-0 whitespace-nowrap leading-none">
-                                <span
-                                    className={`block text-[13px] font-black tabular-nums ${
-                                        live ? "text-black" : "text-black/35"
-                                    }`}
+                                <Text
+                                    as="span"
+                                    weight="black"
+                                    tone={live ? "primary" : "muted"}
+                                    numeric
+                                    className="block"
                                 >
                                     {row.time.start}–{row.time.end}
-                                </span>
-                                <span
-                                    className={`mt-1 block text-[12px] font-bold tabular-nums ${
-                                        live ? "text-black/45" : "text-black/25"
-                                    }`}
+                                </Text>
+                                <Text
+                                    as="span"
+                                    variant="caption"
+                                    tone={live ? "muted" : "faint"}
+                                    numeric
+                                    className="mt-1 block"
                                 >
                                     {row.time.period}교시
-                                </span>
+                                </Text>
                             </span>
-                            <span
-                                className="min-w-0 flex-1 text-[13px] font-black"
-                                style={{ color: live ? NOW_PINK : undefined }}
+                            <Text
+                                as="span"
+                                weight="black"
+                                tone={live ? "pink" : "faint"}
+                                className="min-w-0 flex-1"
                             >
-                                <span className={live ? "" : "text-black/25"}>공강</span>
-                            </span>
-
-                        </li>
+                                공강
+                            </Text>
+                        </Root>
                     );
                 }
 
                 if (row.kind === "gap") {
                     return (
-                        <li
+                        <Text
+                            as="li"
                             key={row.key}
-                            className="flex items-center gap-2 py-2.5 pl-16 text-[11px] font-bold text-black/30"
+                            variant="label"
+                            weight="bold"
+                            tone="muted"
+                            className={`flex items-center gap-2 py-2.5 pl-16 ${DIVIDE}`}
                         >
-                            <span className="h-px w-4 bg-black/20" />
+                            <Divider tone="soft" className="w-4" />
                             {row.periods.length === 0
                                 ? "비어 있음"
                                 : row.periods.length === 1
                                   ? `${row.periods[0]}교시 비어 있음`
                                   : `${row.periods[0]}–${row.periods[row.periods.length - 1]}교시 비어 있음`}
-                            <span className="tabular-nums text-black/25">
-                                {duration(row.minutes)}
-                            </span>
-                        </li>
+                            <Text numeric>{duration(row.minutes)}</Text>
+                        </Text>
                     );
                 }
 
@@ -270,10 +298,27 @@ const TodayTimeline: React.FC<TodayTimelineProps> = ({
                     nowMinute < row.endTime.end_minute;
                 const unassigned = item.room === "배정중";
                 const color = getDepartmentColor(item.department);
+                const [Root, rootProps] = rowRoot(live, "plain");
+
+                // 이름·교사·분반은 **검색으로 가는 문**입니다 —
+                // 여기서 궁금해지는 건 대개 "이 수업 누가 또 듣지",
+                // "이 선생님 다른 수업은" 이고, 그건 검색 화면의 일입니다.
+                // 검색어는 `searchEngine` 이 자기 문법에 맞게 만듭니다
+                const nameLink = (
+                    <Link
+                        as={RouterLink}
+                        underline="hover"
+                        to={searchHref(subjectQuery(item.subject))}
+                        title={`${getKoreanName(item.subject)} 검색`}
+                    >
+                        {getKoreanName(item.subject)}
+                    </Link>
+                );
 
                 return (
-                    <li
+                    <Root
                         key={row.key}
+                        {...rootProps}
                         ref={
                             focusPeriod !== null && row.periods.includes(focusPeriod)
                                 ? focusRef
@@ -284,39 +329,49 @@ const TodayTimeline: React.FC<TodayTimelineProps> = ({
                         // ⚠️ **진행 중인 줄을 형광 핑크로 꽉 채우지 않습니다.** 폭이
                         // 넓은 목록에서 한 줄이 통째로 형광이면 화면에서 제일 센
                         // 물건이 되어 다음 수업을 읽는 걸 방해했습니다. 옅은 면
-                        // (12%)에 위아래 핑크 선으로 구간만 표시합니다
+                        // (`plain`)에 위아래 핑크 선으로 구간만 표시합니다
                         // 높이는 **교시 수에 비례**하고, 내용은 **위에 붙습니다** —
                         // 시작 시각이 덩어리 맨 위에 있어야 "19:30 에 시작해서 두
                         // 교시" 로 읽힙니다 (자·주간 격자의 위쪽 정렬과 같은 규칙)
                         style={{ minHeight: `${ROW_REM * row.periods.length}rem` }}
                         className={`flex items-center gap-3 py-2 ${
                             live
-                                ? `border-y-2 border-retro-primary bg-retro-primary/[0.12] ${
-                                      bleed ? "-mx-5 px-5 md:-mx-6 md:px-6" : "px-3"
-                                  }`
-                                : past
-                                  ? "opacity-55"
-                                  : ""
+                                ? bleed
+                                    ? "-mx-5 px-5 md:-mx-6 md:px-6"
+                                    : "px-3"
+                                : `${DIVIDE} ${past ? "opacity-55" : ""}`
                         } ${!live && !bleed ? "px-3" : ""}`}
                     >
                         {/* 학과색 띠 — 주간 격자·자와 같은 색이라 세 자리에서
-                            같은 과목이 같은 색으로 보입니다. 진행 중인 줄은 이미
-                            핑크로 꽉 차 있어 띠를 얹지 않습니다 */}
-                        <span
-                            className="-mb-2 -mt-2 w-1 shrink-0 self-stretch"
-                            style={{ backgroundColor: live ? NOW_PINK : color }}
-                        />
+                            같은 과목이 같은 색으로 보입니다. 진행 중인 줄은 핑크 띠입니다 */}
+                        {live ? (
+                            <Swatch accent="pink" shape="rail" className="-my-2 self-stretch" />
+                        ) : (
+                            <ToneSwatch tone={color} shape="rail" className="-my-2" />
+                        )}
                         {/* 끝 시각은 **덩어리의 끝**입니다 — 연강이면 마지막 교시의
                             끝(`endTime`)이라야 "10–11교시 19:30–21:10" 이 맞습니다 */}
                         <span className="w-[5.5rem] shrink-0 whitespace-nowrap leading-none">
-                            <span className="block text-[13px] font-black tabular-nums">
+                            <Text
+                                as="span"
+                                weight="black"
+                                tone="primary"
+                                numeric
+                                className="block"
+                            >
                                 {time.start}–{row.endTime.end}
-                            </span>
-                            <span className="mt-1 block text-[12px] font-bold tabular-nums text-black/35">
+                            </Text>
+                            <Text
+                                as="span"
+                                variant="caption"
+                                tone="muted"
+                                numeric
+                                className="mt-1 block"
+                            >
                                 {row.periods.length > 1
                                     ? `${row.periods[0]}–${row.periods[row.periods.length - 1]}교시`
                                     : `${item.period}교시`}
-                            </span>
+                            </Text>
                         </span>
 
                         <span className="min-w-0 flex-1">
@@ -324,52 +379,53 @@ const TodayTimeline: React.FC<TodayTimelineProps> = ({
                                 띠가 무슨 뜻인지 따로 설명할 필요가 없습니다.
                                 **진행 중이면 이름도 핑크**입니다 — 그 줄에서는 면·
                                 띠·글자가 한 색으로 모입니다 */}
-                            {/* 이름·교사·분반은 **검색으로 가는 문**입니다 —
-                                여기서 궁금해지는 건 대개 "이 수업 누가 또 듣지",
-                                "이 선생님 다른 수업은" 이고, 그건 검색 화면의 일입니다.
-                                검색어는 `searchEngine` 이 자기 문법에 맞게 만듭니다 */}
-                            <Link
-                                to={searchHref(subjectQuery(item.subject))}
-                                title={`${getKoreanName(item.subject)} 검색`}
-                                className="block truncate text-[15px] font-black leading-tight tracking-tight hover:underline"
-                                style={{ color: live ? NOW_PINK : color }}
-                            >
-                                {getKoreanName(item.subject)}
-                            </Link>
-                            <span className="mt-0.5 block truncate text-[12px] font-bold text-black/40">
+                            {live ? (
+                                <Text as="div" variant="subheading" tone="pink" truncate>
+                                    {nameLink}
+                                </Text>
+                            ) : (
+                                <ToneText as="div" variant="subheading" tone={color} truncate>
+                                    {nameLink}
+                                </ToneText>
+                            )}
+                            <Text as="div" variant="caption" tone="muted" truncate className="mt-0.5">
                                 <Link
+                                    as={RouterLink}
+                                    underline="hover"
                                     to={searchHref(teacherQuery(item.teacher))}
                                     title={`${item.teacher} 검색`}
-                                    className="hover:underline"
                                 >
                                     {item.teacher}
                                 </Link>{" "}
                                 ·{" "}
                                 <Link
+                                    as={RouterLink}
+                                    underline="hover"
                                     to={searchHref(
                                         sectionQuery(item.subject, item.section),
                                     )}
                                     title={`${getKoreanName(item.subject)} ${item.section.replace(/[^0-9]/g, "")}분반 검색`}
-                                    className="hover:underline"
                                 >
                                     {item.section.replace(/[^0-9]/g, "")}분반
                                 </Link>
-                            </span>
+                            </Text>
                         </span>
 
                         {/* "배정중" 은 교실이 아니라 **아직 정해지지 않았다는 표시**라,
                             정해진 교실과 같은 무게로 그리면 안 읽고 지나칩니다 */}
-                        <span
-                            className={`shrink-0 text-[13px] font-black tabular-nums ${
-                                unassigned ? "text-black/25" : ""
-                            }`}
+                        <Text
+                            as="span"
+                            weight="black"
+                            tone={unassigned ? "faint" : "primary"}
+                            numeric
+                            className="shrink-0"
                         >
                             {item.room}
-                        </span>
-                    </li>
+                        </Text>
+                    </Root>
                 );
             })}
-        </ul>
+        </Surface>
     );
 };
 

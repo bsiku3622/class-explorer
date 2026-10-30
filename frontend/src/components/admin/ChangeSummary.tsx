@@ -1,6 +1,6 @@
 import React from "react";
 import { ArrowRight } from "lucide-react";
-import RetroSubTitle from "../atoms/RetroSubTitle";
+import { Icon, SectionTitle, Text } from "@studio-baeks/funky-ui";
 
 export interface ChangeSummaryData {
     changed: boolean;
@@ -22,22 +22,22 @@ export interface ChangeSummaryData {
 /** `+3` / `-2` — 0 이면 아무것도 그리지 않습니다 */
 const Delta: React.FC<{ value: number }> = ({ value }) =>
     value === 0 ? null : (
-        <span className={value > 0 ? "text-green-700" : "text-red-600"}>
+        <Text variant="caption" weight="black" tone={value > 0 ? "green" : "red"}>
             {value > 0 ? "+" : ""}{value}
-        </span>
+        </Text>
     );
 
 const Stat: React.FC<{ label: string; added: number; removed: number }> = ({
     label, added, removed,
 }) => (
     <div className="flex items-baseline gap-1.5">
-        <span className="text-black/40">{label}</span>
+        <Text variant="caption" weight="black" tone="muted">{label}</Text>
         {added === 0 && removed === 0 ? (
-            <span className="text-black/30">변화 없음</span>
+            <Text variant="caption" weight="black" tone="muted">변화 없음</Text>
         ) : (
             <>
                 <Delta value={added} />
-                {added > 0 && removed > 0 && <span className="text-black/20">/</span>}
+                {added > 0 && removed > 0 && <Text variant="caption" weight="black" tone="faint">/</Text>}
                 <Delta value={-removed} />
             </>
         )}
@@ -47,10 +47,10 @@ const Stat: React.FC<{ label: string; added: number; removed: number }> = ({
 const List: React.FC<{ title: string; items: string[] }> = ({ title, items }) =>
     items.length === 0 ? null : (
         <div className="space-y-1">
-            <RetroSubTitle title={`${title} (${items.length})`} />
+            <SectionTitle title={`${title} (${items.length})`} />
             <ul className="space-y-0.5">
                 {items.map((item) => (
-                    <li key={item} className="text-xs font-bold text-black/70 truncate">{item}</li>
+                    <Text as="li" key={item} variant="caption" tone="secondary" truncate>{item}</Text>
                 ))}
             </ul>
         </div>
@@ -64,7 +64,7 @@ const List: React.FC<{ title: string; items: string[] }> = ({ title, items }) =>
  */
 const ChangeSummary: React.FC<{ data: ChangeSummaryData }> = ({ data }) => {
     if (!data.changed) {
-        return <p className="text-xs font-bold text-black/40">직전 회차와 같습니다.</p>;
+        return <Text as="p" variant="caption" tone="muted">직전 회차와 같습니다.</Text>;
     }
 
     const { classes, times, enrollments, students } = data;
@@ -72,37 +72,37 @@ const ChangeSummary: React.FC<{ data: ChangeSummaryData }> = ({ data }) => {
 
     return (
         <div className="space-y-3">
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-black">
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
                 <Stat label="분반" added={classes.added.length} removed={classes.removed.length} />
                 <Stat label="시간" added={times.added} removed={times.removed} />
                 <Stat label="수강" added={enrollments.added} removed={enrollments.removed} />
                 {classes.moved.length > 0 && (
                     <div className="flex items-baseline gap-1.5">
-                        <span className="text-black/40">교실 이동</span>
-                        <span className="text-black">{classes.moved.length}</span>
+                        <Text variant="caption" weight="black" tone="muted">교실 이동</Text>
+                        <Text variant="caption" weight="black">{classes.moved.length}</Text>
                     </div>
                 )}
                 {swapped.length > 0 && (
                     <div className="flex items-baseline gap-1.5">
-                        <span className="text-black/40">교사 교체</span>
-                        <span className="text-black">{swapped.length}</span>
+                        <Text variant="caption" weight="black" tone="muted">교사 교체</Text>
+                        <Text variant="caption" weight="black">{swapped.length}</Text>
                     </div>
                 )}
                 {!!classes.assigned && (
                     <div className="flex items-baseline gap-1.5">
-                        <span className="text-black/40">교실 배정</span>
-                        <span className="text-black">{classes.assigned}</span>
+                        <Text variant="caption" weight="black" tone="muted">교실 배정</Text>
+                        <Text variant="caption" weight="black">{classes.assigned}</Text>
                     </div>
                 )}
                 {students.new > 0 && (
                     <div className="flex items-baseline gap-1.5">
-                        <span className="text-black/40">신규 학생</span>
-                        <span className="text-black">{students.new}</span>
+                        <Text variant="caption" weight="black" tone="muted">신규 학생</Text>
+                        <Text variant="caption" weight="black">{students.new}</Text>
                     </div>
                 )}
                 <div className="flex items-baseline gap-1.5">
-                    <span className="text-black/40">유지</span>
-                    <span className="text-black/60">{classes.kept}</span>
+                    <Text variant="caption" weight="black" tone="muted">유지</Text>
+                    <Text variant="caption" weight="black" tone="secondary">{classes.kept}</Text>
                 </div>
             </div>
 
@@ -111,15 +111,15 @@ const ChangeSummary: React.FC<{ data: ChangeSummaryData }> = ({ data }) => {
 
             {swapped.length > 0 && (
                 <div className="space-y-1">
-                    <RetroSubTitle title={`교사 교체 (${swapped.length})`} />
+                    <SectionTitle title={`교사 교체 (${swapped.length})`} />
                     <ul className="space-y-0.5">
                         {swapped.map((row) => (
-                            <li key={row.class} className="flex items-center gap-1.5 text-xs font-bold text-black/70">
-                                <span className="truncate">{row.class}</span>
-                                <span className="shrink-0 text-black/40">{row.from}</span>
-                                <ArrowRight size={10} strokeWidth={3} className="shrink-0 text-black/40" />
-                                <span className="shrink-0">{row.to}</span>
-                            </li>
+                            <Text as="li" key={row.class} variant="caption" tone="secondary" className="flex items-center gap-1.5">
+                                <Text variant="caption" tone="inherit" truncate>{row.class}</Text>
+                                <Text variant="caption" tone="muted" className="shrink-0">{row.from}</Text>
+                                <Icon icon={ArrowRight} size={10} strokeWidth={3} tone="muted" className="shrink-0" />
+                                <Text variant="caption" className="shrink-0">{row.to}</Text>
+                            </Text>
                         ))}
                     </ul>
                 </div>
@@ -127,15 +127,15 @@ const ChangeSummary: React.FC<{ data: ChangeSummaryData }> = ({ data }) => {
 
             {classes.moved.length > 0 && (
                 <div className="space-y-1">
-                    <RetroSubTitle title={`교실 이동 (${classes.moved.length})`} />
+                    <SectionTitle title={`교실 이동 (${classes.moved.length})`} />
                     <ul className="space-y-0.5">
                         {classes.moved.map((m) => (
-                            <li key={m.class} className="flex items-center gap-1.5 text-xs font-bold text-black/70">
-                                <span className="truncate">{m.class}</span>
-                                <span className="shrink-0 text-black/40">{m.from}</span>
-                                <ArrowRight size={10} strokeWidth={3} className="shrink-0 text-black/40" />
-                                <span className="shrink-0">{m.to}</span>
-                            </li>
+                            <Text as="li" key={m.class} variant="caption" tone="secondary" className="flex items-center gap-1.5">
+                                <Text variant="caption" tone="inherit" truncate>{m.class}</Text>
+                                <Text variant="caption" tone="muted" className="shrink-0">{m.from}</Text>
+                                <Icon icon={ArrowRight} size={10} strokeWidth={3} tone="muted" className="shrink-0" />
+                                <Text variant="caption" className="shrink-0">{m.to}</Text>
+                            </Text>
                         ))}
                     </ul>
                 </div>
@@ -143,13 +143,13 @@ const ChangeSummary: React.FC<{ data: ChangeSummaryData }> = ({ data }) => {
 
             {enrollments.by_class.length > 0 && (
                 <div className="space-y-1">
-                    <RetroSubTitle title="인원 변동" />
+                    <SectionTitle title="인원 변동" />
                     <ul className="space-y-0.5">
                         {enrollments.by_class.map((row) => (
-                            <li key={row.class} className="flex items-center justify-between gap-2 text-xs font-bold">
-                                <span className="truncate text-black/70">{row.class}</span>
+                            <Text as="li" key={row.class} variant="caption" className="flex items-center justify-between gap-2">
+                                <Text variant="caption" tone="secondary" truncate>{row.class}</Text>
                                 <span className="shrink-0"><Delta value={row.delta} /></span>
-                            </li>
+                            </Text>
                         ))}
                     </ul>
                 </div>

@@ -61,11 +61,23 @@ import {
     type FactsQuery,
 } from "../../lib/factsApi";
 import { majorLabel } from "../../lib/majors";
-import RetroButton from "../atoms/RetroButton";
-import RetroCard from "../atoms/RetroCard";
-import RetroChip from "../atoms/RetroChip";
-import RetroSpinner from "../atoms/RetroSpinner";
 import SearchInput from "../atoms/SearchInput";
+import {
+    Badge,
+    Button,
+    Card,
+    EmptyState,
+    FormField,
+    Icon,
+    Input,
+    Link,
+    Notice,
+    SegmentedControl,
+    Spinner,
+    Surface,
+    Text,
+    Textarea,
+} from "@studio-baeks/funky-ui";
 
 /** 거르개 — 붙는 개수는 서버가 준 전체 값입니다(검색과 무관) */
 const FILTERS: {
@@ -78,21 +90,6 @@ const FILTERS: {
     { value: "hidden", label: "숨김", count: (c) => c.hidden },
     { value: "edited", label: "고친 것", count: (c) => c.edited },
 ];
-
-const inputClass =
-    "border-2 border-black px-3 py-2 text-sm font-bold bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] focus:shadow-none outline-none transition-all duration-100";
-
-const labelClass = "block text-[10px] font-black uppercase text-black/45";
-
-/**
- * 줄마다 붙는 작은 단추 — Admin 의 `Refetch`·`Edit` 와 같은 모양입니다. 사실이 수십 줄이라
- * 하드 쉐도우를 달면 목록이 자갈밭이 됩니다.
- */
-const toolClass =
-    "flex shrink-0 items-center gap-1.5 whitespace-nowrap border-2 border-black/30 bg-white px-2.5 py-1.5 text-[10px] font-black uppercase text-black/50 transition-all duration-100 hover:border-black hover:text-black disabled:pointer-events-none disabled:opacity-40";
-
-/** 못 누르는 `RetroButton` 이 눌리는 시늉(그림자 숨기기)을 하지 않게 */
-const quietDisabled = "disabled:pointer-events-none disabled:opacity-40";
 
 /**
  * 서버가 준 사유. ⚠️ 검증 오류(422)는 `detail` 이 **배열**이라 그대로 그리면 화면이 통째로
@@ -138,90 +135,93 @@ const FactEditor: React.FC<FactEditorProps> = ({
 
     return (
         <div className="space-y-3">
-            <label className="block space-y-1.5">
-                <span className={labelClass}>문장</span>
-                <textarea
+            <FormField
+                label="문장"
+                hint={
+                    <span className="flex justify-between gap-3">
+                        <span>글을 안 읽은 사람도 알아듣는 한 문장 · ⌘/Ctrl+Enter 로 저장</span>
+                        <span className="shrink-0">
+                            {draft.statement.trim().length}/{FACT_LIMITS.statementMax}
+                        </span>
+                    </span>
+                }
+            >
+                <Textarea
                     autoFocus
+                    shadow
                     rows={3}
                     maxLength={FACT_LIMITS.statementMax}
                     value={draft.statement}
                     onChange={(e) => onDraft({ statement: e.target.value })}
                     onKeyDown={(e) => handleKey(e, true)}
-                    className={`${inputClass} block w-full resize-y leading-relaxed`}
+                    className="resize-y"
                 />
-                <span className="flex justify-between gap-3 text-[10px] font-bold text-black/35">
-                    <span>글을 안 읽은 사람도 알아듣는 한 문장 · ⌘/Ctrl+Enter 로 저장</span>
-                    <span className="shrink-0">
-                        {draft.statement.trim().length}/{FACT_LIMITS.statementMax}
-                    </span>
-                </span>
-            </label>
+            </FormField>
 
             <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block space-y-1.5">
-                    <span className={labelClass}>주제</span>
-                    <input
+                <FormField label="주제">
+                    <Input
                         type="text"
+                        shadow
                         maxLength={FACT_LIMITS.topicMax}
                         value={draft.topic}
                         onChange={(e) => onDraft({ topic: e.target.value })}
                         onKeyDown={(e) => handleKey(e, false)}
                         placeholder="예: 주중 외출 시간"
-                        className={`${inputClass} block w-full`}
                     />
-                </label>
+                </FormField>
                 <div className="space-y-1.5">
-                    <span className={labelClass}>유효 기한</span>
+                    <Text as="div" variant="overline">유효 기한</Text>
                     <div className="flex flex-wrap items-center gap-2">
-                        <input
+                        <Input
                             type="date"
+                            shadow
                             aria-label="유효 기한"
                             value={draft.validUntil}
                             onChange={(e) => onDraft({ validUntil: e.target.value })}
                             onKeyDown={(e) => handleKey(e, false)}
-                            className={inputClass}
+                            className="w-auto"
                         />
-                        <RetroButton
-                            type="button"
+                        <Button
                             size="sm"
+                            variant="paper"
+                            shadow
                             disabled={!draft.validUntil}
                             onClick={() => onDraft({ validUntil: "" })}
-                            className={quietDisabled}
                         >
                             계속 유효
-                        </RetroButton>
+                        </Button>
                     </div>
-                    <p className="text-[10px] font-bold text-black/35">
+                    <Text as="p" variant="caption" tone="muted">
                         {draft.validUntil
                             ? "이 날이 지나면 Ask 가 쓰지 않습니다."
                             : "기한 없이 씁니다 — 규칙처럼 늘 맞는 사실."}
-                    </p>
+                    </Text>
                 </div>
             </div>
 
-            <p className="text-[11px] font-bold text-black/40">
+            <Text as="p" variant="caption" tone="muted">
                 고친 사실은 <b>글을 다시 분석해도 그대로 남습니다.</b>
-            </p>
+            </Text>
             {error ? (
-                <p className="text-xs font-bold text-red-600">{error}</p>
+                <Text as="p" variant="caption" tone="red">{error}</Text>
             ) : (
-                problem && <p className="text-[11px] font-bold text-orange-600">⚠ {problem}</p>
+                problem && <Text as="p" variant="caption" tone="orange">⚠ {problem}</Text>
             )}
 
             <div className="flex justify-end gap-2">
-                <RetroButton type="button" size="sm" onClick={onCancel}>
+                <Button size="sm" variant="paper" shadow onClick={onCancel}>
                     취소
-                </RetroButton>
-                <RetroButton
-                    type="button"
+                </Button>
+                <Button
                     size="sm"
-                    variant="black"
+                    variant="filled"
+                    shadow
                     disabled={busy || !changed || !!problem}
                     onClick={onSave}
-                    className={quietDisabled}
                 >
                     {busy ? "저장 중…" : "저장"}
-                </RetroButton>
+                </Button>
             </div>
         </div>
     );
@@ -248,7 +248,7 @@ const FactRow: React.FC<FactRowProps> = ({
 }) => {
     if (draft) {
         return (
-            <li className="px-4 py-3">
+            <Surface as="li" fill="none" border="subtle" borderSide="top" className="px-4 py-3">
                 <FactEditor
                     fact={fact}
                     draft={draft}
@@ -258,7 +258,7 @@ const FactRow: React.FC<FactRowProps> = ({
                     onCancel={onCancel}
                     onSave={onSave}
                 />
-            </li>
+            </Surface>
         );
     }
 
@@ -268,23 +268,24 @@ const FactRow: React.FC<FactRowProps> = ({
     const inUse = !hidden && !validity?.expired;
 
     return (
-        <li className="px-4 py-3">
+        <Surface as="li" fill="none" border="subtle" borderSide="top" className="px-4 py-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
                 <div className="min-w-0 flex-1 space-y-1.5">
-                    <p
-                        className={`break-words text-sm font-bold leading-relaxed ${
-                            inUse ? "text-black" : "text-black/40"
-                        }`}
+                    <Text
+                        as="p"
+                        leading="relaxed"
+                        tone={inUse ? undefined : "muted"}
+                        className="break-words"
                     >
                         {fact.statement}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold text-black/45">
+                    </Text>
+                    <Text as="div" variant="caption" tone="muted" className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         {fact.topic && (
-                            <RetroChip className="max-w-full border-2 border-black/20 px-1.5 py-0.5 text-[10px] font-black text-black/60">
+                            <Badge size="sm" variant="hairline" className="max-w-full">
                                 <span className="min-w-0 truncate" title={fact.topic}>
                                     {fact.topic}
                                 </span>
-                            </RetroChip>
+                            </Badge>
                         )}
                         {fact.target_grades.length > 0 && (
                             <span>{fact.target_grades.join("·")}학년</span>
@@ -293,29 +294,37 @@ const FactRow: React.FC<FactRowProps> = ({
                             <span>{majorLabel(fact.target_majors)}</span>
                         )}
                         {validity && (
-                            <span className={validity.expired ? "text-black/30" : undefined}>
+                            <Text variant="caption" tone={validity.expired ? "faint" : "inherit"}>
                                 {validity.label}
-                            </span>
+                            </Text>
                         )}
                         {hidden && (
-                            <RetroChip className="border-2 border-black/30 bg-black/[0.04] px-1.5 py-0.5 text-[10px] font-black text-black/50">
+                            <Badge size="sm" variant="wash">
                                 숨김
-                            </RetroChip>
+                            </Badge>
                         )}
                         {fact.edited && (
-                            <RetroChip className="border-2 border-retro-secondary bg-retro-secondary/10 px-1.5 py-0.5 text-[10px] font-black text-retro-secondary">
+                            <Badge size="sm" accent="purple" variant="plain">
                                 고친 것
-                            </RetroChip>
+                            </Badge>
                         )}
-                    </div>
+                    </Text>
                 </div>
                 <div className="flex gap-1.5">
-                    <button type="button" disabled={busy} onClick={onEdit} className={toolClass}>
-                        <Pencil size={11} strokeWidth={2.5} />
+                    <Button
+                        size="xs"
+                        variant="muted"
+                        icon={Pencil}
+                        disabled={busy}
+                        onClick={onEdit}
+                        className="shrink-0 whitespace-nowrap"
+                    >
                         고치기
-                    </button>
-                    <button
-                        type="button"
+                    </Button>
+                    <Button
+                        size="xs"
+                        variant="muted"
+                        icon={hidden ? Eye : EyeOff}
                         disabled={busy}
                         onClick={onToggleHidden}
                         title={
@@ -323,19 +332,14 @@ const FactRow: React.FC<FactRowProps> = ({
                                 ? "숨김을 풉니다"
                                 : "Ask 가 더는 쓰지 않습니다 — 글을 다시 분석해도 되살아나지 않습니다"
                         }
-                        className={toolClass}
+                        className="shrink-0 whitespace-nowrap"
                     >
-                        {hidden ? (
-                            <Eye size={11} strokeWidth={2.5} />
-                        ) : (
-                            <EyeOff size={11} strokeWidth={2.5} />
-                        )}
                         {hidden ? "되살리기" : "숨기기"}
-                    </button>
+                    </Button>
                 </div>
             </div>
-            {error && <p className="mt-2 text-xs font-bold text-red-600">{error}</p>}
-        </li>
+            {error && <Text as="p" variant="caption" tone="red" className="mt-2">{error}</Text>}
+        </Surface>
     );
 };
 
@@ -437,15 +441,21 @@ const FactsPanel: React.FC = () => {
     return (
         <div className="space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-2">
-                <p className="min-w-0 flex-1 basis-64 text-xs font-bold leading-relaxed text-black/40">
+                <Text as="p" variant="caption" tone="muted" leading="relaxed" className="min-w-0 flex-1 basis-64">
                     ksain 글에서 분석기가 뽑은 사실입니다. Ask 는 질문에 맞는 것을 골라 답에
                     씁니다(숨긴 것·기한이 지난 것은 빼고). 숨기거나 고친 사실은{" "}
                     <b>글을 다시 분석해도 그대로 남습니다.</b>
-                </p>
-                <button type="button" onClick={() => setNonce((n) => n + 1)} className={toolClass}>
-                    <RefreshCw size={11} strokeWidth={2.5} className={loading ? "animate-spin" : ""} />
+                </Text>
+                <Button
+                    size="xs"
+                    variant="muted"
+                    icon={RefreshCw}
+                    iconSpin={loading}
+                    onClick={() => setNonce((n) => n + 1)}
+                    className="shrink-0 whitespace-nowrap"
+                >
                     Refetch
-                </button>
+                </Button>
             </div>
 
             <SearchInput
@@ -457,79 +467,82 @@ const FactsPanel: React.FC = () => {
             />
 
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-2">
-                    {FILTERS.map((filter) => (
-                        <RetroButton
-                            key={filter.label}
-                            type="button"
-                            size="sm"
-                            isSelected={query.status === filter.value}
-                            aria-pressed={query.status === filter.value}
-                            onClick={() => go({ status: filter.value, page: 1 })}
-                        >
-                            {filter.label}
-                            {data && <span className="opacity-50">{filter.count(data.counts)}</span>}
-                        </RetroButton>
-                    ))}
-                </div>
+                <SegmentedControl
+                    aria-label="기억 거르개"
+                    value={FILTERS.find((filter) => filter.value === query.status)?.label ?? ""}
+                    onChange={(label) => {
+                        const filter = FILTERS.find((item) => item.label === label);
+                        if (filter) go({ status: filter.value, page: 1 });
+                    }}
+                    options={FILTERS.map((filter) => ({
+                        value: filter.label,
+                        label: (
+                            <>
+                                {filter.label}
+                                {data && <span className="opacity-50">{filter.count(data.counts)}</span>}
+                            </>
+                        ),
+                    }))}
+                />
                 <div className="flex items-center gap-2">
                     {data && (
-                        <span className="whitespace-nowrap text-[11px] font-bold text-black/40">
+                        <Text variant="caption" tone="muted" className="whitespace-nowrap">
                             글 {data.total_posts}개
-                        </span>
+                        </Text>
                     )}
-                    <RetroButton
-                        type="button"
+                    <Button
                         size="sm"
-                        icon={<ChevronLeft size={14} strokeWidth={3} />}
+                        variant="paper"
+                        shadow
+                        icon={ChevronLeft}
                         disabled={query.page <= 1}
                         onClick={() => go({ page: query.page - 1 })}
-                        className={quietDisabled}
                     >
                         이전
-                    </RetroButton>
-                    <span className="whitespace-nowrap text-xs font-black">
+                    </Button>
+                    <Text variant="caption" weight="black" className="whitespace-nowrap">
                         {query.page} / {pages} 쪽
-                    </span>
-                    <RetroButton
-                        type="button"
+                    </Text>
+                    <Button
                         size="sm"
+                        variant="paper"
+                        shadow
+                        iconEnd={ChevronRight}
                         disabled={query.page >= pages}
                         onClick={() => go({ page: query.page + 1 })}
-                        className={quietDisabled}
                     >
                         다음
-                        <ChevronRight size={14} strokeWidth={3} />
-                    </RetroButton>
+                    </Button>
                 </div>
             </div>
 
             {current?.error && (
-                <p className="flex flex-wrap items-center gap-x-2 border-2 border-red-500 bg-red-50 px-4 py-2 text-xs font-bold text-red-600">
+                <Notice
+                    role="alert"
+                    action={
+                        <Button size="xs" accent="red" variant="outline" onClick={() => setNonce((n) => n + 1)}>
+                            다시 시도
+                        </Button>
+                    }
+                >
                     {current.error}
-                    <button type="button" className="underline" onClick={() => setNonce((n) => n + 1)}>
-                        다시 시도
-                    </button>
-                </p>
+                </Notice>
             )}
 
             {data === null ? (
                 loading && (
-                    <p className="flex items-center gap-2 text-sm font-bold text-black/40">
-                        <RetroSpinner size="sm" />
+                    <Text as="p" tone="muted" className="flex items-center gap-2">
+                        <Spinner size="sm" />
                         불러오는 중…
-                    </p>
+                    </Text>
                 )
             ) : data.posts.length === 0 ? (
                 data.counts.active + data.counts.hidden === 0 ? (
-                    <div className="border-2 border-dashed border-black p-8 text-center">
-                        <Brain size={28} className="mx-auto mb-2 text-black/25" />
-                        <p className="text-sm font-bold text-black/40">
-                            아직 기억이 없습니다 — ksain 분석이 돌면 쌓입니다.
-                        </p>
-                    </div>
+                    <EmptyState framed icon={Brain}>
+                        아직 기억이 없습니다 — ksain 분석이 돌면 쌓입니다.
+                    </EmptyState>
                 ) : (
-                    <p className="text-sm font-bold text-black/40">조건에 맞는 기억이 없습니다.</p>
+                    <Text as="p" tone="muted">조건에 맞는 기억이 없습니다.</Text>
                 )
             ) : (
                 <div
@@ -540,33 +553,37 @@ const FactsPanel: React.FC = () => {
                     }`}
                 >
                     {data.posts.map((post) => (
-                        <RetroCard key={post.post_id} shadow="sm" className="bg-white">
+                        <Card key={post.post_id} padding="0">
                             <div className="px-4 py-3">
-                                <p className="text-[11px] font-bold text-black/40">
+                                <Text as="p" variant="caption" tone="muted">
                                     {[post.posted_on, boardOf(post), `#${post.post_id}`, `사실 ${post.facts.length}`]
                                         .filter(Boolean)
                                         .join(" · ")}
-                                </p>
-                                <a
-                                    href={post.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="mt-0.5 inline-flex items-start gap-1 text-sm font-black hover:underline"
-                                >
-                                    {post.post_title || "제목 없는 글"}
-                                    <ExternalLink
-                                        size={12}
-                                        strokeWidth={2.5}
-                                        className="mt-1 shrink-0 text-black/40"
-                                    />
-                                </a>
+                                </Text>
+                                <Text as="div" weight="black" className="mt-0.5">
+                                    <Link
+                                        underline="hover"
+                                        href={post.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-start gap-1"
+                                    >
+                                        {post.post_title || "제목 없는 글"}
+                                        <Icon
+                                            icon={ExternalLink}
+                                            size={12}
+                                            tone="muted"
+                                            className="mt-1 shrink-0"
+                                        />
+                                    </Link>
+                                </Text>
                                 {post.summary && (
-                                    <p className="mt-1.5 text-xs font-bold leading-relaxed text-black/45">
+                                    <Text as="p" variant="caption" tone="muted" leading="relaxed" className="mt-1.5">
                                         {post.summary}
-                                    </p>
+                                    </Text>
                                 )}
                             </div>
-                            <ul className="divide-y divide-black/10 border-t-2 border-black/10">
+                            <ul>
                                 {post.facts.map((fact) => (
                                     <FactRow
                                         key={fact.id}
@@ -599,7 +616,7 @@ const FactsPanel: React.FC = () => {
                                     />
                                 ))}
                             </ul>
-                        </RetroCard>
+                        </Card>
                     ))}
                 </div>
             )}

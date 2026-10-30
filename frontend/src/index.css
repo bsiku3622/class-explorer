@@ -1,158 +1,14 @@
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+/* ⚠️ 순서가 뜻입니다 — Tailwind 의 preflight(base) < funky-ui(fk) < Tailwind 유틸리티(utilities).
+   fk 가 base 앞에 서면 preflight 의 `* { padding: 0; border: 0 }` 이 funky 의 여백 · 테두리를 전부 지웁니다 */
+@layer theme, base, fk, components, utilities;
+
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-    --color-retro-bg: #fff5d1;
-    --color-retro-fg: #222222;
-    --color-retro-primary: #ff4eba;
-    --color-retro-secondary: #7828c8;
-    --color-retro-accent1: #3decfd;
-    --color-retro-accent-light: #f0fdff;
-    --color-retro-accent2: #ffd500;
-    --color-retro-accent3: #ff4eba;
-    --color-retro-accent4: #ff9100;
-    --color-retro-accent5: #00c8ff;
-    --color-retro-green: #00c22a;
     --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
-}
-
-body {
-    @apply bg-retro-bg text-retro-fg;
-}
-
-/* Retro components */
-.shadow-retro {
-    box-shadow: 4px 4px 0px 0px #000;
-}
-
-.shadow-retro-lg {
-    box-shadow: 8px 8px 0px 0px #000;
-}
-
-/* 자리가 모자란 한 줄을 …로 자르지 않고 좌우로 훑고 돌아옵니다 (MarqueeText).
-   양 끝에서 잠깐 멈춰야 읽을 틈이 생기므로 10%씩 머무릅니다. */
-@keyframes marquee-swing {
-    0%,
-    10% {
-        translate: 0 0;
-    }
-    45%,
-    55% {
-        translate: var(--marquee-shift) 0;
-    }
-    90%,
-    100% {
-        translate: 0 0;
-    }
-}
-
-.animate-marquee-swing {
-    animation: marquee-swing var(--marquee-duration) ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .animate-marquee-swing {
-        animation: none;
-    }
-}
-
-/* 검색어와 맞는 사람만 **잠깐 진동**합니다.
-
-   예전에는 반대로 했습니다 — 맞는 사람만 남기고 **나머지를 회색(opacity 0.3)으로**
-   지웠는데, 명단을 보는 이유의 절반은 "누구랑 같이 듣나" 라서 나머지가 안 보이면
-   화면이 반쯤 죽습니다. 이제 전부 제 색으로 두고 **찾는 사람만 움직입니다** —
-   움직임은 색을 뺏지 않고도 눈에 제일 먼저 들어옵니다.
-
-   ⚠️ **계속 떨지 않습니다.** 짧게 떨고(앞 20%) 나머지는 가만히 있습니다 — 명단에
-   서른 명이 있는 화면에서 한 칸이 쉬지 않고 흔들리면 옆을 읽는 걸 방해합니다.
-   폰 진동처럼 **떨림 + 쉼**이 한 주기입니다.
-
-   **좌우로 흔들리면서 같이 기울어집니다** — 평행이동만 하면 판이 미끄러지는 느낌이라
-   진동보다 "밀림" 에 가깝습니다. ±1도면 글자를 읽는 데는 지장이 없고 떨림만 살아납니다.
-
-   ⚠️ `transform` 이 아니라 `translate`·`rotate` **개별 속성**을 씁니다 — 배지가 누를
-   때 `scale` 을 쓰기 때문에, 셋을 같은 `transform` 에 얹으면 서로를 지웁니다. */
-@keyframes badge-buzz {
-    0%,
-    20%,
-    100% {
-        translate: 0 0;
-        rotate: 0deg;
-    }
-    2.5% {
-        translate: -1.5px 0;
-        rotate: -1deg;
-    }
-    5% {
-        translate: 1.5px 0;
-        rotate: 1deg;
-    }
-    7.5% {
-        translate: -1.3px 0;
-        rotate: -0.8deg;
-    }
-    10% {
-        translate: 1.3px 0;
-        rotate: 0.8deg;
-    }
-    12.5% {
-        translate: -1px 0;
-        rotate: -0.5deg;
-    }
-    15% {
-        translate: 1px 0;
-        rotate: 0.5deg;
-    }
-    17.5% {
-        translate: -0.6px 0;
-        rotate: -0.3deg;
-    }
-}
-
-.animate-badge-buzz {
-    animation: badge-buzz 1.8s linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .animate-badge-buzz {
-        animation: none;
-    }
-}
-
-/* Custom styles for students list */
-/* ⚠️ 호버 효과는 두지 않습니다 — 명단은 **읽는 물건**이라, 마우스가 지나가는 자리마다
-   배지가 반응하면 정작 움직여야 할 것(찾는 사람의 진동)이 묻힙니다 */
-.student-badge {
-    @apply inline-block bg-white border-2 px-2 py-1 text-xs font-bold rounded-none shadow-[2px_2px_0_0_rgba(0,0,0,0.1)] cursor-default transition-all;
-}
-
-/* Ask 창이 열릴 때 (AgentDock) — 미니 창은 버튼 자리(오른쪽 아래)에서 자라 나오고, 모바일 창은
-   아래에서 올라옵니다. ⚠️ 닫힐 때는 움직이지 않습니다 — 닫는 모션을 보이려면 창을 그 시간만큼 더
-   들고 있어야 하는데, 그사이 ✕ 를 한 번 더 누르면 뒤 화면이 눌립니다 */
-@keyframes ask-pop {
-    from {
-        opacity: 0;
-        translate: 0 8px;
-        scale: 0.96;
-    }
-}
-
-@keyframes ask-rise {
-    from {
-        opacity: 0;
-        translate: 0 24px;
-    }
-}
-
-.animate-ask-pop {
-    transform-origin: bottom right;
-    animation: ask-pop 140ms ease-out;
-}
-
-.animate-ask-rise {
-    animation: ask-rise 200ms ease-out;
 }
 
 /* 모바일 Ask 창 → `/ai` (lib/askMotion.ts). 입력창은 창 가운데에서 페이지 바닥으로 내려앉고,
@@ -161,11 +17,4 @@ body {
 ::view-transition-group(ask-composer) {
     animation-duration: 380ms;
     animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .animate-ask-pop,
-    .animate-ask-rise {
-        animation: none;
-    }
 }

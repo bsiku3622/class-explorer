@@ -114,7 +114,7 @@ if [ -n "$up" ]; then
     printf '\n%s\n' "${C_OK}✓ 둘 다 떴습니다${C_OFF}"
     printf '  %s\n' "${C_WEB}web${C_OFF}  https://localhost:${WEB_PORT}   ${C_DIM}자체 서명 인증서라 브라우저 경고는 통과시키세요${C_OFF}"
     printf '  %s\n' "${C_API}api${C_OFF}  http://localhost:${API_PORT}"
-    printf '  %s\n\n' "${C_DIM}인벤토리(개발 전용): https://localhost:${WEB_PORT}/inventory · Ctrl+C 로 둘 다 종료${C_OFF}"
+    printf '  %s\n\n' "${C_DIM}Ctrl+C 로 둘 다 종료${C_OFF}"
 else
     printf '\n%s\n\n' "${C_WARN}⚠ 30초 안에 응답이 없습니다 — 위 로그를 보세요${C_OFF}"
 fi

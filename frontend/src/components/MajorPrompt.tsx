@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Signpost, X } from "lucide-react";
+import { Signpost } from "lucide-react";
 import {
     fetchMajors,
     isMajorPromptSnoozed,
@@ -8,8 +8,8 @@ import {
     type MajorsInfo,
     type MyMajor,
 } from "../lib/majors";
-import { getDepartmentColor, particleRo, withAlpha } from "../lib/utils";
-import RetroButton from "./atoms/RetroButton";
+import { getDepartmentColor, particleRo } from "../lib/utils";
+import { Button, Modal, Notice, Text, ToneBox, ToneText } from "@studio-baeks/funky-ui";
 import MajorPicker from "./MajorPicker";
 
 interface MajorPromptProps {
@@ -91,114 +91,81 @@ const MajorPrompt: React.FC<MajorPromptProps> = ({ userId, onAnswered }) => {
     const tint = suggestion ? getDepartmentColor(suggestion.major) : null;
 
     return (
-        <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="major-prompt-title"
-            // 위 24 는 상단 바(h-20) 자리입니다 — 창이 길면 바 밑으로 들어가지 않고 이 안에서 흐릅니다
-            className="fixed inset-0 z-[110] flex justify-center overflow-y-auto bg-black/70 px-4 pb-4 pt-24"
-            onMouseDown={(event) => {
-                if (event.target === event.currentTarget) dismiss();
-            }}
-        >
-            <div className="my-auto h-fit w-full max-w-lg border-2 border-black bg-white shadow-[8px_8px_0_0_rgba(0,0,0,0.22)]">
-                <header className="flex items-center justify-between border-b-2 border-black bg-retro-secondary px-4 py-3 text-white">
-                    <p className="flex items-center gap-2 text-xs font-black uppercase tracking-widest">
-                        <Signpost size={15} strokeWidth={2.75} /> Major Survey
-                    </p>
-                    <button
-                        type="button"
-                        onClick={dismiss}
-                        aria-label="나중에 — 오늘은 다시 묻지 않습니다"
-                        className="grid size-8 place-items-center border-2 border-black bg-white text-black shadow-[2px_2px_0_0_rgba(0,0,0,0.18)]"
-                    >
-                        <X size={16} strokeWidth={2.75} />
-                    </button>
-                </header>
-
-                <div className="space-y-5 p-5 sm:p-6">
-                    <div>
-                        <h2
-                            id="major-prompt-title"
-                            className="text-2xl font-black tracking-tight text-retro-secondary"
-                        >
-                            전공을 입력해주세요!
-                        </h2>
-                        <p className="mt-2 text-sm font-bold leading-relaxed text-black/55">
-                            학사일정과 Ask 답을 내 전공에 맞춰 보여 드리려고 물어요. 심화필수
-                            전공 트랙은 3학년 2학기까지 바꿀 수 있어서, 고른 뒤에도 About 에서
-                            언제든 고칠 수 있어요.
-                        </p>
-                    </div>
-
-                    {suggestion && tint && (
-                        <div
-                            className="border-2 px-3 py-2.5"
-                            style={{ borderColor: tint, backgroundColor: withAlpha(tint, 0.08) }}
-                        >
-                            <p className="text-sm font-black" style={{ color: tint }}>
-                                수강 이력으로 보면 {suggestion.major} 트랙 같아요
-                            </p>
-                            {suggestion.courses.length > 0 && (
-                                <p className="mt-0.5 text-xs font-bold leading-relaxed text-black/55">
-                                    {suggestion.courses.join(" · ")}
-                                </p>
-                            )}
-                            <p className="mt-1 text-[11px] font-bold text-black/40">
-                                짐작이라 틀릴 수 있어요. 맞으면 아래에서 직접 눌러주세요.
-                            </p>
-                        </div>
-                    )}
-
-                    <MajorPicker
-                        options={info.options}
-                        value={choice}
-                        onChange={setChoice}
-                        suggested={suggestion?.major}
-                        disabled={busy}
-                    />
-
-                    {error && (
-                        <p className="border-2 border-retro-primary bg-retro-primary/10 px-3 py-2 text-xs font-bold text-retro-primary">
-                            {error}
-                        </p>
-                    )}
-                </div>
-
-                {/* 좁은 화면에서는 저장이 맨 아래 한 줄을 통째로 씁니다 — 엄지가 닿는 자리입니다 */}
-                <footer className="grid grid-cols-2 gap-2 border-t-2 border-black p-4 sm:flex sm:justify-end">
-                    <RetroButton
-                        type="button"
-                        size="sm"
+        <Modal
+            open
+            onClose={dismiss}
+            title={
+                <span className="flex items-center gap-2">
+                    <Signpost size={15} strokeWidth={2.75} /> Major Survey
+                </span>
+            }
+            closeLabel="나중에 — 오늘은 다시 묻지 않습니다"
+            footer={
+                /* 좁은 화면에서는 저장이 맨 아래 한 줄을 통째로 씁니다 — 엄지가 닿는 자리입니다 */
+                <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:justify-end">
+                    <Button
+                        variant="paper"
+                        shadow
                         disabled={busy}
                         onClick={dismiss}
                         title="오늘은 다시 묻지 않습니다"
-                        className="h-11 disabled:pointer-events-none disabled:opacity-40"
                     >
                         나중에
-                    </RetroButton>
-                    <RetroButton
-                        type="button"
-                        size="sm"
-                        disabled={busy}
-                        onClick={() => void answer(null)}
-                        className="h-11 disabled:pointer-events-none disabled:opacity-40"
-                    >
+                    </Button>
+                    <Button variant="paper" shadow disabled={busy} onClick={() => void answer(null)}>
                         아직 정하지 않았어요
-                    </RetroButton>
-                    <RetroButton
-                        type="button"
-                        size="sm"
-                        variant="black"
+                    </Button>
+                    <Button
+                        variant="filled"
+                        shadow
                         disabled={busy || !choice}
                         onClick={() => choice && void answer(choice)}
-                        className="col-span-2 h-11 disabled:pointer-events-none disabled:opacity-40"
+                        className="col-span-2"
                     >
                         {busy ? "저장 중..." : choice ? `${choice}${particleRo(choice)} 저장` : "트랙을 골라주세요"}
-                    </RetroButton>
-                </footer>
+                    </Button>
+                </div>
+            }
+        >
+            <div className="space-y-5">
+                <div>
+                    <Text as="h2" variant="title" tone="purple">
+                        전공을 입력해주세요!
+                    </Text>
+                    <Text as="p" tone="secondary" leading="relaxed" className="mt-2">
+                        학사일정과 Ask 답을 내 전공에 맞춰 보여 드리려고 물어요. 심화필수
+                        전공 트랙은 3학년 2학기까지 바꿀 수 있어서, 고른 뒤에도 About 에서
+                        언제든 고칠 수 있어요.
+                    </Text>
+                </div>
+
+                {suggestion && tint && (
+                    <ToneBox tone={tint} paddingX="lg" paddingY="md">
+                        <ToneText as="p" tone={tint} weight="black">
+                            수강 이력으로 보면 {suggestion.major} 트랙 같아요
+                        </ToneText>
+                        {suggestion.courses.length > 0 && (
+                            <Text as="p" variant="caption" tone="secondary" leading="relaxed" className="mt-0.5">
+                                {suggestion.courses.join(" · ")}
+                            </Text>
+                        )}
+                        <Text as="p" variant="label" weight="bold" tone="muted" className="mt-1">
+                            짐작이라 틀릴 수 있어요. 맞으면 아래에서 직접 눌러주세요.
+                        </Text>
+                    </ToneBox>
+                )}
+
+                <MajorPicker
+                    options={info.options}
+                    value={choice}
+                    onChange={setChoice}
+                    suggested={suggestion?.major}
+                    disabled={busy}
+                />
+
+                {error && <Notice role="alert">{error}</Notice>}
             </div>
-        </div>
+        </Modal>
     );
 };
 

@@ -1,6 +1,15 @@
 import React from "react";
 import { ArrowLeft } from "lucide-react";
-import RetroCard from "../components/atoms/RetroCard";
+import {
+    Card,
+    Link,
+    NavButton,
+    Surface,
+    Swatch,
+    Table as FunkyTable,
+    Text,
+    Wordmark,
+} from "@studio-baeks/funky-ui";
 
 /**
  * 개인정보처리방침 — **로그인 없이 열리는 두 번째 화면**입니다.
@@ -18,27 +27,26 @@ const UPDATED = "2026년 10월 29일";
 const CONTACT = "contact@bsiku.dev";
 
 const H2: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <h2 className="mt-10 border-b-2 border-black pb-2 text-xl font-black tracking-tight md:text-2xl">
-        {children}
-    </h2>
+    <Surface fill="none" border="line" borderSide="bottom" className="mt-10 pb-2">
+        <Text as="h2" variant="heading">
+            {children}
+        </Text>
+    </Surface>
 );
 
 const P: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <p className="mt-4 text-[14px] font-medium leading-[1.85] text-black/75">
+    <Text as="p" weight="medium" tone="secondary" leading="relaxed" className="mt-4">
         {children}
-    </p>
+    </Text>
 );
 
 const Ul: React.FC<{ items: React.ReactNode[] }> = ({ items }) => (
     <ul className="mt-4 flex flex-col gap-2">
         {items.map((it, i) => (
-            <li
-                key={i}
-                className="flex gap-2.5 text-[14px] font-medium leading-[1.8] text-black/75"
-            >
-                <span className="mt-[0.55em] h-1.5 w-1.5 shrink-0 bg-black" />
+            <Text as="li" key={i} weight="medium" tone="secondary" leading="relaxed" className="flex gap-2.5">
+                <Swatch className="mt-[0.55em] shrink-0" />
                 <span className="min-w-0">{it}</span>
-            </li>
+            </Text>
         ))}
     </ul>
 );
@@ -52,52 +60,43 @@ const Table: React.FC<{ head: string[]; rows: React.ReactNode[][]; wide?: boolea
     rows,
     wide = false,
 }) => (
-    <div className="mt-4 overflow-x-auto">
-        <table
-            className={`w-full ${wide ? "min-w-[60rem]" : "min-w-[40rem]"} border-2 border-black text-left text-[13px]`}
-        >
-            <thead>
-                <tr className="bg-black text-white">
-                    {head.map((h) => (
-                        <th key={h} className="px-3 py-2 font-black">
-                            {h}
-                        </th>
-                    ))}
-                </tr>
-            </thead>
-            <tbody>
-                {rows.map((r, i) => (
-                    <tr
-                        key={i}
-                        className="border-t-2 border-black/10 align-top [&>td:first-child]:whitespace-nowrap [&>td:first-child]:font-bold [&>td:first-child]:text-black"
-                    >
-                        {r.map((c, j) => (
-                            <td
-                                key={j}
-                                className="px-3 py-2.5 font-medium leading-relaxed text-black/75"
+    <FunkyTable frameClassName="mt-4" className={wide ? "min-w-[60rem]" : "min-w-[40rem]"}>
+        <FunkyTable.Head>
+            <FunkyTable.Row>
+                {head.map((h) => (
+                    <FunkyTable.HeadCell key={h}>{h}</FunkyTable.HeadCell>
+                ))}
+            </FunkyTable.Row>
+        </FunkyTable.Head>
+        <FunkyTable.Body>
+            {rows.map((r, i) => (
+                <FunkyTable.Row key={i}>
+                    {r.map((c, j) => (
+                        <FunkyTable.Cell key={j} header={j === 0} className="align-top">
+                            <Text
+                                variant="caption"
+                                weight={j === 0 ? "bold" : "medium"}
+                                tone={j === 0 ? "primary" : "secondary"}
+                                leading="relaxed"
+                                className={j === 0 ? "whitespace-nowrap" : undefined}
                             >
                                 {c}
-                            </td>
-                        ))}
-                    </tr>
-                ))}
-            </tbody>
-        </table>
-    </div>
+                            </Text>
+                        </FunkyTable.Cell>
+                    ))}
+                </FunkyTable.Row>
+            ))}
+        </FunkyTable.Body>
+    </FunkyTable>
 );
 
 const A: React.FC<{ href: string; children: React.ReactNode }> = ({
     href,
     children,
 }) => (
-    <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        className="border-b-2 border-retro-secondary font-bold text-retro-secondary transition-colors duration-100 hover:bg-retro-secondary hover:text-white"
-    >
+    <Link accent="purple" href={href} target="_blank" rel="noreferrer">
         {children}
-    </a>
+    </Link>
 );
 
 interface PrivacyPageProps {
@@ -106,30 +105,25 @@ interface PrivacyPageProps {
 }
 
 const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack }) => (
-    <div className="min-h-screen bg-retro-bg text-retro-fg">
-        <header className="border-b-2 border-black bg-retro-secondary">
+    <Surface fill="canvas" className="min-h-screen">
+        <Surface as="header" fill="brand" border="line" borderSide="bottom">
             <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-5 py-4 md:px-8">
-                <span className="-skew-x-6 text-lg font-black uppercase tracking-tight text-white md:text-xl">
-                    Class Explorer
-                </span>
-                <button
-                    onClick={onBack}
-                    className="flex items-center gap-1.5 border-2 border-white/40 px-2.5 py-1.5 text-[11px] font-black uppercase tracking-widest text-white transition-colors duration-100 hover:border-white"
-                >
-                    <ArrowLeft size={13} strokeWidth={3} /> 돌아가기
-                </button>
+                <Wordmark size="sm">Class Explorer</Wordmark>
+                <NavButton onClick={onBack} icon={ArrowLeft}>
+                    돌아가기
+                </NavButton>
             </div>
-        </header>
+        </Surface>
 
         <main className="mx-auto w-full max-w-3xl px-5 py-12 md:px-8 md:py-16">
-            <h1 className="-skew-x-6 text-3xl font-black uppercase tracking-tighter md:text-4xl">
+            <Text as="h1" variant="display" className="inline-block -skew-x-6">
                 개인정보처리방침
-            </h1>
-            <p className="mt-4 text-[13px] font-bold text-black/40">
+            </Text>
+            <Text as="p" variant="caption" tone="muted" className="mt-4">
                 시행일 {UPDATED}
-            </p>
+            </Text>
 
-            <RetroCard shadow="sm" className="mt-8 bg-white p-5">
+            <Card padding="0" className="mt-8 p-5">
                 <P>
                     Class Explorer(이하 &lsquo;서비스&rsquo;)는 한국과학영재학교 구성원이
                     수업 시간표를 찾아보는 웹 서비스입니다. 학교가 공식으로 운영하는
@@ -137,7 +131,7 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack }) => (
                     개인정보를 소중히 다루기 위해 「개인정보 보호법」에 따라 이 방침을
                     두고 공개합니다.
                 </P>
-            </RetroCard>
+            </Card>
 
             <H2>1. 처리하는 개인정보 항목</H2>
             <P>
@@ -495,15 +489,15 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack }) => (
                 서비스의 개인정보 처리에 관한 업무를 총괄해 책임지며, 관련 문의와 불만,
                 피해 구제를 접수합니다.
             </P>
-            <RetroCard shadow="sm" className="mt-4 bg-white p-5">
-                <p className="text-[13px] font-bold text-black/40">
+            <Card padding="0" className="mt-4 p-5">
+                <Text as="p" variant="caption" tone="muted">
                     개인정보 보호책임자 · 운영자
-                </p>
-                <p className="mt-2 text-lg font-black">백재원</p>
-                <p className="mt-1 text-[14px] font-bold">
+                </Text>
+                <Text as="p" variant="heading" className="mt-2">백재원</Text>
+                <Text as="p" className="mt-1">
                     <A href={`mailto:${CONTACT}`}>{CONTACT}</A>
-                </p>
-            </RetroCard>
+                </Text>
+            </Card>
 
             <H2>10. 개인정보의 안전성 확보 조치</H2>
             <Ul
@@ -589,27 +583,26 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onBack }) => (
                 이 방침을 바꾸면 이 화면에 시행일과 함께 고쳐 싣습니다.
             </P>
 
-            <div className="mt-12 border-t-2 border-black pt-6">
-                <p className="text-[13px] font-bold text-black/40">
+            <Surface fill="none" border="line" borderSide="top" className="mt-12 pt-6">
+                <Text as="p" variant="caption" tone="muted">
                     이 방침은 {UPDATED}부터 적용됩니다.
-                </p>
-            </div>
+                </Text>
+            </Surface>
         </main>
 
-        <footer className="border-t-2 border-black bg-black px-5 py-8 text-white md:px-8">
+        <Surface as="footer" fill="inverse" border="line" borderSide="top" className="px-5 py-8 md:px-8">
             <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3">
-                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40">
+                <Text variant="overline" tone="inverseMuted">
                     Class Explorer · KSA
-                </span>
-                <a
-                    href={`mailto:${CONTACT}`}
-                    className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40 transition-colors duration-100 hover:text-white"
-                >
-                    {CONTACT}
-                </a>
+                </Text>
+                <Text variant="overline" tone="inverseMuted">
+                    <Link underline="hover" href={`mailto:${CONTACT}`}>
+                        {CONTACT}
+                    </Link>
+                </Text>
             </div>
-        </footer>
-    </div>
+        </Surface>
+    </Surface>
 );
 
 export default PrivacyPage;

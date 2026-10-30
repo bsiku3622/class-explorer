@@ -5,15 +5,29 @@ import { authHeader } from "../lib/session";
 import axios from "axios";
 import type { Role } from "../types";
 import { particleRo } from "../lib/utils";
-import RetroButton from "../components/atoms/RetroButton";
-import RetroSubTitle from "../components/atoms/RetroSubTitle";
-import AccordionSection from "../components/molecules/AccordionSection";
-import PageHeader from "../components/molecules/PageHeader";
 import ChangeSummary from "../components/admin/ChangeSummary";
 import type { ChangeSummaryData } from "../components/admin/ChangeSummary";
 import MaterialReviewPanel from "../components/MaterialReviewPanel";
 import FactsPanel from "../components/admin/FactsPanel";
 import MajorSurveyPanel from "../components/admin/MajorSurveyPanel";
+import {
+    Accordion,
+    Badge,
+    Button,
+    Card,
+    Code,
+    IconButton,
+    Input,
+    Label,
+    Modal,
+    Notice,
+    PageHeader,
+    SectionTitle,
+    SegmentedControl,
+    Select,
+    Surface,
+    Text,
+} from "@studio-baeks/funky-ui";
 
 interface UserRow {
     id: number;
@@ -175,30 +189,26 @@ const EditableRow: React.FC<EditableRowProps> = ({
     label, sub, isEditing, editValue, onEditValueChange,
     onStartEdit, onSave, onCancel, saving, placeholder, children,
 }) => {
-    const inputClass =
-        "border-2 border-black px-3 py-2 text-sm font-bold bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] focus:shadow-none outline-none transition-all duration-100";
-
     return (
-        <div className="border-2 border-black bg-white px-4 py-3 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
+        <Card padding="0" className="px-4 py-3">
             <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                    <span className="font-black text-sm truncate block">{label}</span>
-                    {sub && <span className="text-[10px] font-bold text-black/40">{sub}</span>}
+                    <Text weight="black" truncate className="block">{label}</Text>
+                    {sub && <Text variant="micro" weight="bold" tone="muted">{sub}</Text>}
                 </div>
                 {!isEditing && (
-                    <button
-                        onClick={onStartEdit}
-                        className="text-[10px] font-black uppercase px-2 py-1 border-2 border-black/30 hover:border-black hover:text-black text-black/40 shrink-0 transition-all duration-100"
-                    >
+                    <Button size="xs" variant="muted" onClick={onStartEdit} className="shrink-0">
                         Edit
-                    </button>
+                    </Button>
                 )}
             </div>
             {isEditing ? (
                 <div className="mt-2 flex gap-2 items-center">
-                    <input
+                    <Input
                         autoFocus
                         type="text"
+                        shadow
+                        size="sm"
                         value={editValue}
                         onChange={(e) => onEditValueChange(e.target.value)}
                         onKeyDown={(e) => {
@@ -206,19 +216,15 @@ const EditableRow: React.FC<EditableRowProps> = ({
                             if (e.key === "Escape") onCancel();
                         }}
                         placeholder={placeholder}
-                        className={inputClass + " flex-1 text-xs"}
+                        className="flex-1"
                     />
-                    <button onClick={onSave} disabled={saving} className="text-green-600 hover:text-green-800 transition-colors shrink-0">
-                        <Check size={16} strokeWidth={2.5} />
-                    </button>
-                    <button onClick={onCancel} className="text-black/40 hover:text-black transition-colors shrink-0">
-                        <X size={16} strokeWidth={2.5} />
-                    </button>
+                    <IconButton icon={Check} size="sm" accent="green" label="저장" onClick={onSave} disabled={saving} className="shrink-0" />
+                    <IconButton icon={X} size="sm" label="취소" onClick={onCancel} className="shrink-0" />
                 </div>
             ) : (
                 children && <div className="mt-1.5">{children}</div>
             )}
-        </div>
+        </Card>
     );
 };
 
@@ -562,9 +568,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
         if (tab === "subjects" && subjects.length === 0) fetchSubjects();
     };
 
-    const inputClass =
-        "border-2 border-black px-3 py-2 text-sm font-bold bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] focus:shadow-none outline-none transition-all duration-100";
-
     const SIMPLE_PASSWORDS = ["12345", "123456", "1234567", "12345678", "password", "qwerty", "111111", "000000", "1234", "abc123", "pass"];
 
     const usernameWarning = (() => {
@@ -595,26 +598,23 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
     const filteredTeachers = teachers.filter((t) => !q || t.name.toLowerCase().includes(q));
     const filteredSubjects = subjects.filter((s) => !q || s.subject.toLowerCase().includes(q));
 
-    const chipClass = (active: boolean) =>
-        `text-xs font-black uppercase px-3 py-1.5 border-2 transition-all duration-100 ${
-            active
-                ? "bg-black text-white border-black"
-                : "border-black/30 text-black/50 hover:border-black hover:text-black"
-        }`;
-
     const termValid = !!targetTerm && targetTerm.year >= 2000 && targetTerm.year <= 2100;
 
-    const dataTabBtn = (tab: DataTab, label: string) => (
-        <button
-            onClick={() => handleDataTabChange(tab)}
-            className={`text-xs font-black uppercase px-3 py-1.5 border-2 transition-all duration-100 ${
-                dataTab === tab
-                    ? "bg-black text-white border-black"
-                    : "border-black/30 text-black/50 hover:border-black hover:text-black"
-            }`}
-        >
-            {label}
-        </button>
+    const syncBody = syncResult && (
+        syncResult.ok ? (
+            <span className="flex flex-wrap gap-3">
+                {/* 바뀐 게 없으면 회차도 백업도 만들지 않습니다 —
+                    "돌렸다" 와 "달라졌다" 는 다른 사건입니다 */}
+                <span>{syncResult.changed ? "✓ Sync complete" : "= No changes"}</span>
+                {syncResult.term && <span><strong>{syncResult.term}</strong></span>}
+                {syncResult.version ? <span>v<strong>{syncResult.version}</strong></span> : null}
+                <span>Synced <strong>{syncResult.synced}</strong></span>
+                <span>Skipped <strong>{syncResult.skipped}</strong></span>
+                {(syncResult.errors ?? 0) > 0 && <span>Errors <strong>{syncResult.errors}</strong></span>}
+                <span className="opacity-60">{syncResult.elapsed}</span>
+                {syncResult.backup && <span className="opacity-60">backup: {syncResult.backup}</span>}
+            </span>
+        ) : "Sync failed"
     );
 
     return (
@@ -622,336 +622,309 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
             <PageHeader title="Admin" subtitle="System" icon={Shield} />
 
             {/* Fetch 확인 모달 — 어느 학기를 덮어쓸지 여기서 고릅니다 */}
-            {showSyncConfirm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                    <div className="bg-white border-2 border-black shadow-[8px_8px_0_0_rgba(0,0,0,0.3)] p-8 max-w-md w-full mx-4 space-y-6">
-                        <div className="space-y-2">
-                            <p className="text-sm font-black uppercase tracking-widest">Fetch from KEIS</p>
-                            <p className="text-sm font-bold text-black/60 leading-relaxed">
-                                고른 학기의 수업 데이터를 KEIS API에서 다시 받아 <span className="text-black font-black">통째로 교체</span>합니다.
-                                반영 직전 DB 스냅샷이 자동으로 남습니다.
-                            </p>
-                        </div>
+            <Modal
+                open={showSyncConfirm}
+                onClose={() => setShowSyncConfirm(false)}
+                title="Fetch from KEIS"
+                footer={
+                    <>
+                        <Button variant="hairline" onClick={() => setShowSyncConfirm(false)}>
+                            취소
+                        </Button>
+                        <Button variant="filled" onClick={handleSync} disabled={!termValid}>
+                            확인
+                        </Button>
+                    </>
+                }
+            >
+                <div className="space-y-6">
+                    <Text as="p" tone="secondary" leading="relaxed">
+                        고른 학기의 수업 데이터를 KEIS API에서 다시 받아 <Text weight="black" tone="primary">통째로 교체</Text>합니다.
+                        반영 직전 DB 스냅샷이 자동으로 남습니다.
+                    </Text>
 
-                        <div className="space-y-3">
-                            <RetroSubTitle title="Term" />
-                            <div className="flex flex-wrap gap-2">
-                                {terms.map((t) => (
-                                    <button
-                                        key={termLabel(t)}
-                                        onClick={() => { setSyncTerm(t); setCustomTerm(null); }}
-                                        className={chipClass(!customTerm && !!syncTerm && termLabel(syncTerm) === termLabel(t))}
-                                    >
-                                        {termLabel(t)}
-                                    </button>
-                                ))}
-                                <button
-                                    onClick={() => setCustomTerm(customTerm ?? { year: new Date().getFullYear(), semester: 1 })}
-                                    className={chipClass(!!customTerm)}
-                                >
-                                    새 학기
-                                </button>
+                    <div className="space-y-3">
+                        <SectionTitle title="Term" />
+                        <SegmentedControl
+                            aria-label="받아올 학기"
+                            value={customTerm ? "__custom" : syncTerm ? termLabel(syncTerm) : ""}
+                            onChange={(value) => {
+                                if (value === "__custom") {
+                                    setCustomTerm(customTerm ?? { year: new Date().getFullYear(), semester: 1 });
+                                    return;
+                                }
+                                const t = terms.find((row) => termLabel(row) === value);
+                                if (t) { setSyncTerm(t); setCustomTerm(null); }
+                            }}
+                            options={[
+                                ...terms.map((t) => ({ value: termLabel(t), label: termLabel(t) })),
+                                { value: "__custom", label: "새 학기" },
+                            ]}
+                        />
+
+                        {/* DB에 아직 없는 학기 — 새 학기를 처음 채울 때 씁니다 */}
+                        {customTerm && (
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    type="number"
+                                    size="sm"
+                                    value={customTerm.year}
+                                    min={2000}
+                                    max={2100}
+                                    onChange={(e) => setCustomTerm({ ...customTerm, year: Number(e.target.value) })}
+                                    className="w-24"
+                                />
+                                <Text weight="black" tone="muted">-</Text>
+                                <SegmentedControl
+                                    aria-label="학기"
+                                    value={String(customTerm.semester)}
+                                    onChange={(value) => setCustomTerm({ ...customTerm, semester: Number(value) })}
+                                    options={[1, 2].map((sem) => ({ value: String(sem), label: `${sem}학기` }))}
+                                />
                             </div>
+                        )}
 
-                            {/* DB에 아직 없는 학기 — 새 학기를 처음 채울 때 씁니다 */}
-                            {customTerm && (
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="number"
-                                        value={customTerm.year}
-                                        min={2000}
-                                        max={2100}
-                                        onChange={(e) => setCustomTerm({ ...customTerm, year: Number(e.target.value) })}
-                                        className={inputClass + " w-24 text-xs"}
-                                    />
-                                    <span className="text-sm font-black text-black/40">-</span>
-                                    {[1, 2].map((sem) => (
-                                        <button
-                                            key={sem}
-                                            onClick={() => setCustomTerm({ ...customTerm, semester: sem })}
-                                            className={chipClass(customTerm.semester === sem)}
-                                        >
-                                            {sem}학기
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-
-                            <p className="text-xs font-bold text-black/40">
-                                {termValid && targetTerm
-                                    ? `${termLabel(targetTerm)} 학기를 받아옵니다. 완료까지 몇 분 이상 걸릴 수 있습니다.`
-                                    : "받아올 학기를 고르세요."}
-                            </p>
-                        </div>
-
-                        <div className="flex gap-3 justify-end">
-                            <button
-                                onClick={() => setShowSyncConfirm(false)}
-                                className="text-xs font-black uppercase px-4 py-2 border-2 border-black/30 hover:border-black transition-all duration-100"
-                            >
-                                취소
-                            </button>
-                            <button
-                                onClick={handleSync}
-                                disabled={!termValid}
-                                className="text-xs font-black uppercase px-4 py-2 border-2 border-black bg-black text-white hover:bg-black/80 disabled:opacity-40 transition-all duration-100"
-                            >
-                                확인
-                            </button>
-                        </div>
+                        <Text as="p" variant="caption" tone="muted">
+                            {termValid && targetTerm
+                                ? `${termLabel(targetTerm)} 학기를 받아옵니다. 완료까지 몇 분 이상 걸릴 수 있습니다.`
+                                : "받아올 학기를 고르세요."}
+                        </Text>
                     </div>
                 </div>
-            )}
+            </Modal>
 
             {error && (
-                <p className="text-xs font-bold text-red-600 border-2 border-red-500 px-4 py-2 bg-red-50">
+                <Notice
+                    role="alert"
+                    action={<Button size="xs" accent="red" variant="outline" onClick={() => setError("")}>닫기</Button>}
+                >
                     {error}
-                    <button className="ml-2 underline" onClick={() => setError("")}>닫기</button>
-                </p>
+                </Notice>
             )}
 
             {/* Users */}
-            <AccordionSection title="Material Review" icon={FileCheck2} isOpen={openSections.materials} onToggle={() => toggle("materials")}>
+            <Accordion titleStyle="section" title="Material Review" icon={FileCheck2} open={openSections.materials} onOpenChange={() => toggle("materials")}>
                 <MaterialReviewPanel />
-            </AccordionSection>
+            </Accordion>
 
             {/* Ask 의 기억 — ksain 글에서 뽑은 사실. 자료 검수처럼 사람이 걸러 내는 자리라 그 옆에 둡니다.
                 열 때마다 패널이 새로 받습니다(접으면 내려갑니다) */}
-            <AccordionSection title="Ask Memory" icon={Brain} isOpen={openSections.memory} onToggle={() => toggle("memory")}>
+            <Accordion titleStyle="section" title="Ask Memory" icon={Brain} open={openSections.memory} onOpenChange={() => toggle("memory")}>
                 <FactsPanel />
-            </AccordionSection>
+            </Accordion>
 
-            <AccordionSection title="User Management" icon={Users} isOpen={openSections.users} onToggle={() => toggle("users")}>
+            <Accordion titleStyle="section" title="User Management" icon={Users} open={openSections.users} onOpenChange={() => toggle("users")}>
                 <div className="space-y-6">
                     <div className="space-y-2">
-                        <RetroSubTitle title="Accounts" />
+                        <SectionTitle title="Accounts" />
                         <div className="space-y-2">
                             {users.map((u) => (
-                                <div key={u.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-2 border-black bg-white px-4 py-3 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
-                                    <span className="font-black text-sm flex-1 min-w-0 truncate">{u.username}</span>
+                                <Card key={u.id} padding="0" className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+                                    <Text weight="black" truncate className="flex-1 min-w-0">{u.username}</Text>
                                     {u.demo_stu_id && (
-                                        <span
-                                            className="shrink-0 border-2 border-retro-accent4 px-1.5 py-0.5 text-[10px] font-black uppercase text-retro-accent4"
+                                        <Badge
+                                            size="sm"
+                                            accent="orange"
+                                            variant="outline"
+                                            className="shrink-0"
                                             title={`${u.demo_stu_id} 으로 보이는 시연 계정입니다`}
                                         >
                                             Demo {u.demo_stu_id}
-                                        </span>
+                                        </Badge>
                                     )}
-                                    <span className="shrink-0 text-[10px] font-black text-black/40 uppercase">
+                                    <Text variant="micro" tone="muted" className="shrink-0">
                                         {u.session_count > 0 ? "● ONLINE" : "○ OFFLINE"}
-                                    </span>
+                                    </Text>
                                     {/* 좁은 화면에서는 한 줄을 통째로 씁니다 — 한 줄에 다 넣으면
                                         아이디가 잘리거나 지우기 버튼이 카드 밖으로 나갑니다 */}
                                     <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
-                                        <div className="flex">
-                                            {ROLE_OPTIONS.map((opt) => (
-                                                <button
-                                                    key={opt.value}
-                                                    onClick={() => handleSetRole(u.id, opt.value)}
-                                                    className={`text-[10px] font-black uppercase px-2 py-1 border-2 -ml-0.5 first:ml-0 transition-all duration-100 ${
-                                                        u.role === opt.value
-                                                            ? "bg-black text-white border-black relative z-10"
-                                                            : "bg-white text-black/40 border-black/30 hover:border-black hover:text-black"
-                                                    }`}
-                                                >
-                                                    {opt.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <button onClick={() => handleDeleteUser(u.id)} className="shrink-0 text-red-500 hover:text-red-700 transition-colors">
-                                            <Trash2 size={15} strokeWidth={2.5} />
-                                        </button>
+                                        <SegmentedControl
+                                            attached
+                                            size="xs"
+                                            aria-label={`${u.username} 권한`}
+                                            value={u.role}
+                                            onChange={(role) => handleSetRole(u.id, role)}
+                                            options={ROLE_OPTIONS}
+                                        />
+                                        <IconButton icon={Trash2} size="sm" accent="red" label="계정 삭제" onClick={() => handleDeleteUser(u.id)} className="shrink-0" />
                                     </div>
-                                </div>
+                                </Card>
                             ))}
-                            {users.length === 0 && <p className="text-sm font-bold text-black/40">No users found.</p>}
+                            {users.length === 0 && <Text as="p" tone="muted">No users found.</Text>}
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <RetroSubTitle title="Create User" icon={Plus} />
+                        <SectionTitle title="Create User" icon={Plus} />
                         <form onSubmit={handleCreateUser} className="space-y-3">
                             <div className="flex flex-col sm:flex-row gap-2">
                                 <div className="flex-1 space-y-1">
-                                    <input
+                                    <Input
                                         type="text"
+                                        shadow
                                         placeholder="Username"
                                         value={newUsername}
                                         onChange={(e) => setNewUsername(e.target.value)}
-                                        className={`${inputClass} w-full ${usernameWarning ? "border-orange-400" : ""}`}
+                                        warning={!!usernameWarning}
                                         required
                                     />
                                     {usernameWarning && (
-                                        <p className="text-[11px] font-bold text-orange-600">⚠ {usernameWarning}</p>
+                                        <Text as="p" variant="caption" tone="orange">⚠ {usernameWarning}</Text>
                                     )}
                                 </div>
                                 <div className="flex-1 space-y-1">
-                                    <input
+                                    <Input
                                         type="password"
+                                        shadow
                                         placeholder="Password"
                                         value={newPassword}
                                         onChange={(e) => setNewPassword(e.target.value)}
-                                        className={`${inputClass} w-full ${passwordWarning ? "border-orange-400" : ""}`}
+                                        warning={!!passwordWarning}
                                         required
                                     />
                                     {passwordWarning && (
-                                        <p className="text-[11px] font-bold text-orange-600">⚠ {passwordWarning}</p>
+                                        <Text as="p" variant="caption" tone="orange">⚠ {passwordWarning}</Text>
                                     )}
                                 </div>
                             </div>
                             {/* 시연 계정 — 학교 구글 계정이 없는 사람에게 주는 통로입니다.
                                 누구로 보일지는 여기서 정해지고, 고를 수 있는 건 본인뿐입니다 */}
                             <div className="flex flex-wrap items-center gap-2">
-                                <button
-                                    type="button"
+                                <Button
+                                    size="xs"
+                                    accent="orange"
+                                    variant="muted"
+                                    selected={newDemo}
+                                    icon={FlaskConical}
                                     onClick={() => setNewDemo((v) => !v)}
                                     disabled={!myStuId}
-                                    className={`flex shrink-0 items-center gap-1.5 border-2 px-2.5 py-1.5 text-[10px] font-black uppercase transition-all duration-100 disabled:cursor-not-allowed disabled:opacity-40 ${
-                                        newDemo
-                                            ? "border-retro-accent4 bg-retro-accent4 text-white"
-                                            : "border-black/30 bg-white text-black/40 hover:border-black hover:text-black"
-                                    }`}
+                                    className="shrink-0"
                                 >
-                                    <FlaskConical size={11} strokeWidth={2.5} />
                                     Demo
-                                </button>
-                                <span className="min-w-0 flex-1 text-[11px] font-bold text-black/45">
+                                </Button>
+                                <Text variant="caption" tone="muted" className="min-w-0 flex-1">
                                     {!myStuId
                                         ? "내 계정에 학번이 등록되어 있어야 만들 수 있습니다."
                                         : newDemo
                                           ? `구글 연동 없이 바로 들어오고, ${demoLabel}${particleRo(demoLabel)} 보입니다.`
                                           : "학교 구글 계정 없이 쓸 계정이면 켜세요."}
-                                </span>
+                                </Text>
                             </div>
                             <div className="flex items-center justify-between">
-                                <div className="flex">
-                                    {ROLE_OPTIONS.map((opt) => (
-                                        <button
-                                            key={opt.value}
-                                            type="button"
-                                            onClick={() => setNewRole(opt.value)}
-                                            className={`text-[10px] font-black uppercase px-2.5 py-1.5 border-2 -ml-0.5 first:ml-0 transition-all duration-100 ${
-                                                newRole === opt.value
-                                                    ? "bg-black text-white border-black relative z-10"
-                                                    : "bg-white text-black/40 border-black/30 hover:border-black hover:text-black"
-                                            }`}
-                                        >
-                                            {opt.label}
-                                        </button>
-                                    ))}
-                                </div>
-                                <RetroButton type="submit" variant="black" size="sm" disabled={createLoading}>
+                                <SegmentedControl
+                                    attached
+                                    size="xs"
+                                    aria-label="새 계정 권한"
+                                    value={newRole}
+                                    onChange={setNewRole}
+                                    options={ROLE_OPTIONS}
+                                />
+                                <Button type="submit" variant="filled" shadow size="sm" disabled={createLoading}>
                                     {createLoading ? "..." : "Create"}
-                                </RetroButton>
+                                </Button>
                             </div>
-                            {createError && <p className="text-xs font-bold text-red-600">{createError}</p>}
+                            {createError && <Text as="p" variant="caption" tone="red">{createError}</Text>}
                         </form>
                     </div>
                 </div>
-            </AccordionSection>
+            </Accordion>
 
             {/* 전공 조사 — 묻는 창에 얼마나 답했는지. 인원 수만 옵니다(누가 무엇을 골랐는지는 서버도 안 보냅니다) */}
-            <AccordionSection title="Major Survey" icon={Signpost} isOpen={openSections.survey} onToggle={() => toggle("survey")}>
+            <Accordion titleStyle="section" title="Major Survey" icon={Signpost} open={openSections.survey} onOpenChange={() => toggle("survey")}>
                 <MajorSurveyPanel />
-            </AccordionSection>
+            </Accordion>
 
             {/* Sessions */}
-            <AccordionSection title="Active Sessions" icon={MonitorSmartphone} isOpen={openSections.sessions} onToggle={() => toggle("sessions")}>
+            <Accordion titleStyle="section" title="Active Sessions" icon={MonitorSmartphone} open={openSections.sessions} onOpenChange={() => toggle("sessions")}>
                 <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <RetroSubTitle title={`${sessions.length} Session${sessions.length !== 1 ? "s" : ""}`} />
-                        <button onClick={() => { fetchSessions(); fetchUsers(); }} className="text-black/40 hover:text-black transition-colors">
-                            <RefreshCw size={14} strokeWidth={2.5} />
-                        </button>
-                    </div>
+                    <SectionTitle
+                        title={`${sessions.length} Session${sessions.length !== 1 ? "s" : ""}`}
+                        trailing={
+                            <IconButton icon={RefreshCw} size="sm" label="새로고침" onClick={() => { fetchSessions(); fetchUsers(); }} />
+                        }
+                    />
                     <div className="space-y-2">
                         {sessions.map((s) => (
-                            <div key={s.id} className="border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.1)] px-4 py-3 flex items-start gap-3">
+                            <Card key={s.id} padding="0" className="flex items-start gap-3 px-4 py-3">
                                 <div className="flex-1 min-w-0 space-y-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="font-black text-sm">{s.username}</span>
-                                        <span className="text-[10px] font-black uppercase px-1.5 py-0.5 border border-black/30 text-black/50">{s.device_type}</span>
+                                        <Text weight="black">{s.username}</Text>
+                                        <Badge size="sm" variant="hairline">{s.device_type}</Badge>
                                     </div>
-                                    <div className="text-[10px] font-bold text-black/40 space-y-0.5">
+                                    <Text as="div" variant="micro" weight="bold" tone="muted" className="space-y-0.5">
                                         <p>IP: {s.ip_address ?? "Unknown"}</p>
                                         <p>Last used: {formatDate(s.last_used_at)}</p>
                                         <p>Expires: {formatDate(s.expires_at)}</p>
-                                    </div>
+                                    </Text>
                                 </div>
-                                <button onClick={() => handleRevokeSession(s.id)} className="text-red-500 hover:text-red-700 transition-colors shrink-0 mt-0.5">
-                                    <Trash2 size={15} strokeWidth={2.5} />
-                                </button>
-                            </div>
+                                <IconButton icon={Trash2} size="sm" accent="red" label="세션 폐기" onClick={() => handleRevokeSession(s.id)} className="shrink-0" />
+                            </Card>
                         ))}
-                        {sessions.length === 0 && <p className="text-sm font-bold text-black/40">No active sessions.</p>}
+                        {sessions.length === 0 && <Text as="p" tone="muted">No active sessions.</Text>}
                     </div>
                 </div>
-            </AccordionSection>
+            </Accordion>
 
             {/* Data Management (+ Sync 통합) */}
-            <AccordionSection title="Data Management" icon={GraduationCap} isOpen={openSections.data} onToggle={() => toggle("data")}>
+            <Accordion titleStyle="section" title="Data Management" icon={GraduationCap} open={openSections.data} onOpenChange={() => toggle("data")}>
                 <div className="space-y-4">
                     {/* 탭 + Refresh / Sync 버튼 */}
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex flex-wrap gap-2">
-                            {dataTabBtn("students", "Students")}
-                            {dataTabBtn("teachers", "Teachers")}
-                            {dataTabBtn("subjects", "Subjects")}
-                        </div>
+                        <SegmentedControl
+                            aria-label="데이터 종류"
+                            value={dataTab}
+                            onChange={handleDataTabChange}
+                            options={[
+                                { value: "students", label: "Students" },
+                                { value: "teachers", label: "Teachers" },
+                                { value: "subjects", label: "Subjects" },
+                            ]}
+                        />
                         <div className="flex items-center gap-2 shrink-0">
-                            <button
+                            <Button
+                                size="xs"
+                                variant="muted"
+                                icon={RefreshCw}
                                 onClick={() => {
                                     if (dataTab === "students") fetchStudents();
                                     else if (dataTab === "teachers") fetchTeachers();
                                     else fetchSubjects();
                                 }}
-                                className="flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1.5 border-2 border-black/30 text-black/50 hover:border-black hover:text-black transition-all duration-100"
                             >
-                                <RefreshCw size={11} strokeWidth={2.5} />
                                 Refetch
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                size="xs"
+                                variant="filled"
+                                icon={RefreshCw}
+                                iconSpin={syncLoading}
                                 onClick={() => setShowSyncConfirm(true)}
                                 disabled={syncLoading}
-                                className="flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1.5 border-2 border-black bg-black text-white hover:bg-black/80 transition-all duration-100 disabled:opacity-50"
                             >
-                                <RefreshCw size={11} strokeWidth={2.5} className={syncLoading ? "animate-spin" : ""} />
                                 {syncLoading ? "Fetching..." : "Fetch from KEIS"}
-                            </button>
+                            </Button>
                         </div>
                     </div>
 
                     {syncResult && (
-                        <div className={`border-2 px-3 py-2 text-xs font-bold ${
-                            !syncResult.ok ? "border-red-500 bg-red-50 text-red-600"
-                            : syncResult.changed ? "border-green-600 bg-green-50 text-green-700"
-                            : "border-black/30 bg-black/[0.03] text-black/60"
-                        }`}>
-                            {syncResult.ok ? (
-                                <span className="flex flex-wrap gap-3">
-                                    {/* 바뀐 게 없으면 회차도 백업도 만들지 않습니다 —
-                                        "돌렸다" 와 "달라졌다" 는 다른 사건입니다 */}
-                                    <span>{syncResult.changed ? "✓ Sync complete" : "= No changes"}</span>
-                                    {syncResult.term && <span><strong>{syncResult.term}</strong></span>}
-                                    {syncResult.version ? <span>v<strong>{syncResult.version}</strong></span> : null}
-                                    <span>Synced <strong>{syncResult.synced}</strong></span>
-                                    <span>Skipped <strong>{syncResult.skipped}</strong></span>
-                                    {(syncResult.errors ?? 0) > 0 && <span>Errors <strong>{syncResult.errors}</strong></span>}
-                                    <span className="opacity-60">{syncResult.elapsed}</span>
-                                    {syncResult.backup && <span className="opacity-60">backup: {syncResult.backup}</span>}
-                                </span>
-                            ) : "Sync failed"}
-                        </div>
+                        !syncResult.ok || syncResult.changed ? (
+                            <Notice accent={syncResult.ok ? "success" : "error"}>{syncBody}</Notice>
+                        ) : (
+                            <Surface fill="well" border="soft" className="px-3 py-2">
+                                <Text variant="caption" tone="secondary">{syncBody}</Text>
+                            </Surface>
+                        )
                     )}
 
                     {syncResult?.ok && syncResult.summary && (
-                        <div className="border-2 border-black bg-white px-3 py-3">
+                        <Surface border="line" className="px-3 py-3">
                             <ChangeSummary data={syncResult.summary} />
-                        </div>
+                        </Surface>
                     )}
 
                     {/* 검색 */}
-                    <input
+                    <Input
                         type="text"
+                        shadow
                         placeholder={
                             dataTab === "students" ? "학번 또는 이름으로 필터..."
                             : dataTab === "teachers" ? "교사명으로 필터..."
@@ -959,7 +932,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                         }
                         value={dataSearch}
                         onChange={(e) => setDataSearch(e.target.value)}
-                        className={inputClass + " w-full"}
                     />
 
                     {/* 리스트 */}
@@ -984,7 +956,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                                     />
                                 ))}
                                 {filteredStudents.length === 0 && (
-                                    <p className="text-sm font-bold text-black/40">No students found.</p>
+                                    <Text as="p" tone="muted">No students found.</Text>
                                 )}
                             </>
                         )}
@@ -1008,7 +980,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                                     />
                                 ))}
                                 {filteredTeachers.length === 0 && (
-                                    <p className="text-sm font-bold text-black/40">No teachers found.</p>
+                                    <Text as="p" tone="muted">No teachers found.</Text>
                                 )}
                             </>
                         )}
@@ -1016,314 +988,291 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                         {/* ── Subjects ── */}
                         {dataTab === "subjects" && (
                             <>
-                                <p className="text-xs font-bold text-black/40">
+                                <Text as="p" variant="caption" tone="muted">
                                     교육과정에 이어지지 않은 과목은 학점·계열을 알 수 없습니다.
                                     외국인 전형 과목이나 개편 전 이름이 여기 해당합니다.
-                                </p>
+                                </Text>
                                 {filteredSubjects.map((s) => (
-                                    <div
+                                    <Surface
                                         key={s.subject}
-                                        className="flex flex-wrap items-center gap-2 border-b-2 border-black/10 py-2"
+                                        fill="none"
+                                        border="subtle"
+                                        borderSide="bottom"
+                                        className="flex flex-wrap items-center gap-2 py-2"
                                     >
-                                        <span className="text-sm font-black flex-1 min-w-[10rem]">
+                                        <Text weight="black" className="flex-1 min-w-[10rem]">
                                             {s.subject}
-                                        </span>
+                                        </Text>
                                         {s.english && (
-                                            <span className="text-[10px] font-bold text-black/40">
+                                            <Text variant="micro" weight="bold" tone="muted">
                                                 {s.english}
-                                            </span>
+                                            </Text>
                                         )}
                                         {s.course ? (
-                                            <span className="border-2 border-retro-green bg-retro-green/15 px-1.5 py-0.5 text-[10px] font-black">
+                                            <Badge size="sm" accent="green" variant="tinted">
                                                 {s.course}
-                                            </span>
+                                            </Badge>
                                         ) : (
-                                            <span className="border-2 border-retro-accent4 bg-retro-accent4/15 px-1.5 py-0.5 text-[10px] font-black text-retro-accent4">
+                                            <Badge size="sm" accent="orange" variant="plain">
                                                 교육과정 없음
-                                            </span>
+                                            </Badge>
                                         )}
-                                    </div>
+                                    </Surface>
                                 ))}
                                 {filteredSubjects.length === 0 && (
-                                    <p className="text-sm font-bold text-black/40">No subjects found.</p>
+                                    <Text as="p" tone="muted">No subjects found.</Text>
                                 )}
                             </>
                         )}
                     </div>
                 </div>
-            </AccordionSection>
+            </Accordion>
 
             {/* Backups — 수집 직전 스냅샷이 쌓이는 곳. 자동 삭제 없음 */}
             {/* 회차 이력 — 언제 무엇이 갈렸는지. 백업 파일을 열어 보지 않아도 됩니다 */}
-            <AccordionSection title="Data Versions" icon={History} isOpen={openSections.versions} onToggle={() => toggle("versions")}>
+            <Accordion titleStyle="section" title="Data Versions" icon={History} open={openSections.versions} onOpenChange={() => toggle("versions")}>
                 <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                            {terms.map((t) => (
-                                <button
-                                    key={termLabel(t)}
-                                    onClick={() => {
-                                        setVersionTerm(t);
-                                        setOpenVersion(null);
-                                        fetchVersions(t);
-                                    }}
-                                    className={chipClass(!!versionTerm && termLabel(versionTerm) === termLabel(t))}
-                                >
-                                    {termLabel(t)}
-                                </button>
-                            ))}
-                        </div>
-                        <button
+                        <SegmentedControl
+                            aria-label="회차를 볼 학기"
+                            value={versionTerm ? termLabel(versionTerm) : ""}
+                            onChange={(value) => {
+                                const t = terms.find((row) => termLabel(row) === value);
+                                if (!t) return;
+                                setVersionTerm(t);
+                                setOpenVersion(null);
+                                fetchVersions(t);
+                            }}
+                            options={terms.map((t) => ({ value: termLabel(t), label: termLabel(t) }))}
+                        />
+                        <Button
+                            size="xs"
+                            variant="muted"
+                            icon={RefreshCw}
                             onClick={() => fetchVersions(versionTerm ?? targetTerm)}
-                            className="flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1.5 border-2 border-black/30 text-black/50 hover:border-black hover:text-black transition-all duration-100"
                         >
-                            <RefreshCw size={11} strokeWidth={2.5} />
                             Refetch
-                        </button>
+                        </Button>
                     </div>
 
                     {versions.length === 0 ? (
-                        <p className="text-xs font-bold text-black/40">회차 기록이 없습니다.</p>
+                        <Text as="p" variant="caption" tone="muted">회차 기록이 없습니다.</Text>
                     ) : (
                         <ul className="space-y-2">
                             {versions.map((row) => (
-                                <li key={row.version} className="border-2 border-black">
-                                    <button
-                                        onClick={() => setOpenVersion(openVersion === row.version ? null : row.version)}
-                                        className="w-full flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-3 py-2 text-left hover:bg-retro-accent-light transition-all duration-100"
-                                    >
-                                        <span className="flex items-center gap-2 min-w-0">
-                                            <span className="text-sm font-black shrink-0">v{row.version}</span>
-                                            <span className="shrink-0 text-[10px] font-black uppercase px-1.5 py-0.5 border-2 border-black/20 text-black/50">
-                                                {row.source}
+                                <li key={row.version}>
+                                    <Accordion
+                                        size="sm"
+                                        open={openVersion === row.version}
+                                        onOpenChange={() => setOpenVersion(openVersion === row.version ? null : row.version)}
+                                        title={
+                                            <span className="inline-flex items-center gap-2">
+                                                <span>v{row.version}</span>
+                                                <Badge size="sm" variant="hairline">{row.source}</Badge>
+                                                <Text variant="caption" tone="secondary">{formatWhen(row.created_at)}</Text>
                                             </span>
-                                            <span className="text-xs font-bold text-black/50 truncate">{formatWhen(row.created_at)}</span>
-                                        </span>
-                                        <span className="shrink-0 text-xs font-bold text-black/40">{versionHeadline(row)}</span>
-                                    </button>
-
-                                    {openVersion === row.version && (
-                                        <div className="border-t-2 border-black px-3 py-3 space-y-2">
-                                            {row.note && <p className="text-xs font-bold text-black/50">{row.note}</p>}
+                                        }
+                                        trailing={
+                                            <Text variant="caption" tone="muted" className="shrink-0">{versionHeadline(row)}</Text>
+                                        }
+                                    >
+                                        <div className="space-y-2">
+                                            {row.note && <Text as="p" variant="caption" tone="secondary">{row.note}</Text>}
                                             {row.summary ? (
                                                 <ChangeSummary data={row.summary} />
                                             ) : (
-                                                <p className="text-xs font-bold text-black/40">
+                                                <Text as="p" variant="caption" tone="muted">
                                                     비교할 앞 회차가 없습니다.
-                                                </p>
+                                                </Text>
                                             )}
-                                            <div className="flex flex-wrap gap-3 text-[10px] font-bold text-black/30">
+                                            <Text as="div" variant="micro" weight="bold" tone="muted" className="flex flex-wrap gap-3">
                                                 {row.synced !== null && <span>synced {row.synced}</span>}
                                                 {row.skipped !== null && <span>skipped {row.skipped}</span>}
                                                 {!!row.errors && <span>errors {row.errors}</span>}
                                                 {row.elapsed && <span>{row.elapsed}</span>}
                                                 {row.backup && <span className="truncate">backup: {row.backup}</span>}
-                                            </div>
+                                            </Text>
                                         </div>
-                                    )}
+                                    </Accordion>
                                 </li>
                             ))}
                         </ul>
                     )}
                 </div>
-            </AccordionSection>
+            </Accordion>
 
             {/* Trade — 수강 변경 탐색을 언제까지 열어 둘지 */}
-            <AccordionSection title="Timetable Overrides" icon={CalendarDays} isOpen={openSections.timetable} onToggle={() => toggle("timetable")}>
+            <Accordion titleStyle="section" title="Timetable Overrides" icon={CalendarDays} open={openSections.timetable} onOpenChange={() => toggle("timetable")}>
                 <div className="space-y-4">
-                    <p className="text-xs font-bold text-black/50">특정 날짜에 선택한 요일의 정규 시간표를 적용합니다. 날짜마다 한 이벤트만 등록할 수 있습니다.</p>
+                    <Text as="p" variant="caption" tone="secondary">특정 날짜에 선택한 요일의 정규 시간표를 적용합니다. 날짜마다 한 이벤트만 등록할 수 있습니다.</Text>
                     <form onSubmit={saveOverride} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
-                        <label className="text-[10px] font-black uppercase">날짜<input required type="date" value={overrideDate} onChange={(e) => setOverrideDate(e.target.value)} className={inputClass + " block w-full text-xs"} /></label>
-                        <label className="text-[10px] font-black uppercase">가져올 시간표<select value={overrideDay} onChange={(e) => setOverrideDay(e.target.value)} className={inputClass + " block w-full text-xs"}>{WEEKDAYS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}</select></label>
-                        <label className="text-[10px] font-black uppercase">이벤트 이름<input required maxLength={100} value={overrideTitle} onChange={(e) => setOverrideTitle(e.target.value)} placeholder="월요일 시간표 운영" className={inputClass + " block w-full text-xs"} /></label>
-                        <button type="submit" className="flex items-center justify-center gap-1.5 border-2 border-black bg-black text-white px-3 py-2 text-xs font-black uppercase"><Plus size={14} /> Create</button>
+                        <Label className="block space-y-1.5">날짜<Input required type="date" size="sm" value={overrideDate} onChange={(e) => setOverrideDate(e.target.value)} /></Label>
+                        <Label className="block space-y-1.5">가져올 시간표<Select size="sm" value={overrideDay} onChange={(e) => setOverrideDay(e.target.value)}>{WEEKDAYS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}</Select></Label>
+                        <Label className="block space-y-1.5">이벤트 이름<Input required size="sm" maxLength={100} value={overrideTitle} onChange={(e) => setOverrideTitle(e.target.value)} placeholder="월요일 시간표 운영" /></Label>
+                        <Button type="submit" variant="filled" icon={Plus} className="justify-center">Create</Button>
                     </form>
                     <div className="space-y-2">
-                        {overrides.map((event) => <div key={event.id} className="flex items-center justify-between gap-3 border-2 border-black bg-white px-3 py-2 shadow-[3px_3px_0_0_rgba(0,0,0,0.1)]"><div><strong className="block text-sm">{event.date} · {event.title}</strong><span className="text-xs font-bold text-black/50">{WEEKDAYS.find((d) => d.value === event.source_day)?.label ?? event.source_day} 시간표</span></div><button aria-label="대체시간표 삭제" onClick={() => deleteOverride(event.id)} className="p-2 text-red-600 hover:bg-red-50"><Trash2 size={16} /></button></div>)}
-                        {overrides.length === 0 && <p className="text-sm font-bold text-black/40">등록된 대체시간표 이벤트가 없습니다.</p>}
+                        {overrides.map((event) => <Card key={event.id} padding="0" className="flex items-center justify-between gap-3 px-3 py-2"><div><Text as="div" weight="black">{event.date} · {event.title}</Text><Text variant="caption" tone="muted">{WEEKDAYS.find((d) => d.value === event.source_day)?.label ?? event.source_day} 시간표</Text></div><IconButton icon={Trash2} accent="red" label="대체시간표 삭제" onClick={() => deleteOverride(event.id)} /></Card>)}
+                        {overrides.length === 0 && <Text as="p" tone="muted">등록된 대체시간표 이벤트가 없습니다.</Text>}
                     </div>
                 </div>
-            </AccordionSection>
+            </Accordion>
 
-            <AccordionSection title="Trade" icon={ArrowLeftRight} isOpen={openSections.trade} onToggle={() => toggle("trade")}>
+            <Accordion titleStyle="section" title="Trade" icon={ArrowLeftRight} open={openSections.trade} onOpenChange={() => toggle("trade")}>
                 {trade === null ? (
-                    <p className="text-sm font-bold text-black/40">불러오는 중…</p>
+                    <Text as="p" tone="muted">불러오는 중…</Text>
                 ) : (
                     <div className="space-y-5">
                         {/* 지금 어떤 상태인지부터. 켜고 끄는 값들이 아래 있어도,
                             결과는 스위치·마감·서버 시각이 함께 정합니다 */}
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                            <span
-                                className={`border-2 border-black px-2 py-1 text-[11px] font-black uppercase tracking-widest ${
-                                    trade.open ? "bg-retro-green text-white" : "bg-black/[0.04] text-black/40"
-                                }`}
-                            >
-                                {trade.open ? "열림" : "닫힘"}
-                            </span>
-                            <span className="text-xs font-bold text-black/45">
+                            {trade.open ? (
+                                <Badge accent="green" variant="solid">열림</Badge>
+                            ) : (
+                                <Badge variant="wash">닫힘</Badge>
+                            )}
+                            <Text variant="caption" tone="muted">
                                 {trade.enabled
                                     ? `${kstLabel(trade.until)} 까지`
                                     : "스위치가 내려가 있습니다"}
-                            </span>
+                            </Text>
                         </div>
 
-                        <p className="text-[11px] font-bold leading-relaxed text-black/40">
-                            홈 배너, 하단 네비·사이드바 메뉴, <code>/trade</code> 주소, 홈의
+                        <Text as="p" variant="caption" tone="muted" leading="relaxed">
+                            홈 배너, 하단 네비·사이드바 메뉴, <Code>/trade</Code> 주소, 홈의
                             «기존 시간표 | 트레이드 계획» 전환이 <b>전부 이 설정 하나로</b>{" "}
                             갈립니다. 열려 있는지는 <b>서버 시계</b>가 정합니다 — 보는 기기의
                             시계가 틀어져 있어도 같은 때에 닫힙니다.
-                        </p>
+                        </Text>
 
                         {/* 스위치 */}
                         <div className="space-y-2">
-                            <RetroSubTitle title="On / Off" />
+                            <SectionTitle title="On / Off" />
                             <div className="flex flex-wrap items-center gap-3">
-                                <div className="flex">
-                                    {[
-                                        { value: true, label: "켜짐" },
-                                        { value: false, label: "꺼짐" },
-                                    ].map((opt) => (
-                                        <button
-                                            key={String(opt.value)}
-                                            type="button"
-                                            disabled={tradeBusy}
-                                            onClick={() => saveTrade({ enabled: opt.value })}
-                                            className={`text-[10px] font-black uppercase px-2.5 py-1.5 border-2 -ml-0.5 first:ml-0 transition-all duration-100 disabled:opacity-40 ${
-                                                trade.enabled === opt.value
-                                                    ? "bg-black text-white border-black relative z-10"
-                                                    : "bg-white text-black/40 border-black/30 hover:border-black hover:text-black"
-                                            }`}
-                                        >
-                                            {opt.label}
-                                        </button>
-                                    ))}
-                                </div>
-                                <span className="text-[11px] font-bold text-black/40">
+                                <SegmentedControl
+                                    attached
+                                    size="xs"
+                                    aria-label="Trade 스위치"
+                                    value={trade.enabled ? "on" : "off"}
+                                    onChange={(value) => saveTrade({ enabled: value === "on" })}
+                                    options={[
+                                        { value: "on", label: "켜짐", disabled: tradeBusy },
+                                        { value: "off", label: "꺼짐", disabled: tradeBusy },
+                                    ]}
+                                />
+                                <Text variant="caption" tone="muted">
                                     기간과 무관하게 지금 내리고 싶을 때
-                                </span>
+                                </Text>
                             </div>
                         </div>
 
                         {/* 마감 */}
                         <div className="space-y-2">
-                            <RetroSubTitle title="Deadline" />
+                            <SectionTitle title="Deadline" />
                             <div className="flex flex-wrap items-center gap-2">
-                                <input
+                                <Input
                                     type="datetime-local"
+                                    shadow
                                     value={toLocalInput(trade.until)}
                                     disabled={tradeBusy}
                                     onChange={(e) =>
                                         saveTrade({ until: fromLocalInput(e.target.value) })
                                     }
-                                    className={`${inputClass} disabled:opacity-40`}
+                                    className="w-auto"
                                 />
-                                <RetroButton
+                                <Button
                                     size="sm"
+                                    variant="paper"
+                                    shadow
                                     disabled={tradeBusy || !trade.until}
                                     onClick={() => saveTrade({ until: null })}
                                 >
                                     기한 없음
-                                </RetroButton>
+                                </Button>
                             </div>
-                            <p className="text-[11px] font-bold text-black/40">
+                            <Text as="p" variant="caption" tone="muted">
                                 입력칸은 <b>이 브라우저의 시간대</b>로 보입니다. 저장되는 값은{" "}
                                 <b>{kstLabel(trade.until)}</b> (서울) 입니다.
-                            </p>
+                            </Text>
                         </div>
 
                         {/* 학기 */}
                         <div className="space-y-2">
-                            <RetroSubTitle title="Term" />
+                            <SectionTitle title="Term" />
                             <div className="flex flex-wrap items-center gap-2">
-                                <input
+                                <Input
                                     type="number"
+                                    shadow
                                     value={trade.year ?? ""}
                                     disabled={tradeBusy}
                                     onChange={(e) => {
                                         const year = Number(e.target.value);
                                         if (year >= 2000 && year <= 2100) saveTrade({ year });
                                     }}
-                                    className={`${inputClass} w-24 disabled:opacity-40`}
+                                    className="w-24"
                                 />
-                                <div className="flex">
-                                    {[1, 2].map((sem) => (
-                                        <button
-                                            key={sem}
-                                            type="button"
-                                            disabled={tradeBusy}
-                                            onClick={() => saveTrade({ semester: sem })}
-                                            className={`text-[10px] font-black uppercase px-2.5 py-1.5 border-2 -ml-0.5 first:ml-0 transition-all duration-100 disabled:opacity-40 ${
-                                                trade.semester === sem
-                                                    ? "bg-black text-white border-black relative z-10"
-                                                    : "bg-white text-black/40 border-black/30 hover:border-black hover:text-black"
-                                            }`}
-                                        >
-                                            {sem}학기
-                                        </button>
-                                    ))}
-                                </div>
-                                <span className="text-[11px] font-bold text-black/40">
+                                <SegmentedControl
+                                    attached
+                                    size="xs"
+                                    aria-label="Trade 학기"
+                                    value={trade.semester === null ? "" : String(trade.semester)}
+                                    onChange={(value) => saveTrade({ semester: Number(value) })}
+                                    options={[1, 2].map((sem) => ({ value: String(sem), label: `${sem}학기`, disabled: tradeBusy }))}
+                                />
+                                <Text variant="caption" tone="muted">
                                     이 학기를 보고 있는 사람에게만 뜹니다
-                                </span>
+                                </Text>
                             </div>
                         </div>
 
                         {tradeError && (
-                            <p className="text-xs font-bold text-red-600">{tradeError}</p>
+                            <Text as="p" variant="caption" tone="red">{tradeError}</Text>
                         )}
                     </div>
                 )}
-            </AccordionSection>
+            </Accordion>
 
-            <AccordionSection title="Backups" icon={Archive} isOpen={openSections.backups} onToggle={() => toggle("backups")}>
+            <Accordion titleStyle="section" title="Backups" icon={Archive} open={openSections.backups} onOpenChange={() => toggle("backups")}>
                 <div className="space-y-4">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <p className="text-xs font-bold text-black/40">
+                        <Text as="p" variant="caption" tone="muted">
                             수집 직전에 자동으로 남습니다. 지워지지 않으니 총 {formatBytes(backupTotal)} — 커지면 서버에서 직접 정리하세요.
-                        </p>
+                        </Text>
                         <div className="flex items-center gap-2 shrink-0">
-                            <button
-                                onClick={fetchBackups}
-                                className="flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1.5 border-2 border-black/30 text-black/50 hover:border-black hover:text-black transition-all duration-100"
-                            >
-                                <RefreshCw size={11} strokeWidth={2.5} />
+                            <Button size="xs" variant="muted" icon={RefreshCw} onClick={fetchBackups}>
                                 Refetch
-                            </button>
-                            <button
-                                onClick={handleCreateBackup}
-                                disabled={backupBusy}
-                                className="flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1.5 border-2 border-black bg-black text-white hover:bg-black/80 disabled:opacity-50 transition-all duration-100"
-                            >
-                                <Camera size={11} strokeWidth={2.5} />
+                            </Button>
+                            <Button size="xs" variant="filled" icon={Camera} onClick={handleCreateBackup} disabled={backupBusy}>
                                 {backupBusy ? "Saving..." : "Snapshot"}
-                            </button>
+                            </Button>
                         </div>
                     </div>
 
                     <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
                         {backups.map((b) => (
-                            <div
+                            <Card
                                 key={b.name}
-                                className="border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.1)] px-4 py-3 flex items-center justify-between gap-3"
+                                padding="0"
+                                className="px-4 py-3 flex items-center justify-between gap-3"
                             >
                                 <div className="min-w-0">
-                                    <span className="font-black text-sm block">{b.created}</span>
-                                    <span className="text-[10px] font-bold text-black/40 block truncate">{b.name}</span>
+                                    <Text as="div" weight="black">{b.created}</Text>
+                                    <Text as="div" variant="micro" weight="bold" tone="muted" truncate>{b.name}</Text>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                     {b.label && (
-                                        <span className="text-[10px] font-black uppercase px-1.5 py-0.5 border border-black/30 text-black/50">
+                                        <Badge size="sm" variant="hairline">
                                             {b.label}
-                                        </span>
+                                        </Badge>
                                     )}
-                                    <span className="text-[10px] font-bold text-black/40">{formatBytes(b.bytes)}</span>
+                                    <Text variant="micro" weight="bold" tone="muted">{formatBytes(b.bytes)}</Text>
                                 </div>
-                            </div>
+                            </Card>
                         ))}
-                        {backups.length === 0 && <p className="text-sm font-bold text-black/40">No backups yet.</p>}
+                        {backups.length === 0 && <Text as="p" tone="muted">No backups yet.</Text>}
                     </div>
                 </div>
-            </AccordionSection>
+            </Accordion>
         </div>
     );
 };

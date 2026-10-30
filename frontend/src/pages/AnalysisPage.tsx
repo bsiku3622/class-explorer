@@ -10,18 +10,29 @@ import {
     Calendar,
     BookOpen,
 } from "lucide-react";
-import RetroTooltip from "../components/atoms/RetroTooltip";
-import RetroSpinner from "../components/atoms/RetroSpinner";
 import type { SubjectData } from "../types";
 import { getStudentColor, getKoreanName } from "../lib/utils";
-import RetroButton from "../components/atoms/RetroButton";
-import RetroCard from "../components/atoms/RetroCard";
 import FilterSection from "../components/FilterSection";
-import RetroSubTitle from "../components/atoms/RetroSubTitle";
 import StudentBadge from "../components/atoms/StudentBadge";
-import PageHeader from "../components/molecules/PageHeader";
-import AccordionSection from "../components/molecules/AccordionSection";
 import BarChartRow from "../components/molecules/BarChartRow";
+import {
+    Accordion,
+    Badge,
+    Button,
+    Card,
+    Input,
+    PageHeader,
+    Popover,
+    SectionTitle,
+    SlotCell,
+    Spinner,
+    Surface,
+    Pressable,
+    Text,
+    TimetableGrid,
+    ToneText,
+    surfaceClass,
+} from "@studio-baeks/funky-ui";
 
 interface AnalysisPageProps {
     allClassesData: SubjectData[];
@@ -37,6 +48,8 @@ interface AnalysisPageProps {
 }
 
 
+const COMPARE_DAYS = ["MON", "TUE", "WED", "THU", "FRI"];
+
 const YEAR_COLORS: Record<string, string> = {
     "23": "#7828C8",
     "24": "#FC8200",
@@ -50,10 +63,16 @@ const YearBreakdown = ({ yearData }: { yearData: Record<string, number> }) => (
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([year, count]) => (
                 <div key={year} className="flex items-center gap-1.5">
-                    <span className="text-xs font-black" style={{ color: YEAR_COLORS[year] || "#000" }}>
-                        {year}
-                    </span>
-                    <span className="text-xs font-black text-black">{count}명</span>
+                    {YEAR_COLORS[year] ? (
+                        <ToneText variant="caption" weight="black" tone={YEAR_COLORS[year]}>
+                            {year}
+                        </ToneText>
+                    ) : (
+                        <Text variant="caption" weight="black">
+                            {year}
+                        </Text>
+                    )}
+                    <Text variant="caption" weight="black">{count}명</Text>
                 </div>
             ))}
     </div>
@@ -73,21 +92,17 @@ const ShowMoreButton = ({
     if (totalCount <= 15) return null;
     return (
         <div className="mt-8 flex justify-center">
-            <RetroButton
+            <Button
+                variant="paper"
+                shadow
                 onClick={onToggle}
                 size="sm"
-                icon={
-                    isExpanded ? (
-                        <Minus size={14} strokeWidth={3} />
-                    ) : (
-                        <Plus size={14} strokeWidth={3} />
-                    )
-                }
+                icon={isExpanded ? Minus : Plus}
             >
                 {isExpanded
                     ? "Show Less"
                     : `Show More (${totalCount - currentCount} more)`}
-            </RetroButton>
+            </Button>
         </div>
     );
 };
@@ -380,10 +395,10 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
     if (loading)
         return (
             <div className="flex flex-col items-center justify-center py-40 gap-4">
-                <RetroSpinner size="lg" />
-                <p className="font-black uppercase animate-pulse">
+                <Spinner size="lg" />
+                <Text as="p" variant="subtitle" tone="primary" pulse>
                     Analyzing Data...
-                </p>
+                </Text>
             </div>
         );
 
@@ -422,31 +437,32 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                         ).toFixed(0),
                     },
                 ].map((s, i) => (
-                    <RetroCard key={i} className="bg-white p-4 flex flex-col justify-center items-center">
-                        <span className="text-xs font-bold uppercase text-black/40 mb-1">
+                    <Card key={i} padding="0" className="p-4 flex flex-col justify-center items-center">
+                        <Text variant="overline" className="mb-1">
                             {s.label}
-                        </span>
-                        <span className="text-2xl font-black text-black">
+                        </Text>
+                        <Text variant="title">
                             {s.value}
-                        </span>
-                    </RetroCard>
+                        </Text>
+                    </Card>
                 ))}
             </div>
-            <AccordionSection
+            <Accordion
+                titleStyle="section"
                 title="Timetable Compare"
                 icon={Calendar}
-                isOpen={openSections.compare}
-                onToggle={() => toggleSection("compare")}
+                open={openSections.compare}
+                onOpenChange={() => toggleSection("compare")}
             >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                     <div className="space-y-6">
                         <div className="relative">
-                            <RetroSubTitle
+                            <SectionTitle
                                 title="Search & Add Students"
                                 icon={Users}
                             />
                             <div className="mt-3" />
-                            <input
+                            <Input
                                 type="text"
                                 placeholder="Name or ID..."
                                 value={compareSearch}
@@ -454,13 +470,18 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                     setCompareSearch(e.target.value)
                                 }
                                 onKeyDown={handleSearchKeyDown}
-                                className="w-full bg-white border-2 border-black p-3 text-sm font-bold focus:outline-none shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]"
+                                shadow
+                                className="w-full"
                             />
                             {studentSuggestions.length > 0 && (
-                                <div className="absolute top-full left-0 right-0 z-50 bg-white border-2 border-black mt-1 shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]">
+                                <Surface
+                                    border="line"
+                                    shadow="raised"
+                                    className="absolute top-full left-0 right-0 z-50 mt-1"
+                                >
                                     {studentSuggestions.map(
                                         ([id, data], index) => (
-                                            <button
+                                            <Pressable
                                                 key={id}
                                                 onClick={() => {
                                                     setSelectedStudentIds(
@@ -468,20 +489,25 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                                     );
                                                     setCompareSearch("");
                                                 }}
-                                                className={`w-full text-left p-3 border-b last:border-b-0 border-black/5 flex items-center ${index === focusedSuggestionIndex ? "bg-retro-accent-light" : "hover:bg-retro-accent-light"}`}
+                                                className={`${surfaceClass({
+                                                    fill: index === focusedSuggestionIndex ? "well" : "none",
+                                                    border: index < studentSuggestions.length - 1 ? "subtle" : "none",
+                                                    borderSide: "bottom",
+                                                    hoverable: true,
+                                                })} w-full text-left p-3 flex items-center`}
                                             >
                                                 <StudentBadge
                                                     studentId={id}
                                                     studentName={data.name}
                                                 />
-                                            </button>
+                                            </Pressable>
                                         ),
                                     )}
-                                </div>
+                                </Surface>
                             )}
                         </div>
                         <div className="space-y-3">
-                            <RetroSubTitle
+                            <SectionTitle
                                 title="Comparing Students"
                                 icon={Users}
                             />
@@ -501,171 +527,158 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                     />
                                 ))}
                                 {selectedStudentIds.length === 0 && (
-                                    <p className="text-sm font-bold text-black/20">
+                                    <Text as="p" tone="muted">
                                         No selection.
-                                    </p>
+                                    </Text>
                                 )}
                             </div>
                         </div>
                     </div>
                     <div className="w-full">
                         <div className="flex items-center gap-3">
-                            <RetroSubTitle
+                            <SectionTitle
                                 title="Common Empty Slots"
                                 icon={Clock}
                             />
                             {conflictCount > 0 && (
-                                <span className="text-[10px] font-black uppercase bg-orange-100 border-2 border-orange-300 text-orange-600 px-2 py-0.5">
+                                <Badge accent="orange" variant="plain" size="sm">
                                     {conflictCount} Conflict{conflictCount > 1 ? "s" : ""}
-                                </span>
+                                </Badge>
                             )}
                         </div>
                         <div className="mt-3" />
                         <div className="overflow-x-auto">
-                        <div className="bg-white border-2 border-black overflow-hidden shadow-[6px_6px_0_0_rgba(0,0,0,0.1)] min-w-[280px]">
-                            <div className="grid grid-cols-[40px_repeat(5,1fr)] divide-x divide-black/10 border-b border-black bg-black text-white">
-                                <div className="p-2 text-[10px] font-black text-center">
-                                    PD
-                                </div>
-                                {["MON", "TUE", "WED", "THU", "FRI"].map(
-                                    (day) => (
-                                        <div
-                                            key={day}
-                                            className="p-2 text-[10px] font-black text-center"
-                                        >
-                                            {day}
-                                        </div>
-                                    ),
-                                )}
-                            </div>
-                            {Array.from({ length: 11 }, (_, i) => i + 1).map(
-                                (period) => (
-                                    <div
-                                        key={period}
-                                        className="grid grid-cols-[40px_repeat(5,1fr)] divide-x divide-black/10 border-b last:border-b-0 border-black/5"
-                                    >
-                                        <div className="bg-black/5 flex items-center justify-center text-[10px] font-black">
-                                            {period}
-                                        </div>
-                                        {[
-                                            "MON",
-                                            "TUE",
-                                            "WED",
-                                            "THU",
-                                            "FRI",
-                                        ].map((day) => {
-                                            const key = `${day}-${period}`,
-                                                isFree =
-                                                    selectedStudentIds.length >=
-                                                        2 &&
-                                                    commonFreePeriods.includes(
-                                                        key,
-                                                    ),
-                                                first =
-                                                    selectedStudentIds.length >
-                                                    0
-                                                        ? studentInfoMap[
-                                                              selectedStudentIds[0]
-                                                          ]?.schedule[key]
-                                                        : null,
-                                                isCommonClass =
-                                                    selectedStudentIds.length >=
-                                                        2 &&
-                                                    first &&
-                                                    selectedStudentIds.every(
-                                                        (id) =>
-                                                            studentInfoMap[id]
-                                                                ?.schedule[
-                                                                key
-                                                            ] === first,
-                                                    ),
-                                                isConflict =
-                                                    selectedStudentIds.length >=
-                                                        2 &&
-                                                    !isCommonClass &&
-                                                    !isFree &&
-                                                    selectedStudentIds.every(
-                                                        (id) =>
-                                                            !!studentInfoMap[id]
-                                                                ?.schedule[key],
-                                                    );
-                                            return (
-                                                                                                <RetroTooltip
-                                                    key={day}
-                                                    isOpen={
-                                                        activeCellKey === key
-                                                    }
-                                                    content={
-                                                        <div className="p-3 min-w-[180px] space-y-1.5">
-                                                            <p className="text-[10px] font-black border-b border-black/10 pb-1 mb-2 uppercase">
-                                                                {day} Pd{" "}
-                                                                {period}
-                                                            </p>
-                                                            {selectedStudentIds.map(
-                                                                (id) => (
-                                                                    <div
-                                                                        key={id}
-                                                                        className="flex justify-between gap-4"
-                                                                    >
-                                                                        <span
-                                                                            className="text-[10px] font-black"
-                                                                            style={{
-                                                                                color: getStudentColor(
-                                                                                    id,
-                                                                                ),
-                                                                            }}
-                                                                        >
-                                                                            {
-                                                                                studentInfoMap[
-                                                                                    id
-                                                                                ]
-                                                                                    ?.name
-                                                                            }
-                                                                        </span>
-                                                                        <span
-                                                                            className={`text-[9px] font-bold px-1.5 py-0.5 border ${studentInfoMap[id]?.schedule[key] ? "bg-black/5 text-black/60" : "bg-retro-green/10 text-retro-green"}`}
-                                                                        >
-                                                                            {studentInfoMap[
-                                                                                id
-                                                                            ]
-                                                                                ?.schedule[
-                                                                                key
-                                                                            ] ||
-                                                                                "Free"}
-                                                                        </span>
-                                                                    </div>
-                                                                ),
-                                                            )}
-                                                        </div>
-                                                    }
-                                                >
-                                                    <div
-                                                        onClick={() =>
-                                                            setActiveCellKey(
-                                                                activeCellKey ===
-                                                                    key
-                                                                    ? null
-                                                                    : key,
-                                                            )
-                                                        }
-                                                        className={`h-10 transition-all duration-300 relative cursor-pointer ${activeCellKey === key ? "ring-2 ring-inset ring-black z-10" : "hover:bg-black/[0.03]"} ${isConflict ? "bg-orange-100" : isCommonClass ? "bg-retro-primary/20" : isFree ? "bg-retro-green/20" : "bg-white"}`}
-                                                    />
-                                                </RetroTooltip>
+                            <TimetableGrid
+                                flush
+                                className="min-w-[280px]"
+                                corner="PD"
+                                days={COMPARE_DAYS.map((day) => ({ key: day, label: day }))}
+                                periods={Array.from({ length: 11 }, (_, i) => i + 1).map((period) => ({
+                                    key: String(period),
+                                    label: period,
+                                }))}
+                                renderCell={(day, periodKey) => {
+                                    const period = Number(periodKey);
+                                    const key = `${day}-${period}`,
+                                        isFree =
+                                            selectedStudentIds.length >=
+                                                2 &&
+                                            commonFreePeriods.includes(
+                                                key,
+                                            ),
+                                        first =
+                                            selectedStudentIds.length >
+                                            0
+                                                ? studentInfoMap[
+                                                      selectedStudentIds[0]
+                                                  ]?.schedule[key]
+                                                : null,
+                                        isCommonClass =
+                                            selectedStudentIds.length >=
+                                                2 &&
+                                            first &&
+                                            selectedStudentIds.every(
+                                                (id) =>
+                                                    studentInfoMap[id]
+                                                        ?.schedule[
+                                                        key
+                                                    ] === first,
+                                            ),
+                                        isConflict =
+                                            selectedStudentIds.length >=
+                                                2 &&
+                                            !isCommonClass &&
+                                            !isFree &&
+                                            selectedStudentIds.every(
+                                                (id) =>
+                                                    !!studentInfoMap[id]
+                                                        ?.schedule[key],
                                             );
-                                        })}
-                                    </div>
-                                ),
-                            )}
-                        </div>
+                                    return (
+                                        <Popover
+                                            trigger="manual"
+                                            block
+                                            open={activeCellKey === key}
+                                            content={
+                                                <div className="min-w-[180px] space-y-1.5">
+                                                    <Surface
+                                                        fill="none"
+                                                        border="subtle"
+                                                        borderSide="bottom"
+                                                        className="pb-1 mb-2"
+                                                    >
+                                                        <Text variant="overline" tone="primary">
+                                                            {day} Pd{" "}
+                                                            {period}
+                                                        </Text>
+                                                    </Surface>
+                                                    {selectedStudentIds.map(
+                                                        (id) => (
+                                                            <div
+                                                                key={id}
+                                                                className="flex justify-between gap-4"
+                                                            >
+                                                                <ToneText
+                                                                    variant="micro"
+                                                                    tone={getStudentColor(id)}
+                                                                >
+                                                                    {
+                                                                        studentInfoMap[
+                                                                            id
+                                                                        ]
+                                                                            ?.name
+                                                                    }
+                                                                </ToneText>
+                                                                {studentInfoMap[id]?.schedule[key] ? (
+                                                                    <Badge size="sm" variant="wash">
+                                                                        {studentInfoMap[id]?.schedule[key]}
+                                                                    </Badge>
+                                                                ) : (
+                                                                    <Badge size="sm" accent="green" variant="plain">
+                                                                        Free
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            }
+                                        >
+                                            <SlotCell
+                                                state={
+                                                    isConflict
+                                                        ? "conflict"
+                                                        : isCommonClass
+                                                          ? "common"
+                                                          : isFree
+                                                            ? "free"
+                                                            : "empty"
+                                                }
+                                                onToggle={() =>
+                                                    setActiveCellKey(
+                                                        activeCellKey ===
+                                                            key
+                                                            ? null
+                                                            : key,
+                                                    )
+                                                }
+                                                label={`${day} ${period}교시`}
+                                                className={`h-10 w-full ${activeCellKey === key ? "relative z-10 outline outline-2 -outline-offset-2 outline-[var(--fk-line-base)]" : ""}`}
+                                            />
+                                        </Popover>
+                                    );
+                                }}
+                            />
                         </div>
                     </div>
                 </div>
-            </AccordionSection>
-            <AccordionSection
+            </Accordion>
+            <Accordion
+                titleStyle="section"
                 title="Subjects by Enrollment"
                 icon={BookOpen}
-                isOpen={openSections.subjects}
-                onToggle={() => toggleSection("subjects")}
+                open={openSections.subjects}
+                onOpenChange={() => toggleSection("subjects")}
             >
                 <div className="space-y-3">
                     {allSubjectStats
@@ -677,8 +690,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                 value={s.studentCount}
                                 maxValue={maxStudents}
                                 caption={`${s.studentCount} Students`}
-                                captionClassName="text-retro-primary"
-                                onLabelClick={() => handleSearch(getKoreanName(s.name))}
+                                    onLabelClick={() => handleSearch(getKoreanName(s.name))}
                                 tooltipContent={
                                     subjectStats.subjectYearStats[s.name]
                                         ? <YearBreakdown yearData={subjectStats.subjectYearStats[s.name]} />
@@ -693,12 +705,13 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                         onToggle={() => toggleExpand("subjects")}
                     />
                 </div>
-            </AccordionSection>
-            <AccordionSection
+            </Accordion>
+            <Accordion
+                titleStyle="section"
                 title="Weekly Periods Distribution"
                 icon={Clock}
-                isOpen={openSections.periodsDistribution}
-                onToggle={() => toggleSection("periodsDistribution")}
+                open={openSections.periodsDistribution}
+                onOpenChange={() => toggleSection("periodsDistribution")}
             >
                 <div className="space-y-3">
                     {periodStats.weeklyPeriodsStats.map((s, i) => (
@@ -708,7 +721,6 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                             value={s.students}
                             maxValue={Math.max(1, ...periodStats.weeklyPeriodsStats.map((r) => r.students))}
                             caption={`${s.students} Students`}
-                            captionClassName="text-retro-primary"
                             onLabelClick={() => navigate(`/students?q=periods:${s.periods}`)}
                             tooltipContent={
                                 periodStats.periodsYearStats[s.periods]
@@ -718,12 +730,13 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                         />
                     ))}
                 </div>
-            </AccordionSection>
-            <AccordionSection
+            </Accordion>
+            <Accordion
+                titleStyle="section"
                 title="Subject Count Distribution"
                 icon={BarChart3}
-                isOpen={openSections.subjectCountDistribution}
-                onToggle={() => toggleSection("subjectCountDistribution")}
+                open={openSections.subjectCountDistribution}
+                onOpenChange={() => toggleSection("subjectCountDistribution")}
             >
                 <div className="space-y-3">
                     {subjectStats.subjectCountStats.map((s, i) => (
@@ -733,7 +746,6 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                             value={s.students}
                             maxValue={Math.max(1, ...subjectStats.subjectCountStats.map((r) => r.students))}
                             caption={`${s.students} Students`}
-                            captionClassName="text-retro-primary"
                             onLabelClick={() => navigate(`/students?q=subcount:${s.subjectCount}`)}
                             tooltipContent={
                                 subjectStats.subjectCountYearStats[s.subjectCount]
@@ -743,12 +755,13 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                         />
                     ))}
                 </div>
-            </AccordionSection>
-            <AccordionSection
+            </Accordion>
+            <Accordion
+                titleStyle="section"
                 title="Teacher Load Distribution"
                 icon={Users}
-                isOpen={openSections.teacherLoadDistribution}
-                onToggle={() => toggleSection("teacherLoadDistribution")}
+                open={openSections.teacherLoadDistribution}
+                onOpenChange={() => toggleSection("teacherLoadDistribution")}
             >
                 <div className="space-y-3">
                     {teacherLoadDistribution.map((s, i) => (
@@ -758,17 +771,17 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                             value={s.teachers}
                             maxValue={Math.max(1, ...teacherLoadDistribution.map((r) => r.teachers))}
                             caption={`${s.teachers} Teacher${s.teachers > 1 ? "s" : ""}`}
-                            captionClassName="text-retro-primary"
                         />
                     ))}
                 </div>
-            </AccordionSection>
+            </Accordion>
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6 items-start">
-                <AccordionSection
+                <Accordion
+                    titleStyle="section"
                     title="Teaching Load"
                     icon={Clock}
-                    isOpen={openSections.teachers}
-                    onToggle={() => toggleSection("teachers")}
+                    open={openSections.teachers}
+                    onOpenChange={() => toggleSection("teachers")}
                 >
                     <div className="space-y-3">
                         {allTeacherStats
@@ -780,8 +793,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                     value={t.periods}
                                     maxValue={maxTeacherPeriods}
                                     caption={`${t.periods} PDS | ${t.sections} SEC`}
-                                    captionClassName="text-retro-primary"
-                                    onLabelClick={() => handleSearch(t.name, true)}
+                                            onLabelClick={() => handleSearch(t.name, true)}
                                 />
                             ))}
                     </div>
@@ -791,12 +803,13 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                         isExpanded={expandLists.teachers}
                         onToggle={() => toggleExpand("teachers")}
                     />
-                </AccordionSection>
-                <AccordionSection
+                </Accordion>
+                <Accordion
+                    titleStyle="section"
                     title="Classroom Utilization"
                     icon={MapPin}
-                    isOpen={openSections.rooms}
-                    onToggle={() => toggleSection("rooms")}
+                    open={openSections.rooms}
+                    onOpenChange={() => toggleSection("rooms")}
                 >
                     <div className="space-y-3">
                         {allRoomStats
@@ -808,8 +821,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                     value={r.periods}
                                     maxValue={maxRoomPeriods}
                                     caption={`${r.periods} HRS | ${r.sectionCount} CLS`}
-                                    captionClassName="text-retro-primary"
-                                    onLabelClick={() => handleSearch(r.name, false, true)}
+                                            onLabelClick={() => handleSearch(r.name, false, true)}
                                 />
                             ))}
                     </div>
@@ -819,7 +831,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                         isExpanded={expandLists.rooms}
                         onToggle={() => toggleExpand("rooms")}
                     />
-                </AccordionSection>
+                </Accordion>
             </div>
         </div>
     );

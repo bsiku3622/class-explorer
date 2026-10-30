@@ -18,6 +18,7 @@
  */
 import React, { useEffect, useLayoutEffect } from "react";
 import { Sparkles, SquarePen } from "lucide-react";
+import { Button, Icon, Surface, Text } from "@studio-baeks/funky-ui";
 import AgentThread from "../components/agent/AgentThread";
 import AgentComposer from "../components/agent/AgentComposer";
 import AgentEmpty from "../components/agent/AgentEmpty";
@@ -58,20 +59,21 @@ const AiPage: React.FC<AiPageProps> = ({ chat, focusKey, name }) => {
     return (
         <div className="mx-auto flex w-full max-w-3xl flex-col">
             {import.meta.env.DEV && (
-                <div className="mb-4 flex flex-wrap items-center gap-1.5 border-2 border-dashed border-black/25 px-3 py-2">
-                    <span className="mr-1 text-[10px] font-black uppercase tracking-widest text-black/30">데모</span>
+                <Surface fill="none" border="soft" borderStyle="dashed" className="mb-4 flex flex-wrap items-center gap-1.5 px-3 py-2">
+                    <Text variant="overline" tone="faint" className="mr-1">데모</Text>
                     {DEMOS.map(({ key, label }) => (
-                        <button
+                        <Button
                             key={key}
-                            type="button"
+                            size="xs"
+                            variant="paper"
+                            uppercase={false}
                             onClick={() => chat.play(AGENT_DEMOS[key].question, AGENT_DEMOS[key].events)}
                             disabled={chat.running}
-                            className="border-2 border-black bg-white px-2 py-0.5 text-[11px] font-black hover:bg-retro-accent-light disabled:opacity-30"
                         >
                             {label}
-                        </button>
+                        </Button>
                     ))}
-                </div>
+                </Surface>
             )}
 
             {empty ? (
@@ -86,27 +88,23 @@ const AiPage: React.FC<AiPageProps> = ({ chat, focusKey, name }) => {
                 // 대화가 짧아도 입력창은 화면 아래에 둡니다 — 남는 높이를 대화가 채웁니다
                 <div className="flex min-h-[calc(100dvh-10rem)] flex-col md:min-h-[calc(100dvh-12rem)]">
                     <div className="mb-6 flex items-center gap-2">
-                        <Sparkles size={15} strokeWidth={2.75} className="text-retro-secondary" />
-                        <span className="text-sm font-bold uppercase tracking-widest text-black/40">Ask</span>
-                        <button
-                            type="button"
-                            onClick={chat.reset}
-                            className="ml-auto flex items-center gap-1.5 border-2 border-black bg-white px-2.5 py-1 text-[12px] font-black shadow-[2px_2px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none"
-                        >
-                            <SquarePen size={13} strokeWidth={2.75} /> 새 대화
-                        </button>
+                        <Icon icon={Sparkles} size={15} strokeWidth={2.75} tone="purple" />
+                        <Text variant="overline">Ask</Text>
+                        <Button variant="paper" shadow size="xs" uppercase={false} icon={SquarePen} onClick={chat.reset} className="ml-auto">
+                            새 대화
+                        </Button>
                     </div>
                     <div className="flex-1 pb-4">
                         <AgentThread turns={chat.turns} cold={chat.cold} />
                     </div>
-                    <div className="sticky bottom-16 z-10 -mx-4 bg-gradient-to-t from-retro-bg from-70% to-transparent px-4 pb-3 pt-8 md:bottom-0 md:mx-0 md:px-0 md:pb-6">
+                    <div className="sticky bottom-16 z-10 -mx-4 bg-gradient-to-t from-[var(--fk-surface-canvas)] from-70% to-transparent px-4 pb-3 pt-8 md:bottom-0 md:mx-0 md:px-0 md:pb-6">
                         <AgentComposer
                             chat={chat}
                             focusKey={focusKey}
                             placeholder="이어서 물어보세요"
                             transitionName={ASK_COMPOSER}
                         />
-                        <p className="mt-2 text-center text-[11px] font-bold text-black/35">{ANSWER_NOTICE}</p>
+                        <Text as="p" variant="micro" weight="bold" tone="muted" align="center" className="mt-2">{ANSWER_NOTICE}</Text>
                     </div>
                 </div>
             )}

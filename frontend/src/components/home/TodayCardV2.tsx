@@ -35,12 +35,12 @@ import { CalendarDays, CalendarOff, MapPin } from "lucide-react";
 import type { HomeData } from "../../lib/friendsApi";
 import { dateLabel, deriveHomeView } from "../../lib/homeView";
 import { getKoreanName } from "../../lib/utils";
-import { CATEGORY_STYLE, timeLabel } from "../../lib/calendar";
-import RetroCard from "../atoms/RetroCard";
-import RetroSubTitle from "../atoms/RetroSubTitle";
+import { timeLabel } from "../../lib/calendar";
+import { CATEGORY_DOT } from "../calendarAccent";
 import MealCard from "../MealCard";
 import TodayTimeline from "../TodayTimeline";
 import VacationBar from "../VacationBar";
+import { Badge, Card, Icon, SectionTitle, Surface, Swatch, Text } from "@studio-baeks/funky-ui";
 
 /** 왼쪽 칸이 낮아야 카드도 낮습니다 — 넘치면 스크롤로 넘깁니다 */
 const EVENT_LIMIT = 5;
@@ -97,49 +97,57 @@ const TodayCardV2: React.FC<TodayCardV2Props> = ({ home, liveMinute, quip }) => 
     // 높이 계산에 끼면 카드가 700px 이 되므로, 그 칸만 `absolute` 로 띄워 높이 계산에서
     // 빼고 남는 자리를 채우게 둡니다 (아래 `relative` + `absolute inset-0`).
     return (
-        <RetroCard
-            className={`grid overflow-hidden bg-white lg:min-h-[15rem] ${columns}`}
+        <Card
+            padding="0"
+            className={`grid overflow-hidden lg:min-h-[15rem] ${columns}`}
         >
             {/* ── 지금 ─────────────────────────────────────────────── */}
             <div className="flex min-h-0 min-w-0 flex-col overflow-hidden p-4 md:p-5">
                 <div className="flex items-baseline justify-between gap-3">
-                    <span className="truncate text-[11px] font-black tracking-wide text-black/40">
+                    <Text as="span" variant="label" tone="muted" truncate>
                         {dateLabel(now.date)}
-                    </span>
+                    </Text>
                     {/* 시계는 두지 않습니다 — 지금이 몇 교시인지가 이 화면의 단위이고,
                         시각은 옆 목록의 줄마다 이미 붙어 있습니다 */}
-                    {periodLabel && (
-                        <span
-                            className={`shrink-0 text-[11px] font-black ${
-                                current
-                                    ? "border-2 border-black bg-retro-primary px-1.5 py-0.5"
-                                    : "text-black/40"
-                            }`}
-                        >
-                            {periodLabel}
-                        </span>
-                    )}
+                    {periodLabel &&
+                        (current ? (
+                            <Badge accent="pink" variant="solid" size="sm" className="shrink-0">
+                                {periodLabel}
+                            </Badge>
+                        ) : (
+                            <Text as="span" variant="label" tone="muted" className="shrink-0">
+                                {periodLabel}
+                            </Text>
+                        ))}
                 </div>
 
                 <div className="mt-3">
                     {current ? (
                         <>
-                            <p className="text-[22px] font-black leading-tight tracking-tight">
+                            <Text as="p" variant="title" className="leading-tight">
                                 {getKoreanName(current.subject)}
-                            </p>
-                            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[12px] font-bold text-black/45">
-                                <MapPin size={13} strokeWidth={2.75} className="shrink-0" />
-                                <span className="font-black text-black">{current.room}</span>
+                            </Text>
+                            <Text
+                                as="p"
+                                variant="caption"
+                                tone="muted"
+                                className="mt-1 flex flex-wrap items-center gap-x-1.5"
+                            >
+                                <Icon icon={MapPin} size={13} strokeWidth={2.75} className="shrink-0" />
+                                <Text as="span" variant="caption" weight="black" tone="primary">
+                                    {current.room}
+                                </Text>
                                 <span>· {current.teacher}</span>
                                 <span>· {current.section.replace(/[^0-9]/g, "")}분반</span>
-                            </p>
+                            </Text>
                         </>
                     ) : (
                         <>
-                            <p
-                                className={`text-[22px] font-black leading-tight tracking-tight ${
-                                    isSchoolDay ? "text-black/25" : "text-black"
-                                }`}
+                            <Text
+                                as="p"
+                                variant="title"
+                                tone={isSchoolDay ? "faint" : "primary"}
+                                className="leading-tight"
                             >
                                 {!isSchoolDay
                                     ? (session.off_label ?? "휴일")
@@ -148,12 +156,12 @@ const TodayCardV2: React.FC<TodayCardV2Props> = ({ home, liveMinute, quip }) => 
                                       : next
                                         ? "공강"
                                         : "일과 종료"}
-                            </p>
-                            <p className="mt-1 text-[12px] font-bold text-black/45">
+                            </Text>
+                            <Text as="p" variant="caption" tone="muted" className="mt-1">
                                 {next
                                     ? `다음 ${next.period}교시 ${getKoreanName(next.subject)} · ${next.room}`
                                     : (quip ?? "오늘 수업은 모두 끝났습니다.")}
-                            </p>
+                            </Text>
                         </>
                     )}
                 </div>
@@ -171,49 +179,68 @@ const TodayCardV2: React.FC<TodayCardV2Props> = ({ home, liveMinute, quip }) => 
                     ⚠️ 여기까지 **flex 사슬이 이어져야** 합니다. 중간에 그냥 `div` 를
                     끼우면 높이 제약이 안 내려가서 `overflow-y-auto` 가 무시되고 목록이
                     카드 밖으로 흘러넘칩니다 */}
-                <div className="mt-4 flex min-h-0 flex-1 flex-col border-t-2 border-black/10 pt-3">
-                    <RetroSubTitle title="Events" icon={CalendarDays} iconSize={14} />
+                <Surface
+                    fill="none"
+                    border="subtle"
+                    borderSide="top"
+                    className="mt-4 flex min-h-0 flex-1 flex-col pt-3"
+                >
+                    <SectionTitle title="Events" icon={CalendarDays} />
                     {events.length === 0 ? (
-                        <p className="mt-2 text-[12px] font-bold text-black/30">
+                        <Text as="p" variant="caption" tone="muted" className="mt-2">
                             등록된 일정이 없습니다
-                        </p>
+                        </Text>
                     ) : (
                         <ul className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto">
                             {events.slice(0, EVENT_LIMIT).map((event) => (
                                 <li key={event.id} className="flex items-center gap-2">
-                                    <span
-                                        className={`h-2 w-2 shrink-0 ${CATEGORY_STYLE[event.category].dot}`}
+                                    <Swatch
+                                        {...CATEGORY_DOT[event.category]}
+                                        className="shrink-0"
                                     />
-                                    <span className="min-w-0 flex-1 truncate text-[12px] font-black">
+                                    <Text
+                                        as="span"
+                                        variant="caption"
+                                        weight="black"
+                                        truncate
+                                        className="flex-1"
+                                    >
                                         {event.title}
-                                    </span>
+                                    </Text>
                                     {timeLabel(event) && (
-                                        <span className="shrink-0 text-[10px] font-bold tabular-nums text-black/35">
+                                        <Text
+                                            as="span"
+                                            variant="micro"
+                                            weight="bold"
+                                            tone="muted"
+                                            numeric
+                                            className="shrink-0"
+                                        >
                                             {timeLabel(event)}
-                                        </span>
+                                        </Text>
                                     )}
                                 </li>
                             ))}
                         </ul>
                     )}
                     {events.length > EVENT_LIMIT && (
-                        <p className="mt-1.5 text-[10px] font-bold text-black/25">
+                        <Text as="p" variant="micro" weight="bold" tone="muted" className="mt-1.5">
                             외 {events.length - EVENT_LIMIT}개
-                        </p>
+                        </Text>
                     )}
-                </div>
+                </Surface>
             </div>
 
             {/* ── 오늘 수업 — 지금을 가운데 두고 스크롤 ─────────────────
                 수업이 없는 날엔 이 칸을 아예 그리지 않습니다. 빈 채로 두면 화면
                 한가운데에 600px 짜리 빈 상자가 남습니다 */}
             {hasTimetable && (
-                <div className="flex min-h-0 min-w-0 flex-col overflow-hidden border-t-2 border-black/10 p-4 md:p-5 lg:border-l-2 lg:border-t-0">
+                <div className="flex min-h-0 min-w-0 flex-col overflow-hidden border-t-2 border-[var(--fk-line-subtle)] p-4 md:p-5 lg:border-l-2 lg:border-t-0">
                     <div className="flex items-baseline justify-between gap-3">
-                        <RetroSubTitle title="Today" icon={CalendarDays} iconSize={15} />
-                        <span className="text-[11px] font-bold tabular-nums text-black/35">
+                        <SectionTitle title="Today" icon={CalendarDays} />
+                        <Text as="span" variant="label" weight="bold" tone="muted" numeric>
                             수업 {today.length}개
-                        </span>
+                        </Text>
                     </div>
                     {/* 좁은 화면에선 세로로 쌓이므로 `flex-1` 이 0 이 됩니다 — 그때만
                         높이를 직접 줍니다 */}
@@ -239,19 +266,19 @@ const TodayCardV2: React.FC<TodayCardV2Props> = ({ home, liveMinute, quip }) => 
             {/* ── 급식 ─────────────────────────────────────────────
                 테두리 없이 카드 안의 한 칸으로 들어갑니다 — 따로 카드를 두면 한 행이
                 아니라 "큰 상자 + 작은 상자" 로 읽힙니다 */}
-            <div className="flex min-h-0 min-w-0 flex-col overflow-hidden border-t-2 border-black/10 lg:border-l-2 lg:border-t-0">
+            <div className="flex min-h-0 min-w-0 flex-col overflow-hidden border-t-2 border-[var(--fk-line-subtle)] lg:border-l-2 lg:border-t-0">
                 {meal ? (
                     <MealCard meal={meal} bare fill />
                 ) : (
                     <div className="flex flex-1 items-center justify-center p-5">
-                        <p className="flex items-center gap-2 text-[12px] font-bold text-black/25">
-                            <CalendarOff size={16} className="shrink-0" />
+                        <Text as="p" variant="caption" tone="muted" className="flex items-center gap-2">
+                            <Icon icon={CalendarOff} size={16} className="shrink-0" />
                             급식 정보가 없습니다
-                        </p>
+                        </Text>
                     </div>
                 )}
             </div>
-        </RetroCard>
+        </Card>
     );
 };
 

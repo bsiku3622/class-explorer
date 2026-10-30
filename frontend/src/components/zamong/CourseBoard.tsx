@@ -27,6 +27,8 @@ import {
     type ZamongEntry,
     type ZamongMap,
 } from "../../lib/zamong";
+import { Text } from "@studio-baeks/funky-ui";
+import { ACCENT_COLORS } from "@studio-baeks/funky-ui/tokens";
 import CourseCard from "./CourseCard";
 
 interface CourseBoardProps {
@@ -112,9 +114,9 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
 
     if (!graph) {
         return (
-            <p className="p-6 text-center text-xs font-bold text-black/40">
+            <Text as="p" variant="caption" tone="muted" align="center" className="p-6">
                 이 학과에는 등록된 과목이 없습니다.
-            </p>
+            </Text>
         );
     }
 
@@ -213,7 +215,7 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
                                 key={`${edge.before}→${edge.after}`}
                                 d={edge.path}
                                 fill="none"
-                                stroke={linked ? "#ff4eba" : touched ? "#000000" : "rgba(0,0,0,0.32)"}
+                                stroke={linked ? ACCENT_COLORS.pink.solid : touched ? "var(--fk-line-base)" : "var(--fk-line-soft)"}
                                 // ⚠️ 굵기는 **항상 2** 입니다. 카드 테두리도 2px 이라, 짚은
                                 // 선만 굵어지면 같은 핑크인데 선과 테두리 두께가 어긋납니다.
                                 // 색이 이미 짚었다는 걸 말하므로 굵기까지 바꿀 이유가 없습니다
@@ -244,10 +246,10 @@ const CourseBoard: React.FC<CourseBoardProps> = ({
             </div>
 
             {edges.left && (
-                <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-black/20 to-transparent" />
+                <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-[var(--fk-ink-faint)] to-transparent" />
             )}
             {edges.right && (
-                <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-black/20 to-transparent" />
+                <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[var(--fk-ink-faint)] to-transparent" />
             )}
         </div>
     );

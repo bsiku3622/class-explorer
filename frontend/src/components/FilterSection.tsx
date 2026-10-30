@@ -1,5 +1,6 @@
 import React from "react";
 import { Filter, RotateCcw } from "lucide-react";
+import { Button, Card, Icon, Text, ToneChip } from "@studio-baeks/funky-ui";
 import { getStudentColor } from "../lib/utils";
 
 interface FilterSectionProps {
@@ -20,36 +21,39 @@ const FilterSection: React.FC<FilterSectionProps> = ({
     className = "",
 }) => {
     return (
-        <div className={`bg-white border-2 border-black p-4 md:p-6 shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] ${className}`}>
+        <Card padding="0" className={`p-4 md:p-6 ${className}`}>
             <div className="flex items-center justify-between gap-2 mb-4 md:mb-6">
                 <div className="flex items-center gap-2 min-w-0">
-                    <Filter size={16} className="text-black/40 shrink-0" />
-                    <span className="text-xs md:text-sm font-bold text-black/40 uppercase tracking-widest truncate">
+                    <Icon icon={Filter} size="sm" tone="muted" className="shrink-0" />
+                    <Text variant="subtitle" truncate>
                         Filter by Cohort
-                    </span>
+                    </Text>
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
                     {lastUpdated && (
-                        <span className="hidden sm:inline text-[10px] font-bold uppercase text-black/30">
+                        <Text variant="micro" weight="bold" tone="faint" className="hidden sm:inline uppercase">
                             {new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                        </Text>
                     )}
-                    <button
+                    <Button
+                        size="xs"
+                        variant="ghost"
+                        icon={RotateCcw}
+                        iconMotion="turn"
                         onClick={onRefresh}
-                        className="flex items-center gap-1.5 text-xs font-black uppercase hover:text-retro-primary transition-colors group"
                         title="Force refresh data"
                     >
-                        <RotateCcw size={14} className="group-hover:rotate-[-45deg] transition-transform" />
                         Refresh
-                    </button>
+                    </Button>
                     {selectedYears.length < Object.keys(studentCounts).length && (
-                        <button
+                        <Button
+                            size="xs"
+                            variant="ghost"
                             onClick={() => setSelectedYears(Object.keys(studentCounts))}
-                            className="text-xs font-black uppercase underline hover:text-retro-primary transition-colors tracking-tight"
                         >
                             Reset
-                        </button>
+                        </Button>
                     )}
                 </div>
             </div>
@@ -58,51 +62,29 @@ const FilterSection: React.FC<FilterSectionProps> = ({
             <div className="flex gap-3 md:gap-4 overflow-x-auto md:flex-wrap md:overflow-visible pb-0.5 md:pb-0">
                 {Object.entries(studentCounts).map(([year]) => {
                     const isSelected = selectedYears.includes(year);
-                    const color = getStudentColor(year);
 
                     return (
-                        <label
+                        <ToneChip
                             key={year}
-                            className={`shrink-0 group relative flex items-center gap-2 md:gap-3 px-3 py-1.5 md:px-4 md:py-2 border-2 border-black cursor-pointer transition-all duration-100 ${
-                                isSelected
-                                    ? "bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] hover:shadow-none hover:translate-x-1 hover:translate-y-1"
-                                    : "grayscale opacity-40 hover:grayscale-0 hover:opacity-100 bg-white shadow-none"
-                            }`}
-                            style={{
-                                backgroundColor: isSelected ? `${color}20` : "",
-                                borderColor: isSelected ? "black" : "#e5e7eb",
+                            tone={getStudentColor(year)}
+                            selected={isSelected}
+                            onClick={() => {
+                                if (isSelected) {
+                                    setSelectedYears(
+                                        selectedYears.filter((y) => y !== year),
+                                    );
+                                } else {
+                                    setSelectedYears([...selectedYears, year]);
+                                }
                             }}
+                            className="shrink-0"
                         >
-                            <input
-                                type="checkbox"
-                                className="hidden"
-                                checked={isSelected}
-                                onChange={() => {
-                                    if (isSelected) {
-                                        setSelectedYears(
-                                            selectedYears.filter((y) => y !== year),
-                                        );
-                                    } else {
-                                        setSelectedYears([...selectedYears, year]);
-                                    }
-                                }}
-                            />
-                            <div
-                                className="w-3 h-3 md:w-4 md:h-4 border-2 border-black transition-colors shrink-0"
-                                style={{
-                                    backgroundColor: isSelected ? color : "transparent",
-                                }}
-                            />
-                            <span
-                                className={`text-xs md:text-sm font-black uppercase whitespace-nowrap ${isSelected ? "text-black" : "text-black/40"}`}
-                            >
-                                {year}
-                            </span>
-                        </label>
+                            {year}
+                        </ToneChip>
                     );
                 })}
             </div>
-        </div>
+        </Card>
     );
 };
 

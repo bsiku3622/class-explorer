@@ -19,6 +19,7 @@
  */
 import React, { Suspense } from "react";
 import { Sparkles } from "lucide-react";
+import { IconButton, Paint } from "@studio-baeks/funky-ui";
 import type { AgentChat } from "../../hooks/useAgentChat";
 
 const loadPanel = () => import("./AgentPanel");
@@ -30,19 +31,23 @@ const Launcher: React.FC<{ unread: boolean; onClick: () => void }> = ({ unread, 
     // 모바일은 하단 바(64px) 위. ⚠️ z 는 하단 바 More 판의 덮개(z-40)보다 아래라야 판이 열릴 때 같이 덮입니다.
     // ⚠️ 흰 바탕 + 보라 아이콘, 누르면 **살짝 줄어듭니다** — 사용자 요청으로 앱 규칙(그림자를 숨기며
     // 내려앉기)에서 뺀 자리입니다. 규칙에 맞춘다고 되돌리지 마세요
-    <button
-        type="button"
-        onClick={onClick}
-        onPointerEnter={prefetch}
-        onPointerDown={prefetch}
-        onFocus={prefetch}
-        aria-label={unread ? "Ask — 새 답이 있습니다" : "Ask — AI 에게 묻기"}
-        title="Ask (⌘K)"
-        className="fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center border-2 border-black bg-white text-retro-secondary shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-transform duration-100 hover:scale-95 active:scale-[0.92] md:bottom-6 md:right-6"
-    >
-        <Sparkles size={24} strokeWidth={2.5} />
-        {unread && <span className="absolute -right-2 -top-2 h-4 w-4 border-2 border-black bg-retro-accent2" />}
-    </button>
+    <div className="fixed bottom-20 right-4 z-30 md:bottom-6 md:right-6">
+        <IconButton
+            icon={Sparkles}
+            label={unread ? "Ask — 새 답이 있습니다" : "Ask — AI 에게 묻기"}
+            variant="paper"
+            accent="purple"
+            shadow="shrink"
+            size="lg"
+            onClick={onClick}
+            onPointerEnter={prefetch}
+            onPointerDown={prefetch}
+            onFocus={prefetch}
+            title="Ask (⌘K)"
+            className="h-14 w-14"
+        />
+        {unread && <Paint as="span" accent="yellow" variant="solid" className="absolute -right-2 -top-2 h-4 w-4" />}
+    </div>
 );
 
 interface AgentDockProps {

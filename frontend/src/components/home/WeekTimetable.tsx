@@ -55,8 +55,8 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { CalendarRange, Check, Download } from "lucide-react";
+import { Link as RouterLink } from "react-router-dom";
+import { CalendarRange, Download } from "lucide-react";
 import { toPng } from "html-to-image";
 import type { HomeData, TodayClass } from "../../lib/friendsApi";
 import { deriveHomeView } from "../../lib/homeView";
@@ -66,7 +66,6 @@ import {
     DAYS_ORDER,
     getDepartmentColor,
     getKoreanName,
-    withAlpha,
 } from "../../lib/utils";
 import {
     searchHref,
@@ -74,33 +73,41 @@ import {
     subjectQuery,
     teacherQuery,
 } from "../../lib/searchEngine";
-import RetroCard from "../atoms/RetroCard";
-import RetroSubTitle from "../atoms/RetroSubTitle";
+import {
+    Badge,
+    BreakBand,
+    Button,
+    Card,
+    Checkbox,
+    Link,
+    SectionTitle,
+    Text,
+    ToneBox,
+    ToneText,
+} from "@studio-baeks/funky-ui";
+import { ACCENT_COLORS } from "@studio-baeks/funky-ui/tokens";
 
 /**
- * 고정(sticky)된 요일 머리의 배경 — **흰 바탕에 미리 섞어 둔 값**입니다.
+ * 고정(sticky)된 요일 머리의 배경 — **불투명한 흰 바탕 위에 토큰 층을 한 겹 얹은 것**입니다.
  *
- * ⚠️ `bg-black/[0.03]`·`bg-retro-primary/25` 를 그대로 쓰면 안 됩니다. 97%·75% 가 비어
- * 있어서 **아래로 흐르는 칩이 요일 글자를 통과해** 보입니다. 보이던 색을 그대로
- * 유지하려면 같은 색을 흰색과 섞은 값을 박아야 합니다
- * (`#f7f7f7` = 검정 3% · `#ffd3ee` = `#ff4eba` 25%).
+ * ⚠️ 반투명 색(`surface.well`·핑크 `soft`)을 `backgroundColor` 로 그대로 쓰면 안 됩니다.
+ * 97%·75% 가 비어 있어서 **아래로 흐르는 칩이 요일 글자를 통과해** 보입니다. 그래서
+ * 바탕은 불투명한 흰색(`surface.raised`)이고, 색은 `backgroundImage` 의 단색 그라데이션
+ * 으로 그 위에 깝니다 — 보이는 색은 같고 비치지는 않습니다.
  */
-const HEAD_BG = "#f7f7f7";
-const HEAD_TODAY_BG = "#ffd3ee";
-
-/**
- * 점심·저녁 띠의 빗금.
- *
- * ⚠️ **자(`DayRuler`)보다 옅습니다**(0.06 vs 0.13). 저긴 16px 짜리 얇은 띠라 진해야
- * 보이지만, 여기서는 구멍이 **교시 칸에 비례**해 90px 까지 커집니다 — 같은 농도로
- * 그 면적을 채우면 정보가 없는 자리가 화면에서 제일 시끄러워집니다.
- */
-const HATCH: React.CSSProperties = {
-    backgroundImage:
-        "repeating-linear-gradient(-45deg, rgba(0,0,0,0.06) 0 3px, transparent 3px 7px)",
+const layer = (color: string) => `linear-gradient(${color}, ${color})`;
+const HEAD_FACE: React.CSSProperties = {
+    backgroundColor: "var(--fk-surface-raised)",
+    backgroundImage: layer("var(--fk-surface-well)"),
+};
+const HEAD_TODAY_FACE: React.CSSProperties = {
+    backgroundColor: "var(--fk-surface-raised)",
+    backgroundImage: layer(ACCENT_COLORS.pink.soft),
 };
 
-/** 자에서 쓰는 것과 같은 빗금 — **수업이 놓일 수 없는 구간**의 무늬입니다 */
+/** 오늘 기둥·"지금" 칩의 핑크 — 토큰의 핑크를 투명도만 달리해 씁니다 */
+const pinkAt = (percent: number) =>
+    `color-mix(in srgb, ${ACCENT_COLORS.pink.solid} ${percent}%, transparent)`;
 
 /**
  * 칸에 들어갈 만큼 이름을 줄입니다 — **꼬리 괄호를 통째로 뗍니다.**
@@ -351,63 +358,52 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
     if (rows.length === 0) return null;
 
     return (
-        <RetroCard className="overflow-hidden bg-white">
+        <Card padding="0" className="overflow-hidden">
             {/* ⚠️ **줄바꿈을 허용합니다.** 제목·`계획` 표식·주 교시 수·체크박스·PNG 까지
                 다섯 덩어리라, 폰(390px)에서 한 줄에 밀어 넣으면 380px 을 넘겨 **글자끼리
                 겹칩니다.** 오른쪽 뭉치를 통째로 아랫줄로 내려보내면 둘 다 온전합니다 */}
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 md:px-5">
                 <span className="flex min-w-0 items-center gap-2">
                     <span className="min-w-0 truncate">
-                        <RetroSubTitle
+                        <SectionTitle
                             title="Timetable"
                             icon={CalendarRange}
-                            iconSize={15}
                         />
                     </span>
                     {/* 격자만 따로 보거나 PNG 로 찍는 자리라, 계획이라는 말이 여기에도
                         있어야 합니다 — 위 히어로의 표식은 잘라 낸 그림에 안 담깁니다 */}
                     {planned && (
-                        <span className="shrink-0 border-2 border-black bg-retro-accent1 px-1.5 py-0.5 text-[10px] font-black">
+                        <Badge accent="cyan" variant="solid" size="sm" className="shrink-0">
                             계획
-                        </span>
+                        </Badge>
                     )}
                 </span>
                 <span className="ml-auto flex shrink-0 items-center gap-2">
-                    <span className="text-[12px] font-bold tabular-nums text-black/35">
+                    <Text as="span" variant="caption" tone="muted" numeric>
                         주 {total}교시
-                    </span>
+                    </Text>
                     {/* 화면과 PNG 를 같이 바꾸는 스위치라 격자 머리에 둡니다 —
                         내보내기 옵션이 아니라 **이 격자를 어떻게 볼지**의 문제입니다 */}
-                    <button
-                        type="button"
-                        onClick={() => setShowToday((v) => !v)}
-                        aria-pressed={showToday}
+                    <Checkbox
+                        checked={showToday}
+                        onChange={() => setShowToday((v) => !v)}
                         title="오늘 열·지금 수업 강조를 켜고 끕니다 (PNG 도 보이는 그대로 찍힙니다)"
-                        className="flex items-center gap-1.5 text-[11px] font-black text-black/45 transition-colors duration-100 hover:text-black"
                     >
-                        {/* 네모 + 체크 — 이 화면에는 폼 요소가 없어서 브라우저 기본
-                            체크박스를 쓰면 유일하게 둥근 물건이 됩니다 */}
-                        <span
-                            className={`flex h-3.5 w-3.5 items-center justify-center border-2 border-black ${
-                                showToday ? "bg-black" : "bg-white"
-                            }`}
-                        >
-                            {showToday && (
-                                <Check size={10} strokeWidth={4} className="text-white" />
-                            )}
-                        </span>
-                        현재 요일 표시
-                    </button>
-                    <button
-                        type="button"
+                        <Text as="span" variant="label" tone="muted">
+                            현재 요일 표시
+                        </Text>
+                    </Checkbox>
+                    <Button
+                        size="xs"
+                        variant="paper"
+                        shadow
+                        icon={Download}
                         onClick={() => void exportPng()}
                         disabled={saving}
                         title="이미지로 저장"
-                        className="flex items-center gap-1 border-2 border-black px-2 py-1 text-[11px] font-black shadow-[2px_2px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none disabled:opacity-40"
                     >
-                        <Download size={12} strokeWidth={3} />
                         {saving ? "저장 중" : "PNG"}
-                    </button>
+                    </Button>
                 </span>
             </div>
 
@@ -434,7 +430,7 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                 없던 가로 스크롤이 생깁니다 */}
             <div
                 ref={gridRef}
-                className="grid min-w-[35rem] bg-white xl:min-w-0"
+                className="grid min-w-[35rem] bg-[var(--fk-surface-raised)] xl:min-w-0"
                 style={{ gridTemplateColumns: "4rem repeat(5, minmax(0, 1fr))" }}
             >
                 {/* ── 요일 머리 ───────────────────────────────────────
@@ -454,8 +450,8 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                 {/* 교시 열과 요일 머리가 둘 다 고정이라 **모서리도 고정**입니다.
                     안 그러면 가로로 흘릴 때 이 칸만 따라 움직여 구멍이 생깁니다 */}
                 <div
-                    className="sticky left-0 top-0 z-30 border-b border-black/10"
-                    style={{ gridColumn: 1, gridRow: 1, backgroundColor: HEAD_BG }}
+                    className="sticky left-0 top-0 z-30 border-b border-[var(--fk-line-subtle)]"
+                    style={{ gridColumn: 1, gridRow: 1, ...HEAD_FACE }}
                 />
                 {DAYS_ORDER.map((day, index) => (
                     <div
@@ -468,18 +464,23 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                         /* 세로선은 **머리에도** 긋습니다 — 아래 칸에만 있으면
                            요일 칸의 오른쪽에만 선이 보여서 칸이 오른쪽으로 밀린
                            것처럼 읽힙니다 */
-                        /* ⚠️ **고정된 칸의 배경은 불투명해야 합니다.** `bg-black/[0.03]`
+                        /* ⚠️ **고정된 칸의 배경은 불투명해야 합니다.** 반투명 `surface.well`
                            은 97% 가 비어 있어서, 아래로 흐르는 칩이 요일 글자를 통과해
                            보입니다 — 같은 색을 **흰 바탕에 섞은 값**으로 박아 둡니다 */
-                        className="sticky top-0 z-20 flex items-center justify-center border-b border-l border-black/10 py-2.5 text-[13px] font-black"
+                        className="sticky top-0 z-20 flex items-center justify-center border-b border-l border-[var(--fk-line-subtle)] py-2.5"
                         style={{
                             gridColumn: index + 2,
                             gridRow: 1,
-                            backgroundColor: day === markDay ? HEAD_TODAY_BG : HEAD_BG,
-                            color: day === markDay ? "#ff4eba" : "rgba(0,0,0,0.7)",
+                            ...(day === markDay ? HEAD_TODAY_FACE : HEAD_FACE),
                         }}
                     >
-                        {DAY_MAP[day]}
+                        <Text
+                            as="span"
+                            weight="black"
+                            tone={day === markDay ? "pink" : "secondary"}
+                        >
+                            {DAY_MAP[day]}
+                        </Text>
                     </div>
                 ))}
 
@@ -501,8 +502,8 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                         style={{
                             gridColumn: DAYS_ORDER.findIndex((d) => d === markDay) + 2,
                             gridRow: `2 / span ${slots.length}`,
+                            backgroundColor: pinkAt(7),
                         }}
-                        className="bg-retro-primary/[0.07]"
                     />
                 )}
 
@@ -514,7 +515,7 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                     카드 테두리와 겹쳐 두 겹이 됩니다 */}
                 {slots.map((slot, index) => {
                     const row = index + 2;
-                    const line = index === 0 ? "" : "border-t border-black/[0.07]";
+                    const line = index === 0 ? "" : "border-t border-[var(--fk-line-subtle)]";
 
                     if (slot.kind === "gap") {
                         return (
@@ -525,9 +526,11 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                                     교시 번호·교실과 같은 하한입니다 */}
                                 <div
                                     style={{ gridColumn: 1, gridRow: row }}
-                                    className={`sticky left-0 z-10 flex items-center justify-center bg-white text-[12px] font-black leading-none text-black/45 ${line}`}
+                                    className={`sticky left-0 z-10 flex items-center justify-center bg-[var(--fk-surface-raised)] ${line}`}
                                 >
-                                    {slot.name}
+                                    <Text as="span" variant="caption" weight="black" tone="muted" className="leading-none">
+                                        {slot.name}
+                                    </Text>
                                 </div>
                                 {/* 높이는 **교시 칸에 비례**합니다. 클래스는 고정으로
                                     두고 비율만 CSS 변수로 넘깁니다 — 임의값을 문자열로
@@ -537,9 +540,11 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                                     90px 까지 커지면서, 무늬가 화면에서 제일 큰 물건이
                                     됐습니다 — 왼쪽 이름표("점심")가 이미 무슨 자리인지
                                     말하므로 무늬는 덧붙임이었습니다 */}
-                                <div
+                                {/* ⚠️ 빗금은 funky 의 `BreakBand` 것(`line.subtle`, 10%)입니다 —
+                                    자의 빗금과 같은 부품이고, 구멍이 교시 칸에 비례해 90px 까지
+                                    커지므로 더 진하게 만들지 않습니다 */}
+                                <BreakBand
                                     style={{
-                                        ...HATCH,
                                         gridColumn: "2 / -1",
                                         gridRow: row,
                                         ["--r" as string]: slot.minutes / unitMinutes,
@@ -564,9 +569,11 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                                 지금 보는 칸이 몇 교시인지 알 방법이 없습니다 */}
                             <div
                                 style={{ gridColumn: 1, gridRow: row }}
-                                className={`sticky left-0 z-10 flex items-center justify-center bg-white text-[12px] font-black leading-none text-black/45 ${line}`}
+                                className={`sticky left-0 z-10 flex items-center justify-center bg-[var(--fk-surface-raised)] ${line}`}
                             >
-                                {slot.period}교시
+                                <Text as="span" variant="caption" weight="black" tone="muted" className="leading-none">
+                                    {slot.period}교시
+                                </Text>
                             </div>
                             {/* ⚠️ **좁은 화면이 더 높습니다** (52px vs 44px). 거꾸로
                                 같지만 맞습니다 — 폰에서는 한 칸이 60px 남짓이라 이름이
@@ -584,7 +591,7 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                                 <div
                                     key={day}
                                     style={{ gridColumn: dayIndex + 2, gridRow: row }}
-                                    className={`h-24 border-l border-black/10 md:h-28 xl:h-20 ${line}`}
+                                    className={`h-24 border-l border-[var(--fk-line-subtle)] md:h-28 xl:h-20 ${line}`}
                                 />
                             ))}
                         </React.Fragment>
@@ -623,8 +630,9 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                      */
                     const atTop = rowOf.get(block.period) === 2;
                     return (
-                        <div
+                        <ToneBox
                             key={`${block.day}-${block.period}`}
+                            tone={now ? ACCENT_COLORS.pink.solid : color}
                             /* 테두리를 **검정에서 학과색으로** 옮겼습니다. 스물일곱
                                개가 저마다 2px 검정을 두르면 격자가 통째로 무거워집니다
                                — 굵기는 그대로 두고 색만 바꿔도 무게가 확 내려갑니다.
@@ -636,36 +644,49 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                             style={{
                                 gridColumn: DAYS_ORDER.indexOf(block.day) + 2,
                                 gridRow: `${rowOf.get(block.period)} / span ${block.span}`,
-                                backgroundColor: now
-                                    ? "rgba(255, 78, 186, 0.22)"
-                                    : withAlpha(color, 0.08),
-                                borderColor: now ? "#ff4eba" : color,
+                                backgroundColor: now ? pinkAt(22) : undefined,
                                 marginTop: atTop ? 1 : 2,
                                 marginLeft: 2,
                                 marginRight: 1,
                                 marginBottom: 1,
                             }}
                             title={`${getKoreanName(block.klass.subject)} · ${block.klass.room} · ${block.klass.teacher}`}
-                            className="flex min-w-0 flex-col gap-0.5 overflow-hidden border-2 px-2 py-1.5"
+                            className="flex min-w-0 flex-col gap-0.5 overflow-hidden px-2 py-1.5"
                         >
                             {/* 두 줄까지 폅니다 — 한 줄로 자르면 `일반지구과학` 이
                                 `일반지구…` 가 되어 무슨 과목인지 알 수 없습니다 */}
                             {/* 이름·분반·교사는 **검색으로 가는 문**입니다. 칸 안의
                                 글자를 누르면 그 과목·분반·선생님이 검색되고, 검색어는
                                 `searchEngine` 이 자기 문법에 맞게 만듭니다 */}
-                            <Link
-                                to={searchHref(subjectQuery(block.klass.subject))}
-                                title={`${getKoreanName(block.klass.subject)} 검색`}
-                                className="line-clamp-2 text-[13px] font-black leading-[1.2] hover:underline"
-                                style={{ color: now ? "#ff4eba" : color }}
-                            >
-                                {tighten(block.klass.subject)}
-                            </Link>
+                            {(() => {
+                                const nameLink = (
+                                    <Link
+                                        as={RouterLink}
+                                        underline="hover"
+                                        to={searchHref(subjectQuery(block.klass.subject))}
+                                        title={`${getKoreanName(block.klass.subject)} 검색`}
+                                    >
+                                        {tighten(block.klass.subject)}
+                                    </Link>
+                                );
+                                const lead = "line-clamp-2 leading-[1.2]";
+                                return now ? (
+                                    <Text as="div" weight="black" tone="pink" className={lead}>
+                                        {nameLink}
+                                    </Text>
+                                ) : (
+                                    <ToneText as="div" weight="black" tone={color} className={lead}>
+                                        {nameLink}
+                                    </ToneText>
+                                );
+                            })()}
                             {/* 분반·교사 — 인쇄된 학교 시간표가 늘 적어 두는 줄입니다.
                                 같은 과목을 여러 선생님이 나눠 맡으므로 **이름이 있어야
                                 내 분반인지 확인**할 수 있습니다 */}
-                            <span className="shrink-0 truncate text-[12px] font-bold leading-tight text-black/45">
+                            <Text as="span" variant="caption" tone="muted" truncate className="shrink-0 leading-tight">
                                 <Link
+                                    as={RouterLink}
+                                    underline="hover"
                                     to={searchHref(
                                         sectionQuery(
                                             block.klass.subject,
@@ -673,32 +694,32 @@ const WeekTimetable: React.FC<WeekTimetableProps> = ({
                                         ),
                                     )}
                                     title={`${getKoreanName(block.klass.subject)} ${block.klass.section.replace(/[^0-9]/g, "")}분반 검색`}
-                                    className="hover:underline"
                                 >
                                     {block.klass.section.replace(/[^0-9]/g, "")}분반
                                 </Link>{" "}
                                 ·{" "}
                                 <Link
+                                    as={RouterLink}
+                                    underline="hover"
                                     to={searchHref(teacherQuery(block.klass.teacher))}
                                     title={`${block.klass.teacher} 검색`}
-                                    className="hover:underline"
                                 >
                                     {block.klass.teacher}
                                 </Link>
-                            </span>
+                            </Text>
                             {/* 교실은 **이름 쪽에 붙입니다.** 한때 `mt-auto` 로 칩
                                 바닥에 밀어 뒀는데, 두 교시짜리에서는 그게 **아래 교시
                                 자리**여서 `일반지구과학`(6–7교시)의 교실이 7교시 수업의
                                 교실처럼 읽혔습니다 */}
-                            <span className="shrink-0 truncate text-[12px] font-bold leading-tight text-black/45">
+                            <Text as="span" variant="caption" tone="muted" truncate className="shrink-0 leading-tight">
                                 {block.klass.room}
-                            </span>
-                        </div>
+                            </Text>
+                        </ToneBox>
                     );
                 })}
             </div>
             </div>
-        </RetroCard>
+        </Card>
     );
 };
 
