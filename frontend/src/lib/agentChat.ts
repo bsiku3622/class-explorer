@@ -101,8 +101,13 @@ export function stepLabel(name: string, args: Record<string, unknown>): string {
         case "syllabus":
             return isMe(args.subject) ? "내 과목 강의계획서 읽기" : `${short(args.subject)} 강의계획서 읽기`;
         case "recall":
-            // 서버가 질문 전에 기억(ksain 글에서 정리해 둔 사실)을 고른 단계 — 모델이 부른 도구는 아닙니다
+            // 서버가 질문 전에 기억(ksain 글에서 정리해 둔 사실)·자동 일정을 고른 단계 — 모델이 부른 도구는 아닙니다
             return "기억에서 찾기";
+        case "originals":
+            // 그 요약이 나온 글의 원문을 여는 단계 (서버가 순서를 강제합니다 — backend/agent/chat.py)
+            return "출처 원문 읽기";
+        case "verify":
+            return "원문으로 확인·정리";
         case "search":
             return `'${short(args.query)}' 자료 찾기`;
         case "read_ksain":

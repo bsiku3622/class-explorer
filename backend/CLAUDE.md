@@ -51,7 +51,7 @@ backend/
 │   └── syllabi.py       → /syllabi/* — 강의계획서 목록·파일 (로그인 필요, 예전엔 프론트 번들에 공개)
 ├── agent/               → Ask — 도구를 부르는 LLM Agent (agent.guide.md)
 │   ├── llm.py           → LLM 호출 한 곳 — 모델 목록(데스크탑 게이트웨이·OpenAI) + Chat Completions
-│   ├── chat.py          → 질문 하나 → 답 — 시스템 프롬프트·기억 싣기·도구 호출 루프·SSE
+│   ├── chat.py          → 질문 하나 → 답 — 요약 고르기 → 원문 확인 → 시스템 프롬프트·도구 호출 루프·SSE
 │   └── tools.py         → 모델이 부를 수 있는 읽기 전용 도구
 ├── knowledge/           → Ask 가 찾아 읽는 것 — ksain 글 검색 색인과 기억
 │   ├── text.py          → 정규화·한글 바이그램 토큰·검색어 뽑기·비슷한 문장 판정
@@ -70,6 +70,7 @@ backend/
 │   ├── import_exams.py  → 시험 seed + 응시 명단 → 시험 시간표
 │   ├── create_user.py   → 계정 생성
 │   ├── snapshot.py      → 본 DB 를 손으로 떠 두기 (배포 직전) — `cp` 대신 이걸 씁니다
+│   ├── scan_syllabi.py  → 받아 둔 문서 폴더에서 강의계획서 고르기 (로컬 Gemma 판정 → data/syllabi/<학기>/)
 │   └── material_backup.py → 자료 원본 + 본 DB 압축 백업 (systemd 타이머)
 ├── curriculum_seed.json → 교육과정 카탈로그 145과목 + 선수관계 117개
 ├── calendar_seed.json · exam_seed*.json → 학사일정·시험 seed (경로는 core/config.py)

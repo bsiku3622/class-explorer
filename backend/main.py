@@ -18,6 +18,9 @@ Trade(수강 변경 탐색)가 "이 분반 수강생 중 내 분반을 받을 �
 안 붙였으니까" 가 방패가 되지 않습니다.
 """
 
+from fastapi import Request
+
+from backend.agent import llm
 from backend.core.app import create_app
 from backend.routers import (
     admin,
@@ -45,6 +48,21 @@ app = create_app(
         "https://ksa-class-finder.netlify.app",
     ],
 )
+
+
+@app.middleware("http")
+async def wake_desktop_model(request: Request, call_next):
+    """로그인한 사람이 사이트를 쓰면 데스크탑 모델을 깨웁니다 (`llm.nudge`, 5분에 한 번).
+
+    "로그인한" 은 토큰을 달고 와서 인증을 통과했다는 뜻으로 봅니다 — 토큰이 틀리면 401 이라 걸러집니다.
+    ⚠️ 안드로이드 위젯은 뺍니다. 사람이 없어도 15분마다 `/home` 을 불러서, 넣으면 데스크탑이 하루 종일 깹니다.
+    """
+    response = await call_next(request)
+    if (response.status_code < 400
+            and request.headers.get("authorization", "").startswith("Bearer ")
+            and not request.headers.get("user-agent", "").startswith("ClassExplorer-Android/")):
+        llm.nudge()
+    return response
 
 # 순서가 곧 경로 매칭 순서입니다 — 바꿀 때는 겹치는 경로가 없는지 보세요
 app.include_router(auth.router)

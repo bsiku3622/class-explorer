@@ -2,15 +2,20 @@
 
 서버(10.8.0.1)는 WireGuard 로 이 게이트웨이(10.8.10.1:11434)만 부릅니다. Ollama 자체는
 127.0.0.1:11435 에만 열어 두고, `/api/*`·`/v1/*` 요청이 오면 켠 뒤 그대로 중계합니다.
-마지막 요청이 끝나고 IDLE_SECONDS 가 지나면 직접 띄운 Ollama 프로세스 트리를 종료합니다.
+마지막 요청이 끝나고 IDLE_SECONDS(기본 1시간)가 지나면 직접 띄운 Ollama 프로세스 트리를
+종료합니다. 서버는 질문뿐 아니라 **로그인한 사람이 사이트를 쓰는 동안** 5분에 한 번 깨우는
+요청을 보내서(`backend/agent/llm.py` 의 `nudge`), 쓰는 사람이 있는 동안은 켜져 있습니다.
+
+IDLE_SECONDS=0 이면 **상시 모드**입니다 — 뜨자마자 Ollama 를 켜고 PRELOAD 모델을 올리며,
+30초마다 꺼졌거나 모델이 내려갔으면 다시 올립니다.
 
 Ollama 를 깨우지 않는 경로:
   GET  /gateway/status   켜져 있는지, 유휴 시간, 처리 중인 요청 수
   GET  /gateway/models   설치된 모델 목록 (manifests 폴더를 읽습니다)
   POST /gateway/start    미리 켜 두기 (첫 응답 지연을 줄일 때)
-  POST /gateway/stop     바로 끄기
+  POST /gateway/stop     바로 끄기 (상시 모드에선 30초 안에 다시 켭니다)
 
-표준 라이브러리만 씁니다. Windows 의 pythonw 로 로그인 시 예약 작업에서 띄웁니다.
+표준 라이브러리만 씁니다. Windows 의 pythonw 로 부팅 시 예약 작업에서 띄웁니다(로그인 없이).
 """
 from __future__ import annotations
 
@@ -30,8 +35,14 @@ LISTEN_HOST = os.environ.get("GATEWAY_HOST", "10.8.10.1")
 LISTEN_PORT = int(os.environ.get("GATEWAY_PORT", "11434"))
 UPSTREAM_HOST = "127.0.0.1"
 UPSTREAM_PORT = int(os.environ.get("GATEWAY_OLLAMA_PORT", "11435"))
+# 0 이면 끄지 않습니다(상시 모드). 데스크탑에 상시 부담을 주지 않으려고 1시간이 기본입니다
 IDLE_SECONDS = int(os.environ.get("GATEWAY_IDLE_SECONDS", "3600"))
-KEEP_ALIVE = os.environ.get("GATEWAY_KEEP_ALIVE", "15m")
+ALWAYS_ON = IDLE_SECONDS <= 0
+# 모델은 Ollama 가 떠 있는 동안 내리지 않습니다 — 언제 끌지는 IDLE_SECONDS 하나가 정합니다.
+# 예전 15m 이면 프로세스는 1시간 살아 있는데 모델만 15분 뒤 내려가, 그 사이 질문이 적재를 기다렸습니다
+KEEP_ALIVE = os.environ.get("GATEWAY_KEEP_ALIVE", "-1")
+# 상시 모드에서 미리 올려 두고, 내려가면 다시 올리는 모델 (쉼표로 여럿)
+PRELOAD = [m.strip() for m in os.environ.get("GATEWAY_PRELOAD", "gemma4:12b").split(",") if m.strip()]
 # ⚠️ Ollama 기본 컨텍스트는 4096 토큰이고, 넘치면 프롬프트 **앞부분을 조용히 잘라** 시스템
 # 지시문이 사라집니다. 도구 명세 + 검색 결과만으로 4천을 넘어서 답이 중간에 끊겼습니다
 CONTEXT_LENGTH = os.environ.get("GATEWAY_CONTEXT_LENGTH", "16384")
@@ -126,11 +137,39 @@ class Ollama:
     def idle_for(self) -> float:
         return time.monotonic() - self.last_activity
 
+    def loaded(self) -> set[str]:
+        """지금 VRAM 에 올라 있는 모델 (`/api/ps`)."""
+        conn = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=5)
+        conn.request("GET", "/api/ps")
+        models = json.loads(conn.getresponse().read()).get("models") or []
+        conn.close()
+        return {m.get("name") for m in models}
+
+    def preload(self) -> None:
+        """PRELOAD 중 내려가 있는 모델을 올립니다. 프롬프트 없는 generate 가 Ollama 의 적재 요청입니다."""
+        for name in set(PRELOAD) - self.loaded():
+            log.info("loading %s", name)
+            started = time.monotonic()
+            conn = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=300)
+            conn.request("POST", "/api/generate", body=json.dumps({"model": name}),
+                         headers={"Content-Type": "application/json"})
+            resp = conn.getresponse()
+            resp.read()
+            conn.close()
+            log.info("loaded %s in %.1fs (HTTP %s)", name, time.monotonic() - started, resp.status)
+
     def watch(self) -> None:
         while True:
-            time.sleep(30)
-            if self.owned() and self.inflight == 0 and self.idle_for() >= IDLE_SECONDS:
+            if ALWAYS_ON:
+                # 재부팅·충돌로 꺼졌거나, 다른 모델에 자리를 내주고 내려갔으면 다시 올립니다
+                try:
+                    self.ensure()
+                    self.preload()
+                except (OSError, ValueError, RuntimeError) as error:
+                    log.warning("keep-on failed: %s", error)
+            elif self.owned() and self.inflight == 0 and self.idle_for() >= IDLE_SECONDS:
                 self.stop(f"idle {int(self.idle_for())}s")
+            time.sleep(30)
 
 
 OLLAMA = Ollama()
@@ -153,6 +192,24 @@ def installed_models() -> list[dict]:
         full = f"{name}:{tag}" if namespace == "library" else f"{namespace}/{name}:{tag}"
         models.append({"name": full, "size": size})
     return sorted(models, key=lambda m: m["name"])
+
+
+def without_keep_alive(body: bytes) -> bytes:
+    """요청이 실어 온 keep_alive 를 걷어내 Ollama 기본값(KEEP_ALIVE)을 따르게 합니다.
+
+    서버의 warmup 이 `keep_alive: 15m` 을 실어 보내서, 깨울 때마다 15분 뒤 모델이 내려갔습니다.
+    언제 내릴지는 게이트웨이(IDLE_SECONDS)가 정합니다.
+    """
+    if b'"keep_alive"' not in body:
+        return body
+    try:
+        data = json.loads(body)
+    except ValueError:
+        return body
+    if not isinstance(data, dict):
+        return body
+    data.pop("keep_alive", None)
+    return json.dumps(data, ensure_ascii=False).encode("utf-8")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -197,6 +254,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         length = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(length) if length else None
+        if body and self.path.startswith("/api/"):
+            body = without_keep_alive(body)
         OLLAMA.touch(+1)
         try:
             try:
@@ -247,9 +306,17 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, handlers=[handler] + ([logging.StreamHandler()] if sys.stderr else []),
                         format="%(asctime)s %(levelname)s %(message)s")
     threading.Thread(target=OLLAMA.watch, daemon=True).start()
-    server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), Handler)
+    # 부팅 직후엔 WireGuard 주소(10.8.10.1)가 아직 없어 bind 가 실패할 수 있습니다 — 생길 때까지 기다립니다
+    while True:
+        try:
+            server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), Handler)
+            break
+        except OSError as error:
+            log.warning("cannot listen on %s:%s yet: %s", LISTEN_HOST, LISTEN_PORT, error)
+            time.sleep(10)
     server.daemon_threads = True
-    log.info("listening on %s:%s (ollama on %s, idle limit %ss)", LISTEN_HOST, LISTEN_PORT, UPSTREAM_PORT, IDLE_SECONDS)
+    log.info("listening on %s:%s (ollama on %s, %s)", LISTEN_HOST, LISTEN_PORT, UPSTREAM_PORT,
+             f"always on, preload {','.join(PRELOAD)}" if ALWAYS_ON else f"idle limit {IDLE_SECONDS}s")
     try:
         server.serve_forever()
     finally:

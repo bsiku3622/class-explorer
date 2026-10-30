@@ -286,6 +286,34 @@ def read(db: Session, post_id: int) -> dict | None:
     return out
 
 
+def originals(db: Session, post_ids: list[int], query: str, count: int = 2) -> list[dict]:
+    """기억·일정 요약이 나온 글의 원문 — 글마다 질문에 맞는 대목 `count` 개(본문이든 첨부든).
+
+    Ask 가 요약만 보고 답하지 않게, 답하기 전에 출처 글을 열어 보는 단계(`agent/chat.py` 의 `verify`)가 씁니다.
+    지워진 글(`missing_since`)은 `{"id", "missing": True}` 로 돌려줍니다 — 그 글에서 나온 요약은 믿지 않습니다.
+    """
+    terms = query_terms(query)
+    posts = {p.id: p for p in db.query(Post).filter(Post.id.in_(post_ids)).options(
+        selectinload(Post.analysis), selectinload(Post.attachments))}
+    chunks: dict[int, list] = {}
+    if terms:
+        try:
+            chunks = _post_chunks(db, terms, post_ids) if index.ready(db) else {}
+        except OperationalError:
+            chunks = {}
+    weights = _weights(db, terms) if chunks else None
+    out = []
+    for post_id in post_ids:
+        post = posts.get(post_id)
+        if post is None or post.missing_since is not None:
+            out.append({"id": post_id, "missing": True})
+            continue
+        entry = post_out(post)
+        entry["passages"] = _passages(post, terms, chunks.get(post_id, []), count, weights)
+        out.append(entry)
+    return out
+
+
 def digest(db: Session, start: datetime.date, end: datetime.date, min_importance: int = 2) -> dict:
     """기간 안에 올라온 중요한 글과, 기간 안에 날짜가 걸린 필참·마감 항목."""
     start_dt = datetime.datetime.combine(start, datetime.time.min)
