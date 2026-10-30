@@ -8,5 +8,5 @@
     "./tokens": "./src/tokens/public.ts",
     "./styles.css": "./src/styles/global.css.ts"
   },
-  "sideEffects": ["**/*.css.ts"]
+  "sideEffects": ["**/*.css.ts", "**/src/index.ts", "**/focusModality.ts"]
 }

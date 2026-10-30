@@ -3,6 +3,8 @@
  *
  * 스타일은 `@studio-baeks/funky-ui/styles.css` 한 줄로 들어옵니다. 값과 어휘는 `/tokens` 입니다.
  */
+import "./internal/focusModality";
+
 export * from "./primitives";
 export * from "./atoms";
 export * from "./molecules";

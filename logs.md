@@ -1,3 +1,10 @@
+## 2026-10-31 — 포커스 링을 Tab 으로 왔을 때만 표시
+
+- 변경 파일: `frontend/vendor/funky-ui/`, `frontend/CLAUDE.md`, `frontend/design-guide.md`
+- 요약: 로그인 칸을 마우스로 눌러도 핑크 링이 뜨던 것을 고쳤습니다. 본체 수정은 funky-ui 에 있고 여기는 사본을 맞췄습니다.
+- ⚠️ `vendor/funky-ui/package.json` 의 `sideEffects` 를 지우지 마세요. `rsync` 대상이 아니라 따로 관리하며, 빠지면 배포본에서만 링이 돌아옵니다. 빌드 뒤 `grep -l fkFocus dist/assets/*.js` 로 확인합니다.
+- 입력칸이 포커스 때 그림자를 거두는 동작은 그대로 뒀습니다. 요청이 링에 대한 것이었고, 포커스에 내려앉는 것은 이 앱의 원래 모양입니다.
+
 ## 2026-10-31 — UI 를 funky-ui 디자인 시스템으로 이관
 
 - 변경 파일: `frontend/vendor/funky-ui/`, `frontend/{package.json,package-lock.json,vite.config.ts,eslint.config.js}`, `frontend/src/{main.tsx,index.css,App.tsx}`, `frontend/src/components/**`, `frontend/src/pages/**`, `dev-start.sh`, 가이드 문서

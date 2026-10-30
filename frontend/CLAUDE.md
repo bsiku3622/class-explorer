@@ -75,6 +75,8 @@ rsync -a --delete "<funky-ui>/workspace/packages/funky-ui/src/" frontend/vendor/
 ```
 
 - Vite 에 `@vanilla-extract/vite-plugin` 이 있어야 사본의 `.css.ts` 를 읽습니다. ESLint 는 `vendor` 를 건너뜁니다
+- ⚠️ `rsync` 는 `src` 만 맞춥니다. `vendor/funky-ui/package.json` 은 따로 있고, `sideEffects` 에 `**/src/index.ts` 와
+  `**/focusModality.ts` 가 있어야 합니다. 빠지면 dev 서버에서는 멀쩡한데 배포본에서만 마우스로 누른 입력칸에 포커스 링이 뜹니다
 - ⚠️ **CSS 순서가 뜻입니다.** `index.css` 맨 위의 `@layer theme, base, fk, components, utilities;` 로 preflight <
   funky < Tailwind 유틸리티가 되고, 레이어 순서는 처음 선언된 대로 굳으므로 `main.tsx` 가 `index.css` 를 먼저 읽습니다.
   순서가 틀리면 preflight 가 funky 의 여백·테두리를 지우거나, `className="mt-4"` 가 funky 에 집니다

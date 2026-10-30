@@ -33,7 +33,11 @@ globalStyle(
   }),
 );
 
-/** 포커스 링 — 2px 를 2px 띄운 핑크 고리. 키보드로 왔을 때만 보입니다 */
+/**
+ * 포커스 링 — 2px 를 2px 띄운 핑크 고리. Tab 으로 왔을 때만 보입니다. 글자 칸은 마우스로 눌러도 `:focus-visible` 이라서
+ * 마지막 입력이 Tab 이 아니면(`internal/focusModality`) 두께를 0 으로 둡니다. 링을 그리는 자리(토글 · FileDrop · 시간표 칸)가
+ * 모두 이 변수를 읽으므로 여기 한 곳에서 꺼집니다.
+ */
 globalStyle(
   ":where(:focus-visible)",
   b({
@@ -41,6 +45,7 @@ globalStyle(
     outlineOffset: vars.focusRing.offset,
   }),
 );
+globalStyle(':root[data-fk-focus="pointer"]', b({ vars: { [vars.focusRing.width]: "0px" } }));
 
 globalStyle("::selection", b({ backgroundColor: vars.selection, color: vars.ink.primary }));
 
