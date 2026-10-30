@@ -53,6 +53,8 @@ MATERIAL_STORAGE_DIR = os.environ.get("MATERIAL_STORAGE_DIR", "")
 #: 2026-1 강의계획서 원본을 둘 곳 (교사 연락처가 들어 있어 git 에 없습니다). 비우면 본 DB 의 진짜 위치 옆
 #: `syllabi/` — 서버에서는 `data/syllabi/` 입니다 (`services/syllabi.py`)
 SYLLABI_DIR = os.environ.get("SYLLABI_DIR", "")
+#: 멘토링 아카이브 색인 (맥북에서 만들어 올립니다). 비우면 본 DB 의 진짜 위치 옆 `archive.db` (`knowledge/archive.py`)
+ARCHIVE_DB = os.environ.get("ARCHIVE_DB", "")
 #: 켜면 HSTS 헤더를 붙입니다
 FORCE_HTTPS = bool(os.environ.get("FORCE_HTTPS"))
 

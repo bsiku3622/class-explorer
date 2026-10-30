@@ -1,3 +1,18 @@
+## 2026-10-30 — 멘토링 아카이브를 Ask 에 연결 (1단계: 목록·링크)
+
+- 변경 파일: `backend/knowledge/archive.py`, `backend/cli/index_archive.py`(새로), `backend/agent/tools.py`(`archive`), `backend/agent/chat.py`,
+  `backend/core/config.py`(`ARCHIVE_DB`), `frontend/src/lib/agentChat.ts`, 서버 `data/archive.db`
+- 요약: 묶음 1,258개·파일을 과목·연도·유형과 Drive 링크로 색인했습니다. 내용 색인(기출·모의고사·문제·멘토링 192묶음 + 책자·설명회)은
+  Chrome 이 스크립트의 연속 다운로드를 막아 아직 못 받았습니다.
+
+- ⚠️ 아카이브의 "당부의 말씀" 은 본인 학업·교내 멘토링 밖의 복제·유출을 금합니다. 알렸고, 운영자가 "비공개·10명 미만·학업용" 으로
+  판단해 진행했습니다. 그래서 원본은 서버에 안 올리고, 데스크탑 모델일 때만 읽고, 이름·학번을 지우고, 링크는 Drive 권한에 맡깁니다
+- 폴더 이름에 학생 이름·학번이 그대로 있습니다. 목록을 저장할 때부터 뺐고, 내용은 폴더 이름의 이름을 글에서 찾아 지웁니다
+- 맥북 여유가 8.6GB 라 정리(453)·발표자료(172)·보고서(123)는 링크만 둡니다. 평가와 가까운 것부터 읽습니다
+- 시판 교과서·입시·대회 폴더는 뺐습니다. 아카이브의 강의계획서 폴더는 2023-2·2024-1 뿐이라 서버 것보다 오래돼서 읽지 않습니다
+- Drive 화면 수집: `embeddedfolderview` 는 막혀 있고, 숨은 프레임으로 폴더를 열어 목록을 읽습니다. 동시에 많이 열면 탭이 멎고(4개에서 멎음),
+  창이 뒤로 가면 거의 안 돕니다
+
 ## 2026-10-30 — 과목별 평가표: Ask 가 평가 비율·퀴즈·시험 일정을 미리 알게
 
 - 변경 파일: `backend/cli/index_syllabi.py`(새로), `backend/services/syllabi.py`(`assessment`), `backend/agent/tools.py`

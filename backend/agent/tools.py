@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session, joinedload
 from backend import models
 from backend.core import clock
 from backend.core.db import KsainSession, db_session
+from backend.knowledge import archive as memory_archive
 from backend.knowledge import facts as memory
 from backend.knowledge import search as knowledge
 from backend.knowledge.text import query_terms
@@ -215,6 +216,8 @@ class Context:
         self.facts: dict[int, models.Fact] = {}
         # 확인 단계에서 원문을 연 글 — 답의 [P번호] 를 출처로 바꿀 때 씁니다 (agent/chat.py 의 `verify`)
         self.originals: dict[int, dict] = {}
+        # 데스크탑 모델로 묻는 중인가 — 바깥으로 내보내면 안 되는 자료(`archive`)를 가립니다. `chat.run` 이 정합니다
+        self.local_model = True
         self.profile = profile_of(db, user.effective_stu_id, user.major)
         # 걸어만 둔 근거 — 답이 그 제목을 말할 때만 남깁니다(`agent/chat.py` 의 `finish_text`). 학사일정 도구가
         # 찾은 일정마다 원문을 걸었더니 "오늘 일정" 답 밑에 답과 상관없는 수강신청·SAT 링크가 붙었습니다
@@ -801,6 +804,27 @@ def ksain_digest(ctx: Context, start: str | None = None, end: str | None = None,
     return {"from": first.isoformat(), "to": last.isoformat(), **out}
 
 
+def archive(ctx: Context, query: str | None = None, subject: str | None = None) -> dict:
+    """멘토링 아카이브 — 그 과목에 어떤 자료가 있는지와 질문에 맞는 대목. 데스크탑 모델로 물을 때만 씁니다.
+
+    ⚠️ 아카이브는 본인 학업·교내 멘토링 밖으로의 유출을 금합니다("당부의 말씀"). 이용자가 OpenAI 를 고르면 글이 바깥으로
+    나가므로 막습니다 — `chat.py` 가 명세에서도 뺍니다. 링크는 Drive 권한이 있는 사람만 열립니다.
+    """
+    if not ctx.local_model:
+        return {"error": "멘토링 아카이브는 데스크탑 모델에서만 읽습니다 — 모델을 바꿔 달라고 안내한다"}
+    if not query and not subject:
+        raise ToolError("찾을 내용(query)이나 과목(subject)을 주세요")
+    found = memory_archive.search(query, subject)
+    if found is None:
+        return {"error": "멘토링 아카이브 색인이 아직 없습니다"}
+    if subject and found["course"] is None:
+        return {"error": f"'{subject}' 과목의 자료를 멘토링 아카이브에서 찾지 못했습니다"}
+    for item in found["results"][:3]:
+        ctx.cite(f"멘토링 아카이브 · {item.get('title', '')}"[:60], item.get("url", ""))
+    found["note"] = "학생들이 만든 비공식 자료다. 그렇다고 밝히고, 연도가 오래됐으면 연도도 밝힌다. 공식 일정·범위는 syllabus·calendar 로 확인한다"
+    return found
+
+
 # 강의계획서 본문을 얼마나 싣는가 — 결과 전체가 MAX_TOOL_CHARS(9,000자, agent/chat.py)에 들어가야 합니다
 SYLLABUS_CHARS = 6000
 SYLLABUS_EACH = 600  # 내 과목 전부일 때 과목 하나에
@@ -1052,6 +1076,10 @@ TOOLS = [
     _fn("ksain_digest", "기간 안에 올라온 중요한 ksain 공지와 그 기간에 걸린 필참 교육·마감",
         {"start": DATE, "end": {"type": "string", "description": "YYYY-MM-DD. 비우면 오늘까지"},
          "min_importance": {"type": "integer", "description": "0~3, 기본 2"}}),
+    _fn("archive", "멘토링 아카이브 — 선배 학생들이 만든 과목별 기출·모의고사·멘토링·정리 자료, 학업보조 책자, 전공 설명회. "
+                   "시험 유형·공부법·과목 분위기·어떤 자료가 있는지 물을 때. 공식 일정·범위는 syllabus·calendar",
+        {"query": {"type": "string", "description": "찾을 내용 (예: 중간고사 유형, 공부법)"},
+         "subject": {"type": "string", "description": "과목 이름. 줄임말도 된다 (미2)"}}),
 ]
 
 
@@ -1113,6 +1141,7 @@ async def execute(ctx: Context, name: str, args: dict) -> dict:
         "search": lambda: search(ctx, args.get("query", ""), args.get("since"), args.get("until"), args.get("board")),
         "read_ksain": lambda: read_ksain(ctx, args.get("post_id", 0)),
         "ksain_digest": lambda: ksain_digest(ctx, args.get("start"), args.get("end"), args.get("min_importance", 2)),
+        "archive": lambda: archive(ctx, args.get("query"), args.get("subject")),
     }
     try:
         if name == "meal":
