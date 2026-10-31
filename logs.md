@@ -1,3 +1,11 @@
+## 2026-10-31 — funky-ui 를 소스 사본에서 npm 패키지로 교체
+
+- 변경 파일: `frontend/{package.json,package-lock.json,vite.config.ts,eslint.config.js}`, `frontend/vendor/` 제거, `CLAUDE.md`, `frontend/CLAUDE.md`, `frontend/design-guide.md`
+- 요약: `@studio-baeks/funky-ui@1.0.0-alpha.0` 을 버전 고정으로 쓰고, 사본과 vanilla-extract 플러그인을 걷어냈습니다. 첫 로딩 JS 는 gzip 96.4KB 로 사본 때(96.6KB)와 같습니다.
+- ⚠️ 패키지가 한 파일로 묶여 있으면 첫 로딩이 119KB 가 됩니다. 앱의 번들러가 페이지별로 나누지 못해서입니다. 그래서 funky-ui 쪽 빌드를 `preserveModules` 로 바꿔 올렸습니다. 버전을 올릴 때 `index-*.js` 크기와 `fkFocus` 를 같이 봅니다.
+- CSS 는 조각 17개(첫 로딩 14.3KB + 페이지별 조각)에서 한 파일(17.3KB)로 합쳐졌습니다. 첫 로딩 CSS 가 3KB 늘고 페이지를 옮길 때의 CSS 요청이 사라집니다. `styles.css` 를 쓰는 이상 정해진 결과입니다.
+- 함정: 크기를 비교하려고 임시 사본에서 `package-lock.json` 을 지우고 설치했더니 다른 의존성이 함께 올라가 차이가 섞였습니다. `npm uninstall` · `npm install --save-exact` 로 lock 을 유지한 채 이 항목만 바꿔야 합니다.
+
 ## 2026-10-31 — 린트 오류 정리와 모바일 점검
 
 - 변경 파일: `App.tsx`, `SearchInput`, `SearchResultDisplay`, `RequestSidebar`, `BrowsePage`, `AnalysisPage`, `hooks/useSelectedYears.ts`

@@ -65,19 +65,20 @@ src/
     └── (root)                → 오거니즘 컴포넌트 (`SyllabusPanel` 포함)
 ```
 
-## 디자인 시스템 (`vendor/funky-ui`)
+## 디자인 시스템 (funky-ui)
 
-버튼·카드·칩·모달·셸은 전부 [funky-ui](https://funky-ui.bsiku.dev) 에서 옵니다. npm 에 올리지 않은 패키지라
-소스 사본을 `frontend/vendor/funky-ui/` 에 두고 `package.json` 의 `file:./vendor/funky-ui` 로 씁니다.
-**사본을 직접 고치지 마세요.** funky-ui 를 고친 뒤 맞춥니다.
+버튼·카드·칩·모달·셸은 전부 [funky-ui](https://funky-ui.bsiku.dev) 에서 옵니다. npm 패키지 `@studio-baeks/funky-ui` 를
+**버전을 정확히 고정해서** 씁니다. 부품이 모자라거나 틀렸으면 funky-ui 저장소에서 고쳐 새 버전을 올리고, 여기서 버전을 올립니다.
 
 ```bash
-rsync -a --delete "<funky-ui>/workspace/packages/funky-ui/src/" frontend/vendor/funky-ui/src/
+npm install --save-exact @studio-baeks/funky-ui@<버전>
 ```
 
-- Vite 에 `@vanilla-extract/vite-plugin` 이 있어야 사본의 `.css.ts` 를 읽습니다. ESLint 는 `vendor` 를 건너뜁니다
-- ⚠️ `rsync` 는 `src` 만 맞춥니다. `vendor/funky-ui/package.json` 은 따로 있고, `sideEffects` 에 `**/src/index.ts` 와
-  `**/focusModality.ts` 가 있어야 합니다. 빠지면 dev 서버에서는 멀쩡한데 배포본에서만 마우스로 누른 입력칸에 포커스 링이 뜹니다
+- 패키지에 빌드된 JS·CSS 가 들어 있어서 앱에 vanilla-extract 는 필요 없습니다
+- ⚠️ 버전을 올리면 빌드 뒤 `grep -l fkFocus dist/assets/*.js` 로 포커스 추적 코드가 번들에 있는지 봅니다. 패키지의 `sideEffects` 에
+  `**/dist/index.js` 와 `**/focusModality.js` 가 빠지면 dev 서버에서는 멀쩡한데 배포본에서만 마우스로 누른 입력칸에 포커스 링이 뜹니다
+- ⚠️ 패키지는 모듈 단위로 내보냅니다(`preserveModules`). 그래야 lazy 페이지만 쓰는 부품이 그 페이지 청크로 갑니다. 한 파일로
+  묶인 버전을 받으면 첫 로딩 JS 가 gzip 22KB 늘어납니다. 버전을 올릴 때 `index-*.js` 크기도 같이 봅니다(지금 96KB)
 - ⚠️ **CSS 순서가 뜻입니다.** `index.css` 맨 위의 `@layer theme, base, fk, components, utilities;` 로 preflight <
   funky < Tailwind 유틸리티가 되고, 레이어 순서는 처음 선언된 대로 굳으므로 `main.tsx` 가 `index.css` 를 먼저 읽습니다.
   순서가 틀리면 preflight 가 funky 의 여백·테두리를 지우거나, `className="mt-4"` 가 funky 에 집니다

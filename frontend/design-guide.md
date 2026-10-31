@@ -1,6 +1,6 @@
 # Frontend Design Guide
 
-> [← 프로젝트 전체 가이드](../CLAUDE.md) | 부품·값의 원본: [funky-ui](https://funky-ui.bsiku.dev) (사본은 `vendor/funky-ui`)
+> [← 프로젝트 전체 가이드](../CLAUDE.md) | 부품·값의 원본: [funky-ui](https://funky-ui.bsiku.dev) (npm `@studio-baeks/funky-ui`)
 
 **스타일**: 레트로 브루탈리즘 — 굵은 테두리, 하드 쉐도우, 물리적 버튼 피드백
 

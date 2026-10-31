@@ -144,8 +144,8 @@ KEIS API → cli/parser_run.py (학기 단위) → ksa_timetable.db
 
 ## Design Rules
 
-**UI 는 funky-ui 로 그립니다** (`@studio-baeks/funky-ui`, 사본은 `frontend/vendor/funky-ui`). 자세한 규칙은
-`frontend/design-guide.md`, 사본을 맞추는 법은 `frontend/CLAUDE.md` 의 `디자인 시스템` 절입니다.
+**UI 는 funky-ui 로 그립니다** (npm 패키지 `@studio-baeks/funky-ui`). 자세한 규칙은
+`frontend/design-guide.md`, 버전을 올리는 법은 `frontend/CLAUDE.md` 의 `디자인 시스템` 절입니다.
 
 - 부품을 다시 만들지 않습니다: `Button`, `Card`, `Badge`, `Input`, `Modal`, `SectionTitle`, `PageHeader`, `StudentBadge`.
   빠진 것은 앱에 베끼지 말고 funky-ui 를 먼저 고친 뒤 사본을 맞춥니다
