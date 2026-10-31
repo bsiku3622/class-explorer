@@ -860,27 +860,48 @@ def _syllabus_days(text: str, year: int, semester: int) -> tuple[datetime.date, 
     return (start, end) if start and end and start <= end else None
 
 
-def _schedule_item(ctx: Context, item: dict, current: bool) -> dict:
+def _school_exam(ctx: Context, what: str) -> tuple[str, datetime.date, datetime.date] | None:
+    """중간·기말고사면 학사일정의 공식 시험 기간 — `(한 줄, 첫날, 끝날)`. 퀴즈나 다른 시험은 None."""
+    word = "기말" if re.search(r"기말|final", what, re.I) else "중간" if re.search(r"중간|mid-?\s?term", what, re.I) else None
+    if not word:
+        return None
+    for line in ctx.term_dates()["dates"]:
+        days = re.findall(r"\d{4}-\d\d-\d\d", line)
+        if line.startswith(f"{word}고사") and days:
+            return line, datetime.date.fromisoformat(days[0]), datetime.date.fromisoformat(days[-1])
+    return None
+
+
+def _schedule_item(ctx: Context, item: dict, current: bool, term: str | None = None) -> dict:
     """평가 일정 하나 — 언제인지·지났는지는 코드가 셉니다(12B 모델은 날짜 셈을 틀립니다).
 
-    이번 학기 계획서만 적힌 날짜를 믿습니다. 지난 학기 계획서의 "10.12." 는 올해 날짜가 아니라서 그대로 적어만
-    두고, 주차만 이번 학기 주차표로 옮깁니다 — 답에서 밝히라는 건 `caution` 이 시킵니다.
+    ⚠️ **날짜는 이번 학기 계획서에서만 만듭니다.** 지난 학기 계획서는 적힌 날짜는 물론 주차도 이번 학기 날짜로 옮기지 않습니다. 옮겼더니
+    2025-1 계획서의 "기말 16주차" 가 `11-30~12-06` 으로 나갔는데, 올해 기말고사는 17주차(12-07~12-11)입니다 — 지난 학기 계획서 시험
+    193건이 이렇게 확실한 날짜를 달고 있었고, 학기가 다르다는 말은 모델이 빼먹을 수 있습니다. 중간·기말고사는 학사일정의 공식 기간을 붙입니다.
     """
     out = {"what": item.get("what", "")}
     numbers = [int(n) for n in re.findall(r"\d+", item.get("week") or "")][:2]
-    span = ctx.week_span(*numbers) if numbers else None
     label = f"{'~'.join(map(str, numbers))}주차" if numbers else ""
-    dated = _syllabus_days(item.get("date", ""), ctx.year, ctx.semester) if current else None
-    if dated:
-        out["when"] = _when(dated[0].isoformat(), dated[1].isoformat()) + (f" · {label}" if label else "")
-    elif span:
-        out["when"] = f"{label}({span[0]:%m-%d}~{span[1]:%m-%d})"
-    elif label or item.get("date"):
-        out["when"] = label or f"계획서 표기 {item['date']}"
-    if not current and item.get("date"):
-        out["written_date"] = item["date"]
-    period = dated or span
-    if current and period:
+    period = None
+    if current:
+        span = ctx.week_span(*numbers) if numbers else None
+        dated = _syllabus_days(item.get("date", ""), ctx.year, ctx.semester)
+        period = dated or span
+        if dated:
+            out["when"] = _when(dated[0].isoformat(), dated[1].isoformat()) + (f" · {label}" if label else "")
+        elif span:
+            out["when"] = f"{label}({span[0]:%m-%d}~{span[1]:%m-%d})"
+        elif label or item.get("date"):
+            out["when"] = label or f"계획서 표기 {item['date']}"
+    else:
+        name = term or "지난 학기"
+        if label or item.get("date"):
+            out["when"] = f"{name} 계획서 기준 " + " · ".join(x for x in (label, item.get("date")) if x)
+        exam = _school_exam(ctx, out["what"]) if item.get("kind") == "exam" else None
+        if exam:
+            out["school_exam_period"] = exam[0]
+            period = exam[1:]
+    if period:
         today = clock.today()
         monday = today - datetime.timedelta(days=today.weekday())
         out["status"] = ("지남" if period[1] < today
@@ -902,7 +923,7 @@ def _assessment(ctx: Context, entry: dict) -> dict | None:
     return {
         "grading": [{"item": g.get("item"), "weight": g.get("weight"), "quote": (g.get("quote") or "")[:100]}
                     for g in row.get("grading", [])[:12]],
-        "schedule": [_schedule_item(ctx, s, current) for s in row.get("schedule", [])[:20]],
+        "schedule": [_schedule_item(ctx, s, current, entry["term"]) for s in row.get("schedule", [])[:20]],
         "policies": [p.get("rule") for p in row.get("policies", [])[:6]],
     }
 
@@ -910,7 +931,8 @@ def _assessment(ctx: Context, entry: dict) -> dict | None:
 def _assessment_brief(full: dict) -> dict:
     """내 과목 전부일 때 — 한 줄씩. 지난 일정은 앞으로 올 게 있으면 뺍니다."""
     def line(item: dict) -> str:
-        parts = [item.get("when"), item.get("status"), f"범위 {item['scope']}" if item.get("scope") else None]
+        parts = [item.get("when"), f"학교 시험 기간: {item['school_exam_period']}" if item.get("school_exam_period") else None,
+                 item.get("status"), f"범위 {item['scope']}" if item.get("scope") else None]
         return f"{item['what']} — " + " · ".join(p for p in parts if p)
 
     ahead = [s for s in full["schedule"] if s.get("status") != "지남"]
@@ -984,9 +1006,11 @@ async def syllabus(ctx: Context, subject: str | None = None, query: str | None =
     if target["teachers"]:
         out["teachers_this_term"] = target["teachers"]
     if best["term"] != term:
-        out["caution"] = (f"이번 학기({term}) 계획서가 아니라 {best['term'] or '학기를 알 수 없는'} 계획서다. 범위·주차·"
-                          "날짜가 이번 학기와 다를 수 있다고 답에 밝힌다")
-    out["this_term"] = ctx.term_dates()
+        out["caution"] = (f"이번 학기({term}) 계획서가 아니라 {best['term'] or '학기를 알 수 없는'} 계획서다. 그렇게 답에 밝히고, 계획서의 "
+                          "주차·날짜를 이번 학기 날짜로 옮기지 않는다. 시험 날짜는 school_exam_period·this_term.dates 로 답한다")
+    # 지난 학기 계획서면 주차표를 안 줍니다 — 주면 모델이 "16주차" 를 직접 이번 학기 날짜로 옮깁니다
+    dates = ctx.term_dates()
+    out["this_term"] = dates if best["term"] == term else {k: v for k, v in dates.items() if k != "weeks"}
     assessment = _assessment(ctx, best)
     budget = SYLLABUS_CHARS
     if assessment:
@@ -1035,8 +1059,11 @@ async def _my_syllabi(ctx: Context, query: str | None) -> dict:
             out.append(row)
         return out
 
-    return {"this_term": ctx.term_dates(), "subjects": await asyncio.to_thread(read),
-            "caution": f"계획서마다 학기가 다르다 — 이번 학기({ctx.year}-{ctx.semester}) 것이 아니면 그렇다고 밝힌다"}
+    # 주차표는 안 줍니다 — 이번 학기 계획서의 일정은 코드가 날짜를 달았고, 지난 학기 것은 옮기면 안 됩니다
+    return {"this_term": {k: v for k, v in ctx.term_dates().items() if k != "weeks"},
+            "subjects": await asyncio.to_thread(read),
+            "caution": f"계획서마다 학기가 다르다 — 이번 학기({ctx.year}-{ctx.semester}) 것이 아니면 그렇다고 밝히고, 그 주차를 날짜로 옮기지 않는다. "
+                       "시험 날짜는 학교 시험 기간으로 답한다"}
 
 
 # ─── 모델에 보여 줄 명세 ─────────────────────────────────────────────────────
