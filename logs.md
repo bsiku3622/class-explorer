@@ -3,7 +3,9 @@
 - 변경 파일: `frontend/vendor/funky-ui/`, `UploadPage`, `MaterialsPage`, `MaterialReviewPanel`, `zamong/Roadmap`, `zamong/CourseCard`, `CalendarGrid`, `TodayTimeline`, `EventFormModal`, `TradePage`, `CalendarPage`, `AdminPage`, `admin/FactsPanel`, `atoms/SearchInput`
 - 요약: 그림자 없는 칩은 골라져도 커지지 않고, Upload 입력칸의 그림자를 뺐고, Zamong 학기 버튼을 테두리·그림자 없는 약한 글자로 바꿨고, 표·달력·오늘 목록의 안쪽 선을 1px 로 맞췄습니다.
 - Upload 입력칸의 그림자와 Zamong 학기 버튼의 모양은 원본에 있던 것을 재원님 판단으로 **바꾼** 것입니다. 원본과 맞춘다고 되돌리지 마세요.
-- `xl` 을 넣으면서 `SearchInput` 기본이 64px 이 되어 Files 의 검색칸이 옆 Select 보다 높아졌습니다. 나란히 놓는 자리는 `size="sm"` 입니다. 그래서 `shadow` 를 따로 받습니다.
+- `xl` 을 넣으면서 `SearchInput` 기본이 64px 이 되어 Files 의 검색칸이 옆 Select 보다 높아졌습니다. 나란히 놓는 자리는 `size="sm"` 입니다.
+- Files 의 검색칸·과목 선택과 Analysis 의 학생 검색칸도 재원님 판단으로 그림자를 뺐습니다. 원본에는 있던 그림자입니다.
+- 사이드바의 검은 띠: 활성 메뉴가 스크롤에 잘려 상태 카드에 맞닿아 테두리처럼 보였습니다. 첫 점검 때 "스크롤 클립이라 버그 아님" 으로 넘겼는데 낮은 창에서는 실제로 이렇게 보입니다. 메뉴와 카드 사이에 12px 를 두고, 지금 화면의 메뉴가 잘리면 메뉴 안에서만 옮겨 보여 줍니다(funky-ui `SideNav`).
 
 ## 2026-10-31 — funky-ui 이관 후 원본과 달라진 곳 복구
 

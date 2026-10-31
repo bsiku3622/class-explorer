@@ -62,7 +62,8 @@ export const sideNavFixed = style(
   }),
 );
 export const sideNavBody = style(c({ flex: 1, minHeight: 0, overflowY: "auto", padding: px(SPACE["3xl"]) }));
-export const sideNavFooter = style(c({ padding: px(SPACE["3xl"]), paddingTop: 0 }));
+/** 위쪽 틈 — 메뉴는 이 위에서 스크롤로 잘립니다. 틈이 없으면 잘린 검은 줄이 상태 카드의 테두리처럼 붙어 보입니다 */
+export const sideNavFooter = style(c({ padding: px(SPACE["3xl"]), paddingTop: px(SPACE.lg) }));
 export const sideSection = style(c({ display: "flex", flexDirection: "column", gap: px(SPACE.xs), marginBottom: px(SPACE["3xl"]) }));
 export const sideSectionLabel = style(
   c({

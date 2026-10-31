@@ -5,8 +5,9 @@
  * `fixed` 로 고릅니다. 메뉴 순서는 앱(`lib/navigation.ts`)이 정합니다 — 셸은 그리기만 합니다.
  * 바 둘은 구조 면이라 Surface 의 `brand`(보라)로 칠합니다 — 버튼처럼 색을 고르는 요소가 아닙니다.
  */
-import type { ComponentPropsWithRef, ElementType, ReactNode } from "react";
+import { useEffect, useRef, type ComponentPropsWithRef, type ElementType, type ReactNode } from "react";
 
+import { SPACE } from "../tokens/layout";
 import { cx } from "../internal/cx";
 import { ChevronDownGlyph } from "../internal/glyphs";
 import { NavButton } from "../atoms/NavButton";
@@ -100,11 +101,30 @@ export interface SideNavItemProps {
  * 내비는 Tab 키로 칸마다 들르는 것이 맞아 방향키 무리(useSelectableGroup)로 묶지 않습니다.
  */
 function SideNavItem({ icon, active = false, onClick, children }: SideNavItemProps) {
+  const ref = useRef<HTMLElement>(null);
+  // 창이 낮으면 지금 화면의 줄이 메뉴 스크롤에 잘릴 수 있어, 그때만 메뉴 안에서 옮겨 보여 줍니다.
+  // ⚠️ `scrollIntoView` 를 쓰지 않습니다 — 페이지까지 같이 끌고 갑니다
+  useEffect(() => {
+    const item = ref.current;
+    const box = item?.closest("nav");
+    if (!active || !item || !box) return;
+    const reveal = () => {
+      if (!box.clientHeight) return;
+      const itemRect = item.getBoundingClientRect();
+      const boxRect = box.getBoundingClientRect();
+      if (itemRect.bottom + SPACE.md > boxRect.bottom) box.scrollTop += itemRect.bottom + SPACE.md - boxRect.bottom;
+      else if (itemRect.top - SPACE.md < boxRect.top) box.scrollTop -= boxRect.top - itemRect.top + SPACE.md;
+    };
+    const observer = new ResizeObserver(reveal);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [active]);
   const variant = active ? "filled" : "ghostMuted";
   const { Comp, pressProps } = usePressable({ motion: pressOf(variant, active, undefined).motion });
   const { selectProps } = useSelectable({ selected: active, current: "page" });
   return (
     <Comp
+      ref={ref}
       {...pressProps}
       {...selectProps}
       onClick={onClick}

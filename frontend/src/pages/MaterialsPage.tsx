@@ -198,13 +198,11 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
                 <div className="grid gap-3 p-4 lg:grid-cols-[1fr_15rem]">
                     <SearchInput
                         size="sm"
-                        shadow
                         value={query}
                         onChange={setQuery}
                         placeholder="자료명 또는 과목 검색"
                     />
                     <Select
-                        shadow
                         value={subjectId}
                         onChange={(event) =>
                             setSubjectId(event.target.value === "all" ? "all" : Number(event.target.value))

@@ -470,7 +470,6 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
                                     setCompareSearch(e.target.value)
                                 }
                                 onKeyDown={handleSearchKeyDown}
-                                shadow
                                 className="w-full"
                             />
                             {studentSuggestions.length > 0 && (
