@@ -1,3 +1,20 @@
+## 2026-10-31 — funky-ui 를 소스 사본에서 npm 패키지로 교체
+
+- 변경 파일: `frontend/{package.json,package-lock.json,vite.config.ts,eslint.config.js}`, `frontend/vendor/` 제거, `CLAUDE.md`, `frontend/CLAUDE.md`, `frontend/design-guide.md`
+- 요약: `@studio-baeks/funky-ui@1.0.0-alpha.0` 을 버전 고정으로 쓰고, 사본과 vanilla-extract 플러그인을 걷어냈습니다. 첫 로딩 JS 는 gzip 96.4KB 로 사본 때(96.6KB)와 같습니다.
+- ⚠️ 패키지가 한 파일로 묶여 있으면 첫 로딩이 119KB 가 됩니다. 앱의 번들러가 페이지별로 나누지 못해서입니다. 그래서 funky-ui 쪽 빌드를 `preserveModules` 로 바꿔 올렸습니다. 버전을 올릴 때 `index-*.js` 크기와 `fkFocus` 를 같이 봅니다.
+- CSS 는 조각 17개(첫 로딩 14.3KB + 페이지별 조각)에서 한 파일(17.3KB)로 합쳐졌습니다. 첫 로딩 CSS 가 3KB 늘고 페이지를 옮길 때의 CSS 요청이 사라집니다. `styles.css` 를 쓰는 이상 정해진 결과입니다.
+- 함정: 크기를 비교하려고 임시 사본에서 `package-lock.json` 을 지우고 설치했더니 다른 의존성이 함께 올라가 차이가 섞였습니다. `npm uninstall` · `npm install --save-exact` 로 lock 을 유지한 채 이 항목만 바꿔야 합니다.
+
+## 2026-10-31 — 린트 오류 정리와 모바일 점검
+
+- 변경 파일: `App.tsx`, `SearchInput`, `SearchResultDisplay`, `RequestSidebar`, `BrowsePage`, `AnalysisPage`, `hooks/useSelectedYears.ts`
+- 요약: `npm run lint` 오류·경고를 0으로 만들었습니다. 390px 16개 화면을 이관 전 앱과 나란히 돌려 가로 넘침 0건을 확인했고, 그 과정에서 찾은 Requests 서랍의 층을 고쳤습니다.
+- `App.tsx` 의 effect 는 의존성 배열을 늘리지 않고 `useEffectEvent` 로 읽는 함수만 뺐습니다. 배열에 넣으면 검색어 ↔ 주소 동기화가 서로를 다시 불러 돕니다.
+- ⚠️ `useSelectedYears` 는 데이터가 새로 올 때 **고른 학년이 비어 있을 때만** 전체로 채웁니다. Browse 에서 학년을 전부 끈 상태는 데이터가 그대로면 유지됩니다(원본과 같은 동작).
+- 최근 검색어는 effect 로 상태에 옮기지 않고 그릴 때 읽습니다. 지우기·선택 뒤에는 `refreshHistory` 로 다시 그립니다.
+- Requests 서랍이 Drawer 기본 층이라 모바일 하단 메뉴까지 덮었습니다. `z-40` 으로 페이지 위, 메뉴 아래에 둡니다.
+
 ## 2026-10-31 — 지난 학기 계획서로 이번 학기 날짜를 만들지 않게
 
 - 변경 파일: `backend/agent/tools.py`(`_schedule_item`·`_school_exam`), `backend/agent/chat.py`(지시문), `backend/agent.guide.md`

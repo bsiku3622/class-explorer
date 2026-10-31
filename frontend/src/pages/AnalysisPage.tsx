@@ -15,6 +15,7 @@ import { getStudentColor, getKoreanName } from "../lib/utils";
 import FilterSection from "../components/FilterSection";
 import StudentBadge from "../components/atoms/StudentBadge";
 import BarChartRow from "../components/molecules/BarChartRow";
+import { useSelectedYears } from "../hooks/useSelectedYears";
 import {
     Accordion,
     Badge,
@@ -116,12 +117,7 @@ const AnalysisPage: React.FC<AnalysisPageProps> = ({
     handleSearch,
 }) => {
     const navigate = useNavigate();
-    const [selectedYears, setSelectedYears] = useState<string[]>(() => Object.keys(studentCounts));
-
-    useEffect(() => {
-        const years = Object.keys(studentCounts);
-        if (years.length > 0 && selectedYears.length === 0) setSelectedYears(years);
-    }, [studentCounts]);
+    const [selectedYears, setSelectedYears] = useSelectedYears(studentCounts);
 
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({
         compare: false,

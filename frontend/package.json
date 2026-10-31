@@ -12,9 +12,8 @@
   "dependencies": {
     "@base-ui/react": "^1.2.0",
     "@fontsource-variable/geist": "^5.2.8",
-    "@studio-baeks/funky-ui": "file:./vendor/funky-ui",
+    "@studio-baeks/funky-ui": "1.0.0-alpha.0",
     "@tailwindcss/vite": "^4.2.1",
-    "@vanilla-extract/css": "^1.16.0",
     "axios": "^1.13.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -32,7 +31,6 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@types/react-router-dom": "^5.3.3",
-    "@vanilla-extract/vite-plugin": "^5.2.2",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.27",
     "eslint": "^9.39.1",

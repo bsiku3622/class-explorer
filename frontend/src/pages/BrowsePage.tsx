@@ -10,6 +10,7 @@ import { Filter, RotateCcw } from "lucide-react";
 import CourseGraph from "../components/CourseGraph";
 import FriendsManager from "../components/FriendsManager";
 import { useVirtualGrid } from "../hooks/useVirtualGrid";
+import { useSelectedYears } from "../hooks/useSelectedYears";
 import {
     ALL_DEPARTMENTS,
     CATEGORY_LABEL,
@@ -56,12 +57,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
     const [department, setDepartment] = useState<string>(ALL_DEPARTMENTS);
     const [focused, setFocused] = useState<string | null>(null);
     const [searchInput, setSearchInput] = useState("");
-    const [selectedYears, setSelectedYears] = useState<string[]>(() => Object.keys(studentCounts));
-
-    useEffect(() => {
-        const years = Object.keys(studentCounts);
-        if (years.length > 0 && selectedYears.length === 0) setSelectedYears(years);
-    }, [studentCounts]);
+    const [selectedYears, setSelectedYears] = useSelectedYears(studentCounts);
 
     useEffect(() => {
         if (mode !== "courses" || curriculum) return;
