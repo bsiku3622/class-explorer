@@ -1,13 +1,12 @@
 import React, { useState } from "react";
 import { Search, Link } from "lucide-react";
-import RetroSpinner from "../components/atoms/RetroSpinner";
 import SearchInput from "../components/atoms/SearchInput";
 import type { SubjectData, Stats, SearchResultStats, Term } from "../types";
 import FilterSection from "../components/FilterSection";
 import SearchResultDisplay from "../components/SearchResultDisplay";
 import StatsCards from "../components/StatsCards";
 import SubjectAccordionItem from "../components/SubjectAccordionItem";
-import PageHeader from "../components/molecules/PageHeader";
+import { Busy, Button, EmptyState, PageHeader } from "@studio-baeks/funky-ui";
 
 interface SearchPageProps {
     term: Term | null;
@@ -80,13 +79,14 @@ const SearchPage: React.FC<SearchPageProps> = ({
                 subtitle="Class Finder"
                 icon={Search}
                 action={searchTerm ? (
-                    <button
+                    <Button
+                        size="sm"
+                        variant="muted"
+                        icon={Link}
                         onClick={handleCopyLink}
-                        className="flex items-center gap-2 text-xs font-black uppercase px-3 py-2 border-2 border-black/30 hover:border-black transition-all duration-100 text-black/50 hover:text-black"
                     >
-                        <Link size={13} strokeWidth={2.5} />
                         {copied ? "Copied!" : "Share"}
-                    </button>
+                    </Button>
                 ) : undefined}
             />
 
@@ -122,18 +122,8 @@ const SearchPage: React.FC<SearchPageProps> = ({
 
             {stats && <StatsCards stats={stats} />}
 
-            <div className="relative">
-                {loading && (
-                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-start pt-40 gap-4 bg-retro-bg/40 backdrop-blur-[2px]">
-                        <RetroSpinner size="lg" />
-                        <p className="text-lg font-black uppercase animate-pulse">
-                            Scanning Grid...
-                        </p>
-                    </div>
-                )}
-                <div
-                    className={`space-y-0 transition-opacity duration-300 ${loading ? "opacity-30 pointer-events-none" : "opacity-100"}`}
-                >
+            <Busy active={loading} label="Scanning Grid...">
+                <div className="space-y-0">
                     {displayData.length > 0
                         ? displayData.map((subject: SubjectData) => (
                               <SubjectAccordionItem
@@ -160,14 +150,10 @@ const SearchPage: React.FC<SearchPageProps> = ({
                               />
                           ))
                         : !loading && (
-                              <div className="py-28 flex flex-col items-center justify-center text-black/20">
-                                  <p className="text-2xl font-black uppercase tracking-widest">
-                                      No Data Found
-                                  </p>
-                              </div>
+                              <EmptyState title="No Data Found" className="py-28" />
                           )}
                 </div>
-            </div>
+            </Busy>
         </div>
     );
 };

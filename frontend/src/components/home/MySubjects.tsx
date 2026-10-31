@@ -24,9 +24,9 @@ import React, { useMemo, useState } from "react";
 import type { SubjectData, Term } from "../../types";
 import type { TodayClass } from "../../lib/friendsApi";
 import { DAYS_ORDER } from "../../lib/utils";
-import RetroSubTitle from "../atoms/RetroSubTitle";
 import { BookMarked } from "lucide-react";
 import SubjectAccordionItem from "../SubjectAccordionItem";
+import { SectionTitle, Text } from "@studio-baeks/funky-ui";
 
 interface MySubjectsProps {
     term: Term | null;
@@ -90,10 +90,10 @@ const MySubjects: React.FC<MySubjectsProps> = ({
     return (
         <div className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between gap-3">
-                <RetroSubTitle title="Subjects" icon={BookMarked} iconSize={15} />
-                <span className="shrink-0 text-[12px] font-bold tabular-nums text-black/35">
+                <SectionTitle title="Subjects" icon={BookMarked} />
+                <Text variant="caption" tone="muted" numeric className="shrink-0">
                     {subjects.length}과목
-                </span>
+                </Text>
             </div>
 
             <div>

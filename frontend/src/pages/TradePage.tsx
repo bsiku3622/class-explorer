@@ -55,13 +55,26 @@ import {
     type ProgressTerm,
 } from "../lib/curriculum";
 import { loadState, saveState } from "../lib/userState";
-import RetroCard from "../components/atoms/RetroCard";
-import RetroButton from "../components/atoms/RetroButton";
-import RetroSubTitle from "../components/atoms/RetroSubTitle";
-import PageHeader from "../components/molecules/PageHeader";
+import StudentBadge from "../components/atoms/StudentBadge";
 import TimetableGrid from "../components/TimetableGrid";
 import SectionsTimetable from "../components/SectionsTimetable";
 import CopyButton from "../components/atoms/CopyButton";
+import {
+    Badge,
+    Button,
+    Card,
+    Divider,
+    Icon,
+    IconButton,
+    Input,
+    PageHeader,
+    Paint,
+    SectionTitle,
+    Surface,
+    Text,
+    ToneSwatch,
+} from "@studio-baeks/funky-ui";
+import { ACCENT_COLORS } from "@studio-baeks/funky-ui/tokens";
 
 interface TradePageProps {
     allClassesData: SubjectData[];
@@ -351,7 +364,6 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
         [studentIndex, stuId],
     );
 
-    // index.css의 테마 값 (retro-primary / retro-green / retro-accent4)
     /** 지금 수강 학점과, 계획을 적용했을 때의 학점 */
     const creditSummary = useMemo(() => {
         const now = totalCredits(schedule);
@@ -372,9 +384,9 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
     const cellColorFor = useCallback(
         (time: { subject?: string }) => {
             if (!time.subject) return undefined;
-            if (conflictingSubjects.has(time.subject)) return "#ff9100";
-            if (movedSubjects.has(time.subject)) return "#00c8ff";
-            if (enteringSubjects.has(time.subject)) return "#00c22a";
+            if (conflictingSubjects.has(time.subject)) return ACCENT_COLORS.orange.solid;
+            if (movedSubjects.has(time.subject)) return ACCENT_COLORS.sky.solid;
+            if (enteringSubjects.has(time.subject)) return ACCENT_COLORS.green.solid;
             return undefined;
         },
         [movedSubjects, enteringSubjects, conflictingSubjects],
@@ -543,14 +555,14 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                     subtitle="Course Change"
                     icon={ArrowLeftRight}
                 />
-                <RetroCard className="bg-white p-8 text-center">
-                    <p className="font-black uppercase tracking-widest text-black/40">
+                <Card padding="0" className="p-8 text-center">
+                    <Text as="p" variant="subtitle">
                         2026-2 학기에서만 사용할 수 있습니다
-                    </p>
-                    <p className="text-xs font-bold text-black/40 mt-2">
+                    </Text>
+                    <Text as="p" variant="caption" tone="muted" className="mt-2">
                         상단의 학기 전환에서 2026-2를 선택해주세요.
-                    </p>
-                </RetroCard>
+                    </Text>
+                </Card>
             </div>
         );
     }
@@ -563,85 +575,78 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                 icon={ArrowLeftRight}
                 action={
                     stuId ? (
-                        <RetroButton
+                        <Button
                             size="sm"
+                            variant="paper"
+                            shadow
                             onClick={() => selectStudent("")}
-                            icon={<X size={14} strokeWidth={2.5} />}
+                            icon={X}
                         >
                             Reset
-                        </RetroButton>
+                        </Button>
                     ) : undefined
                 }
             >
                 <div className="space-y-3">
-                    <RetroSubTitle title="Select Student" icon={Search} />
-                    <input
+                    <SectionTitle title="Select Student" icon={Search} />
+                    <Input
                         value={studentQuery}
                         onChange={(e) => setStudentQuery(e.target.value)}
                         placeholder="학번 또는 이름으로 검색 (예: 25-059, 백재원)"
-                        className="w-full border-2 border-black px-4 py-3 text-sm font-bold outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-all duration-100"
                     />
                     {studentMatches.length > 0 && (
                         <div className="flex flex-wrap gap-2">
                             {studentMatches.map((s) => (
-                                <button
+                                <StudentBadge
+                                    fullId
                                     key={s.stuId}
+                                    studentId={s.stuId}
+                                    studentName={s.name}
                                     onClick={() => selectStudent(s.stuId)}
-                                    className="flex items-center gap-2 border-2 px-2 py-1 text-[11px] font-black italic transition-all duration-100 hover:scale-105 active:scale-95"
-                                    style={{
-                                        backgroundColor: `${getStudentColor(s.stuId)}15`,
-                                        borderColor: getStudentColor(s.stuId),
-                                        color: getStudentColor(s.stuId),
-                                    }}
-                                >
-                                    {s.stuId} {s.name}
-                                </button>
+                                />
                             ))}
                         </div>
                     )}
                     {stuId && (
                         <div className="flex flex-wrap items-center gap-2 pt-1">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-black/40">
-                                Planning for
-                            </span>
-                            <span
-                                className="border-2 px-2 py-1 text-xs font-black italic"
-                                style={{
-                                    backgroundColor: `${studentColor}15`,
-                                    borderColor: studentColor,
-                                    color: studentColor,
-                                }}
-                            >
-                                {stuId}{" "}
-                                {allStudents.find((s) => s.stuId === stuId)?.name}
-                            </span>
-                            <span className="text-[10px] font-bold text-black/40">
+                            <Text variant="overline">Planning for</Text>
+                            <StudentBadge
+                                fullId
+                                studentId={stuId}
+                                studentName={
+                                    allStudents.find((s) => s.stuId === stuId)?.name ?? ""
+                                }
+                                size="sm"
+                            />
+                            <Text variant="micro" weight="bold" tone="muted">
                                 {schedule.length}과목 수강 중
-                            </span>
-                            <span className="border-2 border-black px-2 py-1 text-[11px] font-black">
-                                {creditSummary.now}학점
-                                {creditSummary.delta !== 0 && (
-                                    <span
-                                        className={
-                                            creditSummary.delta > 0
-                                                ? "text-retro-green"
-                                                : "text-retro-primary"
-                                        }
-                                    >
-                                        {" "}
-                                        → {creditSummary.planned}학점 (
-                                        {creditSummary.delta > 0 ? "+" : ""}
-                                        {creditSummary.delta})
-                                    </span>
-                                )}
-                            </span>
+                            </Text>
+                            <Surface as="span" border="line" className="px-2 py-1">
+                                <Text as="span" variant="label">
+                                    {creditSummary.now}학점
+                                    {creditSummary.delta !== 0 && (
+                                        <Text
+                                            as="span"
+                                            variant="label"
+                                            tone={creditSummary.delta > 0 ? "green" : "pink"}
+                                        >
+                                            {" "}
+                                            → {creditSummary.planned}학점 (
+                                            {creditSummary.delta > 0 ? "+" : ""}
+                                            {creditSummary.delta})
+                                        </Text>
+                                    )}
+                                </Text>
+                            </Surface>
                             {creditSummary.unknown.length > 0 && (
-                                <span
-                                    className="text-[10px] font-bold text-retro-accent4"
+                                <Text
+                                    variant="micro"
+                                    weight="bold"
+                                    tone="orange"
                                     title={creditSummary.unknown.join(", ")}
                                 >
                                     학점 미등록 {creditSummary.unknown.length}과목 제외
-                                </span>
+                                </Text>
                             )}
                         </div>
                     )}
@@ -649,17 +654,17 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
             </PageHeader>
 
             {!stuId ? (
-                <RetroCard className="bg-white p-10 text-center">
-                    <p className="font-black uppercase tracking-widest text-black/30">
+                <Card padding="0" className="p-10 text-center">
+                    <Text as="p" variant="subtitle">
                         학생을 선택하면 시간표 기준으로 변경 가능한 조합을 찾습니다
-                    </p>
-                </RetroCard>
+                    </Text>
+                </Card>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
                     {/* 좌: 시간표 미리보기 */}
                     <div className="lg:col-span-5 space-y-3">
                         <div className="flex items-center justify-between gap-2">
-                            <RetroSubTitle
+                            <SectionTitle
                                 title={
                                     isAutoPreview
                                         ? "Auto Preview"
@@ -669,13 +674,15 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                 }
                             />
                             {previewPlan && (
-                                <RetroButton
+                                <Button
                                     size="sm"
+                                    variant="paper"
+                                    shadow
                                     onClick={() => setPreviewKey(null)}
-                                    icon={<X size={12} strokeWidth={2.5} />}
+                                    icon={X}
                                 >
                                     Clear
-                                </RetroButton>
+                                </Button>
                             )}
                         </div>
                         <TimetableGrid
@@ -689,40 +696,45 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                         {(enteringSubjects.size > 0 ||
                             movedSubjects.size > 0 ||
                             conflictingSubjects.size > 0) && (
-                            <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-widest">
+                            <Text
+                                as="div"
+                                variant="overline"
+                                tone="primary"
+                                className="flex flex-wrap items-center gap-3"
+                            >
                                 {movedSubjects.size > 0 && (
                                     <span className="flex items-center gap-1.5">
-                                        <span className="w-3 h-3 border-2 border-black bg-retro-accent5/40" />
+                                        <ToneSwatch tone={ACCENT_COLORS.sky.solid} />
                                         이동
                                     </span>
                                 )}
                                 {enteringSubjects.size > 0 && (
                                     <span className="flex items-center gap-1.5">
-                                        <span className="w-3 h-3 border-2 border-black bg-retro-green/30" />
+                                        <ToneSwatch tone={ACCENT_COLORS.green.solid} />
                                         들어옴
                                     </span>
                                 )}
                                 {conflictingSubjects.size > 0 && (
                                     <span className="flex items-center gap-1.5">
-                                        <span className="w-3 h-3 border-2 border-black bg-retro-accent4/40" />
+                                        <ToneSwatch tone={ACCENT_COLORS.orange.solid} />
                                         충돌
                                     </span>
                                 )}
-                            </div>
+                            </Text>
                         )}
-                        <p className="text-[10px] font-bold text-black/40">
+                        <Text as="p" variant="micro" weight="bold" tone="muted">
                             {isAutoPreview
                                 ? "* 자동으로 맡긴 항목을 아래 조합 중 첫 번째로 배치해본 결과입니다. 다른 조합을 눌러 바꿔볼 수 있습니다."
                                 : previewPlan
                                   ? "* 선택한 조합을 적용한 결과입니다. 실제 신청은 직접 진행해야 합니다."
                                   : "* 지정한 드랍·이동·추가가 바로 반영됩니다."}
-                        </p>
+                        </Text>
                     </div>
 
                     {/* 우: 과목별 처리 + 추가신청 */}
                     <div className="lg:col-span-7 space-y-6">
                         <div className="space-y-3">
-                            <RetroSubTitle title="My Subjects" />
+                            <SectionTitle title="My Subjects" />
                             <div className="space-y-2">
                                 {/* 추가 신청 과목 — 목록 맨 위 */}
                                 {addSelections.map(({ subject, sectionId }) => {
@@ -737,23 +749,32 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                         (s) => s.id === sectionId,
                                     );
                                     return (
-                                        <RetroCard
+                                        <Paint
                                             key={`add-${subject}`}
-                                            shadow="sm"
-                                            className="bg-retro-green/15 border-retro-green transition-all duration-100 hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]"
+                                            accent="green"
+                                            variant="plain"
+                                            shadow
+                                            className="transition-transform duration-100 hover:-translate-y-1"
                                             onMouseEnter={() => setHoveredSubject(subject)}
                                             onMouseLeave={() => setHoveredSubject(null)}
                                         >
                                             <div className="p-3 flex flex-wrap items-center gap-2">
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="font-black text-sm truncate flex items-center gap-1.5">
-                                                        <Plus
+                                                    <Text
+                                                        as="p"
+                                                        tone="primary"
+                                                        weight="black"
+                                                        truncate
+                                                        className="flex items-center gap-1.5"
+                                                    >
+                                                        <Icon
+                                                            icon={Plus}
                                                             size={12}
                                                             strokeWidth={3}
                                                             className="shrink-0"
                                                         />
                                                         {getKoreanName(subject)}
-                                                    </p>
+                                                    </Text>
                                                     {(() => {
                                                         const chosenBlockers = chosen
                                                             ? (candidates.find(
@@ -768,8 +789,12 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
 
                                                         if (chosen) {
                                                             return (
-                                                                <p
-                                                                    className={`text-[10px] font-bold truncate ${chosenBlockers.length ? "text-retro-accent4" : "text-black/50"}`}
+                                                                <Text
+                                                                    as="p"
+                                                                    variant="micro"
+                                                                    weight="bold"
+                                                                    tone={chosenBlockers.length ? "orange" : "muted"}
+                                                                    truncate
                                                                 >
                                                                     {sectionLabel(chosen)} ·{" "}
                                                                     {formatSectionTimes(
@@ -778,33 +803,36 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                                     {chosenBlockers.length >
                                                                         0 &&
                                                                         ` — ${chosenBlockers.map((b) => getKoreanName(b.subject)).join(", ")} 비워야 함`}
-                                                                </p>
+                                                                </Text>
                                                             );
                                                         }
                                                         return (
-                                                            <p
-                                                                className={`text-[10px] font-bold truncate ${freeCount === 0 ? "text-retro-accent4" : "text-black/50"}`}
+                                                            <Text
+                                                                as="p"
+                                                                variant="micro"
+                                                                weight="bold"
+                                                                tone={freeCount === 0 ? "orange" : "muted"}
+                                                                truncate
                                                             >
                                                                 {freeCount > 0
                                                                     ? `분반 미지정 — 바로 들어갈 수 있는 분반 ${freeCount}/${candidates.length}개`
                                                                     : `지금 그대로는 들어갈 분반이 없습니다 — 다른 과목을 이동·드랍해보세요 (${"∨"} 눌러 충돌 확인)`}
-                                                            </p>
+                                                            </Text>
                                                         );
                                                     })()}
                                                 </div>
                                                 <div className="flex items-center gap-1">
-                                                    <button
+                                                    <Button grow={false}
+                                                        size="xs"
+                                                        accent="green"
+                                                        variant="outline"
+                                                        selected={sectionId === null}
                                                         onClick={() =>
                                                             setAddSection(subject, null)
                                                         }
-                                                        className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
-                                                            sectionId === null
-                                                                ? "bg-retro-green text-black border-retro-green"
-                                                                : "bg-white/50 border-retro-green text-retro-green hover:bg-white/80"
-                                                        }`}
                                                     >
                                                         자동
-                                                    </button>
+                                                    </Button>
                                                     {siblings.map((sib) => {
                                                         const sibBlockers =
                                                             candidates.find(
@@ -813,8 +841,12 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                             )?.blockers ?? [];
                                                         const blocked = sibBlockers.length;
                                                         return (
-                                                            <button
+                                                            <Button grow={false}
                                                                 key={sib.id}
+                                                                size="xs"
+                                                                accent={blocked ? "orange" : "green"}
+                                                                variant={blocked ? "plain" : "outline"}
+                                                                selected={sectionId === sib.id}
                                                                 onClick={() =>
                                                                     setAddSection(
                                                                         subject,
@@ -822,61 +854,51 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                                     )
                                                                 }
                                                                 title={`${sib.teacher} · ${formatSectionTimes(sib.times)}${blocked ? ` · 충돌: ${sibBlockers.map((b) => getKoreanName(b.subject)).join(", ")}` : " · 바로 추가 가능"}`}
-                                                                className={`px-2 py-1 border-2 text-[10px] font-black transition-all duration-100 ${
-                                                                    sectionId === sib.id
-                                                                        ? blocked
-                                                                            ? "bg-retro-accent4 text-black border-retro-accent4"
-                                                                            : "bg-retro-green text-black border-retro-green"
-                                                                        : blocked
-                                                                          ? "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4 hover:bg-retro-accent4/40"
-                                                                          : "bg-white/50 border-retro-green text-retro-green hover:bg-white/80"
-                                                                }`}
                                                             >
                                                                 {getSectionNumber(
                                                                     sib.section,
                                                                 )}
-                                                            </button>
+                                                            </Button>
                                                         );
                                                     })}
-                                                    <button
+                                                    <Button grow={false}
+                                                        size="xs"
+                                                        accent={isOpen ? "black" : undefined}
+                                                        variant="outline"
+                                                        selected={isOpen}
+                                                        iconEnd={ChevronDown}
+                                                        aria-expanded={isOpen}
+                                                        aria-label="모든 분반 시간표 보기"
                                                         onClick={() =>
                                                             setOpenSubject(
                                                                 isOpen ? null : subject,
                                                             )
                                                         }
                                                         title="모든 분반 시간표 보기"
-                                                        className={`p-1.5 border-2 transition-all duration-100 ${
-                                                            isOpen
-                                                                ? "bg-black text-white border-black"
-                                                                : "bg-white/50 border-retro-green text-retro-green hover:bg-white/80"
-                                                        }`}
-                                                    >
-                                                        <ChevronDown
-                                                            size={14}
-                                                            strokeWidth={2.5}
-                                                            className={`transition-transform duration-100 ${isOpen ? "rotate-180" : ""}`}
-                                                        />
-                                                    </button>
-                                                    <button
+                                                    />
+                                                    <IconButton
+                                                        icon={Trash2}
+                                                        label="추가 취소"
+                                                        size="xs"
+                                                        variant="outline"
                                                         onClick={() =>
                                                             toggleAddSubject(subject)
                                                         }
                                                         title="추가 취소"
-                                                        className="p-1.5 border-2 bg-white/50 border-retro-green text-retro-green hover:bg-white/80 transition-all duration-100"
-                                                    >
-                                                        <Trash2
-                                                            size={14}
-                                                            strokeWidth={2.5}
-                                                        />
-                                                    </button>
+                                                    />
                                                 </div>
                                             </div>
                                             {isOpen && (
-                                                <div className="border-t-2 border-black/10 p-3 space-y-2">
-                                                    <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                                                <Surface
+                                                    fill="none"
+                                                    border="subtle"
+                                                    borderSide="top"
+                                                    className="p-3 space-y-2"
+                                                >
+                                                    <Text as="p" variant="overline">
                                                         {getKoreanName(subject)} ·{" "}
                                                         {siblings.length}개 분반
-                                                    </p>
+                                                    </Text>
                                                     <SectionsTimetable
                                                         sections={siblings}
                                                         currentSectionId={
@@ -887,38 +909,37 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                     <div className="flex flex-wrap gap-1.5">
                                                         {candidates.map(
                                                             ({ section, blockers }) => (
-                                                                <div
+                                                                <Paint
                                                                     key={section.id}
-                                                                    className={`border-2 px-2 py-1 text-[10px] font-bold ${
-                                                                        blockers.length ===
-                                                                        0
-                                                                            ? "bg-retro-green/20 border-black"
-                                                                            : "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4"
-                                                                    }`}
+                                                                    accent={blockers.length === 0 ? "green" : "orange"}
+                                                                    variant={blockers.length === 0 ? "solidMuted" : "plain"}
+                                                                    className="px-2 py-1"
                                                                 >
-                                                                    <span className="font-black">
-                                                                        {getSectionNumber(
-                                                                            section.section,
+                                                                    <Text variant="micro" weight="bold">
+                                                                        <Text as="span" variant="micro">
+                                                                            {getSectionNumber(
+                                                                                section.section,
+                                                                            )}
+                                                                            분반
+                                                                        </Text>{" "}
+                                                                        {section.teacher} ·{" "}
+                                                                        {formatSectionTimes(
+                                                                            section.times,
                                                                         )}
-                                                                        분반
-                                                                    </span>{" "}
-                                                                    {section.teacher} ·{" "}
-                                                                    {formatSectionTimes(
-                                                                        section.times,
-                                                                    )}
-                                                                    <span className="block text-[9px]">
-                                                                        {blockers.length >
-                                                                        0
-                                                                            ? `${blockers.map((b) => getKoreanName(b.subject)).join(", ")} 비워야 함`
-                                                                            : "바로 추가 가능"}
-                                                                    </span>
-                                                                </div>
+                                                                        <Text as="span" variant="micro" weight="bold" className="block">
+                                                                            {blockers.length >
+                                                                            0
+                                                                                ? `${blockers.map((b) => getKoreanName(b.subject)).join(", ")} 비워야 함`
+                                                                                : "바로 추가 가능"}
+                                                                        </Text>
+                                                                    </Text>
+                                                                </Paint>
                                                             ),
                                                         )}
                                                     </div>
-                                                </div>
+                                                </Surface>
                                             )}
-                                        </RetroCard>
+                                        </Paint>
                                     );
                                 })}
                                 {orderedSchedule.map((sec) => {
@@ -942,29 +963,35 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                   findBlockers(othersForMove, s).length === 0,
                                           ).length
                                         : 0;
+                                    // 드랍한 카드는 핑크, 이동 중인 카드는 하늘 — 색 있는 상자는 Paint 입니다.
+                                    // 평소 카드는 흰 Card. 안의 버튼은 카드 색을 따릅니다
+                                    const Frame: React.ElementType = isDropped || isMoving ? Paint : Card;
+                                    const frameProps = isDropped
+                                        ? { accent: "pink", variant: "plain", shadow: true }
+                                        : isMoving
+                                          ? { accent: "sky", variant: "plain", shadow: true }
+                                          : { padding: "0" };
                                     return (
-                                        <RetroCard
+                                        <Frame
                                             key={sec.subject}
-                                            shadow="sm"
+                                            {...frameProps}
                                             onMouseEnter={() => setHoveredSubject(sec.subject)}
                                             onMouseLeave={() => setHoveredSubject(null)}
-                                            className={`transition-all duration-100 hover:-translate-y-1 hover:shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] ${
-                                                isDropped
-                                                    ? "bg-retro-primary/15 border-retro-primary"
-                                                    : isMoving
-                                                      ? "bg-retro-accent5/15 border-retro-accent5"
-                                                      : "bg-white border-black"
-                                            }`}
+                                            className="transition-transform duration-100 hover:-translate-y-1"
                                         >
                                             <div className="p-3 flex flex-wrap items-center gap-2">
                                                 <div className="min-w-0 flex-1">
-                                                    <p
-                                                        className={`font-black text-sm truncate ${isDropped ? "text-retro-primary line-through" : ""}`}
+                                                    <Text
+                                                        as="p"
+                                                        weight="black"
+                                                        tone={isDropped ? "pink" : "primary"}
+                                                        decoration={isDropped ? "strike" : undefined}
+                                                        truncate
                                                     >
                                                         {getKoreanName(sec.subject)}
-                                                    </p>
+                                                    </Text>
                                                     {isMoving ? (
-                                                        <p className="text-[10px] font-bold truncate text-black/60">
+                                                        <Text as="p" variant="micro" weight="bold" tone="secondary" truncate>
                                                             {movedSection ? (
                                                                 <>
                                                                     {getSectionNumber(
@@ -984,63 +1011,73 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                             ) : (
                                                                 `옮길 분반을 고르세요 — 지금 갈 수 있는 분반 ${movableCount}개 (자동은 조합에서 탐색)`
                                                             )}
-                                                        </p>
+                                                        </Text>
                                                     ) : (
-                                                        <p
-                                                            className={`text-[10px] font-bold truncate ${isDropped ? "text-retro-primary/60" : "text-black/40"}`}
+                                                        <Text
+                                                            as="p"
+                                                            variant="micro"
+                                                            weight="bold"
+                                                            tone={isDropped ? "pink" : "muted"}
+                                                            truncate
                                                         >
                                                             {sectionLabel(sec)} ·{" "}
                                                             {formatSectionTimes(sec.times)}
                                                             {sec.credits != null &&
                                                                 ` · ${sec.credits}학점`}
-                                                        </p>
+                                                        </Text>
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-1">
                                                     {ACTION_ORDER.map((a) => (
-                                                        <button
+                                                        <Button grow={false}
                                                             key={a}
+                                                            size="xs"
+                                                            selected={action === a}
+                                                            accent={
+                                                                action === a
+                                                                    ? a === "drop"
+                                                                        ? "pink"
+                                                                        : a === "move"
+                                                                          ? "sky"
+                                                                          : "black"
+                                                                    : isMoving
+                                                                      ? "sky"
+                                                                      : undefined
+                                                            }
+                                                            // 드랍한 카드 안에서는 버튼도 카드 색을 따릅니다
+                                                            variant={
+                                                                action === a
+                                                                    ? "muted"
+                                                                    : isDropped
+                                                                      ? "outline"
+                                                                      : "framelineMuted"
+                                                            }
                                                             onClick={() =>
                                                                 setAction(sec.subject, a)
                                                             }
-                                                            className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
-                                                                action === a
-                                                                    ? a === "drop"
-                                                                        ? "bg-retro-primary text-white border-retro-primary"
-                                                                        : a === "move"
-                                                                          ? "bg-retro-accent5 text-black border-retro-accent5"
-                                                                          : "bg-black text-white border-black"
-                                                                    : isDropped
-                                                                      ? // 드랍한 카드 안에서는 버튼도 카드 색을 따릅니다
-                                                                        "bg-white/50 border-retro-primary text-retro-primary hover:bg-white/80"
-                                                                      : isMoving
-                                                                        ? "bg-white/60 border-retro-accent5 text-black/50 hover:bg-white hover:text-black"
-                                                                        : "bg-white border-black text-black/40 hover:border-black hover:text-black"
-                                                            }`}
                                                         >
                                                             {ACTION_LABEL[a]}
-                                                        </button>
+                                                        </Button>
                                                     ))}
 
                                                     {/* 이동 대상 분반 — 자동은 조합 탐색에 맡깁니다 */}
                                                     {isMoving && (
                                                         <>
-                                                            <span className="w-px h-5 bg-black/20 mx-0.5" />
-                                                            <button
+                                                            <Divider orientation="vertical" tone="soft" className="mx-0.5 h-5" />
+                                                            <Button grow={false}
+                                                                size="xs"
+                                                                accent="sky"
+                                                                variant="framelineMuted"
+                                                                selected={moveTarget === null}
                                                                 onClick={() =>
                                                                     setMoveTarget(
                                                                         sec.subject,
                                                                         null,
                                                                     )
                                                                 }
-                                                                className={`px-2 py-1 border-2 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
-                                                                    moveTarget === null
-                                                                        ? "bg-retro-accent5 text-black border-retro-accent5"
-                                                                        : "bg-white/60 border-retro-accent5 text-black/50 hover:bg-white hover:text-black"
-                                                                }`}
                                                             >
                                                                 자동
-                                                            </button>
+                                                            </Button>
                                                             {siblings
                                                                 .filter(
                                                                     (sib) =>
@@ -1055,8 +1092,12 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                                     const blocked =
                                                                         sibBlockers.length;
                                                                     return (
-                                                                        <button
+                                                                        <Button grow={false}
                                                                             key={sib.id}
+                                                                            size="xs"
+                                                                            accent={blocked ? "orange" : "sky"}
+                                                                            variant={blocked ? "plain" : "framelineMuted"}
+                                                                            selected={moveTarget === sib.id}
                                                                             onClick={() =>
                                                                                 setMoveTarget(
                                                                                     sec.subject,
@@ -1064,64 +1105,55 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                                                 )
                                                                             }
                                                                             title={`${sib.teacher} · ${formatSectionTimes(sib.times)} · ${sib.studentCount}명${blocked ? ` · 충돌: ${sibBlockers.map((b) => getKoreanName(b.subject)).join(", ")}` : " · 바로 이동 가능"}`}
-                                                                            className={`px-2 py-1 border-2 text-[10px] font-black transition-all duration-100 ${
-                                                                                moveTarget ===
-                                                                                sib.id
-                                                                                    ? blocked
-                                                                                        ? "bg-retro-accent4 text-black border-retro-accent4"
-                                                                                        : "bg-retro-accent5 text-black border-retro-accent5"
-                                                                                    : blocked
-                                                                                      ? "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4 hover:bg-retro-accent4/40"
-                                                                                      : "bg-white/60 border-retro-accent5 text-black/60 hover:bg-white hover:text-black"
-                                                                            }`}
                                                                         >
                                                                             {getSectionNumber(
                                                                                 sib.section,
                                                                             )}
-                                                                        </button>
+                                                                        </Button>
                                                                     );
                                                                 })}
-                                                            <span className="w-px h-5 bg-black/20 mx-0.5" />
+                                                            <Divider orientation="vertical" tone="soft" className="mx-0.5 h-5" />
                                                         </>
                                                     )}
 
-                                                    <button
+                                                    <Button grow={false}
+                                                        size="xs"
+                                                        accent={isOpen ? "black" : isMoving ? "sky" : undefined}
+                                                        variant={isDropped ? "outline" : "framelineMuted"}
+                                                        selected={isOpen}
+                                                        iconEnd={ChevronDown}
+                                                        aria-expanded={isOpen}
+                                                        aria-label="모든 분반 시간표 보기"
                                                         onClick={() =>
                                                             setOpenSubject(
                                                                 isOpen ? null : sec.subject,
                                                             )
                                                         }
                                                         title="모든 분반 시간표 보기"
-                                                        className={`p-1.5 border-2 transition-all duration-100 ${
-                                                            isOpen
-                                                                ? "bg-black text-white border-black"
-                                                                : isDropped
-                                                                  ? "bg-white/50 border-retro-primary text-retro-primary hover:bg-white/80"
-                                                                  : isMoving
-                                                                    ? "bg-white/60 border-retro-accent5 text-black/50 hover:bg-white hover:text-black"
-                                                                    : "bg-white border-black text-black/40 hover:border-black hover:text-black"
-                                                        }`}
-                                                    >
-                                                        <ChevronDown
-                                                            size={14}
-                                                            strokeWidth={2.5}
-                                                            className={`transition-transform duration-100 ${isOpen ? "rotate-180" : ""}`}
-                                                        />
-                                                    </button>
+                                                    />
                                                 </div>
                                             </div>
                                             {movedSection && (
-                                                <div className="border-t-2 border-black/10 p-3 flex flex-wrap items-center gap-2">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-black/40">
-                                                        구인 글
-                                                    </span>
-                                                    <code className="text-[10px] font-bold text-black/60 whitespace-pre-line leading-tight">
+                                                <Surface
+                                                    fill="none"
+                                                    border="subtle"
+                                                    borderSide="top"
+                                                    className="p-3 flex flex-wrap items-center gap-2"
+                                                >
+                                                    <Text variant="overline">구인 글</Text>
+                                                    <Text
+                                                        as="code"
+                                                        variant="micro"
+                                                        weight="bold"
+                                                        tone="secondary"
+                                                        className="whitespace-pre-line leading-tight"
+                                                    >
                                                         {buildTradePost(
                                                             sec.subject,
                                                             sec,
                                                             movedSection,
                                                         )}
-                                                    </code>
+                                                    </Text>
                                                     <CopyButton
                                                         className="ml-auto"
                                                         text={buildTradePost(
@@ -1130,14 +1162,19 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                             movedSection,
                                                         )}
                                                     />
-                                                </div>
+                                                </Surface>
                                             )}
                                             {isOpen && (
-                                                <div className="border-t-2 border-black/10 p-3 space-y-2">
-                                                    <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                                                <Surface
+                                                    fill="none"
+                                                    border="subtle"
+                                                    borderSide="top"
+                                                    className="p-3 space-y-2"
+                                                >
+                                                    <Text as="p" variant="overline">
                                                         {getKoreanName(sec.subject)} ·{" "}
                                                         {siblings.length}개 분반
-                                                    </p>
+                                                    </Text>
                                                     <SectionsTimetable
                                                         sections={siblings}
                                                         currentSectionId={sec.id}
@@ -1161,65 +1198,78 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                             const isCurrent =
                                                                 sib.id === sec.id;
                                                             return (
-                                                                <div
+                                                                <Paint
                                                                     key={sib.id}
-                                                                    className={`border-2 px-2 py-1 text-[10px] font-bold ${
+                                                                    accent={
                                                                         isCurrent
-                                                                            ? "bg-retro-accent1 border-black text-black"
-                                                                            : blockers.length ===
-                                                                                0
-                                                                              ? "bg-retro-green/20 border-black"
-                                                                              : "bg-retro-accent4/25 border-retro-accent4 text-retro-accent4"
-                                                                    }`}
+                                                                            ? "cyan"
+                                                                            : blockers.length === 0
+                                                                              ? "green"
+                                                                              : "orange"
+                                                                    }
+                                                                    variant={
+                                                                        isCurrent
+                                                                            ? "solid"
+                                                                            : blockers.length === 0
+                                                                              ? "solidMuted"
+                                                                              : "plain"
+                                                                    }
+                                                                    className="px-2 py-1"
                                                                 >
-                                                                    <span className="font-black">
-                                                                        {getSectionNumber(
-                                                                            sib.section,
-                                                                        )}
-                                                                        분반
-                                                                    </span>{" "}
-                                                                    {sib.teacher} ·{" "}
-                                                                    {sib.studentCount}명
-                                                                    {!isCurrent &&
-                                                                        blockers.length >
-                                                                            0 && (
-                                                                            <span className="block text-[9px]">
-                                                                                충돌:{" "}
-                                                                                {blockers
-                                                                                    .map((b) =>
-                                                                                        getKoreanName(
-                                                                                            b.subject,
-                                                                                        ),
-                                                                                    )
-                                                                                    .join(", ")}
-                                                                            </span>
-                                                                        )}
-                                                                    {!isCurrent &&
-                                                                        blockers.length ===
-                                                                            0 &&
-                                                                        (() => {
-                                                                            const n =
-                                                                                partnerCountBySection(
-                                                                                    sec,
-                                                                                    sib,
+                                                                    <Text variant="micro" weight="bold">
+                                                                        <Text as="span" variant="micro">
+                                                                            {getSectionNumber(
+                                                                                sib.section,
+                                                                            )}
+                                                                            분반
+                                                                        </Text>{" "}
+                                                                        {sib.teacher} ·{" "}
+                                                                        {sib.studentCount}명
+                                                                        {!isCurrent &&
+                                                                            blockers.length >
+                                                                                0 && (
+                                                                                <Text as="span" variant="micro" weight="bold" className="block">
+                                                                                    충돌:{" "}
+                                                                                    {blockers
+                                                                                        .map((b) =>
+                                                                                            getKoreanName(
+                                                                                                b.subject,
+                                                                                            ),
+                                                                                        )
+                                                                                        .join(", ")}
+                                                                                </Text>
+                                                                            )}
+                                                                        {!isCurrent &&
+                                                                            blockers.length ===
+                                                                                0 &&
+                                                                            (() => {
+                                                                                const n =
+                                                                                    partnerCountBySection(
+                                                                                        sec,
+                                                                                        sib,
+                                                                                    );
+                                                                                return (
+                                                                                    <Text
+                                                                                        as="span"
+                                                                                        variant="micro"
+                                                                                        weight="bold"
+                                                                                        tone={n > 0 ? "secondary" : "muted"}
+                                                                                        className="block"
+                                                                                    >
+                                                                                        {n > 0
+                                                                                            ? `교환 상대 ${n}명`
+                                                                                            : "교환 상대 없음"}
+                                                                                    </Text>
                                                                                 );
-                                                                            return (
-                                                                                <span
-                                                                                    className={`block text-[9px] ${n > 0 ? "text-black/60" : "text-black/35"}`}
-                                                                                >
-                                                                                    {n > 0
-                                                                                        ? `교환 상대 ${n}명`
-                                                                                        : "교환 상대 없음"}
-                                                                                </span>
-                                                                            );
-                                                                        })()}
-                                                                </div>
+                                                                            })()}
+                                                                    </Text>
+                                                                </Paint>
                                                             );
                                                         })}
                                                     </div>
-                                                </div>
+                                                </Surface>
                                             )}
-                                        </RetroCard>
+                                        </Frame>
                                     );
                                 })}
 
@@ -1228,49 +1278,41 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
 
                         {openedByDrop.length > 0 && (
                             <div className="space-y-3">
-                                <RetroSubTitle title="You Can Add" icon={Plus} />
-                                <p className="text-[10px] font-bold text-black/40">
+                                <SectionTitle title="You Can Add" icon={Plus} />
+                                <Text as="p" variant="micro" weight="bold" tone="muted">
                                     드랍으로 비는 시간에 새로 들어갈 수 있는 과목입니다.
                                     이미 들었거나 선수를 안 채운 과목은 빼 뒀습니다 —
                                     그런 과목은 아래 검색으로 찾을 수 있습니다.
-                                </p>
+                                </Text>
                                 <div className="flex flex-wrap gap-1.5">
                                     {openedByDrop.map(({ subject, sections }) => (
-                                        <button
+                                        <Button
                                             key={subject}
+                                            size="xs"
+                                            accent={addedSubjects.includes(subject) ? "black" : "green"}
+                                            variant="solidMuted"
+                                            shadow="hover"
+                                            selected={addedSubjects.includes(subject)}
+                                            uppercase={false}
                                             onClick={() => toggleAddSubject(subject)}
-                                            className={`border-2 px-2 py-1 text-[11px] font-bold text-left transition-all duration-100 ${
-                                                addedSubjects.includes(subject)
-                                                    ? "bg-black text-white border-black"
-                                                    : "bg-retro-green/20 border-black hover:shadow-[2px_2px_0_0_rgba(0,0,0,0.2)]"
-                                            }`}
                                         >
-                                            <span className="font-black">
-                                                {getKoreanName(subject)}
-                                            </span>
-                                            <span
-                                                className={
-                                                    addedSubjects.includes(subject)
-                                                        ? "text-white/60"
-                                                        : "text-black/50"
-                                                }
-                                            >
+                                            <span>{getKoreanName(subject)}</span>
+                                            <span className="opacity-60">
                                                 {" "}
                                                 · {sections.length}개 분반
                                             </span>
-                                        </button>
+                                        </Button>
                                     ))}
                                 </div>
                             </div>
                         )}
 
                         <div className="space-y-3">
-                            <RetroSubTitle title="Add Subjects" icon={Plus} />
-                            <input
+                            <SectionTitle title="Add Subjects" icon={Plus} />
+                            <Input
                                 value={addQuery}
                                 onChange={(e) => setAddQuery(e.target.value)}
                                 placeholder="추가로 듣고 싶은 과목 검색 (예: 정3)"
-                                className="w-full border-2 border-black px-4 py-3 text-sm font-bold outline-none focus:shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-all duration-100"
                             />
                             {addMatches.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
@@ -1281,48 +1323,31 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                         // 있지만 눈에 덜 띄게 눕혀 둡니다
                                         const dim = state !== "open";
                                         return (
-                                            <button
+                                            <Button grow={false}
                                                 key={subject}
+                                                size="xs"
+                                                variant={dim ? "muted" : "paper"}
+                                                selected={picked}
+                                                uppercase={false}
                                                 onClick={() => toggleAddSubject(subject)}
                                                 title={ADDABILITY_LABEL[state] || undefined}
-                                                className={`border-2 px-2 py-1 text-[11px] font-bold transition-all duration-100 ${
-                                                    picked
-                                                        ? "bg-black text-white border-black"
-                                                        : dim
-                                                          ? "border-black/20 bg-black/[0.03] text-black/40"
-                                                          : "bg-white border-black hover:border-black"
-                                                }`}
                                             >
-                                                <span className="font-black">
-                                                    {getKoreanName(subject)}
-                                                </span>
+                                                <span>{getKoreanName(subject)}</span>
                                                 {dim ? (
-                                                    <span
-                                                        className={
-                                                            picked
-                                                                ? "text-white/60"
-                                                                : "text-black/30"
-                                                        }
-                                                    >
+                                                    <span className="opacity-60">
                                                         {" "}
                                                         · {ADDABILITY_LABEL[state]}
                                                     </span>
                                                 ) : (
                                                     summary && (
-                                                        <span
-                                                            className={
-                                                                picked
-                                                                    ? "text-white/60"
-                                                                    : "text-black/40"
-                                                            }
-                                                        >
+                                                        <span className="opacity-60">
                                                             {" "}
                                                             · 바로가능 {summary.free}/
                                                             {summary.total}
                                                         </span>
                                                     )
                                                 )}
-                                            </button>
+                                            </Button>
                                         );
                                     })}
                                 </div>
@@ -1333,32 +1358,34 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                     {/* 선택한 조합의 교환 상대 */}
                     {partnersForPreview.length > 0 && (
                         <div className="lg:col-span-12 space-y-3">
-                            <RetroSubTitle title="Trade Partners" icon={Users} />
-                            <p className="text-[10px] font-bold text-black/40">
+                            <SectionTitle title="Trade Partners" icon={Users} />
+                            <Text as="p" variant="micro" weight="bold" tone="muted">
                                 선택한 조합에서 분반을 맞바꿀 수 있는 사람입니다. 상대가 그
                                 분반을 듣고 있고, 내 자리로 옮겨도 상대 시간표가 깨지지
                                 않는 경우만 나옵니다.
-                            </p>
+                            </Text>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {partnersForPreview.map(
                                     ({ subject, from, to, partners }) => (
-                                        <RetroCard
-                                            key={subject}
-                                            shadow="sm"
-                                            className="bg-white"
-                                        >
+                                        <Card key={subject} padding="0">
                                             <div className="p-3 space-y-2">
                                                 <div>
-                                                    <p className="font-black text-sm truncate">
+                                                    <Text as="p" weight="black" truncate>
                                                         {getKoreanName(subject)}
-                                                    </p>
-                                                    <p className="flex items-center gap-1 text-[11px] font-bold text-black/50">
+                                                    </Text>
+                                                    <Text
+                                                        as="p"
+                                                        variant="label"
+                                                        weight="bold"
+                                                        tone="muted"
+                                                        className="flex items-center gap-1"
+                                                    >
                                                         {getSectionNumber(from.section)}
                                                         분반
-                                                        <ArrowRight size={10} />
+                                                        <Icon icon={ArrowRight} size={10} />
                                                         {getSectionNumber(to.section)}분반
                                                         · {to.teacher}
-                                                    </p>
+                                                    </Text>
                                                     <CopyButton
                                                         label="구인 글 복사"
                                                         className="mt-2"
@@ -1370,39 +1397,31 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                     />
                                                 </div>
                                                 {partners.length === 0 ? (
-                                                    <p className="text-[11px] font-bold text-black/40 border-t-2 border-black/10 pt-2">
-                                                        맞바꿀 상대가 없습니다. 빈자리가
-                                                        나기를 노려야 합니다.
-                                                    </p>
+                                                    <Surface fill="none" border="subtle" borderSide="top" className="pt-2">
+                                                        <Text as="p" variant="label" weight="bold" tone="muted">
+                                                            맞바꿀 상대가 없습니다. 빈자리가
+                                                            나기를 노려야 합니다.
+                                                        </Text>
+                                                    </Surface>
                                                 ) : (
-                                                    <div className="border-t-2 border-black/10 pt-2 space-y-1.5">
-                                                        <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                                                    <Surface fill="none" border="subtle" borderSide="top" className="pt-2 space-y-1.5">
+                                                        <Text as="p" variant="overline">
                                                             {partners.length}명
-                                                        </p>
+                                                        </Text>
                                                         <div className="flex flex-wrap gap-1.5">
                                                             {partners.map((p) => (
-                                                                <span
+                                                                <StudentBadge
+                                                                    fullId
                                                                     key={p.stuId}
-                                                                    className="border-2 px-2 py-1 text-[11px] font-black italic"
-                                                                    style={{
-                                                                        backgroundColor: `${getStudentColor(p.stuId)}15`,
-                                                                        borderColor:
-                                                                            getStudentColor(
-                                                                                p.stuId,
-                                                                            ),
-                                                                        color: getStudentColor(
-                                                                            p.stuId,
-                                                                        ),
-                                                                    }}
-                                                                >
-                                                                    {p.stuId} {p.name}
-                                                                </span>
+                                                                    studentId={p.stuId}
+                                                                    studentName={p.name}
+                                                                />
                                                             ))}
                                                         </div>
-                                                    </div>
+                                                    </Surface>
                                                 )}
                                             </div>
-                                        </RetroCard>
+                                        </Card>
                                     ),
                                 )}
                             </div>
@@ -1412,33 +1431,34 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                     {/* 결과 */}
                     <div className="lg:col-span-12 space-y-3">
                         <div className="flex items-center justify-between gap-2">
-                            <RetroSubTitle title="Possible Plans" icon={ArrowLeftRight} />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-black/40">
+                            <SectionTitle title="Possible Plans" icon={ArrowLeftRight} />
+                            <Text variant="overline">
                                 {plans.length}
                                 {truncated ? `+ (상위 ${MAX_PLAN_RESULTS})` : ""} 개
-                            </span>
+                            </Text>
                         </div>
 
                         {plans.length === 0 ? (
-                            <RetroCard className="bg-white p-6">
+                            <Card padding="0" className="p-6">
                                 <div className="flex items-start gap-3">
-                                    <TriangleAlert
+                                    <Icon
+                                        icon={TriangleAlert}
                                         size={18}
-                                        strokeWidth={2.5}
-                                        className="text-black/40 shrink-0 mt-0.5"
+                                        tone="muted"
+                                        className="shrink-0 mt-0.5"
                                     />
                                     <div className="space-y-1">
-                                        <p className="font-black text-sm">
+                                        <Text as="p" weight="black">
                                             가능한 조합이 없습니다
-                                        </p>
-                                        <p className="text-xs font-bold text-black/40">
+                                        </Text>
+                                        <Text as="p" variant="caption" tone="muted">
                                             과목을 <b>이동</b>이나 <b>드랍</b>으로 표시하면
                                             탐색 범위가 넓어집니다. 추가하려는 과목이 있다면
                                             위에서 충돌하는 과목을 확인해보세요.
-                                        </p>
+                                        </Text>
                                     </div>
                                 </div>
-                            </RetroCard>
+                            </Card>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                                 {plans.map((plan, i) => {
@@ -1446,112 +1466,110 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                         plan.key === previewKey ||
                                         (isAutoPreview && plan.key === previewPlan?.key);
                                     return (
-                                        <RetroCard
+                                        <Card
                                             key={plan.key}
-                                            shadow="sm"
-                                            className={`bg-white transition-all duration-100 ${active ? "border-black" : "border-black"}`}
+                                            motion="sink"
+                                            padding="0"
+                                            onClick={() =>
+                                                setPreviewKey(active ? null : plan.key)
+                                            }
+                                            className="w-full text-left p-3 space-y-2"
                                         >
-                                            <button
-                                                onClick={() =>
-                                                    setPreviewKey(active ? null : plan.key)
-                                                }
-                                                className="w-full text-left p-3 space-y-2"
-                                            >
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-black/40">
-                                                        Plan {i + 1}
-                                                        {(() => {
-                                                            const after = totalCredits(
-                                                                applyPlan(schedule, plan),
-                                                            );
-                                                            const diff =
-                                                                after - creditSummary.now;
-                                                            return (
-                                                                <span className="ml-1.5 text-black/60">
-                                                                    {after}학점
-                                                                    {diff !== 0 &&
-                                                                        ` (${diff > 0 ? "+" : ""}${diff})`}
-                                                                </span>
-                                                            );
-                                                        })()}
-                                                    </span>
-                                                    <span className="flex items-center gap-1 text-[10px] font-black">
-                                                        {plan.moveCount > 0 && (
-                                                            <span className="border border-black px-1">
-                                                                이동 {plan.moveCount}
-                                                            </span>
-                                                        )}
-                                                        {plan.dropCount > 0 && (
-                                                            <span className="border border-black px-1">
-                                                                드랍 {plan.dropCount}
-                                                            </span>
-                                                        )}
-                                                        {plan.addCount > 0 && (
-                                                            <span className="border border-black px-1 bg-retro-green/30">
-                                                                추가 {plan.addCount}
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    {plan.choices.map((c) => (
-                                                        <div
-                                                            key={c.subject}
-                                                            className="text-[11px] font-bold leading-tight"
-                                                        >
-                                                            <p className="font-black truncate">
-                                                                {getKoreanName(c.subject)}
-                                                            </p>
-                                                            <p className="flex items-center gap-1 text-black/50">
-                                                                {c.from ? (
-                                                                    <span>
-                                                                        {getSectionNumber(
-                                                                            c.from.section,
-                                                                        )}
-                                                                        분반
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="text-black/40">
-                                                                        신규
-                                                                    </span>
-                                                                )}
-                                                                <ArrowRight size={10} />
-                                                                {c.to ? (
-                                                                    <span className="text-black">
-                                                                        {getSectionNumber(
-                                                                            c.to.section,
-                                                                        )}
-                                                                        분반 ·{" "}
-                                                                        {formatSectionTimes(
-                                                                            c.to.times,
-                                                                        )}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="text-black">
-                                                                        드랍
-                                                                    </span>
-                                                                )}
-                                                            </p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <div className="flex items-center gap-1 pt-1 text-[10px] font-black uppercase tracking-widest text-black/40">
-                                                    {active ? (
-                                                        <>
-                                                            <Check
-                                                                size={12}
-                                                                strokeWidth={3}
-                                                            />
-                                                            {isAutoPreview
-                                                                ? "Auto"
-                                                                : "Previewing"}
-                                                        </>
-                                                    ) : (
-                                                        "Click to preview"
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Text as="span" variant="overline">
+                                                    Plan {i + 1}
+                                                    {(() => {
+                                                        const after = totalCredits(
+                                                            applyPlan(schedule, plan),
+                                                        );
+                                                        const diff =
+                                                            after - creditSummary.now;
+                                                        return (
+                                                            <Text as="span" variant="overline" tone="secondary" className="ml-1.5">
+                                                                {after}학점
+                                                                {diff !== 0 &&
+                                                                    ` (${diff > 0 ? "+" : ""}${diff})`}
+                                                            </Text>
+                                                        );
+                                                    })()}
+                                                </Text>
+                                                <span className="flex items-center gap-1">
+                                                    {plan.moveCount > 0 && (
+                                                        <Badge size="sm" variant="frameline">
+                                                            이동 {plan.moveCount}
+                                                        </Badge>
                                                     )}
-                                                </div>
-                                            </button>
-                                        </RetroCard>
+                                                    {plan.dropCount > 0 && (
+                                                        <Badge size="sm" variant="frameline">
+                                                            드랍 {plan.dropCount}
+                                                        </Badge>
+                                                    )}
+                                                    {plan.addCount > 0 && (
+                                                        <Badge size="sm" accent="green" variant="solidMuted">
+                                                            추가 {plan.addCount}
+                                                        </Badge>
+                                                    )}
+                                                </span>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                {plan.choices.map((c) => (
+                                                    <div
+                                                        key={c.subject}
+                                                        className="leading-tight"
+                                                    >
+                                                        <Text as="p" variant="label" truncate>
+                                                            {getKoreanName(c.subject)}
+                                                        </Text>
+                                                        <Text
+                                                            as="p"
+                                                            variant="label"
+                                                            weight="bold"
+                                                            tone="muted"
+                                                            className="flex items-center gap-1"
+                                                        >
+                                                            {c.from ? (
+                                                                <span>
+                                                                    {getSectionNumber(
+                                                                        c.from.section,
+                                                                    )}
+                                                                    분반
+                                                                </span>
+                                                            ) : (
+                                                                <span>신규</span>
+                                                            )}
+                                                            <Icon icon={ArrowRight} size={10} />
+                                                            {c.to ? (
+                                                                <Text as="span" variant="label" weight="bold" tone="primary">
+                                                                    {getSectionNumber(
+                                                                        c.to.section,
+                                                                    )}
+                                                                    분반 ·{" "}
+                                                                    {formatSectionTimes(
+                                                                        c.to.times,
+                                                                    )}
+                                                                </Text>
+                                                            ) : (
+                                                                <Text as="span" variant="label" weight="bold" tone="primary">
+                                                                    드랍
+                                                                </Text>
+                                                            )}
+                                                        </Text>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <Text as="div" variant="overline" className="flex items-center gap-1 pt-1">
+                                                {active ? (
+                                                    <>
+                                                        <Icon icon={Check} size={12} strokeWidth={3} />
+                                                        {isAutoPreview
+                                                            ? "Auto"
+                                                            : "Previewing"}
+                                                    </>
+                                                ) : (
+                                                    "Click to preview"
+                                                )}
+                                            </Text>
+                                        </Card>
                                     );
                                 })}
                             </div>

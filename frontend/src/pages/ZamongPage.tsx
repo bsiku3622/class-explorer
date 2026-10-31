@@ -51,12 +51,23 @@ import {
     type ZamongMap,
 } from "../lib/zamong";
 import { getStudentColor } from "../lib/utils";
-import RetroButton from "../components/atoms/RetroButton";
-import RetroCard from "../components/atoms/RetroCard";
-import PageHeader from "../components/molecules/PageHeader";
 import CourseBoard from "../components/zamong/CourseBoard";
 import Roadmap from "../components/zamong/Roadmap";
 import TermPanel from "../components/zamong/TermPanel";
+import {
+    Button,
+    Card,
+    Input,
+    IconButton,
+    Notice,
+    PageHeader,
+    Paint,
+    Surface,
+    Text,
+    ToneBox,
+    ToneSwatch,
+    ToneText,
+} from "@studio-baeks/funky-ui";
 
 interface ZamongPageProps {
     stuId: string | null;
@@ -65,10 +76,10 @@ interface ZamongPageProps {
 
 /** 상세의 관계 한 줄 — 라벨 폭이 같아야 "선수 / 후수" 가 한 열로 읽힙니다 */
 const Relation: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-    <p className="flex gap-2 text-[12px] font-bold text-black/60">
-        <span className="w-14 shrink-0 font-black text-black/35">{label}</span>
+    <Text as="p" variant="caption" tone="secondary" className="flex gap-2">
+        <Text variant="caption" weight="black" tone="muted" className="w-14 shrink-0">{label}</Text>
         <span className="min-w-0">{value}</span>
-    </p>
+    </Text>
 );
 
 const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
@@ -411,9 +422,9 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
         return (
             <div className="flex flex-col gap-6 pb-20">
                 <PageHeader title="Zamong" subtitle="Curriculum Progress" icon={GraduationCap} />
-                <RetroCard className="bg-white p-8 text-center">
-                    <p className="font-black uppercase tracking-widest text-black/40">{loadError}</p>
-                </RetroCard>
+                <Card padding="0" className="p-8 text-center">
+                    <Text as="p" variant="subheading" tone="muted" className="uppercase tracking-widest">{loadError}</Text>
+                </Card>
             </div>
         );
     }
@@ -429,58 +440,54 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                 icon={GraduationCap}
                 action={
                     stuId && (
-                        <span
-                            className="border-2 px-2 py-1 text-xs font-black italic"
-                            style={{
-                                backgroundColor: `${studentColor}15`,
-                                borderColor: studentColor,
-                                color: studentColor,
-                            }}
-                        >
-                            {stuId} {studentName}
-                        </span>
+                        <ToneBox as="span" tone={studentColor} className="px-2 py-1">
+                            <ToneText tone={studentColor} variant="caption" weight="black" className="italic">
+                                {stuId} {studentName}
+                            </ToneText>
+                        </ToneBox>
                     )
                 }
             />
 
             {!curriculum ? (
-                <RetroCard className="bg-white p-8 text-center">
-                    <p className="animate-pulse font-black uppercase tracking-widest text-black/30">
+                <Card padding="0" className="p-8 text-center">
+                    <Text as="p" variant="subheading" tone="faint" pulse className="uppercase tracking-widest">
                         Loading curriculum...
-                    </p>
-                </RetroCard>
+                    </Text>
+                </Card>
             ) : !stuId ? (
-                <RetroCard className="space-y-3 bg-white p-8 text-center">
-                    <p className="font-black uppercase tracking-widest text-black/40">
+                <Card padding="0" className="space-y-3 p-8 text-center">
+                    <Text as="p" variant="subheading" tone="muted" className="uppercase tracking-widest">
                         학번을 확인하지 못했습니다
-                    </p>
-                    <p className="text-xs font-bold text-black/40">
+                    </Text>
+                    <Text as="p" variant="caption" tone="muted">
                         학교 구글 계정으로 다시 들어와주세요. 로그아웃 후 다시 로그인하면
                         학번이 자동으로 확인됩니다.
-                    </p>
-                </RetroCard>
+                    </Text>
+                </Card>
             ) : (
                 <>
                     {/* 불러오기가 실패하면 저장도 막혀 있습니다. 그 사실을 안 알려 주면
                         한참 채워 넣고 새로고침했다가 통째로 잃습니다 */}
                     {loadFailed && (
-                        <RetroCard shadow="sm" className="bg-retro-primary/15">
-                            <div className="flex flex-wrap items-center gap-3 p-3">
-                                <TriangleAlert size={16} strokeWidth={2.5} className="shrink-0" />
-                                <p className="min-w-0 flex-1 text-[12px] font-bold leading-relaxed">
-                                    기록을 불러오지 못했습니다. <b>지금 고치는 것은 저장되지
-                                    않습니다</b> — 새로고침해서 다시 불러와주세요.
-                                </p>
-                                <RetroButton size="sm" onClick={() => window.location.reload()}>
+                        <Notice
+                            icon={TriangleAlert}
+                            role="alert"
+                            action={
+                                <Button size="sm" variant="paper" shadow onClick={() => window.location.reload()}>
                                     새로고침
-                                </RetroButton>
-                            </div>
-                        </RetroCard>
+                                </Button>
+                            }
+                        >
+                            기록을 불러오지 못했습니다. <b>지금 고치는 것은 저장되지
+                            않습니다</b> — 새로고침해서 다시 불러와주세요.
+                        </Notice>
                     )}
 
                     {/* 엑셀은 늘 올릴 수 있어야 합니다 — 배너는 한 번 지나가면 다시
                         안 뜨는데, 워크북은 나중에도 갱신할 일이 있습니다 */}
-                    <input
+                    <Input
+                        bare
                         ref={fileRef}
                         type="file"
                         accept=".xlsx"
@@ -493,11 +500,11 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
 
                     {/* 첫 설정 배너 — 자몽이 완전히 비어 있는 사람에게 딱 한 번 */}
                     {!seeded && (
-                        <RetroCard shadow="sm" className="bg-retro-accent-light">
+                        <Paint accent="cyan" variant="solidMuted" shadow>
                             <div className="flex flex-wrap items-center gap-3 p-4">
                                 <div className="min-w-0 flex-1 basis-64">
-                                    <p className="text-sm font-black">자몽을 채워 둘까요?</p>
-                                    <p className="mt-1 text-[11px] font-bold leading-relaxed text-black/55">
+                                    <Text as="p" weight="black">자몽을 채워 둘까요?</Text>
+                                    <Text as="p" variant="label" weight="bold" tone="secondary" leading="relaxed" className="mt-1">
                                         쓰던 <b>Zamong 엑셀</b>이 있으면 그대로 올리세요 —
                                         학기·평어·EC 를 전부 읽어 옵니다.
                                         {seedCount > 0 && (
@@ -506,60 +513,57 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                                                 없으면 수집된 수강 내역
                                                 {` ${seedCount}과목`}으로 밑칠할 수 있습니다.
                                                 <br />
-                                                <span className="text-retro-accent4">
+                                                <Text variant="label" weight="bold" tone="orange">
                                                     단, 재수강한 과목은 한 칸뿐이라 나중 학기로
                                                     들어갑니다 — 그 부분은 직접 확인해주세요.
-                                                </span>
+                                                </Text>
                                             </>
                                         )}
-                                    </p>
+                                    </Text>
                                 </div>
                                 <div className="flex shrink-0 items-center gap-2">
-                                    <RetroButton
+                                    <Button
                                         size="sm"
-                                        variant="primary"
+                                        accent="pink"
+                                        variant="solid"
+                                        shadow
+                                        icon={Upload}
                                         disabled={uploading}
                                         onClick={() => fileRef.current?.click()}
                                     >
-                                        <span className="flex items-center gap-1.5">
-                                            <Upload size={13} strokeWidth={2.5} />
-                                            {uploading ? "읽는 중…" : "엑셀 올리기"}
-                                        </span>
-                                    </RetroButton>
+                                        {uploading ? "읽는 중…" : "엑셀 올리기"}
+                                    </Button>
                                     {seedCount > 0 && (
-                                        <RetroButton size="sm" onClick={applySeed}>
+                                        <Button size="sm" variant="paper" shadow onClick={applySeed}>
                                             수강 내역으로
-                                        </RetroButton>
+                                        </Button>
                                     )}
-                                    <button
-                                        type="button"
+                                    <IconButton
+                                        icon={X}
+                                        label="직접 채우기"
+                                        variant="hairline"
+                                        size="sm"
                                         onClick={() => {
                                             setSeeded(true);
                                             setSeedSource([]);
                                         }}
-                                        aria-label="직접 채우기"
-                                        title="직접 채우기"
-                                        className="flex h-8 w-8 items-center justify-center border-2 border-black/25 bg-white transition-colors duration-100 hover:border-black"
-                                    >
-                                        <X size={14} strokeWidth={2.5} />
-                                    </button>
+                                    />
                                 </div>
                             </div>
-                        </RetroCard>
+                        </Paint>
                     )}
 
                     {uploadNote && (
-                        <p className="flex items-center gap-2 border-2 border-black bg-white px-3 py-1.5 text-[11px] font-bold shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]">
-                            {uploadNote}
-                            <button
-                                type="button"
+                        <Surface border="line" shadow="raised" className="flex items-center gap-2 px-3 py-1.5">
+                            <Text variant="label" weight="bold">{uploadNote}</Text>
+                            <IconButton
+                                icon={X}
+                                label="닫기"
+                                size="xs"
                                 onClick={() => setUploadNote(null)}
-                                aria-label="닫기"
-                                className="ml-auto shrink-0 text-black/40 hover:text-black"
-                            >
-                                <X size={13} strokeWidth={2.5} />
-                            </button>
-                        </p>
+                                className="ml-auto shrink-0"
+                            />
+                        </Surface>
                     )}
 
                     {/* 로드맵은 **고정**입니다 — 학과를 옮겨 다녀도 내가 어디쯤인지는
@@ -587,27 +591,34 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                     )}
 
                     {summary.unscheduled.length > 0 && (
-                        <button
-                            type="button"
+                        <Button
+                            accent="orange"
+                            variant="plain"
+                            shadow
+                            size="sm"
+                            wrap
+                            uppercase={false}
+                            icon={TriangleAlert}
                             onClick={jumpToUnscheduled}
-                            className="flex items-center gap-2 self-start border-2 border-retro-accent4 bg-retro-accent4/10 px-3 py-1.5 text-[11px] font-bold shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-1 hover:translate-y-1 hover:shadow-[0_0_0_0_rgba(0,0,0,0.2)]"
+                            className="self-start"
                         >
-                            <TriangleAlert size={13} strokeWidth={2.5} />
                             학기를 안 고른 과목 {summary.unscheduled.length}개는 학점에서 빠져
                             있습니다 — 눌러서 채우기
-                        </button>
+                        </Button>
                     )}
 
                     {/* 학과 고르기 — 워크북의 시트 탭입니다 */}
-                    {/* Browse 의 모드 탭과 **같은 모양**입니다 — `RetroButton size="sm"` 를
+                    {/* Browse 의 모드 탭과 **같은 모양**입니다 — `Button size="sm"` 를
                         그대로 쓰고 간격도 `gap-3`. 한때 여기만 크기와 간격을 손으로 키워
                         놨는데, 같은 일을 하는 버튼이 화면마다 다르면 눈이 매번 다시 잽니다 */}
                     <div className="flex flex-wrap items-center gap-3">
                         {departments.map((name) => (
-                            <RetroButton
+                            <Button
                                 key={name}
                                 size="sm"
-                                isSelected={department === name}
+                                variant="paper"
+                                shadow
+                                selected={department === name}
                                 onClick={() => {
                                     // 붙잡아 둔 과목은 이 판에 없습니다 — 같이 놓습니다
                                     setDepartment(name);
@@ -615,41 +626,48 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                                 }}
                             >
                                 {name}
-                            </RetroButton>
+                            </Button>
                         ))}
-                        <RetroButton
+                        <Button
                             size="sm"
+                            variant="paper"
+                            shadow
                             className="ml-auto"
                             disabled={uploading}
                             onClick={() => fileRef.current?.click()}
                             title="채워 둔 Zamong 엑셀을 올려 통째로 바꿉니다"
-                            icon={<FileUp size={14} strokeWidth={2.5} />}
+                            icon={FileUp}
                         >
                             {uploading ? "읽는 중…" : "엑셀"}
-                        </RetroButton>
+                        </Button>
                     </div>
 
-                    <RetroCard className="space-y-4 bg-white p-4 md:p-6">
+                    <Card padding="0" className="space-y-4 p-4 md:p-6">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="min-w-0 space-y-1">
-                                    <p className="text-base font-black uppercase tracking-widest">
+                                    <Text as="p" variant="subheading" className="uppercase tracking-widest">
                                         {department}
-                                        <span className="ml-2 text-[12px] text-black/35">
+                                        <Text variant="label" tone="muted" className="ml-2">
                                             {CATEGORY_LABEL[activeDepartment?.category ?? "natural"]}
-                                        </span>
-                                    </p>
+                                        </Text>
+                                    </Text>
                                     {activeDepartment?.track && (
-                                        <p className="text-[13px] font-bold text-black/55">
-                                            <span className="mr-1.5 border-2 border-black/20 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-widest">
-                                                트랙
-                                            </span>
+                                        <Text as="p" tone="secondary">
+                                            <Surface as="span" fill="none" border="soft" className="mr-1.5 px-1.5 py-0.5">
+                                                <Text variant="label" className="uppercase tracking-widest">
+                                                    트랙
+                                                </Text>
+                                            </Surface>
                                             {activeDepartment.track}
-                                        </p>
+                                        </Text>
                                     )}
                                     {(activeDepartment?.notes ?? []).map((note) => (
-                                        <p
+                                        <Text
+                                            as="p"
                                             key={note}
-                                            className="flex items-start gap-1.5 text-[12px] font-bold text-black/45"
+                                            variant="caption"
+                                            tone="muted"
+                                            className="flex items-start gap-1.5"
                                         >
                                             <Info
                                                 size={14}
@@ -657,28 +675,25 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                                                 className="mt-px shrink-0"
                                             />
                                             {note}
-                                        </p>
+                                        </Text>
                                     ))}
                                 </div>
 
-                                <div className="flex flex-wrap items-center gap-3 text-[12px] font-bold">
+                                <Text variant="caption" className="flex flex-wrap items-center gap-3">
                                     {TIER_ORDER.map((tier) => (
                                         <span key={tier} className="flex items-center gap-1">
                                             {/* 색이 옅어서 테두리가 없으면 안 보입니다 */}
-                                            <span
-                                                className="h-4 w-4 border-2 border-black/30"
-                                                style={{ backgroundColor: TIER_COLOR[tier] }}
-                                            />
+                                            <ToneSwatch tone={TIER_COLOR[tier]} />
                                             {TIER_LABEL[tier]}
                                         </span>
                                     ))}
                                     <span className="flex items-center gap-1">
-                                        <span className="underline decoration-2 underline-offset-2">
+                                        <Text variant="caption" decoration="underline" className="underline-offset-2">
                                             밑줄
-                                        </span>
+                                        </Text>
                                         트랙필수
                                     </span>
-                                </div>
+                                </Text>
                             </div>
 
                             <CourseBoard
@@ -695,21 +710,21 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                             />
 
                             {focusedCourse ? (
-                                <div className="space-y-1.5 border-2 border-black bg-retro-accent-light p-4">
+                                <Paint accent="cyan" variant="solidMuted" className="space-y-1.5 p-4">
                                     <div className="flex flex-wrap items-baseline gap-2">
-                                        <span className="text-base font-black">
+                                        <Text variant="subheading">
                                             {focusedCourse.name}
-                                        </span>
+                                        </Text>
                                         {focusedCourse.english_name && (
-                                            <span className="text-[12px] font-bold text-black/40">
+                                            <Text variant="caption" tone="muted">
                                                 {focusedCourse.english_name}
-                                            </span>
+                                            </Text>
                                         )}
-                                        <span className="text-[12px] font-bold text-black/60">
+                                        <Text variant="caption" tone="secondary">
                                             {focusedCourse.credits}학점
                                             {focusedCourse.recommended_semester &&
                                                 ` · 권장 ${focusedCourse.recommended_semester}학기`}
-                                        </span>
+                                        </Text>
                                     </div>
                                     {(() => {
                                         const edges = prereqIndex.get(focusedCourse.name) ?? [];
@@ -735,18 +750,18 @@ const ZamongPage: React.FC<ZamongPageProps> = ({ stuId, studentName }) => {
                                         );
                                     })()}
                                     {focusedCourse.description && (
-                                        <p className="pt-1 text-[13px] font-medium leading-relaxed text-black/70">
+                                        <Text as="p" weight="medium" tone="secondary" leading="relaxed" className="pt-1">
                                             {focusedCourse.description}
-                                        </p>
+                                        </Text>
                                     )}
-                                </div>
+                                </Paint>
                             ) : (
-                                <p className="text-[12px] font-bold text-black/40">
+                                <Text as="p" variant="caption" tone="muted">
                                     카드의 학기 칸을 채우면 이수로 잡힙니다. 과목을 누르면 그
                                     과목과 이어진 선수관계만 남고, 상세가 여기 열립니다.
-                                </p>
+                                </Text>
                             )}
-                    </RetroCard>
+                    </Card>
                 </>
             )}
         </div>

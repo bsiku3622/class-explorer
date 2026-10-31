@@ -41,9 +41,10 @@
 
 ## 자주 밟는 것
 
-`RetroButton` 의 `variant="white"` 는 **면만 칠하고 글자색은 물려받습니다.** 마지막 CTA
-구역은 `text-white` 라서 흰 버튼에 흰 글자가 나왔습니다. 어두운 바탕 위에 흰 버튼을 둘
-때는 `className="text-black"` 을 같이 주세요.
+마지막 CTA 띠(`Paint accent="purple" variant="filled"`)와 바닥글(`Surface fill="inverse"`)은 글자가
+흰색입니다. 그 위의 흰 버튼은 `Button variant="paper"` 로 두면 자기 글자색(검정)을 가집니다.
+어두운 면 위의 네온 글자(`이렇게 만들었습니다` · `01~03` · `됩니다.`)는 `Text tone` 의 진한 칸이
+안 읽혀서 `ACCENT_COLORS.*.solid` 값을 `style={{ color }}` 로 직접 줍니다.
 
 ## 곁딸린 파일
 `index.html` 의 `description`·`og:*` 와 `public/robots.txt`·`public/sitemap.xml` 이 이

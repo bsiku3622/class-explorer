@@ -13,8 +13,21 @@ import {
     ArrowLeftRight,
     BarChart3,
 } from "lucide-react";
-import RetroCard from "../components/atoms/RetroCard";
-import RetroButton from "../components/atoms/RetroButton";
+import {
+    Badge,
+    Button,
+    Card,
+    Icon,
+    Link,
+    NavButton,
+    Paint,
+    Surface,
+    Text,
+    Wordmark,
+    type Accent,
+    type Tone,
+} from "@studio-baeks/funky-ui";
+import { ACCENT_COLORS } from "@studio-baeks/funky-ui/tokens";
 
 /**
  * 로그인하지 않은 사람이 보는 **공개 소개 화면**.
@@ -31,69 +44,80 @@ import RetroButton from "../components/atoms/RetroButton";
 
 /* ── 반복해서 쓰는 조각들 ─────────────────────────────────────────────── */
 
-const Kicker: React.FC<{ children: React.ReactNode; tone?: string }> = ({
-    children,
-    tone = "text-black/40",
-}) => (
-    <span className={`text-[11px] font-black uppercase tracking-[0.2em] ${tone}`}>
+const Kicker: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color }) => (
+    // 어두운 면 위의 네온 글자는 tone 의 진한 칸이 안 읽혀서 `color` 로 값을 직접 줍니다
+    <Text variant="overline" style={color ? { color } : undefined}>
         {children}
-    </span>
+    </Text>
 );
 
 const Section: React.FC<{
     children: React.ReactNode;
-    className?: string;
+    raised?: boolean;
     id?: string;
-}> = ({ children, className = "", id }) => (
-    <section id={id} className={`px-5 py-16 md:px-8 md:py-24 ${className}`}>
+}> = ({ children, raised = false, id }) => (
+    <Surface
+        as="section"
+        id={id}
+        fill={raised ? "raised" : "none"}
+        border="line"
+        borderSide="bottom"
+        className="px-5 py-16 md:px-8 md:py-24"
+    >
         <div className="mx-auto w-full max-w-5xl">{children}</div>
-    </section>
+    </Surface>
 );
 
-/** 기울인 큰 제목 — 이 앱의 로고와 같은 몸짓입니다 */
-const Display: React.FC<{ children: React.ReactNode; className?: string }> = ({
-    children,
-    className = "",
-}) => (
-    <span
-        className={`inline-block -skew-x-6 font-black uppercase leading-[0.95] tracking-tighter ${className}`}
+/** 기울인 큰 제목 — 이 앱의 로고와 같은 몸짓입니다. 크기는 부르는 쪽이 `className` 으로 줍니다 */
+const Display: React.FC<{
+    children: React.ReactNode;
+    className?: string;
+    tone?: Tone;
+    /** 어두운 면 · 보라 띠 위의 네온 글자 */
+    color?: string;
+}> = ({ children, className = "", tone, color }) => (
+    <Text
+        variant="hero"
+        tone={tone}
+        style={color ? { color } : undefined}
+        className={`inline-block -skew-x-6 leading-[0.95] ${className}`}
     >
         {children}
-    </span>
+    </Text>
 );
 
 /* ── 히어로에 놓는 가짜 화면 ──────────────────────────────────────────────
    ⚠️ 여기 이름과 과목은 **전부 지어낸 것**입니다. 실제 명단을 넣지 마세요 */
 
 const MockNow: React.FC = () => (
-    <RetroCard shadow="lg" className="bg-white p-5">
+    <Card shadow="none" padding="0" className="shadow-[8px_8px_0_0_rgba(0,0,0,0.2)] p-5">
         <div className="flex items-baseline justify-between gap-3">
             <Kicker>지금</Kicker>
-            <span className="border-2 border-black bg-retro-primary px-1.5 py-0.5 text-[10px] font-black text-white">
+            <Badge accent="pink" variant="solid" size="sm">
                 6–7교시
-            </span>
+            </Badge>
         </div>
-        <p className="mt-3 text-2xl font-black tracking-tight">일반물리학2</p>
-        <p className="mt-1 flex items-center gap-1.5 text-[13px] font-bold text-black/55">
+        <Text as="p" variant="title" className="mt-3">일반물리학2</Text>
+        <Text as="p" tone="secondary" className="mt-1 flex items-center gap-1.5">
             <MapPin size={13} strokeWidth={2.5} /> 형3204 · 2분반
-        </p>
-        <div className="mt-4 flex items-baseline justify-between text-[11px] font-black tabular-nums">
-            <span className="text-black/40">14:40 – 16:30</span>
-            <span>55분 남음</span>
+        </Text>
+        <div className="mt-4 flex items-baseline justify-between">
+            <Text variant="label" tone="muted" numeric>14:40 – 16:30</Text>
+            <Text variant="label" numeric>55분 남음</Text>
         </div>
-        <div className="mt-1.5 h-3 border-2 border-black bg-white">
-            <div className="h-full bg-retro-primary" style={{ width: "48%" }} />
-        </div>
-        <div className="mt-4 flex items-center gap-2 border-t-2 border-black/10 pt-3 text-[11px] font-bold">
-            <span className="text-black/35">다음</span>
-            <span className="font-black">9교시 확률및통계</span>
-            <span className="text-black/35">형3301</span>
-        </div>
-    </RetroCard>
+        <Surface fill="raised" border="line" className="mt-1.5 h-3">
+            <Paint accent="pink" variant="filled" className="h-full" style={{ width: "48%" }} />
+        </Surface>
+        <Surface fill="none" border="subtle" borderSide="top" className="mt-4 flex items-center gap-2 pt-3">
+            <Text variant="label" weight="bold" tone="muted">다음</Text>
+            <Text variant="label">9교시 확률및통계</Text>
+            <Text variant="label" weight="bold" tone="muted">형3301</Text>
+        </Surface>
+    </Card>
 );
 
 const MockEmptyRooms: React.FC = () => (
-    <RetroCard shadow="lg" className="bg-white p-5">
+    <Card shadow="none" padding="0" className="shadow-[8px_8px_0_0_rgba(0,0,0,0.2)] p-5">
         <Kicker>비어 있는 교실</Kicker>
         <div className="mt-3 grid grid-cols-3 gap-2">
             {[
@@ -103,39 +127,35 @@ const MockEmptyRooms: React.FC = () => (
                 ["형3205", true],
                 ["형3206", false],
                 ["형3207", true],
-            ].map(([room, free]) => (
-                <div
-                    key={room as string}
-                    className={`border-2 px-2 py-2 text-center text-[11px] font-black ${
-                        free
-                            ? "border-black bg-retro-accent1"
-                            : "border-black/15 bg-black/[0.03] text-black/25"
-                    }`}
-                >
-                    {room}
-                </div>
-            ))}
+            ].map(([room, free]) =>
+                free ? (
+                    <Paint key={room as string} accent="cyan" variant="solid" className="px-2 py-2 text-center">
+                        <Text variant="label">{room as string}</Text>
+                    </Paint>
+                ) : (
+                    <Surface key={room as string} fill="well" border="subtle" className="px-2 py-2 text-center">
+                        <Text variant="label" tone="faint">{room as string}</Text>
+                    </Surface>
+                ),
+            )}
         </div>
-    </RetroCard>
+    </Card>
 );
 
 const MockSearch: React.FC = () => (
-    <RetroCard shadow="lg" className="bg-white p-4">
-        <div className="flex items-center gap-2 border-2 border-black px-3 py-2">
-            <Search size={15} strokeWidth={2.5} className="shrink-0 text-black/40" />
-            <span className="font-black">월1 &amp; 물리</span>
-        </div>
+    <Card shadow="none" padding="0" className="shadow-[8px_8px_0_0_rgba(0,0,0,0.2)] p-4">
+        <Surface border="line" className="flex items-center gap-2 px-3 py-2">
+            <Icon icon={Search} size={15} strokeWidth={2.5} tone="muted" className="shrink-0" />
+            <Text weight="black">월1 &amp; 물리</Text>
+        </Surface>
         <div className="mt-3 flex flex-wrap gap-1.5">
             {["일반물리학1", "일반물리학실험1", "고급물리학"].map((s) => (
-                <span
-                    key={s}
-                    className="border-2 border-black bg-retro-accent2 px-2 py-0.5 text-[11px] font-black"
-                >
+                <Badge key={s} accent="yellow" variant="solid">
                     {s}
-                </span>
+                </Badge>
             ))}
         </div>
-    </RetroCard>
+    </Card>
 );
 
 /* ── 본문 ──────────────────────────────────────────────────────────────── */
@@ -158,54 +178,54 @@ const PILLARS = [
     },
 ];
 
-const FEATURES = [
+const FEATURES: { icon: typeof Search; title: string; body: string; accent: Accent | undefined }[] = [
     {
         icon: Search,
         title: "통합 검색",
         body: "이름도 과목도 교실도 같은 칸입니다. 여러 명을 한 번에 올려 시간표를 겹쳐 볼 수도 있습니다.",
-        color: "bg-retro-accent1",
+        accent: "cyan",
     },
     {
         icon: Home,
         title: "홈",
         body: "지금 몇 교시고 어디로 가야 하는지. 오늘 시간표와 급식도 같이 봅니다.",
-        color: "bg-retro-accent2",
+        accent: "yellow",
     },
     {
         icon: MapPin,
         title: "빈 강의실",
         body: "요일이랑 교시를 고르면 그때 비는 형설관 교실만 남습니다. 여러 교시를 한꺼번에 골라도 됩니다.",
-        color: "bg-retro-primary",
+        accent: "pink",
     },
     {
         icon: BarChart3,
         title: "학사 통계",
         body: "과목별 수강 인원, 교사별 시수, 강의실 가동률.",
-        color: "bg-retro-accent5",
+        accent: "sky",
     },
     {
         icon: GraduationCap,
         title: "졸업 요건",
         body: "들은 과목을 채워 두면 학점이 얼마나 남았는지 계산합니다. 쓰던 엑셀이 있으면 그대로 올려도 됩니다.",
-        color: "bg-retro-green",
+        accent: "green",
     },
     {
         icon: ArrowLeftRight,
         title: "수강 변경 탐색",
         body: "정정 기간에 뭘 빼고 뭘 넣을지 미리 그려 봅니다. 시간 겹치는 조합은 알아서 걸러 줍니다.",
-        color: "bg-retro-accent4",
+        accent: "orange",
     },
     {
         icon: CalendarDays,
         title: "학사일정",
         body: "학사일정 위에 내 일정을 얹어 봅니다.",
-        color: "bg-retro-secondary text-white",
+        accent: "purple",
     },
     {
         icon: Library,
         title: "교육과정",
         body: "뭘 먼저 들어야 하는지 선으로 이어 놨습니다.",
-        color: "bg-white",
+        accent: undefined,
     },
 ];
 
@@ -236,52 +256,44 @@ interface LandingPageProps {
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onStart, onPrivacy }) => (
-    <div className="min-h-screen bg-retro-bg text-retro-fg">
+    <Surface fill="canvas" className="min-h-screen">
         {/* ── 머리띠 ── */}
-        <header className="border-b-2 border-black bg-retro-secondary">
+        <Surface as="header" fill="brand" border="line" borderSide="bottom">
             <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-4 md:px-8">
-                <span className="-skew-x-6 text-xl font-black uppercase tracking-tight text-white md:text-2xl">
-                    Class Explorer
-                </span>
-                <RetroButton size="sm" onClick={onStart}>
-                    로그인
-                </RetroButton>
+                <Wordmark size="md">Class Explorer</Wordmark>
+                <NavButton onClick={onStart}>로그인</NavButton>
             </div>
-        </header>
+        </Surface>
 
         {/* ── 히어로 ── */}
-        <div className="border-b-2 border-black">
+        <Surface fill="none" border="line" borderSide="bottom">
             <div className="mx-auto w-full max-w-5xl px-5 py-16 md:px-8 md:py-24">
                 <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_22rem]">
                     <div className="flex flex-col gap-6">
                         <Kicker>한국과학영재학교 · 수업 탐색</Kicker>
-                        <h1 className="text-5xl md:text-7xl">
-                            <Display>시간표를</Display>
+                        <h1>
+                            <Display className="text-5xl md:text-7xl">시간표를</Display>
                             <br />
-                            <Display className="text-retro-secondary">
-                                검색합니다<span className="text-retro-primary">.</span>
+                            <Display tone="purple" className="text-5xl md:text-7xl">
+                                검색합니다<Text tone="pink">.</Text>
                             </Display>
                         </h1>
-                        <p className="max-w-xl text-[15px] font-bold leading-relaxed text-black/60 md:text-base">
+                        <Text as="p" tone="secondary" leading="relaxed" className="max-w-xl">
                             이름을 넣으면 그 사람 시간표가, 교실을 넣으면 그 교실
                             일정이 나옵니다. 빈 강의실도, 친구가 언제 비는지도 여기서
                             찾습니다.
-                        </p>
+                        </Text>
                         <div className="flex flex-wrap gap-3">
-                            <RetroButton
-                                variant="black"
-                                onClick={onStart}
-                                icon={<ArrowRight size={14} strokeWidth={3} />}
-                            >
+                            <Button size="lg" variant="filled" shadow onClick={onStart} icon={ArrowRight}>
                                 로그인
-                            </RetroButton>
-                            <a href="#features">
-                                <RetroButton>기능 보기</RetroButton>
-                            </a>
+                            </Button>
+                            <Button size="lg" as="a" href="#features" variant="paper" shadow>
+                                기능 보기
+                            </Button>
                         </div>
-                        <p className="text-xs font-bold text-black/35">
+                        <Text as="p" variant="caption" tone="muted">
                             계정은 학교 구성원에게만 발급됩니다.
-                        </p>
+                        </Text>
                     </div>
 
                     {/* 좁은 화면에서는 한 장만. 기울인 콜라주는 자리가 있을 때만
@@ -302,192 +314,181 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart, onPrivacy }) => (
                     </div>
                 </div>
             </div>
-        </div>
+        </Surface>
 
         {/* ── 세 가지 ── */}
-        <section className="border-b-2 border-black bg-black px-5 py-16 text-white md:px-8 md:py-24">
+        <Surface
+            as="section"
+            fill="inverse"
+            border="line"
+            borderSide="bottom"
+            className="px-5 py-16 md:px-8 md:py-24"
+        >
             <div className="mx-auto w-full max-w-5xl">
-                <Kicker tone="text-retro-accent2">이렇게 만들었습니다</Kicker>
+                <Kicker color={ACCENT_COLORS.yellow.solid}>이렇게 만들었습니다</Kicker>
                 <div className="mt-8 grid gap-10 md:grid-cols-3">
                     {PILLARS.map((p) => (
                         <div key={p.n} className="flex flex-col gap-3">
-                            <Display className="text-4xl text-retro-accent1">
+                            <Display color={ACCENT_COLORS.cyan.solid} className="text-4xl">
                                 {p.n}
                             </Display>
-                            <h3 className="text-xl font-black tracking-tight">{p.t}</h3>
-                            <p className="text-sm font-bold leading-relaxed text-white/65">
+                            <Text as="h3" variant="heading">{p.t}</Text>
+                            <Text as="p" tone="inverseMuted" leading="relaxed">
                                 {p.d}
-                            </p>
+                            </Text>
                         </div>
                     ))}
                 </div>
             </div>
-        </section>
+        </Surface>
 
         {/* ── 기능 ── */}
-        <Section id="features" className="border-b-2 border-black">
+        <Section id="features">
             <Kicker>화면 여덟 개</Kicker>
-            <h2 className="mt-3 text-3xl md:text-5xl">
-                <Display>이런 걸 합니다.</Display>
+            <h2 className="mt-3">
+                <Display className="text-3xl md:text-5xl">이런 걸 합니다.</Display>
             </h2>
             <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {FEATURES.map((f) => (
-                    <RetroCard
-                        key={f.title}
-                        shadow="sm"
-                        className="flex flex-col gap-3 bg-white p-5"
-                    >
-                        <span
-                            className={`flex h-9 w-9 items-center justify-center border-2 border-black ${f.color}`}
+                    <Card key={f.title} padding="0" className="flex flex-col gap-3 p-5">
+                        <Paint
+                            as="span"
+                            accent={f.accent}
+                            variant={f.accent ? "solid" : "paper"}
+                            className="flex h-9 w-9 items-center justify-center"
                         >
                             <f.icon size={17} strokeWidth={2.5} />
-                        </span>
-                        <h3 className="text-lg font-black tracking-tight">{f.title}</h3>
-                        <p className="text-[13px] font-bold leading-relaxed text-black/55">
+                        </Paint>
+                        <Text as="h3" variant="heading">{f.title}</Text>
+                        <Text as="p" tone="secondary" leading="relaxed">
                             {f.body}
-                        </p>
-                    </RetroCard>
+                        </Text>
+                    </Card>
                 ))}
             </div>
 
-            <RetroCard
-                shadow="sm"
-                className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 bg-retro-accent-light p-5"
+            <Paint
+                accent="cyan"
+                variant="solidMuted"
+                shadow
+                className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 p-5"
             >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-black bg-white">
+                <Surface as="span" border="line" className="flex h-9 w-9 shrink-0 items-center justify-center">
                     <Smartphone size={17} strokeWidth={2.5} />
-                </span>
-                <p className="min-w-0 flex-1 basis-64 text-[13px] font-bold leading-relaxed text-black/60">
-                    <span className="font-black text-black">안드로이드 위젯</span> — 지금
+                </Surface>
+                <Text as="p" tone="secondary" leading="relaxed" className="min-w-0 flex-1 basis-64">
+                    <Text tone="primary" weight="black">안드로이드 위젯</Text> — 지금
                     교시랑 오늘 급식을 홈 화면에 올려 둡니다. 앱을 안 열어도 보입니다.
-                </p>
-            </RetroCard>
+                </Text>
+            </Paint>
         </Section>
 
         {/* ── 데이터와 개인정보 ── */}
-        <Section className="border-b-2 border-black bg-white">
+        <Section raised>
             <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
                 <div>
                     <Kicker>데이터</Kicker>
-                    <h2 className="mt-3 text-3xl md:text-4xl">
-                        <Display>명단은 로그인</Display>
+                    <h2 className="mt-3">
+                        <Display className="text-3xl md:text-4xl">명단은 로그인</Display>
                         <br />
-                        <Display>뒤에 있습니다.</Display>
+                        <Display className="text-3xl md:text-4xl">뒤에 있습니다.</Display>
                     </h2>
                 </div>
                 <div className="flex flex-col gap-5">
                     <div className="flex gap-3">
-                        <Shield
-                            size={18}
-                            strokeWidth={2.5}
-                            className="mt-0.5 shrink-0 text-retro-secondary"
-                        />
-                        <p className="text-sm font-bold leading-relaxed text-black/60">
-                            <span className="font-black text-black">
+                        <Icon icon={Shield} size={18} strokeWidth={2.5} tone="purple" className="mt-0.5 shrink-0" />
+                        <Text as="p" tone="secondary" leading="relaxed">
+                            <Text tone="primary" weight="black">
                                 로그인 전에는 이름 하나 안 나옵니다.
-                            </span>{" "}
+                            </Text>{" "}
                             이 화면 밖은 전부 계정을 요구합니다. 계정은 관리자가 만들고,
                             학번은 학교 구글 계정으로 한 번 확인합니다.
-                        </p>
+                        </Text>
                     </div>
                     <div className="flex gap-3">
-                        <BookOpen
-                            size={18}
-                            strokeWidth={2.5}
-                            className="mt-0.5 shrink-0 text-retro-secondary"
-                        />
-                        <p className="text-sm font-bold leading-relaxed text-black/60">
-                            <span className="font-black text-black">
+                        <Icon icon={BookOpen} size={18} strokeWidth={2.5} tone="purple" className="mt-0.5 shrink-0" />
+                        <Text as="p" tone="secondary" leading="relaxed">
+                            <Text tone="primary" weight="black">
                                 수업 데이터는 학교 학사 시스템에서 옵니다.
-                            </span>{" "}
+                            </Text>{" "}
                             학기 단위로 받아 오고, 뭔가 바뀌었을 때만 회차를 올립니다.
                             급식은 급식 시스템에서 따로 가져옵니다.
-                        </p>
+                        </Text>
                     </div>
                     <div className="flex gap-3">
-                        <CalendarDays
-                            size={18}
-                            strokeWidth={2.5}
-                            className="mt-0.5 shrink-0 text-retro-secondary"
-                        />
-                        <p className="text-sm font-bold leading-relaxed text-black/60">
-                            <span className="font-black text-black">
+                        <Icon icon={CalendarDays} size={18} strokeWidth={2.5} tone="purple" className="mt-0.5 shrink-0" />
+                        <Text as="p" tone="secondary" leading="relaxed">
+                            <Text tone="primary" weight="black">
                                 친구 화면에는 과목명이 없습니다.
-                            </span>{" "}
+                            </Text>{" "}
                             언제 비는지만 나옵니다. 남의 하루를 통째로 펼쳐 놓을 이유가
                             없어서요.
-                        </p>
+                        </Text>
                     </div>
                 </div>
             </div>
         </Section>
 
         {/* ── 자주 묻는 것 ── */}
-        <Section className="border-b-2 border-black">
+        <Section>
             <Kicker>자주 묻는 것</Kicker>
             <div className="mt-8 grid gap-4 md:grid-cols-2">
                 {FAQ.map((f) => (
-                    <RetroCard key={f.q} shadow="sm" className="bg-white p-5">
-                        <h3 className="text-base font-black tracking-tight">{f.q}</h3>
-                        <p className="mt-2 text-[13px] font-bold leading-relaxed text-black/55">
+                    <Card shadow="raised" key={f.q} padding="0" className="p-5">
+                        <Text as="h3" variant="subheading">{f.q}</Text>
+                        <Text as="p" tone="secondary" leading="relaxed" className="mt-2">
                             {f.a}
-                        </p>
-                    </RetroCard>
+                        </Text>
+                    </Card>
                 ))}
             </div>
         </Section>
 
         {/* ── 마지막 ── */}
-        <section className="bg-retro-secondary px-5 py-20 text-white md:px-8 md:py-28">
+        <Paint as="section" accent="purple" variant="filled" className="px-5 py-20 md:px-8 md:py-28">
             <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-7 text-center">
-                <h2 className="text-4xl md:text-6xl">
-                    <Display>이제 안 뒤져도</Display>
+                <h2>
+                    <Display className="text-4xl md:text-6xl">이제 안 뒤져도</Display>
                     <br />
-                    <Display className="text-retro-accent2">됩니다.</Display>
+                    <Display color={ACCENT_COLORS.yellow.solid} className="text-4xl md:text-6xl">됩니다.</Display>
                 </h2>
-                {/* 이 구역은 글자가 흰색이라, 흰 버튼은 색을 되돌려 줘야 합니다 —
-                    `variant="white"` 는 면만 칠하고 글자색은 물려받습니다 */}
-                <RetroButton
-                    variant="white"
-                    className="text-black"
-                    onClick={onStart}
-                    icon={<ArrowRight size={14} strokeWidth={3} />}
-                >
+                {/* 이 구역은 글자가 흰색이지만 `paper` 버튼은 자기 글자색(검정)을 가집니다 */}
+                <Button size="lg" variant="paper" shadow onClick={onStart} icon={ArrowRight}>
                     로그인
-                </RetroButton>
+                </Button>
             </div>
-        </section>
+        </Paint>
 
-        <footer className="border-t-2 border-black bg-black px-5 py-8 text-white md:px-8">
+        <Surface as="footer" fill="inverse" border="line" borderSide="top" className="px-5 py-8 md:px-8">
             <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3">
-                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40">
+                <Text variant="overline" tone="inverseMuted">
                     Class Explorer · KSA
-                </span>
+                </Text>
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                    <button
-                        onClick={onPrivacy}
-                        className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40 transition-colors duration-100 hover:text-white"
-                    >
-                        개인정보처리방침
-                    </button>
-                    <a
-                        href="mailto:contact@bsiku.dev"
-                        className="text-[11px] font-black tracking-[0.15em] text-white/40 transition-colors duration-100 hover:text-white"
-                    >
-                        contact@bsiku.dev
-                    </a>
-                    <a
-                        href="https://github.com/bsiku3622/class-explorer"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[11px] font-black uppercase tracking-[0.2em] text-white/40 transition-colors duration-100 hover:text-white"
-                    >
-                        GitHub
-                    </a>
+                    <Text variant="overline" tone="inverseMuted">
+                        <Link as="button" underline="hover" onClick={onPrivacy}>
+                            개인정보처리방침
+                        </Link>
+                    </Text>
+                    <Text variant="overline" tone="inverseMuted">
+                        <Link underline="hover" href="mailto:contact@bsiku.dev">
+                            contact@bsiku.dev
+                        </Link>
+                    </Text>
+                    <Text variant="overline" tone="inverseMuted">
+                        <Link
+                            underline="hover"
+                            href="https://github.com/bsiku3622/class-explorer"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            GitHub
+                        </Link>
+                    </Text>
                 </div>
             </div>
-        </footer>
-    </div>
+        </Surface>
+    </Surface>
 );
 
 export default LandingPage;

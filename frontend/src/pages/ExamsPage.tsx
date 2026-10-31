@@ -1,14 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import { ArrowLeft, ClipboardList, MapPin } from "lucide-react";
 import type { Term } from "../types";
 import { fetchExamSchedule, type ExamSchedule } from "../lib/examsApi";
 import { examDays, examDateLabel, examConflictIds } from "../lib/examSchedule";
-import PageHeader from "../components/molecules/PageHeader";
-import RetroCard from "../components/atoms/RetroCard";
-import RetroButton from "../components/atoms/RetroButton";
-import RetroSubTitle from "../components/atoms/RetroSubTitle";
-import RetroSpinner from "../components/atoms/RetroSpinner";
+import { Button, Card, Divider, Notice, PageHeader, SectionTitle, Spinner, Surface, Text } from "@studio-baeks/funky-ui";
 
 const ExamsPage: React.FC<{ term: Term | null }> = ({ term }) => {
     const [schedule, setSchedule] = useState<ExamSchedule | null>(null);
@@ -35,50 +31,53 @@ const ExamsPage: React.FC<{ term: Term | null }> = ({ term }) => {
 
     return <div className="flex flex-col gap-5 pb-20">
         <PageHeader title="Exams" subtitle={period?.kind === "midterm" ? "Midterm" : "My Schedule"} icon={ClipboardList}
-            action={<Link to="/" className="flex items-center gap-1.5 text-xs font-bold underline underline-offset-4"><ArrowLeft size={14} /> 홈으로</Link>}>
+            action={<Button as={RouterLink} to="/" size="xs" variant="ghost" icon={ArrowLeft} uppercase={false}>홈으로</Button>}>
             {period && <div className="space-y-1">
-                <p className="text-lg font-black">{period.title}</p>
-                <p className="text-sm font-bold text-black/60">{examDateLabel(period.start_date)} – {examDateLabel(period.end_date)} · 내 시험 {scheduledCount}개</p>
+                <Text as="p" variant="subheading">{period.title}</Text>
+                <Text as="p" tone="secondary">{examDateLabel(period.start_date)} – {examDateLabel(period.end_date)} · 내 시험 {scheduledCount}개</Text>
             </div>}
         </PageHeader>
 
-        {failed ? <RetroCard className="bg-white p-6 space-y-3">
-            <p className="text-sm font-bold">시험 시간표를 불러오지 못했습니다.</p>
-            <RetroButton size="sm" onClick={() => { setFailed(false); setAttempt((n) => n + 1); }}>다시 시도</RetroButton>
-        </RetroCard> : !current ? <div className="flex justify-center p-12"><RetroSpinner /></div>
-            : !period ? <RetroCard className="bg-white p-6 text-sm font-bold">선택한 학기에 등록된 시험 시간표가 없습니다.</RetroCard>
+        {failed ? <Card padding="0" className="p-6 space-y-3">
+            <Text as="p">시험 시간표를 불러오지 못했습니다.</Text>
+            <Button size="sm" variant="paper" shadow onClick={() => { setFailed(false); setAttempt((n) => n + 1); }}>다시 시도</Button>
+        </Card> : !current ? <div className="flex justify-center p-12"><Spinner /></div>
+            : !period ? <Card padding="0" className="p-6"><Text as="p">선택한 학기에 등록된 시험 시간표가 없습니다.</Text></Card>
             : <>
-                {conflicts.size > 0 && <p className="border-2 border-black bg-white p-3 text-sm font-bold text-red-700">공지에 시험 시간이 겹치는 과목이 있습니다. 두 과목의 일정을 모두 표시했으니 담당 교사의 안내를 확인하세요.</p>}
+                {conflicts.size > 0 && <Notice role="alert">공지에 시험 시간이 겹치는 과목이 있습니다. 두 과목의 일정을 모두 표시했으니 담당 교사의 안내를 확인하세요.</Notice>}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5 items-start">
-                    {days.map((day) => <RetroCard key={day.date} shadow="sm" className="bg-white overflow-hidden">
-                        <div className="border-b-2 border-black bg-black text-white px-4 py-3">
-                            <h2 className="text-base font-black">{day.label}</h2>
-                            <p className="text-xs font-bold text-white/60">{day.exams.length}개 시험</p>
+                    {days.map((day) => <Card shadow="raised" key={day.date} padding="0" className="overflow-hidden">
+                        <Surface fill="inverse" className="px-4 py-3">
+                            <Text as="h2" variant="subheading" tone="inherit">{day.label}</Text>
+                            <Text as="p" variant="caption" tone="inverseMuted">{day.exams.length}개 시험</Text>
+                        </Surface>
+                        <div>
+                            {day.exams.length === 0 ? <Text as="p" tone="muted" className="p-4">예정된 시험 없음</Text>
+                                : day.exams.map((exam, index) => <React.Fragment key={exam.id}>
+                                    {index > 0 && <Divider />}
+                                    <article className="p-4 space-y-3">
+                                        <div>
+                                            <Text as="p" variant="subheading" numeric>{exam.start}–{exam.end}</Text>
+                                            <Text as="p" variant="caption" tone="muted">{exam.duration}분</Text>
+                                        </div>
+                                        <Text as="h3" variant="subheading" className="break-keep">{exam.subject}</Text>
+                                        {conflicts.has(exam.id) && <Text as="p" variant="caption" tone="error">다른 시험과 시간 겹침</Text>}
+                                        {exam.section && <Text as="p" variant="caption" tone="muted">{exam.section}{exam.teacher ? ` · ${exam.teacher}` : ""}</Text>}
+                                        <Text as="div" weight="black" className="flex items-start gap-1.5">
+                                            <MapPin size={15} className="mt-0.5 shrink-0" />
+                                            {exam.room ? <span>{exam.room}</span> : <div><p>분반별 시험실 확인</p><Text as="p" variant="caption" tone="secondary" className="mt-1 whitespace-pre-line">{exam.room_instruction ?? "시험실은 별도 안내를 확인하세요."}</Text></div>}
+                                        </Text>
+                                        {exam.note && <Text as="p" variant="caption" tone="secondary">{exam.note}</Text>}
+                                    </article>
+                                </React.Fragment>)}
                         </div>
-                        <div className="divide-y-2 divide-black/10">
-                            {day.exams.length === 0 ? <p className="p-4 text-sm font-bold text-black/40">예정된 시험 없음</p>
-                                : day.exams.map((exam) => <article key={exam.id} className="p-4 space-y-3">
-                                    <div>
-                                        <p className="text-base font-black tabular-nums">{exam.start}–{exam.end}</p>
-                                        <p className="text-xs font-bold text-black/40">{exam.duration}분</p>
-                                    </div>
-                                    <h3 className="text-[15px] font-black leading-snug break-keep">{exam.subject}</h3>
-                                    {conflicts.has(exam.id) && <p className="text-xs font-bold text-red-700">다른 시험과 시간 겹침</p>}
-                                    {exam.section && <p className="text-xs font-bold text-black/50">{exam.section}{exam.teacher ? ` · ${exam.teacher}` : ""}</p>}
-                                    <div className="flex items-start gap-1.5 text-sm font-black">
-                                        <MapPin size={15} className="mt-0.5 shrink-0" />
-                                        {exam.room ? <span>{exam.room}</span> : <div><p>분반별 시험실 확인</p><p className="mt-1 whitespace-pre-line text-xs font-bold text-black/60">{exam.room_instruction ?? "시험실은 별도 안내를 확인하세요."}</p></div>}
-                                    </div>
-                                    {exam.note && <p className="text-xs font-bold text-black/60">{exam.note}</p>}
-                                </article>)}
-                        </div>
-                    </RetroCard>)}
+                    </Card>)}
                 </div>
-                {separate.length > 0 && <RetroCard shadow="sm" className="bg-white p-5 space-y-3">
-                    <RetroSubTitle title="Separate Exams" />
-                    {separate.map((exam) => <div key={exam.id} className="space-y-1"><p className="text-sm font-black">{exam.subject}</p><p className="text-sm font-bold text-black/60">{exam.note}</p></div>)}
-                </RetroCard>}
-                <p className="text-xs font-bold text-black/50 leading-relaxed">학교 최종 공지의 응시 명단 기준입니다. 시험실은 평소 수업 강의실과 다를 수 있습니다.</p>
+                {separate.length > 0 && <Card shadow="raised" padding="0" className="p-5 space-y-3">
+                    <SectionTitle title="Separate Exams" />
+                    {separate.map((exam) => <div key={exam.id} className="space-y-1"><Text as="p" weight="black">{exam.subject}</Text><Text as="p" tone="secondary">{exam.note}</Text></div>)}
+                </Card>}
+                <Text as="p" variant="caption" tone="muted" leading="relaxed">학교 최종 공지의 응시 명단 기준입니다. 시험실은 평소 수업 강의실과 다를 수 있습니다.</Text>
             </>}
     </div>;
 };

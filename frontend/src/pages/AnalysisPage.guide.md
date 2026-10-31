@@ -23,13 +23,13 @@ FilterSection (학년 선택)
   ↓
 상단 통계 4개 (Total Hrs, Active Rms, Subjects, Avg Size)
   ↓
-AccordionSection: Timetable Compare          → 학생 스케줄 비교 + 충돌 감지
-AccordionSection: Subjects by Enrollment     → 과목별 학생 수 바 차트
-AccordionSection: Weekly Periods Distribution → 주당 교시 수 분포 바 차트
-AccordionSection: Subject Count Distribution  → 수강 과목 수 분포 바 차트
-AccordionSection: Teaching Load              → 교사별 교시 수 바 차트       ┐ 2열 그리드
-AccordionSection: Classroom Utilization      → 강의실 사용률 바 차트        ┘
-AccordionSection: Teacher Load Distribution  → 교사 교시 수 분포 바 차트
+Accordion: Timetable Compare          → 학생 스케줄 비교 + 충돌 감지
+Accordion: Subjects by Enrollment     → 과목별 학생 수 바 차트
+Accordion: Weekly Periods Distribution → 주당 교시 수 분포 바 차트
+Accordion: Subject Count Distribution  → 수강 과목 수 분포 바 차트
+Accordion: Teaching Load              → 교사별 교시 수 바 차트       ┐ 2열 그리드
+Accordion: Classroom Utilization      → 강의실 사용률 바 차트        ┘
+Accordion: Teacher Load Distribution  → 교사 교시 수 분포 바 차트
 ```
 
 ## 데이터 처리 (useMemo)
@@ -55,15 +55,15 @@ AccordionSection: Teacher Load Distribution  → 교사 교시 수 분포 바 �
 2. 자동완성에서 선택 → `selectedStudentIds` 추가
 3. 5×11 그리드에 각 학생 스케줄 시각화
 4. 셀 클릭 → Tooltip으로 학생별 수업/빈 시간 표시
-5. `commonFreePeriods`: `bg-retro-green/20` (공통 빈 교시)
-6. 공통 수업: `bg-retro-primary/20`
+5. `commonFreePeriods`: 초록 20% (공통 빈 교시)
+6. 공통 수업: 핑크 20%
 7. **충돌 감지**: 모두 수업 중이지만 다른 과목 → `bg-orange-100` (주황)
 8. 충돌 배지: "X Conflict(s)" — Common Empty Slots 옆 표시
 
 ## ShowMoreButton 내부 컴포넌트
 - `totalCount <= 15`이면 렌더링 안 함
 - 펼침 상태 (`expandLists`) 별도 관리
-- `RetroButton` (sm size, Plus/Minus 아이콘)
+- `Button` (sm size, Plus/Minus 아이콘)
 
 ## 키보드 처리
 - `ArrowUp/Down`: 자동완성 포커스 이동

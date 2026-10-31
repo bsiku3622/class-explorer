@@ -23,8 +23,8 @@
 └──────────────────────────────────────┘
 ```
 
-**과목 목록은 좁은 화면에서 한 줄씩 놓입니다** (`grid-cols-1` → `sm:grid-cols-2`).
-왼쪽 이름 칸이 `min-w-44` 라 390px 에서 오른쪽에 190px 밖에 안 남고, 그걸 둘로 나누면
+**과목 목록은 좁은 화면에서 한 줄씩 놓입니다** (`PersonCard` 의 `columns` 는 고정이라 `max-sm:` 로 한 열로 접습니다).
+왼쪽 이름 칸이 넓어 390px 에서 오른쪽에 200px 안팎밖에 안 남고, 그걸 둘로 나누면
 한 칸이 78px — 과목명이 세 글자에서 잘립니다. 결과가 하나일 때(`isSingleEntity`)만
 넓은 화면에서 두 칸으로 갑니다.
 
@@ -45,5 +45,5 @@
 
 ## 인터랙션
 - 카드 클릭 → `handleSearchSelect(entity.id 또는 entity.name)` → 해당 엔티티로 검색
-- `isActive`: 현재 선택된 카드 강조 (`scale-105 shadow-retro-lg`)
-- 호버: `-translate-y-1.5` (살짝 위로 이동)
+- `isActive`: 현재 선택된 카드 강조 (코드에는 없는 prop)
+- 호버: `PersonCard motion="lift"` (살짝 위로 떠오름)

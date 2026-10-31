@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Check, ChevronRight, Inbox, X } from "lucide-react";
+import { Check, ChevronLeft, Inbox, X } from "lucide-react";
+import { Badge, Button, Card, Drawer, Surface, Text } from "@studio-baeks/funky-ui";
 import type { EventRequest } from "../types";
 import { CATEGORY_LABEL, gradeLabel, timeLabel } from "../lib/calendar";
 import { majorLabel } from "../lib/majors";
@@ -28,110 +29,119 @@ const RequestSidebar: React.FC<RequestSidebarProps> = ({
     const pending = requests.filter((r) => r.status === "pending");
 
     return (
-        <div
-            className={`fixed right-0 top-20 bottom-0 z-40 flex transition-transform duration-150 ${
-                open ? "translate-x-0" : "translate-x-[calc(100%-2.75rem)]"
-            }`}
+        <Drawer
+            open={open}
+            aria-label="Requests"
+            className="w-80"
+            style={{ top: "5rem" }}
+            handle={
+                // 손잡이 — 접혀 있을 때 밖으로 나와 있는 부분입니다
+                <Button
+                    variant="paper"
+                    size="lg"
+                    shadow
+                    aria-expanded={open}
+                    onClick={() => setOpen((v) => !v)}
+                    icon={Inbox}
+                    iconEnd={ChevronLeft}
+                    className="relative h-auto w-11 flex-col px-0 py-4"
+                >
+                    <span className="[writing-mode:vertical-rl]">Requests</span>
+                    {/* 빨간 표시는 "처리할 게 있다"는 뜻이라 매니저에게만 붙입니다.
+                        내가 낸 제안이 기다리는 중인 건 내가 할 일이 아닙니다 */}
+                    {canDecide && pending.length > 0 && (
+                        <Badge accent="pink" variant="solid" size="sm" className="absolute right-1 top-1">
+                            {pending.length}
+                        </Badge>
+                    )}
+                </Button>
+            }
         >
-            {/* 손잡이 — 접혀 있을 때 밖으로 나와 있는 부분입니다 */}
-            <button
-                onClick={() => setOpen((v) => !v)}
-                className="relative flex w-11 shrink-0 flex-col items-center gap-2 border-y-2 border-l-2 border-black bg-white py-4"
-            >
-                <ChevronRight
-                    size={16}
-                    strokeWidth={3}
-                    className={`transition-transform duration-150 ${open ? "" : "rotate-180"}`}
-                />
-                <Inbox size={16} strokeWidth={2.5} />
-                <span className="text-[10px] font-black uppercase tracking-widest [writing-mode:vertical-rl]">
-                    Requests
-                </span>
-                {/* 빨간 표시는 "처리할 게 있다"는 뜻이라 매니저에게만 붙입니다.
-                    내가 낸 제안이 기다리는 중인 건 내가 할 일이 아닙니다 */}
-                {canDecide && pending.length > 0 && (
-                    <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center bg-retro-primary px-1 text-[9px] font-black text-white">
-                        {pending.length}
-                    </span>
-                )}
-            </button>
-
-            <div className="w-80 overflow-y-auto border-y-2 border-l-2 border-black bg-white p-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-black/40">
+            <div className="p-4">
+                <Text as="p" variant="overline">
                     {canDecide ? "처리 대기" : "내가 낸 제안"}
-                </p>
+                </Text>
 
                 {requests.length === 0 && (
-                    <p className="mt-4 text-xs font-bold text-black/35">
+                    <Text as="p" variant="caption" tone="muted" className="mt-4">
                         {canDecide ? "처리할 제안이 없습니다." : "아직 낸 제안이 없습니다."}
-                    </p>
+                    </Text>
                 )}
 
                 <div className="mt-3 space-y-3">
                     {requests.map((req) => (
-                        <div
-                            key={req.id}
-                            className="border-2 border-black bg-white p-3 shadow-[3px_3px_0_0_rgba(0,0,0,0.1)]"
-                        >
-                            <p className="text-sm font-black leading-tight">{req.title}</p>
-                            <p className="mt-1 text-[11px] font-bold text-black/50">
+                        <Card key={req.id} padding="0" className="p-3">
+                            <Text as="p" weight="black">{req.title}</Text>
+                            <Text as="p" variant="caption" tone="muted" className="mt-1">
                                 {req.start_date}
                                 {req.end_date !== req.start_date && ` → ${req.end_date}`}
                                 {timeLabel(req) && ` · ${timeLabel(req)}`}
-                            </p>
-                            <p className="mt-0.5 text-[10px] font-black uppercase tracking-widest text-black/35">
+                            </Text>
+                            <Text as="p" variant="overline" className="mt-0.5">
                                 {CATEGORY_LABEL[req.category]}
                                 {gradeLabel(req.target_grades) &&
                                     ` · ${gradeLabel(req.target_grades)}`}
                                 {majorLabel(req.target_majors) &&
                                     ` · ${majorLabel(req.target_majors)}`}
                                 {` · ${req.requested_by}`}
-                            </p>
+                            </Text>
                             {req.note && (
-                                <p className="mt-1.5 border-l-2 border-black/10 pl-2 text-[11px] font-bold text-black/60">
-                                    {req.note}
-                                </p>
+                                <Surface fill="none" border="subtle" borderSide="left" className="mt-1.5 pl-2">
+                                    <Text as="p" variant="caption" tone="secondary">
+                                        {req.note}
+                                    </Text>
+                                </Surface>
                             )}
 
                             {canDecide ? (
                                 <div className="mt-2.5 flex gap-1.5">
-                                    <button
+                                    <Button
+                                        size="xs"
+                                        variant="filled"
+                                        icon={Check}
                                         onClick={() => onDecide(req.id, true)}
                                         disabled={busyId === req.id}
-                                        className="flex flex-1 items-center justify-center gap-1 border-2 border-black bg-black px-2 py-1 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-40"
+                                        className="flex-1"
                                     >
-                                        <Check size={12} strokeWidth={3} /> 허용
-                                    </button>
-                                    <button
+                                        허용
+                                    </Button>
+                                    <Button
+                                        size="xs"
+                                        accent="pink"
+                                        variant="outline"
+                                        icon={X}
                                         onClick={() => onDecide(req.id, false)}
                                         disabled={busyId === req.id}
-                                        className="flex flex-1 items-center justify-center gap-1 border-2 border-retro-primary px-2 py-1 text-[10px] font-black uppercase tracking-widest text-retro-primary disabled:opacity-40"
+                                        className="flex-1"
                                     >
-                                        <X size={12} strokeWidth={3} /> 거절
-                                    </button>
+                                        거절
+                                    </Button>
                                 </div>
                             ) : (
-                                <p
-                                    className={`mt-2 text-[10px] font-black uppercase tracking-widest ${
+                                <Text
+                                    as="p"
+                                    variant="overline"
+                                    tone={
                                         req.status === "approved"
-                                            ? "text-retro-green"
+                                            ? "green"
                                             : req.status === "rejected"
-                                              ? "text-retro-primary"
-                                              : "text-black/35"
-                                    }`}
+                                              ? "pink"
+                                              : "muted"
+                                    }
+                                    className="mt-2"
                                 >
                                     {req.status === "approved"
                                         ? "허용됨"
                                         : req.status === "rejected"
                                           ? `거절됨${req.reason ? ` — ${req.reason}` : ""}`
                                           : "기다리는 중"}
-                                </p>
+                                </Text>
                             )}
-                        </div>
+                        </Card>
                     ))}
                 </div>
             </div>
-        </div>
+        </Drawer>
     );
 };
 

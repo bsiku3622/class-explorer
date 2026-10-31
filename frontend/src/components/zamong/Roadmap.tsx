@@ -31,9 +31,19 @@
 
 import React, { useMemo, useState } from "react";
 import { Route } from "lucide-react";
-import RetroCard from "../atoms/RetroCard";
-import RetroButton from "../atoms/RetroButton";
-import RetroSubTitle from "../atoms/RetroSubTitle";
+import {
+    Button,
+    Card,
+    Input,
+    paintClass,
+    Pressable,
+    SectionTitle,
+    Surface,
+    surfaceClass,
+    Table,
+    Text,
+    type Tone,
+} from "@studio-baeks/funky-ui";
 import type { Course } from "../../lib/curriculum";
 import {
     REGULAR_TERMS,
@@ -58,40 +68,38 @@ interface RoadmapProps {
 /**
  * 표 머리 칸.
  *
- * ⚠️ **높이는 `h-7` 로 못 박고 `align-middle` 로 가운데 둡니다.** 패딩만 주고 높이를
- * 줄 높이(line-height)에 맡기면 셀마다 다른 값이 나옵니다 — 11px 헤더는 25px, 13px
- * 글자는 27.5px, 입력칸이 든 칸은 28px 이 돼서 표가 들쭉날쭉해집니다.
+ * ⚠️ **높이는 `h-7` 로 못 박고 가운데 둡니다.** 패딩만 주고 높이를 줄 높이(line-height)에
+ * 맡기면 셀마다 다른 값이 나옵니다 — 11px 헤더는 25px, 13px 글자는 27.5px, 입력칸이 든
+ * 칸은 28px 이 돼서 표가 들쭉날쭉해집니다.
  */
-const Th: React.FC<{ children: React.ReactNode; className?: string }> = ({
-    children,
-    className = "",
-}) => (
-    <th
-        className={`h-7 px-2 align-middle text-[11px] font-black uppercase tracking-wider text-black/45 ${className}`}
-    >
+const Th: React.FC<{ children: React.ReactNode; divided?: boolean }> = ({ children, divided }) => (
+    <Table.HeadCell divided={divided} className="h-7 px-2 py-0 text-center align-middle">
         {children}
-    </th>
+    </Table.HeadCell>
 );
 
 /** 행 이름 — 왼쪽 첫 칸 */
 const Rh: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <th className="h-7 whitespace-nowrap pr-3 text-left align-middle text-[11px] font-black uppercase tracking-widest text-black/45">
-        {children}
-    </th>
+    <Table.Cell header className="h-7 whitespace-nowrap py-0 pl-0 pr-3 text-left align-middle">
+        <Text variant="label" tone="muted" uppercase className="tracking-widest">{children}</Text>
+    </Table.Cell>
 );
 
 /** 값 칸. 빈 칸(표를 가로로 맞추기만 하는 자리)도 있어서 `children` 은 선택입니다 */
-const Td: React.FC<{ children?: React.ReactNode; className?: string; title?: string }> = ({
-    children,
-    className = "",
-    title,
-}) => (
-    <td
-        title={title}
-        className={`h-7 px-2 text-center align-middle text-[13px] font-black tabular-nums ${className}`}
-    >
-        {children}
-    </td>
+const Td: React.FC<{
+    children?: React.ReactNode;
+    tone?: Tone;
+    bold?: boolean;
+    divided?: boolean;
+    title?: string;
+}> = ({ children, tone, bold = false, divided, title }) => (
+    <Table.Cell divided={divided} title={title} className="h-7 px-2 py-0 text-center align-middle">
+        {children !== undefined && (
+            <Text variant="small" weight={bold ? "bold" : "black"} tone={tone} numeric>
+                {children}
+            </Text>
+        )}
+    </Table.Cell>
 );
 
 /** 워크북의 만족여부 칸 — 문구까지 원본 그대로입니다 */
@@ -100,13 +108,9 @@ const Verdict: React.FC<{
     yes: string;
     no: string;
     muted?: boolean;
-    borderLeft?: boolean;
-}> = ({ ok, yes, no, muted = false, borderLeft = false }) => (
-    <Td
-        className={`${borderLeft ? "border-l border-black/10 " : ""}${
-            muted ? "text-black/20" : ok ? "text-retro-green" : "text-retro-primary"
-        }`}
-    >
+    divided?: boolean;
+}> = ({ ok, yes, no, muted = false, divided = false }) => (
+    <Td divided={divided} tone={muted ? "faint" : ok ? "green" : "pink"}>
         {muted ? "—" : ok ? yes : no}
     </Td>
 );
@@ -141,51 +145,44 @@ const Roadmap: React.FC<RoadmapProps> = ({
     );
 
     return (
-        <RetroCard className="bg-white">
-            <div className="flex items-center gap-3 border-b-2 border-black/10 px-4 py-2 md:px-6">
-                <RetroSubTitle title="Roadmap" icon={Route} iconSize={18} />
-            </div>
+        <Card padding="0">
+            <Surface fill="none" border="subtle" borderSide="bottom" className="flex items-center gap-3 px-4 py-2 md:px-6">
+                <SectionTitle title="Roadmap" icon={Route} />
+            </Surface>
 
             {/* ── 워크북 행 2~5 · 학기별 ───────────────────────────────────── */}
-            <div className="overflow-x-auto border-b border-black/10 px-4 py-1.5 md:px-6">
-                <table className="w-full min-w-[44rem] border-collapse">
-                    <thead>
-                        <tr className="border-b border-black/10">
-                            <Rh>학기</Rh>
+            <Surface fill="none" border="subtle" borderSide="bottom" className="px-4 py-1.5 md:px-6">
+                <Table head="plain" frameClassName="border-0" className="min-w-[44rem]" aria-label="학기별 학점">
+                    <Table.Head>
+                        <Table.Row>
+                            <Table.HeadCell className="h-7 py-0 text-left align-middle">학기</Table.HeadCell>
                             {terms.map((term) => (
                                 <Th key={term.key}>{term.key === "S" ? "계절" : term.key}</Th>
                             ))}
-                            <Th className="border-l border-black/10">KAIST AP</Th>
+                            <Th divided>KAIST AP</Th>
                             <Th>수과학 GPA</Th>
                             <Th>Overall GPA</Th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
+                        </Table.Row>
+                    </Table.Head>
+                    <Table.Body>
+                        <Table.Row>
                             <Rh>총 학점</Rh>
                             {terms.map((term) => (
-                                <Td
-                                    key={term.key}
-                                    className={term.credits === 0 ? "text-black/20" : ""}
-                                >
+                                <Td key={term.key} tone={term.credits === 0 ? "faint" : undefined}>
                                     {num(term.credits)}
                                 </Td>
                             ))}
-                            <Td
-                                className={`border-l border-black/10 ${
-                                    summary.apCredits === 0 ? "text-black/20" : ""
-                                }`}
-                            >
+                            <Td divided tone={summary.apCredits === 0 ? "faint" : undefined}>
                                 {num(summary.apCredits)}
                             </Td>
-                            <Td className={summary.naturalGpa === null ? "text-black/20" : ""}>
+                            <Td tone={summary.naturalGpa === null ? "faint" : undefined}>
                                 {summary.naturalGpa === null ? "—" : summary.naturalGpa.toFixed(2)}
                             </Td>
-                            <Td className={summary.overallGpa === null ? "text-black/20" : ""}>
+                            <Td tone={summary.overallGpa === null ? "faint" : undefined}>
                                 {summary.overallGpa === null ? "—" : summary.overallGpa.toFixed(2)}
                             </Td>
-                        </tr>
-                        <tr>
+                        </Table.Row>
+                        <Table.Row>
                             <Rh>만족여부</Rh>
                             {terms.map((term) => (
                                 <Verdict
@@ -196,122 +193,116 @@ const Roadmap: React.FC<RoadmapProps> = ({
                                     muted={term.credits === 0}
                                 />
                             ))}
-                            <Td className="border-l border-black/10" />
+                            <Td divided />
                             <Td />
                             <Td />
-                        </tr>
-                        <tr>
+                        </Table.Row>
+                        <Table.Row>
                             <Rh>GPA</Rh>
                             {terms.map((term) => (
-                                <Td
-                                    key={term.key}
-                                    className={term.gpa === null ? "text-black/20" : "text-black/60"}
-                                >
+                                <Td key={term.key} tone={term.gpa === null ? "faint" : "secondary"}>
                                     {term.gpa === null ? "—" : term.gpa.toFixed(2)}
                                 </Td>
                             ))}
-                            <Td className="border-l border-black/10" />
+                            <Td divided />
                             <Td />
                             <Td />
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                        </Table.Row>
+                    </Table.Body>
+                </Table>
+            </Surface>
 
             {/* ── 워크북 행 7~10 · 졸업 요건 ───────────────────────────────── */}
-            <div className="overflow-x-auto border-b-2 border-black/10 px-4 py-1.5 md:px-6">
-                <table className="w-full min-w-[44rem] border-collapse">
-                    <thead>
-                        <tr className="border-b border-black/10">
-                            <Rh> </Rh>
+            <Surface fill="none" border="subtle" borderSide="bottom" className="px-4 py-1.5 md:px-6">
+                <Table head="plain" frameClassName="border-0" className="min-w-[44rem]" aria-label="졸업 요건">
+                    <Table.Head>
+                        <Table.Row>
+                            <Table.HeadCell className="h-7 py-0 align-middle">
+                                <span className="sr-only">항목</span>
+                            </Table.HeadCell>
                             <Th>자연</Th>
                             <Th>인문</Th>
                             <Th>융합</Th>
                             <Th>계</Th>
                             <Th>EC</Th>
-                            <Th className="border-l border-black/10">자기계발</Th>
+                            <Th divided>자기계발</Th>
                             <Th>협업</Th>
                             <Th>세계시민</Th>
                             <Th>총 시수</Th>
-                            <Th className="border-l border-black/10">졸업?</Th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
+                            <Th divided>졸업?</Th>
+                        </Table.Row>
+                    </Table.Head>
+                    <Table.Body>
+                        <Table.Row>
                             <Rh>총 학점</Rh>
                             {["natural", "humanities", "convergence", "total", "ec"].map((key) => {
                                 const row = credit(key);
                                 return (
-                                    <Td
-                                        key={key}
-                                        className={row?.earned === 0 ? "text-black/20" : ""}
-                                    >
+                                    <Td key={key} tone={row?.earned === 0 ? "faint" : undefined}>
                                         {num(row?.earned ?? 0)}
                                     </Td>
                                 );
                             })}
                             {HOUR_FIELDS.map((field, index) => (
-                                <td
+                                <Table.Cell
                                     key={field.key}
-                                    className={`h-7 px-2 text-center align-middle ${
-                                        index === 0 ? "border-l border-black/10" : ""
-                                    }`}
+                                    divided={index === 0}
+                                    className="h-7 px-2 py-0 text-center align-middle"
                                 >
                                     {/* 비교과 시수는 어디에도 데이터가 없어 본인이 적습니다.
                                         워크북에서도 사람이 직접 치는 칸입니다 */}
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        max={999}
-                                        value={hours[field.key] || ""}
-                                        placeholder="—"
-                                        aria-label={`${field.label} 시수`}
-                                        onChange={(event) =>
-                                            onHoursChange({
-                                                [field.key]: Math.max(
-                                                    0,
-                                                    Math.min(999, Number(event.target.value) || 0),
-                                                ),
-                                            })
-                                        }
-                                        // ⚠️ 테두리도 스피너도 없습니다. 이 셋만 상자를 두르고 있으니 옆칸(총 시수·
-                                        // 계열 학점)과 어긋나 보였습니다 — 여기 있는 건 전부 숫자이고,
-                                        // 이 셋만 **고칠 수 있다**는 건 손을 올렸을 때 알면 됩니다
-                                        // ⚠️ `block` 이어야 합니다. 인라인이면 글자 아래 여백까지 셀
-                                        // 높이에 들어가 이 줄만 두툼해집니다. 세로 위치는 셀의
-                                        // `align-middle` 이 잡아 주므로 여기서 높이를 맞출 필요는 없습니다
-                                        className="block w-full min-w-0 bg-transparent p-0 text-center text-[13px] font-black leading-5 tabular-nums outline-none [appearance:textfield] placeholder:text-black/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                    />
-                                </td>
+                                    <Text weight="black" numeric>
+                                        <Input
+                                            bare
+                                            type="number"
+                                            min={0}
+                                            max={999}
+                                            value={hours[field.key] || ""}
+                                            placeholder="—"
+                                            aria-label={`${field.label} 시수`}
+                                            onChange={(event) =>
+                                                onHoursChange({
+                                                    [field.key]: Math.max(
+                                                        0,
+                                                        Math.min(999, Number(event.target.value) || 0),
+                                                    ),
+                                                })
+                                            }
+                                            // ⚠️ 테두리도 스피너도 없습니다. 이 셋만 상자를 두르고 있으니 옆칸(총 시수·
+                                            // 계열 학점)과 어긋나 보였습니다 — 여기 있는 건 전부 숫자이고,
+                                            // 이 셋만 **고칠 수 있다**는 건 손을 올렸을 때 알면 됩니다
+                                            // ⚠️ `block` 이어야 합니다. 인라인이면 글자 아래 여백까지 셀
+                                            // 높이에 들어가 이 줄만 두툼해집니다 (`Input bare` 는 block 입니다).
+                                            // 세로 위치는 셀의 `align-middle` 이 잡아 주므로 여기서 높이를
+                                            // 맞출 필요는 없습니다
+                                            className="text-center leading-5 outline-none"
+                                        />
+                                    </Text>
+                                </Table.Cell>
                             ))}
-                            <Td className={hour("total")?.earned === 0 ? "text-black/20" : ""}>
+                            <Td tone={hour("total")?.earned === 0 ? "faint" : undefined}>
                                 {num(hour("total")?.earned ?? 0)}
                             </Td>
-                            <Td className="border-l border-black/10" />
-                        </tr>
-                        <tr>
+                            <Td divided />
+                        </Table.Row>
+                        <Table.Row>
                             <Rh>졸업요건</Rh>
                             {["natural", "humanities", "convergence", "total", "ec"].map((key) => (
-                                <Td key={key} className="font-bold text-black/35">
+                                <Td key={key} bold tone="muted">
                                     {credit(key)?.required ?? 0}
                                 </Td>
                             ))}
                             {HOUR_FIELDS.map((field, index) => (
-                                <Td
-                                    key={field.key}
-                                    className={`font-bold text-black/35 ${
-                                        index === 0 ? "border-l border-black/10" : ""
-                                    }`}
-                                >
+                                <Td key={field.key} bold tone="muted" divided={index === 0}>
                                     {hour(field.key)?.required ?? 60}
                                 </Td>
                             ))}
-                            <Td className="font-bold text-black/35">
+                            <Td bold tone="muted">
                                 {hour("total")?.required ?? 270}
                             </Td>
-                            <Td className="border-l border-black/10" />
-                        </tr>
-                        <tr>
+                            <Td divided />
+                        </Table.Row>
+                        <Table.Row>
                             <Rh>만족여부</Rh>
                             {["natural", "humanities", "convergence", "total", "ec"].map((key) => (
                                 <Verdict
@@ -327,7 +318,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
                                     ok={Boolean(hour(field.key)?.met)}
                                     yes="졸업가능"
                                     no="더 채우세요"
-                                    borderLeft={index === 0}
+                                    divided={index === 0}
                                 />
                             ))}
                             <Verdict
@@ -338,9 +329,8 @@ const Roadmap: React.FC<RoadmapProps> = ({
                             {/* 워크북 `K10`. 트랙은 판정하지 않으므로 다 채워도 "가능!" 이
                                 아니라 원본의 `트랙 필요` 까지만 갑니다 */}
                             <Td
-                                className={`border-l border-black/10 ${
-                                    numbersReady ? "text-retro-green" : "text-retro-primary"
-                                }`}
+                                divided
+                                tone={numbersReady ? "green" : "pink"}
                                 title={
                                     numbersReady
                                         ? "숫자 요건은 다 찼습니다. 학과 트랙은 아래 판마다 적어 둔 조건으로 직접 확인해주세요"
@@ -349,13 +339,13 @@ const Roadmap: React.FC<RoadmapProps> = ({
                             >
                                 {numbersReady ? "트랙 필요" : "응 안돼"}
                             </Td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                        </Table.Row>
+                    </Table.Body>
+                </Table>
+            </Surface>
 
             {/* ── 워크북 행 14~22 · 학기별 과목 ────────────────────────────── */}
-            <div className="divide-y divide-black/10">
+            <div className="divide-y divide-[var(--fk-line-subtle)]">
                 {terms.map((term) => (
                     <TermRow
                         key={term.key}
@@ -378,7 +368,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
                     onOpenCourse={onOpenCourse}
                 />
             </div>
-        </RetroCard>
+        </Card>
     );
 };
 
@@ -454,18 +444,15 @@ const TermRow: React.FC<{
      * 빈 자리가 과목 자리로 갑니다.
      */
     const creditLabel = (
-        <span
-            className={`text-[12px] font-black tabular-nums ${
-                credits === 0
-                    ? "text-black/20"
-                    : ok
-                      ? "text-black/45"
-                      : "bg-retro-primary/25 px-1 text-black"
-            }`}
+        <Text
+            variant="label"
+            tone={credits === 0 ? "faint" : "muted"}
+            numeric
             title={ok ? undefined : "한 학기 학점이 10~30 범위를 벗어났습니다"}
+            className={ok ? undefined : paintClass({ accent: "pink", variant: "wash" }) + " px-1"}
         >
             {credits === 0 ? "—" : `${credits}학점`}
-        </span>
+        </Text>
     );
 
     return (
@@ -484,8 +471,8 @@ const TermRow: React.FC<{
                 const course = event.dataTransfer.getData("text/plain");
                 if (course) onDropCourse!(course.replace(/\(EC\)$/, ""), dropTerm!);
             }}
-            className={`flex flex-col gap-0.5 px-4 py-1.5 transition-colors duration-100 md:flex-row md:items-start md:gap-3 md:px-6 ${
-                over ? "bg-retro-primary/15" : ""
+            className={`flex flex-col gap-0.5 px-4 py-1.5 transition-opacity duration-100 md:flex-row md:items-start md:gap-3 md:px-6 ${
+                over ? paintClass({ accent: "pink", variant: "wash" }) : ""
             }`}
         >
             {/* ⚠️ 오른쪽 첫 줄과 **같은 높이 상자** 안에서 가운데 정렬합니다. 예전에는
@@ -493,20 +480,20 @@ const TermRow: React.FC<{
                 정해서(그리고 줄이 접히면 더 커져서) 기준선이 매번 어긋났습니다 */}
             <div className="flex h-7 shrink-0 items-center justify-between md:w-[6rem] md:justify-start">
                 {onOpenTerm ? (
-                    <RetroButton
-                        type="button"
+                    <Button
+                        variant="ghostMuted"
                         size="sm"
-                        className="h-7 shrink-0 px-2 py-0"
+                        className="-ml-2 h-7 shrink-0 px-2 py-0"
                         onClick={onOpenTerm}
                         aria-label={`${name} 상세 입력`}
                         aria-haspopup="dialog"
                     >
                         {name}
-                    </RetroButton>
+                    </Button>
                 ) : (
-                    <span className="text-[12px] font-black uppercase tracking-widest">
+                    <Text variant="caption" weight="black" className="uppercase tracking-widest">
                         {name}
-                    </span>
+                    </Text>
                 )}
                 {/* 좁은 화면에서는 줄이 세로로 쌓여서 오른쪽 끝이라는 게 없습니다 —
                     그때만 이름 옆에 붙입니다 */}
@@ -515,27 +502,26 @@ const TermRow: React.FC<{
 
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
                 {courses.map((course) => (
-                    <button
+                    <Pressable
                         key={course}
-                        type="button"
                         draggable={editable}
-                        onDragStart={(event) => {
+                        onDragStart={(event: React.DragEvent) => {
                             event.dataTransfer.setData("text/plain", course);
                             event.dataTransfer.effectAllowed = "move";
                         }}
                         onClick={() => onOpenCourse(course.replace(/\(EC\)$/, ""))}
                         // 세로 크기는 **상자 높이**로 잡습니다. 패딩으로 키우면 글자만큼만
-                        // 커져서 핑크 면이 글씨에 달라붙은 것처럼 보입니다
-                        className={`flex h-7 items-center px-1.5 text-[13px] font-bold transition-colors duration-100 hover:bg-retro-primary/25 ${
+                        // 커져서 면이 글씨에 달라붙은 것처럼 보입니다
+                        className={`${surfaceClass({ fill: "none", hoverable: true })} flex h-7 items-center px-1.5 ${
                             editable ? "cursor-grab active:cursor-grabbing" : ""
                         }`}
                     >
-                        {course}
-                    </button>
+                        <Text weight="bold">{course}</Text>
+                    </Pressable>
                 ))}
 
                 {!editable && courses.length === 0 && (
-                    <span className="flex h-7 items-center text-[13px] font-bold text-black/25">{emptyText}</span>
+                    <Text weight="bold" tone="faint" className="flex h-7 items-center">{emptyText}</Text>
                 )}
 
                 {/*
@@ -548,48 +534,54 @@ const TermRow: React.FC<{
                  */}
                 {editable && (
                     <div className="relative min-w-[9rem] flex-1">
-                        <input
-                            value={query}
-                            onChange={(event) => setQuery(event.target.value)}
-                            onFocus={() => setFocused(true)}
-                            onBlur={() => {
-                                setFocused(false);
-                                setQuery("");
-                            }}
-                            onKeyDown={(event) => {
-                                if (event.key === "Escape") event.currentTarget.blur();
-                                // 한글 IME 는 조합 중에도 Enter 를 흘려보냅니다
-                                if (
-                                    event.key === "Enter" &&
-                                    !event.nativeEvent.isComposing &&
-                                    matches[0]
-                                ) {
-                                    pick(matches[0].name);
-                                }
-                            }}
-                            placeholder={over ? "여기에 놓기" : courses.length ? "과목 넣기" : emptyText}
-                            // 테두리도, 호버·포커스 표시도 없습니다. 여기서 바뀌는 건 placeholder 뿐이고,
-                            // 칠 수 있다는 건 커서가 말합니다
-                            className="h-7 w-full bg-transparent px-1.5 text-[13px] font-bold outline-none placeholder:font-bold placeholder:text-black/25"
-                        />
+                        <Text weight="bold" className="block">
+                            <Input
+                                bare
+                                value={query}
+                                onChange={(event) => setQuery(event.target.value)}
+                                onFocus={() => setFocused(true)}
+                                onBlur={() => {
+                                    setFocused(false);
+                                    setQuery("");
+                                }}
+                                onKeyDown={(event) => {
+                                    if (event.key === "Escape") event.currentTarget.blur();
+                                    // 한글 IME 는 조합 중에도 Enter 를 흘려보냅니다
+                                    if (
+                                        event.key === "Enter" &&
+                                        !event.nativeEvent.isComposing &&
+                                        matches[0]
+                                    ) {
+                                        pick(matches[0].name);
+                                    }
+                                }}
+                                placeholder={over ? "여기에 놓기" : courses.length ? "과목 넣기" : emptyText}
+                                // 테두리도, 호버·포커스 표시도 없습니다. 여기서 바뀌는 건 placeholder 뿐이고,
+                                // 칠 수 있다는 건 커서가 말합니다
+                                className="h-7 px-1.5 outline-none"
+                            />
+                        </Text>
                         {focused && matches.length > 0 && (
-                            <div className="absolute left-0 top-8 z-20 max-h-64 w-full min-w-[16rem] overflow-y-auto border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]">
+                            <Surface
+                                border="line"
+                                shadow="raised"
+                                className="absolute left-0 top-8 z-20 max-h-64 w-full min-w-[16rem] overflow-y-auto"
+                            >
                                 {matches.map((course) => (
-                                    <button
+                                    <Pressable
                                         key={course.name}
-                                        type="button"
                                         // blur 가 먼저 돌면 목록이 닫혀 클릭이 안 먹습니다
-                                        onMouseDown={(event) => event.preventDefault()}
+                                        onMouseDown={(event: React.MouseEvent) => event.preventDefault()}
                                         onClick={() => pick(course.name)}
-                                        className="flex w-full items-baseline gap-2 border-b border-black/10 px-2 py-1.5 text-left last:border-b-0 hover:bg-retro-primary/20"
+                                        className={`${surfaceClass({ fill: "none", border: "subtle", borderSide: "bottom", hoverable: true })} flex w-full items-baseline gap-2 px-2 py-1.5 text-left last:border-b-0`}
                                     >
-                                        <span className="text-[13px] font-black">{course.name}</span>
-                                        <span className="ml-auto shrink-0 text-[12px] font-bold text-black/40">
+                                        <Text weight="black">{course.name}</Text>
+                                        <Text variant="caption" tone="muted" className="ml-auto shrink-0">
                                             {course.department} · {course.credits}학점
-                                        </span>
-                                    </button>
+                                        </Text>
+                                    </Pressable>
                                 ))}
-                            </div>
+                            </Surface>
                         )}
                     </div>
                 )}

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Download, Eye, FileText } from "lucide-react";
+import { Badge, Button, Card, Divider, Notice, Surface, Text } from "@studio-baeks/funky-ui";
 import type { SubjectData, Term } from "../types";
 import {
     downloadSyllabus,
@@ -89,111 +90,128 @@ const SyllabusPanel: React.FC<SyllabusPanelProps> = ({ subject, term }) => {
 
     return (
         <>
-            <section
+            <Card shadow="raised"
+                as="section"
+                padding="0"
                 aria-label={`${subject.subject} syllabus`}
-                className="border-2 border-black bg-retro-accent2 shadow-[4px_4px_0_0_rgba(0,0,0,0.16)]"
             >
-                <div className="flex items-center justify-between gap-3 border-b-2 border-black px-3 py-2.5">
+                <Card.Strip accent="yellow" placement="top" className="flex items-center justify-between gap-3 py-2.5">
                     <div className="flex items-center gap-2 min-w-0">
                         <FileText size={17} strokeWidth={2.75} className="shrink-0" />
-                        <h3 className="text-sm font-black">Syllabus</h3>
+                        <Text as="h3" weight="black">Syllabus</Text>
                     </div>
-                    <span className="text-[10px] font-black bg-white border-2 border-black px-2 py-0.5 shrink-0">
+                    <Badge variant="paper" size="sm" className="shrink-0">
                         {totalFiles} {totalFiles === 1 ? "FILE" : "FILES"}
-                    </span>
-                </div>
+                    </Badge>
+                </Card.Strip>
 
-                <div className="divide-y-2 divide-black bg-white">
+                <Surface fill="none">
                     {syllabi.loading && (
-                        <p className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-black/40">
+                        <Text as="p" variant="overline" className="px-3 py-3">
                             Loading syllabus…
-                        </p>
+                        </Text>
                     )}
                     {syllabi.error && (
-                        <p className="px-3 py-3 text-xs font-black">
+                        <Text as="p" variant="caption" weight="black" className="block px-3 py-3">
                             강의계획서 목록을 불러오지 못했습니다.
-                        </p>
+                        </Text>
                     )}
                     {downloadError && (
-                        <p className="bg-retro-primary px-3 py-2 text-xs font-black">{downloadError}</p>
+                        <Notice accent="pink" variant="solid" role="alert">{downloadError}</Notice>
                     )}
-                    {documents.map((document) => (
-                        <div
-                            key={document.id}
-                            className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
-                        >
-                            <div className="min-w-0">
-                                <p className="text-sm font-black leading-snug break-words">
-                                    {document.title}
-                                </p>
-                                <p className="mt-1 text-[10px] font-bold text-black/45 break-words">
-                                    {document.department} · {document.sourceFormat}
-                                </p>
-                            </div>
-                            <div className="flex gap-2 shrink-0">
-                                <button
-                                    type="button"
-                                    onClick={() => setPreview({
-                                        name: document.title,
-                                        mediaType: "application/pdf",
-                                        syllabusId: document.previewId,
-                                    })}
-                                    className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1.5 border-2 border-black bg-retro-accent1 px-3 py-2 text-xs font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-black"
-                                >
-                                    <Eye size={14} strokeWidth={2.5} />
-                                    Preview
-                                </button>
-                                <button
-                                    type="button"
-                                    disabled={downloading === document.id}
-                                    onClick={() => handleDownload(document)}
-                                    className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1.5 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-black disabled:opacity-40"
-                                >
-                                    <Download size={14} strokeWidth={2.5} />
-                                    {downloading === document.id ? "…" : "Download"}
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                    {dynamicFiles.map(({ material, file }) => (
-                        <div
-                            key={`material-${file.id}`}
-                            className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
-                        >
-                            <div className="min-w-0">
-                                <p className="break-words text-sm font-black leading-snug">
-                                    {material.title}
-                                </p>
-                                <p className="mt-1 break-words text-[10px] font-bold text-black/45">
-                                    {file.name} · VERIFIED UPLOAD
-                                </p>
-                            </div>
-                            <div className="flex shrink-0 gap-2">
-                                {file.preview_available && (
-                                    <button
-                                        type="button"
+                    {documents.map((document, index) => (
+                        <React.Fragment key={document.id}>
+                            {index > 0 && <Divider tone="line" />}
+                            <div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0">
+                                    <Text as="p" weight="black" className="break-words">
+                                        {document.title}
+                                    </Text>
+                                    <Text as="p" variant="micro" tone="muted" className="mt-1 break-words">
+                                        {document.department} · {document.sourceFormat}
+                                    </Text>
+                                </div>
+                                <div className="flex gap-2 shrink-0">
+                                    <Button
+                                        size="sm"
+                                        accent="cyan"
+                                        variant="solid"
+                                        shadow
+                                        icon={Eye}
+                                        uppercase={false}
                                         onClick={() => setPreview({
-                                            name: file.name,
-                                            mediaType: file.preview_media_type || "application/pdf",
-                                            fileId: file.id,
+                                            name: document.title,
+                                            mediaType: "application/pdf",
+                                            syllabusId: document.previewId,
                                         })}
-                                        className="inline-flex flex-1 items-center justify-center gap-1.5 border-2 border-black bg-retro-accent1 px-3 py-2 text-xs font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none sm:flex-none"
+                                        className="flex-1 sm:flex-none"
                                     >
-                                        <Eye size={14} strokeWidth={2.5} /> Preview
-                                    </button>
-                                )}
-                                <button
-                                    type="button"
-                                    onClick={() => downloadMaterialFile(file.id, file.name)}
-                                    className="inline-flex flex-1 items-center justify-center gap-1.5 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none sm:flex-none"
-                                >
-                                    <Download size={14} strokeWidth={2.5} /> Download
-                                </button>
+                                        Preview
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="paper"
+                                        shadow
+                                        icon={Download}
+                                        uppercase={false}
+                                        disabled={downloading === document.id}
+                                        onClick={() => handleDownload(document)}
+                                        className="flex-1 sm:flex-none"
+                                    >
+                                        {downloading === document.id ? "…" : "Download"}
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
+                        </React.Fragment>
                     ))}
-                </div>
-            </section>
+                    {dynamicFiles.map(({ material, file }, index) => (
+                        <React.Fragment key={`material-${file.id}`}>
+                            {(documents.length > 0 || index > 0) && <Divider tone="line" />}
+                            <div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0">
+                                    <Text as="p" weight="black" className="break-words">
+                                        {material.title}
+                                    </Text>
+                                    <Text as="p" variant="micro" tone="muted" className="mt-1 break-words">
+                                        {file.name} · VERIFIED UPLOAD
+                                    </Text>
+                                </div>
+                                <div className="flex shrink-0 gap-2">
+                                    {file.preview_available && (
+                                        <Button
+                                            size="sm"
+                                            accent="cyan"
+                                            variant="solid"
+                                            shadow
+                                            icon={Eye}
+                                            uppercase={false}
+                                            onClick={() => setPreview({
+                                                name: file.name,
+                                                mediaType: file.preview_media_type || "application/pdf",
+                                                fileId: file.id,
+                                            })}
+                                            className="flex-1 sm:flex-none"
+                                        >
+                                            Preview
+                                        </Button>
+                                    )}
+                                    <Button
+                                        size="sm"
+                                        variant="paper"
+                                        shadow
+                                        icon={Download}
+                                        uppercase={false}
+                                        onClick={() => downloadMaterialFile(file.id, file.name)}
+                                        className="flex-1 sm:flex-none"
+                                    >
+                                        Download
+                                    </Button>
+                                </div>
+                            </div>
+                        </React.Fragment>
+                    ))}
+                </Surface>
+            </Card>
 
             <MaterialPreviewModal target={preview} onClose={closePreview} />
         </>

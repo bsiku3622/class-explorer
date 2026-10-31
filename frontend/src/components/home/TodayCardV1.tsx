@@ -13,11 +13,10 @@ import { CalendarDays, CalendarOff } from "lucide-react";
 import type { HomeData } from "../../lib/friendsApi";
 import { dateLabel, deriveHomeView } from "../../lib/homeView";
 import { hhmm } from "../../lib/utils";
-import RetroCard from "../atoms/RetroCard";
-import RetroSubTitle from "../atoms/RetroSubTitle";
 import DayRuler from "../DayRuler";
 import TodayTimeline from "../TodayTimeline";
 import VacationBar from "../VacationBar";
+import { Badge, Card, Icon, SectionTitle, Surface, Text } from "@studio-baeks/funky-ui";
 
 interface TodayCardV1Props {
     home: HomeData;
@@ -36,42 +35,46 @@ const TodayCardV1: React.FC<TodayCardV1Props> = ({ home, liveMinute, quip }) => 
     );
 
     return (
-        <RetroCard className="flex flex-col bg-white p-5 md:p-6">
-            <div className="flex items-start justify-between gap-4 border-b-2 border-black/10 pb-3">
+        <Card padding="0" className="flex flex-col p-5 md:p-6">
+            <Surface
+                fill="none"
+                border="subtle"
+                borderSide="bottom"
+                className="flex items-start justify-between gap-4 pb-3"
+            >
                 <span className="min-w-0">
-                    <RetroSubTitle title="Today" icon={CalendarDays} />
-                    <span className="mt-1 block truncate text-[11px] font-black tracking-wide text-black/40">
+                    <SectionTitle title="Today" icon={CalendarDays} />
+                    <Text as="span" variant="label" tone="muted" truncate className="mt-1">
                         {dateLabel(now.date)}
-                    </span>
+                    </Text>
                 </span>
 
                 <span className="shrink-0 text-right">
                     <span className="flex items-center justify-end gap-2">
-                        <span className="text-2xl font-black leading-none tracking-tight tabular-nums">
+                        <Text as="span" variant="title" numeric className="leading-none">
                             {hhmm(liveMinute)}
-                        </span>
+                        </Text>
                         {/* 수업 중이면 이 칩 하나가 "지금" 을 답니다 */}
-                        {periodLabel && (
-                            <span
-                                className={`text-[11px] font-black ${
-                                    current
-                                        ? "border-2 border-black bg-retro-primary px-1.5 py-0.5"
-                                        : "text-black/40"
-                                }`}
-                            >
-                                {periodLabel}
-                            </span>
-                        )}
+                        {periodLabel &&
+                            (current ? (
+                                <Badge accent="pink" variant="solid" size="sm">
+                                    {periodLabel}
+                                </Badge>
+                            ) : (
+                                <Text as="span" variant="label" tone="muted">
+                                    {periodLabel}
+                                </Text>
+                            ))}
                     </span>
                     {today.length > 0 && (
-                        <span className="mt-1 block text-[11px] font-bold tabular-nums text-black/35">
+                        <Text as="span" variant="label" weight="bold" tone="muted" numeric className="mt-1 block">
                             수업 {today.length}개
                             {freeMinutes > 0 &&
                                 ` · 빈 시간 ${Math.floor(freeMinutes / 60)}시간 ${freeMinutes % 60}분`}
-                        </span>
+                        </Text>
                     )}
                 </span>
-            </div>
+            </Surface>
 
             {/* 하루를 가로로 한 번 훑고(자), 그다음 줄로 읽습니다(목록) */}
             {today.length > 0 && (
@@ -92,16 +95,16 @@ const TodayCardV1: React.FC<TodayCardV1Props> = ({ home, liveMinute, quip }) => 
                     />
                 ) : (
                     <div className="py-2">
-                        <p className="flex items-center gap-2.5 text-2xl font-black tracking-tighter">
-                            <CalendarOff size={22} className="shrink-0 text-black/25" />
+                        <Text as="p" variant="title" className="flex items-center gap-2.5">
+                            <Icon icon={CalendarOff} size={22} tone="faint" className="shrink-0" />
                             {isSchoolDay
                                 ? "오늘은 수업이 없습니다"
                                 : (session.off_label ?? "휴일")}
-                        </p>
+                        </Text>
                         {quip && (
-                            <p className="mt-1.5 text-[13px] font-bold text-black/35">
+                            <Text as="p" tone="muted" className="mt-1.5">
                                 {quip}
-                            </p>
+                            </Text>
                         )}
 
                         {session.off_reason === "vacation" && session.resumes_on && (
@@ -115,7 +118,7 @@ const TodayCardV1: React.FC<TodayCardV1Props> = ({ home, liveMinute, quip }) => 
                     </div>
                 )}
             </div>
-        </RetroCard>
+        </Card>
     );
 };
 

@@ -15,10 +15,15 @@
  */
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowUp, ChevronDown, Plus, Square, X } from "lucide-react";
+import { IconButton, Input, Select, Surface, Swatch, Text, Textarea } from "@studio-baeks/funky-ui";
+import type { IconComponentProps } from "@studio-baeks/funky-ui";
 import type { AgentChat } from "../../hooks/useAgentChat";
 import { imageFiles, MAX_IMAGES, shrinkImage } from "../../lib/imageAttach";
 
 const LINE = 24;
+
+/** 정지 단추의 속 찬 네모 — IconButton 은 아이콘을 컴포넌트째 받아서, fill 을 미리 준 것을 넘깁니다 */
+const StopIcon: React.FC<IconComponentProps> = (props) => <Square {...props} fill="currentColor" />;
 
 interface AgentComposerProps {
     chat: AgentChat;
@@ -103,62 +108,64 @@ const AgentComposer: React.FC<AgentComposerProps> = ({
     return (
         // 모델 이름을 보일지는 **화면이 아니라 이 상자의 폭**으로 정합니다(`@container`) — 미니 창은
         // 데스크탑 화면 안의 400px 이라 화면 폭(`sm:`)으로 재면 이름이 붙어 입력칸이 반으로 줄었습니다
-        <div
+        <Surface
+            border="line"
+            shadow="raised"
+            fill={dragging ? "well" : "raised"}
             style={transitionName ? { viewTransitionName: transitionName } : undefined}
-            onDragOver={(e) => {
+            onDragOver={(e: React.DragEvent) => {
                 if (Array.from(e.dataTransfer.items).some((i) => i.kind === "file")) {
                     e.preventDefault();
                     setDragging(true);
                 }
             }}
             onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
+            onDrop={(e: React.DragEvent) => {
                 e.preventDefault();
                 setDragging(false);
                 void attach(imageFiles(e.dataTransfer.files));
             }}
-            className={`@container border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-colors duration-100 ${dragging ? "bg-retro-accent-light" : ""}`}
+            className="@container"
         >
             {images.length > 0 && (
                 <div className="flex flex-wrap gap-2 px-3 pt-3">
                     {images.map((src, i) => (
                         <div key={i} className="relative">
-                            <img src={src} alt={`첨부 이미지 ${i + 1}`} className="h-16 w-16 border-2 border-black object-cover" />
-                            <button
-                                type="button"
+                            <Surface as="img" fill="none" border="line" src={src} alt={`첨부 이미지 ${i + 1}`} className="h-16 w-16 object-cover" />
+                            <IconButton
+                                icon={X}
+                                label={`첨부 이미지 ${i + 1} 빼기`}
+                                variant="paper"
+                                size="xs"
                                 onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
-                                aria-label={`첨부 이미지 ${i + 1} 빼기`}
-                                className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center border-2 border-black bg-white hover:bg-black hover:text-white"
-                            >
-                                <X size={11} strokeWidth={3} />
-                            </button>
+                                className="absolute -right-2 -top-2 h-5 w-5"
+                            />
                         </div>
                     ))}
                 </div>
             )}
             <div className="flex items-end gap-1 p-1.5">
-                <button
-                    type="button"
+                <IconButton
+                    icon={Plus}
+                    label="이미지 첨부"
+                    size="md"
                     onClick={() => fileRef.current?.click()}
                     disabled={chat.running || images.length >= MAX_IMAGES}
-                    aria-label="이미지 첨부"
-                    title="이미지 첨부"
-                    className="flex h-10 w-10 shrink-0 items-center justify-center text-black/70 transition-colors duration-100 hover:bg-black/[0.06] hover:text-black disabled:opacity-30"
-                >
-                    <Plus size={20} strokeWidth={2.5} />
-                </button>
-                <input
+                    className="shrink-0"
+                />
+                <Input
+                    bare
                     ref={fileRef}
                     type="file"
                     accept="image/*"
                     multiple
-                    hidden
+                    className="hidden"
                     onChange={(e) => {
                         void attach(imageFiles(e.target.files));
                         e.target.value = "";
                     }}
                 />
-                <textarea
+                <Textarea
                     ref={ref}
                     rows={1}
                     value={text}
@@ -178,57 +185,54 @@ const AgentComposer: React.FC<AgentComposerProps> = ({
                     }}
                     maxLength={1000}
                     placeholder={chat.running ? "답을 찾는 중이에요…" : placeholder}
-                    className="min-w-0 flex-1 resize-none self-center bg-transparent px-1.5 py-2 text-[15px] font-bold leading-6 placeholder:text-black/30 focus:outline-none"
+                    className="min-w-0 flex-1 resize-none self-center border-transparent bg-transparent px-1.5 py-2 text-[15px] leading-6 focus:outline-none"
                 />
                 {chat.models && chat.models.models.length > 0 && (
                     // 좁은 상자에서는 이름 없이 점 + ▾ 만 — 선택 상자는 그 위에 투명하게 겹쳐 두어 누르면
                     // 목록이 그대로 열립니다. 이름까지 두면 390px 에서 입력칸이 130px 로 줄어 안내 문구가 꺾였습니다
-                    <label className="relative flex h-10 shrink-0 items-center gap-1.5 px-2 text-[13px] font-bold text-black/50 transition-colors duration-100 hover:bg-black/[0.06] hover:text-black">
+                    <div className="relative flex h-10 shrink-0 items-center gap-1.5 px-2">
                         {local && gateway !== undefined && (
-                            <span
+                            <Swatch
+                                accent={gateway === null ? "error" : gateway.running ? "green" : "black"}
+                                rung={gateway === null || gateway.running ? "solid" : "soft"}
                                 title={gateway === null ? "데스크탑에 닿지 않습니다" : gateway.running ? "데스크탑 모델이 켜져 있습니다" : "데스크탑 모델이 쉬는 중 — 첫 답은 1분쯤 걸려요"}
-                                className={`h-1.5 w-1.5 shrink-0 ${gateway === null ? "bg-red-500" : gateway.running ? "bg-retro-green" : "bg-black/25"}`}
+                                className="shrink-0"
                             />
                         )}
-                        <select
+                        <Select
+                            quiet
+                            size="xs"
                             value={chat.model}
                             onChange={(e) => chat.pickModel(e.target.value)}
                             disabled={chat.running}
                             aria-label="모델"
-                            className="absolute inset-0 w-full cursor-pointer appearance-none bg-transparent opacity-0 focus:outline-none disabled:cursor-default @md:static @md:w-auto @md:max-w-[11rem] @md:truncate @md:pr-4 @md:opacity-100"
+                            className="absolute inset-0 w-full opacity-0 @md:static @md:w-auto @md:max-w-[11rem] @md:opacity-100"
                         >
                             {chat.models.models.map((m) => (
                                 <option key={m.id} value={m.id}>{m.name}</option>
                             ))}
-                        </select>
-                        <ChevronDown size={13} strokeWidth={2.75} className="pointer-events-none @md:absolute @md:right-2" />
-                    </label>
+                        </Select>
+                        <ChevronDown size={13} strokeWidth={2.75} className="pointer-events-none @md:hidden" />
+                    </div>
                 )}
                 {chat.running ? (
-                    <button
-                        type="button"
-                        onClick={chat.stop}
-                        aria-label="정지"
-                        title="정지"
-                        className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-black bg-black text-white transition-colors duration-100 hover:bg-black/80"
-                    >
-                        <Square size={12} strokeWidth={3} fill="currentColor" />
-                    </button>
+                    <IconButton icon={StopIcon} label="정지" variant="filled" size="md" onClick={chat.stop} className="shrink-0" />
                 ) : (
-                    <button
-                        type="button"
+                    <IconButton
+                        icon={ArrowUp}
+                        label="보내기"
+                        title="보내기 (Enter)"
+                        accent="purple"
+                        variant="solid"
+                        size="md"
                         onClick={submit}
                         disabled={!canSend}
-                        aria-label="보내기"
-                        title="보내기 (Enter)"
-                        className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-black bg-retro-secondary text-white transition-colors duration-100 hover:bg-black disabled:border-black/15 disabled:bg-black/[0.06] disabled:text-black/25"
-                    >
-                        <ArrowUp size={18} strokeWidth={3} />
-                    </button>
+                        className="shrink-0"
+                    />
                 )}
             </div>
-            {error && <p className="px-3 pb-2 text-[12px] font-bold text-retro-accent4">{error}</p>}
-        </div>
+            {error && <Text as="p" variant="caption" tone="orange" className="px-3 pb-2">{error}</Text>}
+        </Surface>
     );
 };
 

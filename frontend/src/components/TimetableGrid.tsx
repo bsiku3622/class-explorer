@@ -1,6 +1,11 @@
 import React, { useMemo } from "react";
 import type { SectionTime } from "../types";
 import { getKoreanName, getSectionNumber, DAYS_ORDER, PERIODS } from "../lib/utils";
+import {
+    Text,
+    TimetableGrid as FunkyTimetableGrid,
+    ToneBox,
+} from "@studio-baeks/funky-ui";
 
 interface TimetableGridProps {
     times: SectionTime[];
@@ -73,85 +78,72 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({
     return (
         <div className={`flex flex-col ${className}`}>
             {showTitle && (
-                <p className="text-[10px] font-black text-black/40 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <Text as="p" variant="overline" className="mb-3 flex items-center gap-2">
                     Visual Schedule
-                </p>
+                </Text>
             )}
             <div className="overflow-x-auto">
-            <div className="border border-black bg-white overflow-hidden shadow-[4px_4px_0_0_rgba(0,0,0,0.1)] min-w-[300px]">
-                <div className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] divide-x divide-black border-b border-black bg-black text-white">
-                    <div className="p-1 text-[9px] font-black text-center uppercase tracking-tighter flex items-center justify-center bg-black/50">
-                        Pd
-                    </div>
-                    {DAYS.map((day) => (
-                        <div
-                            key={day}
-                            className="p-1 text-[10px] font-black text-center uppercase flex items-center justify-center">
-                            {day}
-                        </div>
-                    ))}
-                </div>
-                {PERIODS.map((period) => (
-                    <div
-                        key={period}
-                        className="grid grid-cols-[40px_1fr_1fr_1fr_1fr_1fr] h-16">
-                        <div className="bg-black/5 flex items-center justify-center text-[10px] font-black">
-                            {period}
-                        </div>
-                        {DAYS.map((day) => {
-                            const info = timeMap.get(`${day}-${period}`);
-                            const { display, keyword } = info ? getCellContent(info) : { display: "", keyword: "" };
-                            // colorFor가 색을 지정한 칸은 강조 대상 — 배경을 진하게 깔아 눈에 띄게 합니다
-                            const accent = info ? colorFor?.(info) : undefined;
-                            const cellColor = accent || color;
-                            const cellBg = accent ? `${accent}59` : `${color}10`;
-                            const marked = !!highlightSubject && !!display;
-                            const highlighted =
-                                marked && info?.subject === highlightSubject;
-                            const dimmed = marked && !highlighted;
+                <FunkyTimetableGrid
+                    flush
+                    className="min-w-[300px] overflow-hidden"
+                    days={DAYS.map((day) => ({ key: day, label: day }))}
+                    periods={PERIODS.map((period) => ({
+                        key: String(period),
+                        label: period,
+                    }))}
+                    renderCell={(day, periodKey) => {
+                        const period = Number(periodKey);
+                        const info = timeMap.get(`${day}-${period}`);
+                        const { display, keyword } = info ? getCellContent(info) : { display: "", keyword: "" };
+                        // colorFor가 색을 지정한 칸은 강조 대상 — 배경을 진하게 깔아 눈에 띄게 합니다
+                        const accent = info ? colorFor?.(info) : undefined;
+                        const cellColor = accent || color;
+                        const cellBg = accent ? `${accent}59` : `${color}10`;
+                        const marked = !!highlightSubject && !!display;
+                        const highlighted =
+                            marked && info?.subject === highlightSubject;
+                        const dimmed = marked && !highlighted;
 
-                            return (
-                                <div
-                                    key={`${day}-${period}`}
-                                    className={`relative group border-b border-l border-black/10 transition-all duration-200 ${dimmed ? "opacity-20" : ""} ${highlighted ? "z-30 border-transparent shadow-[0_0_15px_rgba(0,0,0,0.2)]" : ""} ${display ? "cursor-pointer hover:border-transparent hover:z-30 hover:shadow-[0_0_15px_rgba(0,0,0,0.2)] active:scale-[0.98]" : ""}`}
-                                    onClick={() => display && onCellClick?.(keyword)}>
-                                    {display && (
-                                        <>
-                                            {/* 마우스를 올렸을 때와, 밖에서 지목됐을 때 같은 테두리 */}
-                                            <div
-                                                className={`absolute border-2 transition-all duration-200 pointer-events-none z-30 group-hover:opacity-100 ${highlighted ? "opacity-100" : "opacity-0"}`}
-                                                style={{
-                                                    borderColor: cellColor,
-                                                    backgroundColor: `${cellColor}15`,
-                                                    top: "-1px",
-                                                    left: "-2px",
-                                                    right: "-1px",
-                                                    bottom: "-2px",
-                                                }}
-                                            />
-                                            {/* Cell Background & Content */}
-                                            <div
-                                                className="absolute inset-0 flex items-center p-1.5 pl-2.5 z-10"
-                                                style={{
-                                                    backgroundColor: cellBg,
-                                                    // 강조 칸은 테두리까지 둘러 배경색만으로 헷갈리지 않게 합니다
-                                                    boxShadow: accent
-                                                        ? `inset 0 0 0 2px ${accent}`
-                                                        : undefined,
-                                                }}
-                                                title={display}>
-                                                <span className="text-[11px] font-black text-black leading-[1.1] text-left break-all line-clamp-3 pointer-events-none">
-                                                    {display}
-                                                </span>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                ))}
-            </div>
+                        return (
+                            <div
+                                className={`relative group h-16 transition-opacity duration-200 ${dimmed ? "opacity-20" : ""} ${highlighted ? "z-30" : ""} ${display ? "cursor-pointer hover:z-30 active:scale-[0.98]" : ""}`}
+                                onClick={() => display && onCellClick?.(keyword)}>
+                                {display && (
+                                    <>
+                                        {/* 마우스를 올렸을 때와, 밖에서 지목됐을 때 같은 테두리 */}
+                                        <ToneBox
+                                            tone={cellColor}
+                                            className={`absolute pointer-events-none z-30 group-hover:opacity-100 ${highlighted ? "opacity-100" : "opacity-0"}`}
+                                            style={{
+                                                top: "-1px",
+                                                left: "-2px",
+                                                right: "-1px",
+                                                bottom: "-2px",
+                                            }}
+                                        />
+                                        {/* Cell Background & Content */}
+                                        <div
+                                            className="absolute inset-0 flex items-center p-1.5 pl-2.5 z-10"
+                                            style={{
+                                                backgroundColor: cellBg,
+                                                // 강조 칸은 테두리까지 둘러 배경색만으로 헷갈리지 않게 합니다
+                                                boxShadow: accent
+                                                    ? `inset 0 0 0 2px ${accent}`
+                                                    : undefined,
+                                            }}
+                                            title={display}>
+                                            <Text
+                                                variant="label"
+                                                className="text-left break-all line-clamp-3 pointer-events-none">
+                                                {display}
+                                            </Text>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        );
+                    }}
+                />
             </div>
         </div>
     );

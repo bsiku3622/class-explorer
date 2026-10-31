@@ -7,11 +7,9 @@ import {
     FileText,
     FolderOpen,
     Plus,
-    Search,
     Star,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import PageHeader from "../components/molecules/PageHeader";
 import MaterialPreviewModal, {
     type MaterialPreviewTarget,
 } from "../components/MaterialPreviewModal";
@@ -29,6 +27,20 @@ import {
     type SyllabusDocument,
 } from "../lib/syllabi";
 import { useSyllabusFiles } from "../hooks/useSyllabusFiles";
+import SearchInput from "../components/atoms/SearchInput";
+import {
+    Badge,
+    Button,
+    Card,
+    Divider,
+    EmptyState,
+    Notice,
+    PageHeader,
+    SegmentedControl,
+    Select,
+    Surface,
+    Text,
+} from "@studio-baeks/funky-ui";
 
 interface MaterialsPageProps {
     term: Term | null;
@@ -168,195 +180,194 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
                 subtitle={term ? `${term.year}-${term.semester} Course Materials` : "Course Materials"}
                 icon={FolderOpen}
                 action={
-                    <button
-                        type="button"
+                    <Button
+                        size="sm"
+                        accent="pink"
+                        variant="solid"
+                        shadow
+                        icon={Plus}
                         onClick={() => navigate("/upload")}
-                        className="flex items-center gap-2 border-2 border-black bg-retro-primary px-3 py-2 text-xs font-black uppercase shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-1 hover:translate-y-1 hover:shadow-none"
                     >
-                        <Plus size={16} strokeWidth={2.75} /> Upload
-                    </button>
+                        Upload
+                    </Button>
                 }
             />
 
-            <section className="border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]">
-                <div className="border-b-2 border-black bg-retro-accent1 px-4 py-3">
-                    <p className="text-xs font-black uppercase tracking-widest">Find Materials</p>
-                </div>
+            <Card shadow="raised" as="section" padding="0">
+                <Card.Header title="Find Materials" tone="bar" accent="cyan" />
                 <div className="grid gap-3 p-4 lg:grid-cols-[1fr_15rem]">
-                    <label className="flex items-center gap-2 border-2 border-black bg-white px-3 shadow-[4px_4px_0_0_rgba(0,0,0,0.12)] focus-within:shadow-none">
-                        <Search size={17} />
-                        <input
-                            value={query}
-                            onChange={(event) => setQuery(event.target.value)}
-                            placeholder="자료명 또는 과목 검색"
-                            className="min-w-0 flex-1 bg-transparent py-2.5 text-sm font-bold outline-none"
-                        />
-                    </label>
-                    <select
+                    <SearchInput
+                        size="sm"
+                        value={query}
+                        onChange={setQuery}
+                        placeholder="자료명 또는 과목 검색"
+                    />
+                    <Select
                         value={subjectId}
                         onChange={(event) =>
                             setSubjectId(event.target.value === "all" ? "all" : Number(event.target.value))
                         }
-                        className="border-2 border-black bg-white px-3 py-2.5 text-sm font-black shadow-[4px_4px_0_0_rgba(0,0,0,0.12)] outline-none focus:shadow-none"
                     >
                         <option value="all">전체 과목</option>
                         {subjects.map(([id, label]) => (
                             <option key={id} value={id}>{label}</option>
                         ))}
-                    </select>
+                    </Select>
                 </div>
-                <div className="flex flex-wrap gap-2 border-t-2 border-black px-4 py-3">
-                    <button
-                        type="button"
-                        onClick={() => setCategory("all")}
-                        className={`border-2 px-3 py-1.5 text-[10px] font-black uppercase transition-all duration-100 ${
-                            category === "all" ? "border-black bg-black text-white" : "border-black/30 text-black/50 hover:border-black hover:text-black"
-                        }`}
-                    >
-                        All
-                    </button>
-                    {MATERIAL_CATEGORIES.map((item) => (
-                        <button
-                            type="button"
-                            key={item}
-                            onClick={() => setCategory(item)}
-                            className={`border-2 px-3 py-1.5 text-[10px] font-black uppercase transition-all duration-100 ${
-                                category === item ? "border-black bg-black text-white" : "border-black/30 text-black/50 hover:border-black hover:text-black"
-                            }`}
-                        >
-                            {MATERIAL_CATEGORY_LABELS[item]}
-                        </button>
-                    ))}
-                </div>
-            </section>
+                <Surface fill="none" border="line" borderSide="top" className="px-4 py-3">
+                    <SegmentedControl<MaterialCategory | "all">
+                        aria-label="자료 유형"
+                        className="[&>button]:text-[10px]"
+                        value={category}
+                        onChange={setCategory}
+                        options={[
+                            { value: "all", label: "All" },
+                            ...MATERIAL_CATEGORIES.map((item) => ({
+                                value: item,
+                                label: MATERIAL_CATEGORY_LABELS[item],
+                            })),
+                        ]}
+                    />
+                </Surface>
+            </Card>
 
             {notice && (
-                <div className="border-2 border-black bg-retro-primary px-4 py-3 text-sm font-black shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]">
-                    {notice}
-                </div>
+                <Notice accent="pink" variant="solid" shadow role="alert">{notice}</Notice>
             )}
 
             <div className="flex items-end justify-between gap-3">
-                <p className="text-xs font-black uppercase tracking-widest text-black/40">
+                <Text as="p" variant="overline">
                     {visibleDynamic.length + visibleStatic.length} Materials
-                </p>
-                <p className="text-[10px] font-bold text-black/35">
+                </Text>
+                <Text as="p" variant="micro" tone="muted">
                     {syllabi.loading ? "강의계획서 목록을 불러오는 중…" : "승인된 자료만 표시됩니다"}
-                </p>
+                </Text>
             </div>
 
             {loading && materials.length === 0 ? (
-                <div className="border-2 border-black bg-white p-10 text-center font-black uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,0.15)]">
-                    Loading materials…
-                </div>
+                <Card shadow="raised" padding="0" className="p-10 text-center">
+                    <Text variant="overline" tone="primary">Loading materials…</Text>
+                </Card>
             ) : visibleDynamic.length + visibleStatic.length === 0 ? (
-                <div className="border-2 border-dashed border-black bg-white p-10 text-center shadow-[4px_4px_0_0_rgba(0,0,0,0.12)]">
-                    <BookOpen size={30} className="mx-auto mb-3 text-black/30" />
-                    <p className="font-black">아직 조건에 맞는 자료가 없습니다.</p>
-                    <button
-                        type="button"
-                        onClick={() => navigate("/upload")}
-                        className="mt-4 border-2 border-black bg-retro-accent2 px-4 py-2 text-xs font-black uppercase shadow-[3px_3px_0_0_rgba(0,0,0,0.2)]"
-                    >
-                        첫 자료 공유하기
-                    </button>
-                </div>
+                <EmptyState
+                    framed
+                    icon={BookOpen}
+                    title="아직 조건에 맞는 자료가 없습니다."
+                    action={
+                        <Button size="lg" accent="yellow" variant="solid" shadow onClick={() => navigate("/upload")}>
+                            첫 자료 공유하기
+                        </Button>
+                    }
+                />
             ) : (
                 <div className="grid items-start gap-5 xl:grid-cols-2">
                     {visibleDynamic.map((material) => (
-                        <article
-                            key={`dynamic-${material.id}`}
-                            className="border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]"
-                        >
-                            <header className="flex items-start justify-between gap-3 border-b-2 border-black bg-retro-accent2 px-4 py-3">
+                        <Card shadow="raised" as="article" key={`dynamic-${material.id}`} padding="0">
+                            <Card.Strip accent="yellow" placement="top" className="flex items-start justify-between gap-3 py-3">
                                 <div className="min-w-0">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-black/50">
+                                    <Text as="p" variant="overline">
                                         {material.subject.label}
-                                    </p>
-                                    <h2 className="mt-1 break-words text-base font-black">{material.title}</h2>
+                                    </Text>
+                                    <Text as="h2" variant="subheading" className="mt-1 break-words">{material.title}</Text>
                                 </div>
-                                <div className="flex shrink-0 items-center gap-1 border-2 border-black bg-white px-2 py-1 text-[10px] font-black uppercase">
+                                <Badge variant="paper" className="shrink-0">
                                     {material.primary_syllabus && <Star size={12} fill="currentColor" />}
                                     {MATERIAL_CATEGORY_LABELS[material.category]}
-                                </div>
-                            </header>
+                                </Badge>
+                            </Card.Strip>
                             {material.description && (
-                                <p className="border-b-2 border-black px-4 py-3 text-xs font-bold leading-relaxed text-black/55">
-                                    {material.description}
-                                </p>
+                                <Surface fill="none" border="line" borderSide="bottom" className="px-4 py-3">
+                                    <Text as="p" variant="caption" tone="secondary" leading="relaxed">
+                                        {material.description}
+                                    </Text>
+                                </Surface>
                             )}
-                            <div className="divide-y-2 divide-black">
-                                {material.files.map((file) => (
-                                    <div key={file.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                                        <div className="min-w-0">
-                                            <p className="break-words text-sm font-black">{file.name}</p>
-                                            <p className="mt-1 text-[10px] font-bold text-black/35">{formatBytes(file.size_bytes)}</p>
-                                        </div>
-                                        <div className="flex shrink-0 gap-2">
-                                            {file.preview_available && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setPreview({
-                                                        name: file.name,
-                                                        mediaType: file.preview_media_type || "application/pdf",
-                                                        fileId: file.id,
-                                                    })}
-                                                    className="flex flex-1 items-center justify-center gap-1.5 border-2 border-black bg-retro-accent1 px-3 py-2 text-xs font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none"
+                            <div>
+                                {material.files.map((file, index) => (
+                                    <React.Fragment key={file.id}>
+                                        {index > 0 && <Divider tone="line" />}
+                                        <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <div className="min-w-0">
+                                                <Text as="p" weight="black" className="break-words">{file.name}</Text>
+                                                <Text as="p" variant="micro" tone="muted" className="mt-1">{formatBytes(file.size_bytes)}</Text>
+                                            </div>
+                                            <div className="flex shrink-0 gap-2">
+                                                {file.preview_available && (
+                                                    <Button
+                                                        size="sm"
+                                                        accent="cyan"
+                                                        variant="solid"
+                                                        shadow
+                                                        icon={Eye}
+                                                        onClick={() => setPreview({
+                                                            name: file.name,
+                                                            mediaType: file.preview_media_type || "application/pdf",
+                                                            fileId: file.id,
+                                                        })}
+                                                        className="flex-1"
+                                                    >
+                                                        Preview
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    size="sm"
+                                                    variant="paper"
+                                                    shadow
+                                                    icon={Download}
+                                                    disabled={busyFile === file.id}
+                                                    onClick={() => handleDownload(file.id, file.name)}
+                                                    className="flex-1"
                                                 >
-                                                    <Eye size={14} /> Preview
-                                                </button>
-                                            )}
-                                            <button
-                                                type="button"
-                                                disabled={busyFile === file.id}
-                                                onClick={() => handleDownload(file.id, file.name)}
-                                                className="flex flex-1 items-center justify-center gap-1.5 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none disabled:opacity-40"
-                                            >
-                                                <Download size={14} /> {busyFile === file.id ? "…" : "Download"}
-                                            </button>
+                                                    {busyFile === file.id ? "…" : "Download"}
+                                                </Button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </React.Fragment>
                                 ))}
                             </div>
-                        </article>
+                        </Card>
                     ))}
 
                     {visibleStatic.map((material) => (
-                        <article
-                            key={`static-${material.id}`}
-                            className="border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]"
-                        >
-                            <header className="flex items-start justify-between gap-3 border-b-2 border-black bg-retro-accent2 px-4 py-3">
+                        <Card shadow="raised" as="article" key={`static-${material.id}`} padding="0">
+                            <Card.Strip accent="yellow" placement="top" className="flex items-start justify-between gap-3 py-3">
                                 <div className="min-w-0">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-black/50">{material.subjectLabel}</p>
-                                    <h2 className="mt-1 break-words text-base font-black">{material.title}</h2>
+                                    <Text as="p" variant="overline">{material.subjectLabel}</Text>
+                                    <Text as="h2" variant="subheading" className="mt-1 break-words">{material.title}</Text>
                                 </div>
-                                <span className="shrink-0 border-2 border-black bg-white px-2 py-1 text-[10px] font-black uppercase">Syllabus</span>
-                            </header>
+                                <Badge variant="paper" className="shrink-0">Syllabus</Badge>
+                            </Card.Strip>
                             <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <p className="flex items-center gap-2 text-sm font-black"><FileText size={15} /> {material.sourceFormat} ORIGINAL</p>
-                                    <p className="mt-1 text-[10px] font-bold text-black/35">{material.department}</p>
+                                    <Text as="p" weight="black" className="flex items-center gap-2"><FileText size={15} /> {material.sourceFormat} ORIGINAL</Text>
+                                    <Text as="p" variant="micro" tone="muted" className="mt-1">{material.department}</Text>
                                 </div>
                                 <div className="flex shrink-0 gap-2">
-                                    <button
-                                        type="button"
+                                    <Button
+                                        size="sm"
+                                        accent="cyan"
+                                        variant="solid"
+                                        shadow
+                                        icon={Eye}
                                         onClick={() => setPreview({ name: material.title, mediaType: "application/pdf", syllabusId: material.document.previewId })}
-                                        className="flex flex-1 items-center justify-center gap-1.5 border-2 border-black bg-retro-accent1 px-3 py-2 text-xs font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none"
+                                        className="flex-1"
                                     >
-                                        <Eye size={14} /> Preview
-                                    </button>
-                                    <button
-                                        type="button"
+                                        Preview
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="paper"
+                                        shadow
+                                        icon={Download}
                                         disabled={busySyllabus === material.id}
                                         onClick={() => handleSyllabusDownload(material.document)}
-                                        className="flex flex-1 items-center justify-center gap-1.5 border-2 border-black bg-white px-3 py-2 text-xs font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none disabled:opacity-40"
+                                        className="flex-1"
                                     >
-                                        <Download size={14} /> {busySyllabus === material.id ? "…" : "Download"}
-                                    </button>
+                                        {busySyllabus === material.id ? "…" : "Download"}
+                                    </Button>
                                 </div>
                             </div>
-                        </article>
+                        </Card>
                     ))}
                 </div>
             )}

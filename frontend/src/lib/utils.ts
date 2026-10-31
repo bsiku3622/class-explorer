@@ -39,7 +39,7 @@ export const extractSearchTerms = (searchTerm: string): string[] => {
  * 학과별 색. 홈의 **주간 격자·자·오늘 목록·히어로가 같이 씁니다** — 한 화면에서
  `일반지구과학` 이 자리마다 다른 색이면 색이 정보가 아니라 장식이 됩니다.
  *
- * ⚠️ **핑크(`retro-primary`) 계열은 넣지 마세요.** 그건 "지금" 한 뜻으로 예약된
+ * ⚠️ **핑크 계열은 넣지 마세요.** 그건 "지금" 한 뜻으로 예약된
  * 색입니다. 학과색은 8~12% 로만 깔고 지금만 100% 로 채우기 때문에 섞이지 않습니다.
  */
 const DEPARTMENT_COLOR: Record<string, string> = {
@@ -59,17 +59,6 @@ const DEPARTMENT_COLOR: Record<string, string> = {
 /** 교육과정에 없는 과목(외국인 전형 등)은 `department` 가 `null` 로 옵니다 */
 export const getDepartmentColor = (department: string | null | undefined): string =>
     (department && DEPARTMENT_COLOR[department]) || "#64748b";
-
-/**
- * `#7828c8` + 0.08 → `rgba(120,40,200,0.08)`.
- *
- * **회색으로 죽이지 말고 투명도로 낮춥니다.** 지난 수업을 회색으로 칠하면 하루가
- * 잿빛이 되지만, 같은 색을 옅게 깔면 **무슨 과목이었는지가 남습니다.**
- */
-export const withAlpha = (hex: string, alpha: number): string => {
-    const n = parseInt(hex.slice(1), 16);
-    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
-};
 
 export const getStudentColor = (studentId: string): string => {
     const year = studentId.split("-")[0];
@@ -206,21 +195,6 @@ export const hasRole = (role: Role | undefined | null, minimum: Role): boolean =
  */
 export const hhmm = (minute: number): string =>
     `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
-
-/**
- * 이 색 위에 올릴 글자색 (검정 아니면 흰색).
- *
- * 색을 꽉 채우는 면(선택된 버튼 등)은 색마다 밝기가 달라서 글자색을 하나로 고정하면
- * 어딘가는 반드시 안 읽힙니다 — 노랑 위의 흰 글씨, 보라 위의 검은 글씨.
- */
-export const readableInk = (hex: string): string => {
-    const n = parseInt(hex.replace("#", "").slice(0, 6), 16);
-    const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
-        const c = v / 255;
-        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-    });
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.35 ? "#000000" : "#ffffff";
-};
 
 /**
  * 앞 낱말에 맞는 `로` / `으로`.

@@ -24,7 +24,9 @@
  */
 
 import React from "react";
-import { ChevronDown, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
+import { Button, Icon, Select, Surface, Text } from "@studio-baeks/funky-ui";
+import { ACCENT_COLORS } from "@studio-baeks/funky-ui/tokens";
 import { GRADE_OPTIONS, type Course } from "../../lib/curriculum";
 import {
     TIER_LABEL,
@@ -62,20 +64,12 @@ interface CourseCardProps {
 }
 
 /**
- * 카드 안의 작은 입력 칸 — 워크북의 **셀**입니다.
+ * 고르는 칸 — 카드 안의 작은 입력 칸, 워크북의 **셀**입니다.
  *
  * ⚠️ 채운 칸을 검게 칠하지 마세요. 한 번 그렇게 해 봤는데, 카드마다 검은 막대가
  * 박혀서 파스텔 판 위에 잉크를 쏟은 것처럼 보였습니다. 원본은 그냥 값이 적힌 셀이라
- * **흰 바탕에 검은 글씨**이고, 채웠는지는 테두리 굵기와 글자색이 말합니다.
- */
-const cellClass = (filled: boolean) =>
-    `h-7 w-full min-w-0 cursor-pointer appearance-none border-2 bg-white pl-1.5 pr-5 text-[13px] font-black outline-none transition-colors duration-100 ${
-        filled ? "border-black text-black" : "border-black/20 text-black/35 hover:border-black/50"
-    }`;
-
-/**
- * 고르는 칸. `appearance-none` 으로 기본 모양을 지우면 **화살표까지 사라져서** 눌러서
- * 여는 칸인지 안 보입니다 — 직접 답니다.
+ * **흰 바탕에 검은 글씨**이고, 채웠는지는 테두리 굵기와 글자색이 말합니다. 그래서
+ * 채우지 않은 칸만 `quiet`(옅은 테두리 · 약한 글자)입니다.
  */
 const SelectCell: React.FC<{
     value: string;
@@ -83,26 +77,19 @@ const SelectCell: React.FC<{
     onChange: (value: string) => void;
     children: React.ReactNode;
 }> = ({ value, filled, onChange, children }) => (
-    <span className="relative flex min-w-0 flex-1 items-center">
-        <select
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            // ⚠️ **칸에만** 겁니다. 줄 전체에 걸면 라벨이나 여백을 눌러도 카드가 안
-            // 골라지는데, 카드 한가운데가 이 칸이라 "눌러도 아무 일도 안 나는" 자리가
-            // 넓어집니다. 칸을 만지는 건 카드를 고르는 것과 다른 일이니 여기서 끊습니다
-            onClick={(event) => event.stopPropagation()}
-            className={cellClass(filled)}
-        >
-            {children}
-        </select>
-        <ChevronDown
-            size={13}
-            strokeWidth={3}
-            className={`pointer-events-none absolute right-1 ${
-                filled ? "text-black/60" : "text-black/30"
-            }`}
-        />
-    </span>
+    <Select
+        quiet={!filled}
+        size="xs"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        // ⚠️ **칸에만** 겁니다. 줄 전체에 걸면 라벨이나 여백을 눌러도 카드가 안
+        // 골라지는데, 카드 한가운데가 이 칸이라 "눌러도 아무 일도 안 나는" 자리가
+        // 넓어집니다. 칸을 만지는 건 카드를 고르는 것과 다른 일이니 여기서 끊습니다
+        onClick={(event) => event.stopPropagation()}
+        className="min-w-0 flex-1"
+    >
+        {children}
+    </Select>
 );
 
 const CourseCard: React.FC<CourseCardProps> = ({
@@ -121,62 +108,62 @@ const CourseCard: React.FC<CourseCardProps> = ({
     const grade = entry?.grade ?? "";
 
     return (
-        <div
+        <Surface
+            fill="none"
+            border={taken || traced ? "line" : "soft"}
+            borderStyle={!traced && !taken && !unlocked ? "dashed" : "solid"}
+            shadow={focused ? "raised" : "none"}
             onMouseEnter={() => onFocus(course.name)}
             // ⚠️ 나갈 때 끄지 않으면 마우스를 치운 뒤에도 그 과목이 짚인 채로 남습니다 —
             // 아래 상세도, 검게 선 선수 선도 그대로 굳습니다
             onMouseLeave={() => onFocus(null)}
             title={`${TIER_LABEL[tier]}${course.required_advanced ? " · 트랙필수" : ""}`}
-            className={`flex h-full w-full flex-col gap-1.5 border-2 px-2 py-1.5 transition-all duration-100 ${
-                traced
-                    ? "border-retro-primary"
-                    : taken
-                      ? // ⚠️ 채운 카드에 **그림자를 얹지 마세요.** 검은 테두리에 하드 그림자까지
-                        // 붙이면 두 변이 두 겹으로 두꺼워져서, 판에 스무 장 깔렸을 때 채운
-                        // 카드만 시커멓게 튀어나옵니다. 테두리 굵기 차이(검정 vs 40%)면
-                        // 채웠는지는 충분히 보이고, 안의 학기 칸도 이미 진해집니다
-                        "border-black"
-                      : unlocked
-                        ? "border-black/40"
-                        : "border-dashed border-black/25"
-            } ${taken || unlocked ? "" : "opacity-65"} ${
-                focused ? "shadow-[2px_2px_0_0_rgba(0,0,0,0.12)]" : ""
+            // ⚠️ 채운 카드에 **그림자를 얹지 마세요.** 검은 테두리에 하드 그림자까지
+            // 붙이면 두 변이 두 겹으로 두꺼워져서, 판에 스무 장 깔렸을 때 채운
+            // 카드만 시커멓게 튀어나옵니다. 테두리 굵기 차이(검정 vs 옅은 회색)면
+            // 채웠는지는 충분히 보이고, 안의 학기 칸도 이미 진해집니다.
+            // 지금 눌러 둔 카드(`traced`)만 테두리가 핑크입니다
+            className={`flex h-full w-full flex-col gap-1.5 px-2 py-1.5 transition-all duration-100 ${
+                taken || unlocked ? "" : "opacity-65"
             }`}
-            style={{ backgroundColor: TIER_TINT[tier] }}
+            style={{
+                backgroundColor: TIER_TINT[tier],
+                ...(traced ? { borderColor: ACCENT_COLORS.pink.solid } : null),
+            }}
         >
             {/* 제목 줄 — 오른쪽이 학점입니다. 분류는 카드 색이 말하므로 띠를 따로
                 두지 않습니다 (원본에도 없고, 색 위에 색을 얹으면 둘 다 흐려집니다) */}
             {/* 버튼이 아니라 그냥 줄입니다. 카드를 고르는 건 **카드 전체**가 받고
                 (`CourseBoard`), 여기 버튼을 겹쳐 두면 포커스 링이 카드 색과 선을 가립니다 */}
             <div className="flex w-full min-w-0 items-center gap-1 text-left">
-                {!unlocked && !taken && (
-                    <Lock size={12} strokeWidth={3} className="shrink-0 text-black/35" />
-                )}
-                <span
-                    className={`min-w-0 flex-1 truncate text-sm font-black leading-tight ${
-                        course.required_advanced ? "underline decoration-2 underline-offset-2" : ""
-                    }`}
+                {!unlocked && !taken && <Icon icon={Lock} size={12} strokeWidth={3} tone="faint" className="shrink-0" />}
+                <Text
+                    weight="black"
+                    leading="fixed"
+                    truncate
+                    decoration={course.required_advanced ? "underline" : undefined}
+                    className="min-w-0 flex-1 underline-offset-2"
                 >
                     {course.name}
-                </span>
-                <span className="shrink-0 text-[13px] font-black tabular-nums text-black/55">
+                </Text>
+                <Text weight="black" tone="secondary" numeric className="shrink-0">
                     {course.credits}
                     {course.ap_credits > 0 && (
-                        <span className="ml-0.5 text-[10px] tracking-tight text-black/40">
+                        <Text variant="micro" weight="black" tone="muted" className="ml-0.5 tracking-tight">
                             AP{course.ap_credits}
-                        </span>
+                        </Text>
                     )}
-                </span>
+                </Text>
             </div>
 
-            <span className="-mt-1 truncate text-[10.5px] font-bold leading-tight text-black/35">
+            <Text variant="micro" weight="bold" tone="muted" truncate className="-mt-1 block">
                 {outsidePrereq ? `선수 ${outsidePrereq}` : (course.english_name ?? " ")}
-            </span>
+            </Text>
 
             <label className="mt-auto flex items-center gap-1">
-                <span className="w-7 shrink-0 text-[11px] font-black uppercase tracking-wider text-black/45">
+                <Text variant="label" tone="muted" className="w-7 shrink-0">
                     학기
-                </span>
+                </Text>
                 <SelectCell
                     value={entry?.term ?? ""}
                     filled={taken}
@@ -197,33 +184,33 @@ const CourseCard: React.FC<CourseCardProps> = ({
                 <span className="flex w-8 shrink-0 justify-end">
                     {course.has_ec && (
                         // EC 여부는 과목이 아니라 **분반**이 정합니다
-                        <button
-                            type="button"
+                        <Button grow={false}
+                            size="xs"
+                            variant="muted"
+                            selected={Boolean(entry?.isEc)}
                             onClick={(event) => {
                                 event.stopPropagation();
                                 onChange(course.name, { isEc: !entry?.isEc });
                             }}
                             title={entry?.isEc ? "영어강의로 이수" : "눌러서 영어강의로 표시"}
-                            className={`h-7 border-2 bg-white px-1.5 text-[11px] font-black transition-colors duration-100 ${
-                                entry?.isEc
-                                    ? "border-black text-black"
-                                    : "border-black/20 text-black/25 hover:border-black/50"
-                            }`}
+                            className="px-1.5"
                         >
                             EC
-                        </button>
+                        </Button>
                     )}
                 </span>
             </label>
 
             <label className="flex items-center gap-1">
-                <span className="w-7 shrink-0 text-[11px] font-black uppercase tracking-wider text-black/45">
+                <Text variant="label" tone="muted" className="w-7 shrink-0">
                     평어
-                </span>
+                </Text>
                 {course.is_pf ? (
-                    <span className="flex h-7 flex-1 items-center border-2 border-black/15 bg-white/40 px-1.5 text-[12px] font-black text-black/30">
-                        P/F
-                    </span>
+                    <Surface fill="none" border="subtle" className="flex h-6 flex-1 items-center px-1.5">
+                        <Text variant="caption" weight="black" tone="faint">
+                            P/F
+                        </Text>
+                    </Surface>
                 ) : (
                     <SelectCell
                         value={grade}
@@ -241,7 +228,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
                 {/* 위 학기 줄의 EC 자리와 폭을 맞춥니다 */}
                 <span className="w-8 shrink-0" />
             </label>
-        </div>
+        </Surface>
     );
 };
 

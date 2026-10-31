@@ -1,32 +1,15 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Search, X, Clock } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Clock } from "lucide-react";
+import { SearchField } from "@studio-baeks/funky-ui";
 import { clearHistory, loadHistory, removeFromHistory, saveToHistory } from "../../lib/searchHistory";
-
-/**
- * `sm`은 모달·패널 안에서 씁니다 — 페이지의 주인공이 아닌 자리에 `lg`를 두면
- * 검색창이 화면을 다 차지합니다.
- */
-const SIZES = {
-    lg: {
-        wrapper: "h-14 md:h-16 shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]",
-        input: "text-sm md:text-xl font-semibold outline-none px-2",
-        icon: 24,
-        clear: { size: 20, position: "right-4 top-7 md:top-8" },
-    },
-    sm: {
-        wrapper: "h-11",
-        input: "text-sm font-bold outline-none px-1",
-        icon: 16,
-        clear: { size: 15, position: "right-3 top-[22px]" },
-    },
-} as const;
 
 interface SearchInputProps {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
     className?: string;
-    size?: keyof typeof SIZES;
+    /** `sm`은 모달·패널 안에서 씁니다 — 페이지의 주인공이 아닌 자리에 `lg`를 두면 검색창이 화면을 다 차지합니다 */
+    size?: "lg" | "sm";
     enableHistory?: boolean;
     /** 외부에서 searchTerm이 확정됐을 때 히스토리 저장 트리거 */
     committedTerm?: string;
@@ -39,21 +22,19 @@ interface SearchInputProps {
     onEnter?: () => void;
 }
 
+/** 검색 칸 + 최근 검색어 — 그리는 것은 funky-ui 의 `SearchField`, 여기는 히스토리 저장만 맡습니다 */
 const SearchInput: React.FC<SearchInputProps> = ({
     value,
     onChange,
     placeholder = "Search...",
-    className = "",
+    className,
     size = "lg",
     enableHistory = false,
     committedTerm,
     autoFocus = false,
     onEnter,
 }) => {
-    const style = SIZES[size];
-    const [focused, setFocused] = useState(false);
     const [history, setHistory] = useState<string[]>([]);
-    const wrapperRef = useRef<HTMLDivElement>(null);
 
     // committedTerm이 바뀔 때 히스토리 저장
     useEffect(() => {
@@ -62,95 +43,40 @@ const SearchInput: React.FC<SearchInputProps> = ({
         setHistory(loadHistory());
     }, [committedTerm, enableHistory]);
 
-    // 포커스 시 히스토리 로드
-    const handleFocus = () => {
-        if (enableHistory) setHistory(loadHistory());
-        setFocused(true);
-    };
-
-    // 외부 클릭 시 드롭다운 닫기
-    useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-                setFocused(false);
-            }
-        };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
-    }, []);
-
-    const handleRemove = (term: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        removeFromHistory(term);
-        setHistory(loadHistory());
-    };
-
-    const showDropdown = enableHistory && focused && history.length > 0 && !value;
-
     return (
-        <div ref={wrapperRef} className={`relative flex flex-col ${className}`}>
-            {/* HeroUI `Input` 이 있던 자리입니다. 히스토리·지우기·포커스는 원래부터
-                아래에서 직접 다루고 있었고, 이 컴포넌트가 해 주던 건 아이콘 옆에 입력칸을
-                두는 것뿐이라 남길 이유가 없었습니다 */}
-            <div
-                className={`${style.wrapper} flex w-full flex-row items-center gap-2 border-2 border-black bg-white`}
-            >
-                <Search className="ml-2 shrink-0 text-black/40" size={style.icon} />
-                <input
-                    type="text"
-                    className={`${style.input} h-full min-w-0 flex-1 bg-transparent placeholder:text-black/30`}
-                    placeholder={placeholder}
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (onEnter && e.key === "Enter" && !e.nativeEvent.isComposing) onEnter();
-                    }}
-                    enterKeyHint={onEnter ? "search" : undefined}
-                    onFocus={handleFocus}
-                    autoFocus={autoFocus}
-                />
-            </div>
-            {value && (
-                <button
-                    onClick={() => onChange("")}
-                    aria-label="검색어 지우기"
-                    className={`absolute ${style.clear.position} -translate-y-1/2 text-black/20 hover:text-black transition-colors`}
-                >
-                    <X size={style.clear.size} strokeWidth={3} />
-                </button>
-            )}
-
-            {showDropdown && (
-                <div className="absolute top-full left-0 right-0 z-50 border-2 border-t-0 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]">
-                    <div className="px-4 py-2 border-b border-black/10 flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-black/40 flex items-center gap-1.5">
-                            <Clock size={10} /> Recent
-                        </span>
-                        <button
-                            onClick={() => { clearHistory(); setHistory([]); }}
-                            className="text-[10px] font-black uppercase text-black/30 hover:text-black transition-colors"
-                        >
-                            Clear all
-                        </button>
-                    </div>
-                    {history.map((term) => (
-                        <div
-                            key={term}
-                            className="flex items-center justify-between px-4 py-2.5 hover:bg-black/5 cursor-pointer group"
-                            onMouseDown={() => { onChange(term); setFocused(false); }}
-                        >
-                            <span className="text-sm font-bold truncate">{term}</span>
-                            <button
-                                onMouseDown={(e) => handleRemove(term, e)}
-                                className="text-black/20 hover:text-black transition-colors opacity-0 group-hover:opacity-100 shrink-0 ml-2"
-                            >
-                                <X size={13} strokeWidth={2.5} />
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
+        <SearchField
+            value={value}
+            onValueChange={onChange}
+            clearLabel="검색어 지우기"
+            placeholder={placeholder}
+            size={size === "lg" ? "xl" : "md"}
+            shadow={size === "lg"}
+            autoFocus={autoFocus}
+            enterKeyHint={onEnter ? "search" : undefined}
+            onKeyDown={(e) => {
+                if (onEnter && e.key === "Enter" && !e.nativeEvent.isComposing) onEnter();
+            }}
+            onFocus={() => {
+                if (enableHistory) setHistory(loadHistory());
+            }}
+            // 입력이 비어 있을 때만 — 치는 동안에는 결과가 곧바로 아래에 나옵니다
+            suggestions={enableHistory && !value ? history.map((term) => ({ value: term })) : []}
+            suggestionsTitle={
+                <span className="flex items-center gap-1.5">
+                    <Clock size={10} /> Recent
+                </span>
+            }
+            onSuggestionSelect={onChange}
+            onSuggestionRemove={(term) => {
+                removeFromHistory(term);
+                setHistory(loadHistory());
+            }}
+            onSuggestionsClear={() => {
+                clearHistory();
+                setHistory([]);
+            }}
+            className={className}
+        />
     );
 };
 

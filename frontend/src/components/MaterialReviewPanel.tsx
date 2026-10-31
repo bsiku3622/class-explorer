@@ -23,6 +23,23 @@ import {
 import MaterialPreviewModal, {
     type MaterialPreviewTarget,
 } from "./MaterialPreviewModal";
+import {
+    Badge,
+    Button,
+    Card,
+    Checkbox,
+    Divider,
+    EmptyState,
+    FormField,
+    IconButton,
+    Input,
+    Notice,
+    Paint,
+    SegmentedControl,
+    Select,
+    Surface,
+    Text,
+} from "@studio-baeks/funky-ui";
 
 type ReviewFilter = "pending" | "approved" | "rejected" | "all";
 
@@ -136,32 +153,23 @@ const MaterialReviewPanel: React.FC = () => {
     return (
         <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-2">
-                    {(["pending", "approved", "rejected", "all"] as ReviewFilter[]).map((item) => (
-                        <button
-                            type="button"
-                            key={item}
-                            onClick={() => setFilter(item)}
-                            className={`border-2 px-3 py-1.5 text-[10px] font-black uppercase transition-all duration-100 ${
-                                filter === item ? "border-black bg-black text-white" : "border-black/30 text-black/45 hover:border-black hover:text-black"
-                            }`}
-                        >
-                            {item} {counts[item]}
-                        </button>
-                    ))}
-                </div>
-                <button type="button" onClick={load} className="flex items-center gap-1.5 border-2 border-black bg-white px-3 py-1.5 text-[10px] font-black uppercase shadow-[3px_3px_0_0_rgba(0,0,0,0.12)]">
-                    <RefreshCw size={12} /> Refetch
-                </button>
+                <SegmentedControl
+                    aria-label="검수 상태"
+                    className="[&>button]:text-[10px]"
+                    value={filter}
+                    onChange={setFilter}
+                    options={(["pending", "approved", "rejected", "all"] as ReviewFilter[]).map((item) => ({
+                        value: item,
+                        label: `${item} ${counts[item]}`,
+                    }))}
+                />
+                <Button size="xs" variant="paper" shadow icon={RefreshCw} onClick={load}>Refetch</Button>
             </div>
 
-            {error && <p className="border-2 border-black bg-retro-primary px-3 py-2 text-xs font-black">{error}</p>}
+            {error && <Notice accent="pink" variant="solid" role="alert">{error}</Notice>}
 
             {visible.length === 0 ? (
-                <div className="border-2 border-dashed border-black p-8 text-center">
-                    <FileCheck2 size={28} className="mx-auto mb-2 text-black/25" />
-                    <p className="text-sm font-bold text-black/40">검수할 자료가 없습니다.</p>
-                </div>
+                <EmptyState framed icon={FileCheck2} title="검수할 자료가 없습니다." />
             ) : (
                 <div className="space-y-4">
                     {visible.map((material) => {
@@ -169,70 +177,69 @@ const MaterialReviewPanel: React.FC = () => {
                         const key = `${material.term.year}-${material.term.semester}`;
                         const options = subjectOptions[key] ?? [material.subject];
                         return (
-                            <article key={material.id} className="border-2 border-black bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.15)]" onMouseEnter={() => ensureSubjects(material)}>
-                                <header className="flex flex-wrap items-start justify-between gap-2 border-b-2 border-black bg-retro-accent2 px-4 py-3">
+                            <Card shadow="raised" as="article" key={material.id} padding="0" onMouseEnter={() => ensureSubjects(material)}>
+                                <Card.Strip accent="yellow" placement="top" className="flex flex-wrap items-start justify-between gap-2 py-3">
                                     <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-black/45">#{material.id} · {material.term.year}-{material.term.semester}</p>
-                                        <p className="mt-1 text-xs font-bold">{material.uploader?.username} · {material.uploader?.stu_id ?? "학번 미등록"} · {new Date(material.created_at).toLocaleString("ko-KR")}</p>
+                                        <Text as="p" variant="overline">#{material.id} · {material.term.year}-{material.term.semester}</Text>
+                                        <Text as="p" variant="caption" className="mt-1">{material.uploader?.username} · {material.uploader?.stu_id ?? "학번 미등록"} · {new Date(material.created_at).toLocaleString("ko-KR")}</Text>
                                     </div>
-                                    <span className="border-2 border-black bg-white px-2 py-1 text-[10px] font-black uppercase">{material.status}</span>
-                                </header>
+                                    <Badge variant="paper">{material.status}</Badge>
+                                </Card.Strip>
 
-                                <div className="grid gap-3 border-b-2 border-black p-4 lg:grid-cols-2">
-                                    <label className="space-y-1.5">
-                                        <span className="text-[10px] font-black uppercase text-black/40">Title</span>
-                                        <input value={draft.title} onChange={(event) => patchDraft(material.id, { title: event.target.value })} className="w-full border-2 border-black px-3 py-2 text-sm font-bold" />
-                                    </label>
-                                    <label className="space-y-1.5">
-                                        <span className="text-[10px] font-black uppercase text-black/40">Subject</span>
-                                        <select value={draft.subjectId} onFocus={() => ensureSubjects(material)} onChange={(event) => patchDraft(material.id, { subjectId: Number(event.target.value) })} className="w-full border-2 border-black px-3 py-2 text-sm font-black">
+                                <Surface fill="none" border="line" borderSide="bottom" className="grid gap-3 p-4 lg:grid-cols-2">
+                                    <FormField label="Title">
+                                        <Input value={draft.title} onChange={(event) => patchDraft(material.id, { title: event.target.value })} />
+                                    </FormField>
+                                    <FormField label="Subject">
+                                        <Select value={draft.subjectId} onFocus={() => ensureSubjects(material)} onChange={(event) => patchDraft(material.id, { subjectId: Number(event.target.value) })}>
                                             {options.map((subject) => <option key={subject.id} value={subject.id}>{subject.label}</option>)}
-                                        </select>
-                                    </label>
-                                    <label className="space-y-1.5">
-                                        <span className="text-[10px] font-black uppercase text-black/40">Type</span>
-                                        <select value={draft.category} onChange={(event) => patchDraft(material.id, { category: event.target.value as MaterialCategory, primarySyllabus: event.target.value === "syllabus" && draft.primarySyllabus })} className="w-full border-2 border-black px-3 py-2 text-sm font-black">
+                                        </Select>
+                                    </FormField>
+                                    <FormField label="Type">
+                                        <Select value={draft.category} onChange={(event) => patchDraft(material.id, { category: event.target.value as MaterialCategory, primarySyllabus: event.target.value === "syllabus" && draft.primarySyllabus })}>
                                             {MATERIAL_CATEGORIES.map((item) => <option key={item} value={item}>{MATERIAL_CATEGORY_LABELS[item]}</option>)}
-                                        </select>
-                                    </label>
-                                    <label className="space-y-1.5">
-                                        <span className="text-[10px] font-black uppercase text-black/40">Description</span>
-                                        <input value={draft.description} onChange={(event) => patchDraft(material.id, { description: event.target.value })} className="w-full border-2 border-black px-3 py-2 text-sm font-bold" />
-                                    </label>
-                                </div>
+                                        </Select>
+                                    </FormField>
+                                    <FormField label="Description">
+                                        <Input value={draft.description} onChange={(event) => patchDraft(material.id, { description: event.target.value })} />
+                                    </FormField>
+                                </Surface>
 
-                                <div className="divide-y-2 divide-black border-b-2 border-black">
-                                    {material.files.map((file) => (
-                                        <div key={file.id} className="flex items-center gap-2 px-4 py-2.5">
-                                            <span className="min-w-0 flex-1 truncate text-xs font-black">{file.name}</span>
-                                            {file.preview_available && (
-                                                <button type="button" onClick={() => setPreview({ name: file.name, mediaType: file.preview_media_type || "application/pdf", fileId: file.id })} className="grid size-8 place-items-center border-2 border-black bg-retro-accent1" aria-label={`${file.name} preview`}><Eye size={14} /></button>
-                                            )}
-                                            <button type="button" onClick={() => downloadMaterialFile(file.id, file.name)} className="grid size-8 place-items-center border-2 border-black bg-white" aria-label={`${file.name} download`}><Download size={14} /></button>
-                                        </div>
+                                <Surface fill="none" border="line" borderSide="bottom">
+                                    {material.files.map((file, index) => (
+                                        <React.Fragment key={file.id}>
+                                            {index > 0 && <Divider tone="line" />}
+                                            <div className="flex items-center gap-2 px-4 py-2.5">
+                                                <Text variant="caption" weight="black" truncate className="min-w-0 flex-1">{file.name}</Text>
+                                                {file.preview_available && (
+                                                    <IconButton icon={Eye} size="sm" accent="cyan" variant="solid" onClick={() => setPreview({ name: file.name, mediaType: file.preview_media_type || "application/pdf", fileId: file.id })} label={`${file.name} preview`} />
+                                                )}
+                                                <IconButton icon={Download} size="sm" variant="paper" onClick={() => downloadMaterialFile(file.id, file.name)} label={`${file.name} download`} />
+                                            </div>
+                                        </React.Fragment>
                                     ))}
-                                </div>
+                                </Surface>
 
                                 <div className="space-y-3 p-4">
                                     <div className="flex flex-wrap items-end gap-3">
-                                        <label className="min-w-[15rem] flex-1 space-y-1.5">
-                                            <span className="text-[10px] font-black uppercase text-black/40">Rejection Reason</span>
-                                            <input value={draft.rejectionReason} onChange={(event) => patchDraft(material.id, { rejectionReason: event.target.value })} placeholder="거절할 때 필수" className="w-full border-2 border-black px-3 py-2 text-sm font-bold" />
-                                        </label>
+                                        <FormField label="Rejection Reason" className="min-w-[15rem] flex-1">
+                                            <Input value={draft.rejectionReason} onChange={(event) => patchDraft(material.id, { rejectionReason: event.target.value })} placeholder="거절할 때 필수" />
+                                        </FormField>
                                         {draft.category === "syllabus" && (
-                                            <label className="flex h-10 items-center gap-2 border-2 border-black bg-retro-accent2 px-3 text-xs font-black">
-                                                <input type="checkbox" checked={draft.primarySyllabus} onChange={(event) => patchDraft(material.id, { primarySyllabus: event.target.checked })} />
-                                                <Star size={14} /> Primary
-                                            </label>
+                                            <Paint accent="yellow" variant="solid" className="flex h-10 items-center px-3">
+                                                <Checkbox checked={draft.primarySyllabus} onChange={(event) => patchDraft(material.id, { primarySyllabus: event.target.checked })}>
+                                                    <Text variant="caption" weight="black" tone="inherit" className="inline-flex items-center gap-2"><Star size={14} /> Primary</Text>
+                                                </Checkbox>
+                                            </Paint>
                                         )}
                                     </div>
                                     <div className="flex flex-wrap justify-end gap-2">
-                                        <button type="button" disabled={busy === material.id} onClick={() => remove(material)} className="grid size-9 place-items-center border-2 border-black bg-white text-retro-primary" aria-label="자료 삭제"><Trash2 size={15} /></button>
-                                        <button type="button" disabled={busy === material.id} onClick={() => decide(material, "rejected")} className="flex items-center gap-1.5 border-2 border-black bg-retro-primary px-4 py-2 text-xs font-black uppercase"><X size={15} /> Reject</button>
-                                        <button type="button" disabled={busy === material.id} onClick={() => decide(material, "approved")} className="flex items-center gap-1.5 border-2 border-black bg-retro-green px-4 py-2 text-xs font-black uppercase shadow-[3px_3px_0_0_rgba(0,0,0,0.18)]"><Check size={15} /> Approve</button>
+                                        <IconButton icon={Trash2} accent="pink" variant="plain" disabled={busy === material.id} onClick={() => remove(material)} label="자료 삭제" />
+                                        <Button size="sm" accent="pink" variant="solid" icon={X} disabled={busy === material.id} onClick={() => decide(material, "rejected")}>Reject</Button>
+                                        <Button size="sm" accent="green" variant="solid" shadow icon={Check} disabled={busy === material.id} onClick={() => decide(material, "approved")}>Approve</Button>
                                     </div>
                                 </div>
-                            </article>
+                            </Card>
                         );
                     })}
                 </div>

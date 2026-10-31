@@ -8,6 +8,8 @@
 import React, { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Maximize2, Sparkles, SquarePen, X } from "lucide-react";
+import { enterClass, IconButton, Surface, Text } from "@studio-baeks/funky-ui";
+import type { IconComponent } from "@studio-baeks/funky-ui";
 import AgentComposer from "./AgentComposer";
 import AgentEmpty from "./AgentEmpty";
 import AgentThread from "./AgentThread";
@@ -29,16 +31,8 @@ export interface AgentPanelProps {
     onClose: () => void;
 }
 
-const HeadButton: React.FC<{ label: string; onClick: () => void; children: React.ReactNode }> = ({ label, onClick, children }) => (
-    <button
-        type="button"
-        onClick={onClick}
-        aria-label={label}
-        title={label}
-        className="grid size-8 place-items-center border-2 border-black bg-white text-black shadow-[2px_2px_0_0_rgba(0,0,0,0.18)] transition-transform duration-100 hover:scale-95 active:scale-[0.92]"
-    >
-        {children}
-    </button>
+const HeadButton: React.FC<{ label: string; icon: IconComponent; onClick: () => void }> = ({ label, icon, onClick }) => (
+    <IconButton icon={icon} label={label} variant="paper" shadow="shrink" size="sm" onClick={onClick} />
 );
 
 /**
@@ -46,25 +40,15 @@ const HeadButton: React.FC<{ label: string; onClick: () => void; children: React
  * ⚠️ 단추는 플로팅 버튼처럼 누르면 **살짝 줄어듭니다**(내려앉지 않음) — 앱 규칙의 예외, 사용자 요청
  */
 const Header: React.FC<{ chat: AgentChat; onExpand?: () => void; onClose: () => void }> = ({ chat, onExpand, onClose }) => (
-    <div className="flex shrink-0 items-center gap-2 border-b-2 border-black bg-retro-secondary py-2.5 pl-4 pr-2.5 text-white">
+    <Surface fill="brand" border="line" borderSide="bottom" className="flex shrink-0 items-center gap-2 py-2.5 pl-4 pr-2.5">
         <Sparkles size={15} strokeWidth={2.75} />
-        <span className="text-xs font-black uppercase tracking-widest">Ask</span>
+        <Text variant="label" className="uppercase tracking-widest">Ask</Text>
         <div className="ml-auto flex items-center gap-1.5">
-            {chat.turns.length > 0 && (
-                <HeadButton label="새 대화" onClick={chat.reset}>
-                    <SquarePen size={15} strokeWidth={2.75} />
-                </HeadButton>
-            )}
-            {onExpand && (
-                <HeadButton label="크게 보기" onClick={onExpand}>
-                    <Maximize2 size={15} strokeWidth={2.75} />
-                </HeadButton>
-            )}
-            <HeadButton label="닫기" onClick={onClose}>
-                <X size={16} strokeWidth={2.75} />
-            </HeadButton>
+            {chat.turns.length > 0 && <HeadButton label="새 대화" icon={SquarePen} onClick={chat.reset} />}
+            {onExpand && <HeadButton label="크게 보기" icon={Maximize2} onClick={onExpand} />}
+            <HeadButton label="닫기" icon={X} onClick={onClose} />
         </div>
-    </div>
+    </Surface>
 );
 
 /** 데스크탑 미니 창 — 입력창은 늘 창 바닥에 있고, 위의 상자만 스크롤합니다 */
@@ -75,10 +59,14 @@ const Window: React.FC<AgentPanelProps> = ({ chat, name, focusKey, onClose }) =>
     useFollowBottom(chat.turns, box);
     return (
         // 높이는 탑 바(80px) 아래 16px 까지. ⚠️ z 는 페이지 모달(z-50~)보다 아래 — 모달이 뜨면 이 창도 덮여야 합니다
-        <section
+        <Surface
+            as="section"
+            fill="canvas"
+            border="line"
+            shadow="raised"
             role="dialog"
             aria-label="Ask"
-            className="animate-ask-pop fixed bottom-6 right-6 z-[45] flex h-[min(40rem,calc(100dvh-7.5rem))] w-[25rem] flex-col border-2 border-black bg-retro-bg shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]"
+            className={`${enterClass.panel} origin-bottom-right fixed bottom-6 right-6 z-[45] flex h-[min(40rem,calc(100dvh-7.5rem))] w-[25rem] flex-col`}
         >
             <Header chat={chat} onExpand={() => navigate("/ai")} onClose={onClose} />
             <div ref={box} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5">
@@ -92,9 +80,9 @@ const Window: React.FC<AgentPanelProps> = ({ chat, name, focusKey, onClose }) =>
             </div>
             <div className="shrink-0 px-3 pb-3">
                 <AgentComposer chat={chat} focusKey={focusKey} placeholder={empty ? undefined : "이어서 물어보세요"} />
-                {!empty && <p className="mt-2 text-center text-[10.5px] font-bold text-black/35">{ANSWER_NOTICE}</p>}
+                {!empty && <Text as="p" variant="micro" weight="bold" tone="muted" align="center" className="mt-2">{ANSWER_NOTICE}</Text>}
             </div>
-        </section>
+        </Surface>
     );
 };
 
@@ -148,8 +136,8 @@ const Sheet: React.FC<AgentPanelProps> = ({ chat, name, focusKey, onClose }) => 
     );
 
     return (
-        // 탑 바(z-1000)까지 덮습니다
-        <div role="dialog" aria-modal="true" aria-label="Ask" className="animate-ask-rise fixed inset-0 z-[1100] flex flex-col bg-retro-bg">
+        // 탑 바(z-100)까지 덮습니다
+        <Surface fill="canvas" role="dialog" aria-modal="true" aria-label="Ask" className={`${enterClass.sheet} fixed inset-0 z-[1100] flex flex-col`}>
             <Header chat={chat} onClose={close} />
             <div ref={box} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">
                 {empty ? (
@@ -165,10 +153,10 @@ const Sheet: React.FC<AgentPanelProps> = ({ chat, name, focusKey, onClose }) => 
             {!empty && (
                 <div className="shrink-0 px-4 pb-3">
                     {composer("이어서 물어보세요")}
-                    <p className="mt-2 text-center text-[10.5px] font-bold text-black/35">{ANSWER_NOTICE}</p>
+                    <Text as="p" variant="micro" weight="bold" tone="muted" align="center" className="mt-2">{ANSWER_NOTICE}</Text>
                 </div>
             )}
-        </div>
+        </Surface>
     );
 };
 

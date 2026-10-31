@@ -4,14 +4,11 @@ import { fetchCurriculum } from "../lib/curriculumApi";
 import type { SubjectData, Term } from "../types";
 import { getKoreanName, getStudentColor } from "../lib/utils";
 import SearchInput from "../components/atoms/SearchInput";
-import PageHeader from "../components/molecules/PageHeader";
 import StudentCard from "../components/atoms/StudentCard";
 import TeacherCard from "../components/atoms/TeacherCard";
-import RetroButton from "../components/atoms/RetroButton";
 import { Filter, RotateCcw } from "lucide-react";
 import CourseGraph from "../components/CourseGraph";
 import FriendsManager from "../components/FriendsManager";
-import RetroCard from "../components/atoms/RetroCard";
 import { useVirtualGrid } from "../hooks/useVirtualGrid";
 import {
     ALL_DEPARTMENTS,
@@ -19,6 +16,18 @@ import {
     type Category,
     type Curriculum,
 } from "../lib/curriculum";
+import {
+    Button,
+    Card,
+    EmptyState,
+    Icon,
+    PageHeader,
+    Paint,
+    SegmentedControl,
+    Tabs,
+    Text,
+    ToneChip,
+} from "@studio-baeks/funky-ui";
 
 type BrowseMode = "students" | "teachers" | "courses" | "friends";
 
@@ -172,40 +181,22 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
             <PageHeader title="Browse" subtitle={subtitle} icon={Library} />
 
             {/* Mode toggle */}
-            <div className="flex flex-wrap gap-2 md:gap-3">
-                <RetroButton
-                    size="sm"
-                    isSelected={mode === "students"}
-                    icon={<GraduationCap size={14} strokeWidth={2.5} />}
-                    onClick={() => handleModeChange("students")}
-                >
-                    Students
-                </RetroButton>
-                <RetroButton
-                    size="sm"
-                    isSelected={mode === "teachers"}
-                    icon={<BookOpen size={14} strokeWidth={2.5} />}
-                    onClick={() => handleModeChange("teachers")}
-                >
-                    Teachers
-                </RetroButton>
-                <RetroButton
-                    size="sm"
-                    isSelected={mode === "courses"}
-                    icon={<Network size={14} strokeWidth={2.5} />}
-                    onClick={() => handleModeChange("courses")}
-                >
-                    Courses
-                </RetroButton>
-                <RetroButton
-                    size="sm"
-                    isSelected={mode === "friends"}
-                    icon={<Users size={14} strokeWidth={2.5} />}
-                    onClick={() => handleModeChange("friends")}
-                >
-                    Friends
-                </RetroButton>
-            </div>
+            <Tabs value={mode} onChange={handleModeChange}>
+                <Tabs.List aria-label="Browse mode">
+                    <Tabs.Tab value="students" icon={GraduationCap}>
+                        Students
+                    </Tabs.Tab>
+                    <Tabs.Tab value="teachers" icon={BookOpen}>
+                        Teachers
+                    </Tabs.Tab>
+                    <Tabs.Tab value="courses" icon={Network}>
+                        Courses
+                    </Tabs.Tab>
+                    <Tabs.Tab value="friends" icon={Users}>
+                        Friends
+                    </Tabs.Tab>
+                </Tabs.List>
+            </Tabs>
 
             {mode === "friends" && (
                 <FriendsManager
@@ -222,106 +213,84 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
 
             {/* Year filter — students only */}
             {mode === "students" && (
-                <div className="bg-white border-2 border-black p-4 md:p-6 shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]">
+                <Card padding="0" className="p-4 md:p-6">
                     <div className="flex items-center justify-between gap-2 mb-4">
                         <div className="flex items-center gap-2">
-                            <Filter size={16} className="text-black/40 shrink-0" />
-                            <span className="text-xs font-bold text-black/40 uppercase tracking-widest">
-                                Filter by Cohort
-                            </span>
+                            <Icon icon={Filter} size="sm" tone="muted" className="shrink-0" />
+                            <Text variant="subtitle">Filter by Cohort</Text>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
                             {lastUpdated && (
-                                <span className="hidden sm:inline text-[10px] font-bold uppercase text-black/30">
+                                <Text variant="micro" weight="bold" tone="faint" className="hidden sm:inline uppercase">
                                     {new Date(lastUpdated).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                </span>
+                                </Text>
                             )}
-                            <button
+                            <Button
+                                size="xs"
+                                variant="ghost"
+                                icon={RotateCcw}
+                                iconMotion="turn"
                                 onClick={() => fetchInitialData(true)}
-                                className="flex items-center gap-1.5 text-xs font-black uppercase hover:text-retro-primary transition-colors group"
                             >
-                                <RotateCcw size={14} className="group-hover:rotate-[-45deg] transition-transform" />
                                 Refresh
-                            </button>
+                            </Button>
                             {selectedYears.length < Object.keys(studentCounts).length && (
-                                <button
+                                <Button
+                                    size="xs"
+                                    variant="ghost"
                                     onClick={() => setSelectedYears(Object.keys(studentCounts))}
-                                    className="text-xs font-black uppercase underline hover:text-retro-primary transition-colors"
                                 >
                                     Reset
-                                </button>
+                                </Button>
                             )}
                         </div>
                     </div>
                     <div className="flex gap-3 md:gap-4 overflow-x-auto md:flex-wrap md:overflow-visible pb-0.5 md:pb-0">
                         {Object.entries(studentCounts).map(([year]) => {
                             const isSelected = selectedYears.includes(year);
-                            const color = getStudentColor(year);
                             return (
-                                <label
+                                <ToneChip
                                     key={year}
-                                    className={`shrink-0 flex items-center gap-2 md:gap-3 px-3 py-1.5 md:px-4 md:py-2 border-2 border-black cursor-pointer transition-all duration-100 ${
-                                        isSelected
-                                            ? "bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] hover:shadow-none hover:translate-x-1 hover:translate-y-1"
-                                            : "grayscale opacity-40 hover:grayscale-0 hover:opacity-100 bg-white shadow-none"
-                                    }`}
-                                    style={{ backgroundColor: isSelected ? `${color}20` : "" }}
+                                    tone={getStudentColor(year)}
+                                    selected={isSelected}
+                                    onClick={() =>
+                                        setSelectedYears(
+                                            isSelected
+                                                ? selectedYears.filter((y) => y !== year)
+                                                : [...selectedYears, year],
+                                        )
+                                    }
+                                    className="shrink-0"
                                 >
-                                    <input
-                                        type="checkbox"
-                                        className="hidden"
-                                        checked={isSelected}
-                                        onChange={() =>
-                                            setSelectedYears(
-                                                isSelected
-                                                    ? selectedYears.filter((y) => y !== year)
-                                                    : [...selectedYears, year],
-                                            )
-                                        }
-                                    />
-                                    <div
-                                        className="w-3 h-3 md:w-4 md:h-4 border-2 border-black shrink-0"
-                                        style={{ backgroundColor: isSelected ? color : "transparent" }}
-                                    />
-                                    <span className={`text-xs md:text-sm font-black uppercase whitespace-nowrap ${isSelected ? "text-black" : "text-black/40"}`}>
-                                        {year}
-                                    </span>
-                                </label>
+                                    {year}
+                                </ToneChip>
                             );
                         })}
                     </div>
-                </div>
+                </Card>
             )}
 
             {/* Count */}
             {(mode === "students" || mode === "teachers") && (
-                <p className="text-xs font-bold text-black/30 -mt-2">
+                <Text as="p" variant="caption" tone="muted" className="-mt-2">
                     {mode === "students" ? filteredStudents.length : filteredTeachers.length}명 표시 중
-                </p>
+                </Text>
             )}
 
             {/* Courses — 교육과정 선수관계 그래프 */}
             {mode === "courses" && (
-                <RetroCard className="bg-white p-6 space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                        <RetroButton
-                            size="sm"
-                            isSelected={department === ALL_DEPARTMENTS}
-                            onClick={() => setDepartment(ALL_DEPARTMENTS)}
-                        >
-                            전체
-                        </RetroButton>
-                        {departments.map((name) => (
-                            <RetroButton
-                                key={name}
-                                size="sm"
-                                isSelected={department === name}
-                                onClick={() => setDepartment(name)}
-                            >
-                                {name}
-                            </RetroButton>
-                        ))}
-                    </div>
+                <Card padding="0" className="p-6 space-y-4">
+                    <SegmentedControl
+                        aria-label="Department"
+                        variant="paper"
+                        shadow
+                        value={department}
+                        onChange={setDepartment}
+                        options={[
+                            { value: ALL_DEPARTMENTS, label: "전체" },
+                            ...departments.map((name) => ({ value: name, label: name })),
+                        ]}
+                    />
 
                     {curriculum ? (
                         <CourseGraph
@@ -333,41 +302,41 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                             onFocus={setFocused}
                         />
                     ) : (
-                        <p className="py-16 text-center font-black uppercase tracking-widest text-black/30 animate-pulse">
+                        <Text as="p" variant="subtitle" tone="faint" align="center" pulse className="py-16">
                             Loading curriculum...
-                        </p>
+                        </Text>
                     )}
 
                     {focusedCourse ? (
-                        <div className="border-2 border-black bg-retro-accent-light p-3 space-y-1">
+                        <Paint accent="cyan" variant="solidMuted" padding="lg" className="space-y-1">
                             <div className="flex flex-wrap items-baseline gap-2">
-                                <span className="text-sm font-black">{focusedCourse.name}</span>
+                                <Text weight="black">{focusedCourse.name}</Text>
                                 {focusedCourse.english_name && (
-                                    <span className="text-[10px] font-bold text-black/40">
+                                    <Text variant="micro" weight="bold" tone="muted">
                                         {focusedCourse.english_name}
-                                    </span>
+                                    </Text>
                                 )}
-                                <span className="text-[10px] font-bold text-black/60">
+                                <Text variant="micro" weight="bold" tone="secondary">
                                     {focusedCourse.credits}학점 · {focusedCourse.department} ·{" "}
                                     {CATEGORY_LABEL[focusedCourse.category as Category]}
                                     {focusedCourse.recommended_semester &&
                                         ` · 권장 ${focusedCourse.recommended_semester}학기`}
-                                </span>
+                                </Text>
                             </div>
                             {focusedCourse.description && (
-                                <p className="text-[11px] font-medium leading-relaxed text-black/70 pt-1">
+                                <Text as="p" variant="label" weight="medium" leading="relaxed" tone="secondary" className="pt-1">
                                     {focusedCourse.description}
-                                </p>
+                                </Text>
                             )}
-                        </div>
+                        </Paint>
                     ) : (
-                        <p className="text-[10px] font-bold text-black/40">
+                        <Text as="p" variant="micro" weight="bold" tone="muted">
                             가로는 선수 깊이입니다 — 왼쪽이 선수 없는 과목, 오른쪽으로 갈수록
                             쌓아 올린 과목입니다. 점선은 택일 관계이고, 학과를 가로지르는 선은
                             융합 과목이 다른 학과 과목을 선수로 받는 경우입니다.
-                        </p>
+                        </Text>
                     )}
-                </RetroCard>
+                </Card>
             )}
 
             {/* Grid */}
@@ -392,9 +361,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                         <div style={{ height: students.bottomSpacer }} />
                     </div>
                     {filteredStudents.length === 0 && (
-                        <div className="flex items-center justify-center py-24">
-                            <p className="text-sm font-black text-black/20 uppercase tracking-widest">No Students Found</p>
-                        </div>
+                        <EmptyState title="No Students Found" className="py-24" />
                     )}
                 </>
             ) : (
@@ -417,9 +384,7 @@ const BrowsePage: React.FC<BrowsePageProps> = ({
                         <div style={{ height: teachers.bottomSpacer }} />
                     </div>
                     {filteredTeachers.length === 0 && (
-                        <div className="flex items-center justify-center py-24">
-                            <p className="text-sm font-black text-black/20 uppercase tracking-widest">No Teachers Found</p>
-                        </div>
+                        <EmptyState title="No Teachers Found" className="py-24" />
                     )}
                 </>
             )}

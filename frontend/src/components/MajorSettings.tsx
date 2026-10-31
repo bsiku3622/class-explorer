@@ -2,11 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Signpost } from "lucide-react";
 import { fetchMajors, saveMajor, type MajorsInfo, type MyMajor } from "../lib/majors";
 import { particleRo } from "../lib/utils";
-import RetroButton from "./atoms/RetroButton";
-import RetroCard from "./atoms/RetroCard";
-import RetroSpinner from "./atoms/RetroSpinner";
-import RetroSubTitle from "./atoms/RetroSubTitle";
 import MajorPicker from "./MajorPicker";
+import { Button, Card, SectionTitle, Spinner, Text } from "@studio-baeks/funky-ui";
 
 interface MajorSettingsProps {
     /** 저장했을 때 — App 이 `currentUser` 의 전공 칸을 바꿉니다(달력 거르기·묻는 창이 그 값을 봅니다) */
@@ -70,34 +67,37 @@ const MajorSettings: React.FC<MajorSettingsProps> = ({ onSaved }) => {
             : "아직 고르지 않았습니다";
 
     return (
-        <RetroCard className="bg-white p-6">
+        <Card padding="0" className="p-6">
             <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                    <RetroSubTitle title="Major" icon={Signpost} />
+                    <SectionTitle title="Major" icon={Signpost} />
                     {status && (
-                        <span className="text-[11px] font-bold text-black/35">{status}</span>
+                        <Text variant="label" weight="bold" tone="muted">
+                            {status}
+                        </Text>
                     )}
                 </div>
 
-                <p className="text-xs font-bold text-black/40">
+                <Text as="p" variant="caption" tone="muted">
                     심화필수 전공 트랙입니다. 학사일정의 "내 학년·전공 것만" 과 Ask 답에 씁니다.
                     트랙은 3학년 2학기까지 바꿀 수 있어요.
-                </p>
+                </Text>
 
                 {loading ? (
                     <div className="flex justify-center py-6">
-                        <RetroSpinner />
+                        <Spinner />
                     </div>
                 ) : !info ? (
-                    <p className="py-4 text-center text-xs font-bold text-black/40">{error}</p>
+                    <Text as="p" variant="caption" tone="muted" align="center" className="py-4">
+                        {error}
+                    </Text>
                 ) : (
-                    // 넓은 화면에서 카드 폭을 다 쓰면 트랙 단추 하나가 500px 을 넘어 늘어집니다 — 묻는 창과 같은 폭에서 멈춥니다
-                    <div className="max-w-lg space-y-3">
+                    <div className="space-y-3">
                         {info.suggestion && (
-                            <p className="text-xs font-bold text-black/55">
+                            <Text as="p" variant="caption" tone="secondary">
                                 수강 이력으로 보면 {info.suggestion.major} 트랙 같아요 (
                                 {info.suggestion.courses.join(" · ")}) — 짐작이라 직접 골라야 저장됩니다.
-                            </p>
+                            </Text>
                         )}
                         <MajorPicker
                             options={info.options}
@@ -106,36 +106,39 @@ const MajorSettings: React.FC<MajorSettingsProps> = ({ onSaved }) => {
                             suggested={info.suggestion?.major}
                             disabled={busy}
                         />
-                        {error && <p className="text-xs font-bold text-retro-primary">{error}</p>}
+                        {error && (
+                            <Text as="p" variant="caption" tone="pink">
+                                {error}
+                            </Text>
+                        )}
                         <div className="flex flex-wrap justify-end gap-2">
                             {(current !== null || !info.me.answered) && (
-                                <RetroButton
-                                    type="button"
+                                <Button
                                     size="sm"
+                                    variant="paper"
+                                    shadow
                                     disabled={busy}
                                     onClick={() => void save(null)}
-                                    className="disabled:pointer-events-none disabled:opacity-40"
                                 >
                                     미정으로 두기
-                                </RetroButton>
+                                </Button>
                             )}
-                            <RetroButton
-                                type="button"
+                            <Button
                                 size="sm"
-                                variant="black"
+                                variant="filled"
+                                shadow
                                 disabled={busy || !choice || choice === current}
                                 onClick={() => choice && void save(choice)}
-                                className="disabled:pointer-events-none disabled:opacity-40"
                             >
                                 {choice && choice !== current
                                     ? `${choice}${particleRo(choice)} 저장`
                                     : "저장"}
-                            </RetroButton>
+                            </Button>
                         </div>
                     </div>
                 )}
             </div>
-        </RetroCard>
+        </Card>
     );
 };
 

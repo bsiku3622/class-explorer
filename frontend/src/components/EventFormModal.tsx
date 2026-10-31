@@ -1,9 +1,18 @@
-import React, { useState } from "react";
-import { X } from "lucide-react";
+import React, { useId, useState } from "react";
+import {
+    Button,
+    FormField,
+    Input,
+    Modal,
+    Notice,
+    SegmentedControl,
+    Select,
+    Text,
+    Textarea,
+} from "@studio-baeks/funky-ui";
 import type { EventCategory, TimeMode } from "../types";
 import { CATEGORY_LABEL } from "../lib/calendar";
 import { MAJOR_DIVISIONS, toggleMajors } from "../lib/majors";
-import RetroButton from "./atoms/RetroButton";
 
 export type FormPurpose = "personal" | "shared" | "request";
 
@@ -114,256 +123,233 @@ const EventFormModal: React.FC<EventFormModalProps> = ({
         });
     };
 
-    const inputClass =
-        "w-full border-2 border-black px-3 py-2 text-sm font-bold bg-white outline-none";
-    const labelClass =
-        "text-[10px] font-black text-black/40 uppercase tracking-widest block mb-1";
-    const pill = (active: boolean) =>
-        `border-2 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
-            active
-                ? "bg-black text-white border-black"
-                : "bg-white text-black/40 border-black/30 hover:border-black hover:text-black"
-        }`;
+    const formId = useId();
+    const categoryOptions = (Object.keys(CATEGORY_LABEL) as EventCategory[]).map((c) => ({
+        value: c,
+        label: CATEGORY_LABEL[c],
+    }));
 
     return (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
-            <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto border-2 border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]">
-                <div className="flex items-center justify-between border-b-2 border-black bg-retro-secondary px-5 py-3 text-white">
-                    <span className="text-sm font-black uppercase tracking-widest">
-                        {TITLE[purpose]}
-                    </span>
-                    <button onClick={onClose} className="text-white/70 hover:text-white">
-                        <X size={18} strokeWidth={2.5} />
-                    </button>
+        <Modal
+            open
+            onClose={onClose}
+            title={TITLE[purpose]}
+            dismissible={false}
+            footer={
+                <>
+                    <Button type="button" size="sm" variant="paper" shadow onClick={onClose}>
+                        취소
+                    </Button>
+                    <Button
+                        type="submit"
+                        form={formId}
+                        size="sm"
+                        variant="filled"
+                        shadow
+                        disabled={busy}
+                    >
+                        {busy ? "저장 중..." : purpose === "request" ? "제안하기" : "추가"}
+                    </Button>
+                </>
+            }
+        >
+            <form id={formId} onSubmit={handleSubmit} className="space-y-4">
+                <FormField label="제목">
+                    <Input
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        autoFocus
+                        required
+                        maxLength={200}
+                    />
+                </FormField>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <FormField label="시작">
+                        <Input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => {
+                                setStartDate(e.target.value);
+                                if (endDate < e.target.value) setEndDate(e.target.value);
+                            }}
+                            required
+                        />
+                    </FormField>
+                    <FormField label="끝 (하루면 그대로)">
+                        <Input
+                            type="date"
+                            value={endDate}
+                            min={startDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                        />
+                    </FormField>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4 p-5">
-                    <div>
-                        <label className={labelClass}>제목</label>
-                        <input
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            className={inputClass}
-                            autoFocus
-                            required
-                            maxLength={200}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className={labelClass}>시작</label>
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => {
-                                    setStartDate(e.target.value);
-                                    if (endDate < e.target.value) setEndDate(e.target.value);
-                                }}
-                                className={inputClass}
+                <div>
+                    <Text as="p" variant="overline" className="mb-1">시간</Text>
+                    <SegmentedControl
+                        aria-label="시간"
+                        size="xs"
+                        options={TIME_MODES}
+                        value={timeMode}
+                        onChange={setTimeMode}
+                    />
+                    {timeMode === "clock" && (
+                        <div className="mt-2 flex items-center gap-2">
+                            <Input
+                                type="time"
+                                aria-label="시작 시각"
+                                value={startClock}
+                                onChange={(e) => setStartClock(e.target.value)}
                                 required
                             />
-                        </div>
-                        <div>
-                            <label className={labelClass}>끝 (하루면 그대로)</label>
-                            <input
-                                type="date"
-                                value={endDate}
-                                min={startDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className={inputClass}
+                            <Text variant="caption" tone="faint">–</Text>
+                            <Input
+                                type="time"
+                                aria-label="끝 시각"
+                                value={endClock}
+                                onChange={(e) => setEndClock(e.target.value)}
                             />
                         </div>
-                    </div>
-
-                    <div>
-                        <label className={labelClass}>시간</label>
-                        <div className="flex gap-1.5">
-                            {TIME_MODES.map((m) => (
-                                <button
-                                    key={m.value}
-                                    type="button"
-                                    onClick={() => setTimeMode(m.value)}
-                                    className={pill(timeMode === m.value)}
-                                >
-                                    {m.label}
-                                </button>
-                            ))}
-                        </div>
-                        {timeMode === "clock" && (
-                            <div className="mt-2 flex items-center gap-2">
-                                <input
-                                    type="time"
-                                    value={startClock}
-                                    onChange={(e) => setStartClock(e.target.value)}
-                                    className={inputClass}
-                                    required
-                                />
-                                <span className="text-xs font-black text-black/30">–</span>
-                                <input
-                                    type="time"
-                                    value={endClock}
-                                    onChange={(e) => setEndClock(e.target.value)}
-                                    className={inputClass}
-                                />
-                            </div>
-                        )}
-                        {timeMode === "period" && (
-                            <div className="mt-2 flex items-center gap-2">
-                                <select
-                                    value={startPeriod}
-                                    onChange={(e) => {
-                                        const v = Number(e.target.value);
-                                        setStartPeriod(v);
-                                        if (endPeriod < v) setEndPeriod(v);
-                                    }}
-                                    className={inputClass}
-                                >
-                                    {Array.from({ length: 11 }, (_, i) => i + 1).map((p) => (
+                    )}
+                    {timeMode === "period" && (
+                        <div className="mt-2 flex items-center gap-2">
+                            <Select
+                                aria-label="시작 교시"
+                                className="flex-1"
+                                value={startPeriod}
+                                onChange={(e) => {
+                                    const v = Number(e.target.value);
+                                    setStartPeriod(v);
+                                    if (endPeriod < v) setEndPeriod(v);
+                                }}
+                            >
+                                {Array.from({ length: 11 }, (_, i) => i + 1).map((p) => (
+                                    <option key={p} value={p}>{p}교시</option>
+                                ))}
+                            </Select>
+                            <Text variant="caption" tone="faint">–</Text>
+                            <Select
+                                aria-label="끝 교시"
+                                className="flex-1"
+                                value={endPeriod}
+                                onChange={(e) => setEndPeriod(Number(e.target.value))}
+                            >
+                                {Array.from({ length: 11 }, (_, i) => i + 1)
+                                    .filter((p) => p >= startPeriod)
+                                    .map((p) => (
                                         <option key={p} value={p}>{p}교시</option>
                                     ))}
-                                </select>
-                                <span className="text-xs font-black text-black/30">–</span>
-                                <select
-                                    value={endPeriod}
-                                    onChange={(e) => setEndPeriod(Number(e.target.value))}
-                                    className={inputClass}
-                                >
-                                    {Array.from({ length: 11 }, (_, i) => i + 1)
-                                        .filter((p) => p >= startPeriod)
-                                        .map((p) => (
-                                            <option key={p} value={p}>{p}교시</option>
-                                        ))}
-                                </select>
-                            </div>
-                        )}
-                    </div>
-
-                    {purpose !== "personal" && (
-                        <>
-                            <div>
-                                <label className={labelClass}>성격</label>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {(Object.keys(CATEGORY_LABEL) as EventCategory[]).map((c) => (
-                                        <button
-                                            key={c}
-                                            type="button"
-                                            onClick={() => setCategory(c)}
-                                            className={pill(category === c)}
-                                        >
-                                            {CATEGORY_LABEL[c]}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div>
-                                <label className={labelClass}>대상 학년 (안 고르면 전학년)</label>
-                                <div className="flex gap-1.5">
-                                    {[1, 2, 3].map((g) => (
-                                        <button
-                                            key={g}
-                                            type="button"
-                                            onClick={() =>
-                                                setGrades((prev) =>
-                                                    prev.includes(g)
-                                                        ? prev.filter((x) => x !== g)
-                                                        : [...prev, g].sort(),
-                                                )
-                                            }
-                                            className={pill(grades.includes(g))}
-                                        >
-                                            {g}학년
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div>
-                                <label className={labelClass}>대상 전공 (안 고르면 전공 무관)</label>
-                                {/* 공지는 학부 단위로 오는 일이 많아서("물리지구과학부 주관") 학부
-                                    칩이 두 트랙을 한꺼번에 고릅니다 */}
-                                <div className="space-y-1.5">
-                                    {MAJOR_DIVISIONS.map(({ division, majors: pair }) => (
-                                        <div key={division} className="flex flex-wrap gap-1.5">
-                                            <button
-                                                type="button"
-                                                onClick={() => setMajors((prev) => toggleMajors(prev, pair))}
-                                                className={pill(pair.every((m) => majors.includes(m)))}
-                                            >
-                                                {division}
-                                            </button>
-                                            {pair.map((m) => (
-                                                <button
-                                                    key={m}
-                                                    type="button"
-                                                    onClick={() => setMajors((prev) => toggleMajors(prev, [m]))}
-                                                    className={pill(majors.includes(m))}
-                                                >
-                                                    {m}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </>
-                    )}
-
-                    {purpose !== "request" && (
-                        <div>
-                            <label className={labelClass}>반복</label>
-                            <div className="flex gap-1.5">
-                                {REPEATS.map((r) => (
-                                    <button
-                                        key={r.value}
-                                        type="button"
-                                        onClick={() => setRepeat(r.value)}
-                                        className={pill(repeat === r.value)}
-                                    >
-                                        {r.label}
-                                    </button>
-                                ))}
-                            </div>
-                            {repeat !== "none" && (
-                                <input
-                                    type="date"
-                                    value={repeatUntil}
-                                    min={startDate}
-                                    onChange={(e) => setRepeatUntil(e.target.value)}
-                                    className={`${inputClass} mt-2`}
-                                    required
-                                />
-                            )}
+                            </Select>
                         </div>
                     )}
+                </div>
 
+                {purpose !== "personal" && (
+                    <>
+                        <div>
+                            <Text as="p" variant="overline" className="mb-1">성격</Text>
+                            <SegmentedControl
+                                aria-label="성격"
+                                size="xs"
+                                options={categoryOptions}
+                                value={category}
+                                onChange={setCategory}
+                            />
+                        </div>
+                        <div>
+                            <Text as="p" variant="overline" className="mb-1">대상 학년 (안 고르면 전학년)</Text>
+                            <div className="flex gap-1.5">
+                                {[1, 2, 3].map((g) => (
+                                    <Button grow={false}
+                                        key={g}
+                                        size="xs"
+                                        variant="muted"
+                                        selected={grades.includes(g)}
+                                        onClick={() =>
+                                            setGrades((prev) =>
+                                                prev.includes(g)
+                                                    ? prev.filter((x) => x !== g)
+                                                    : [...prev, g].sort(),
+                                            )
+                                        }
+                                    >
+                                        {g}학년
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <Text as="p" variant="overline" className="mb-1">대상 전공 (안 고르면 전공 무관)</Text>
+                            {/* 공지는 학부 단위로 오는 일이 많아서("물리지구과학부 주관") 학부
+                                칩이 두 트랙을 한꺼번에 고릅니다 */}
+                            <div className="space-y-1.5">
+                                {MAJOR_DIVISIONS.map(({ division, majors: pair }) => (
+                                    <div key={division} className="flex flex-wrap gap-1.5">
+                                        <Button grow={false}
+                                            size="xs"
+                                            variant="muted"
+                                            selected={pair.every((m) => majors.includes(m))}
+                                            onClick={() => setMajors((prev) => toggleMajors(prev, pair))}
+                                        >
+                                            {division}
+                                        </Button>
+                                        {pair.map((m) => (
+                                            <Button grow={false}
+                                                key={m}
+                                                size="xs"
+                                                variant="muted"
+                                                selected={majors.includes(m)}
+                                                onClick={() => setMajors((prev) => toggleMajors(prev, [m]))}
+                                            >
+                                                {m}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {purpose !== "request" && (
                     <div>
-                        <label className={labelClass}>메모</label>
-                        <textarea
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
-                            className={`${inputClass} resize-none`}
-                            rows={2}
-                            maxLength={2000}
+                        <Text as="p" variant="overline" className="mb-1">반복</Text>
+                        <SegmentedControl
+                            aria-label="반복"
+                            size="xs"
+                            options={REPEATS}
+                            value={repeat}
+                            onChange={setRepeat}
                         />
+                        {repeat !== "none" && (
+                            <Input
+                                type="date"
+                                aria-label="반복 종료일"
+                                value={repeatUntil}
+                                min={startDate}
+                                onChange={(e) => setRepeatUntil(e.target.value)}
+                                className="mt-2"
+                                required
+                            />
+                        )}
                     </div>
+                )}
 
-                    {error && (
-                        <p className="border-2 border-retro-primary bg-retro-primary/10 px-3 py-2 text-xs font-bold text-retro-primary">
-                            {error}
-                        </p>
-                    )}
+                <FormField label="메모">
+                    <Textarea
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        className="resize-none"
+                        rows={2}
+                        maxLength={2000}
+                    />
+                </FormField>
 
-                    <div className="flex justify-end gap-2 border-t-2 border-black/10 pt-3">
-                        <RetroButton type="button" size="sm" onClick={onClose}>
-                            취소
-                        </RetroButton>
-                        <RetroButton type="submit" variant="black" size="sm" disabled={busy}>
-                            {busy ? "저장 중..." : purpose === "request" ? "제안하기" : "추가"}
-                        </RetroButton>
-                    </div>
-                </form>
-            </div>
-        </div>
+                {error && <Notice role="alert">{error}</Notice>}
+            </form>
+        </Modal>
     );
 };
 

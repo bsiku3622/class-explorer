@@ -22,11 +22,8 @@ import {
     removeFriend,
     type Friend,
 } from "../lib/friendsApi";
-import RetroButton from "./atoms/RetroButton";
-import RetroCard from "./atoms/RetroCard";
-import RetroSubTitle from "./atoms/RetroSubTitle";
 import SearchInput from "./atoms/SearchInput";
-import RetroSpinner from "./atoms/RetroSpinner";
+import { Button, Card, IconButton, Paint, SectionTitle, Spinner, Surface, Text } from "@studio-baeks/funky-ui";
 
 /** 전교생을 훑는 건 두 글자부터. 한 글자면 이름 하나에 수십 명이 걸립니다 */
 const LOOKUP_MIN_LENGTH = 2;
@@ -48,26 +45,36 @@ const PersonRow: React.FC<{
     highlight?: boolean;
     tag?: string;
     action: React.ReactNode;
-}> = ({ person, highlight, tag, action }) => (
-    <li
-        className={`flex items-center justify-between gap-3 border-2 px-3 py-2 ${
-            highlight ? "border-black bg-retro-accent1" : "border-black/15"
-        }`}
-    >
-        <span className="flex min-w-0 items-center gap-2.5">
-            <span className="shrink-0 text-xs font-black tabular-nums text-black/40">
-                {person.stuId}
+}> = ({ person, highlight, tag, action }) => {
+    const row = (
+        <>
+            <span className="flex min-w-0 items-center gap-2.5">
+                <Text variant="caption" weight="black" tone="muted" numeric className="shrink-0">
+                    {person.stuId}
+                </Text>
+                <Text weight="black" truncate>
+                    {person.name}
+                </Text>
+                {tag && (
+                    <Text variant="overline" tone="inherit" className="shrink-0">
+                        {tag}
+                    </Text>
+                )}
             </span>
-            <span className="truncate text-sm font-black">{person.name}</span>
-            {tag && (
-                <span className="shrink-0 text-[10px] font-black uppercase tracking-widest">
-                    {tag}
-                </span>
-            )}
-        </span>
-        {action}
-    </li>
-);
+            {action}
+        </>
+    );
+    const layout = "flex items-center justify-between gap-3 px-3 py-2";
+    return highlight ? (
+        <Paint as="li" accent="cyan" variant="solid" className={layout}>
+            {row}
+        </Paint>
+    ) : (
+        <Surface as="li" fill="none" border="soft" className={layout}>
+            {row}
+        </Surface>
+    );
+};
 
 const FriendsManager: React.FC<FriendsManagerProps> = ({
     term,
@@ -151,13 +158,13 @@ const FriendsManager: React.FC<FriendsManagerProps> = ({
         : null;
 
     return (
-        <RetroCard className="bg-white p-5 md:p-6">
+        <Card padding="0" className="p-5 md:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <RetroSubTitle title={`Friends (${friends.length})`} icon={Users} />
+                <SectionTitle title={`Friends (${friends.length})`} icon={Users} />
                 {freeCount !== null && friends.length > 0 && (
-                    <span className="text-xs font-black">
+                    <Text variant="caption" weight="black">
                         지금 공강 {freeCount}명
-                    </span>
+                    </Text>
                 )}
             </div>
 
@@ -177,9 +184,9 @@ const FriendsManager: React.FC<FriendsManagerProps> = ({
                         // 검색 중이면 아래 Add 목록이 답입니다 — 여기서 먼저 말을 걸면
                         // 찾은 사람을 가립니다
                         !searching && (
-                            <p className="text-sm font-bold text-black/30">
+                            <Text as="p" tone="muted">
                                 아직 등록한 사람이 없습니다. 이름으로 찾아 추가해 보세요.
-                            </p>
+                            </Text>
                         )
                     ) : (
                         <>
@@ -193,25 +200,25 @@ const FriendsManager: React.FC<FriendsManagerProps> = ({
                                             highlight={isFree}
                                             tag={isFree ? "공강" : undefined}
                                             action={
-                                                <button
+                                                <IconButton
+                                                    icon={X}
+                                                    size="xs"
                                                     disabled={busy}
                                                     onClick={() =>
                                                         run(() => removeFriend(friend.stuId))
                                                     }
-                                                    aria-label={`${friend.name} 삭제`}
-                                                    className="shrink-0 text-black/25 transition-colors hover:text-black disabled:opacity-30"
-                                                >
-                                                    <X size={14} strokeWidth={3} />
-                                                </button>
+                                                    label={`${friend.name} 삭제`}
+                                                    className="shrink-0"
+                                                />
                                             }
                                         />
                                     );
                                 })}
                             </ul>
                             {freeIds === null && !searching && (
-                                <p className="mt-2.5 text-xs font-bold text-black/30">
+                                <Text as="p" variant="caption" tone="muted" className="mt-2.5">
                                     지금은 수업 시간이 아니라 공강을 따지지 않습니다.
-                                </p>
+                                </Text>
                             )}
                         </>
                     )}
@@ -220,32 +227,34 @@ const FriendsManager: React.FC<FriendsManagerProps> = ({
                 {/* 찾았는데 등록 전인 사람 */}
                 {searching &&
                     (trimmed.length < LOOKUP_MIN_LENGTH ? (
-                        <p className="text-xs font-bold text-black/30">
+                        <Text as="p" variant="caption" tone="muted">
                             두 글자부터 전교생에서 찾습니다.
-                        </p>
+                        </Text>
                     ) : candidates.length === 0 ? (
                         shown.length === 0 && (
-                            <p className="text-sm font-bold text-black/30">
+                            <Text as="p" tone="muted">
                                 찾은 사람이 없습니다.
-                            </p>
+                            </Text>
                         )
                     ) : (
                         <div>
-                            <RetroSubTitle title="Add" />
+                            <SectionTitle title="Add" />
                             <ul className="mt-2.5 space-y-1.5">
                                 {candidates.map((person) => (
                                     <PersonRow
                                         key={person.stuId}
                                         person={person}
                                         action={
-                                            <RetroButton
+                                            <Button
                                                 size="sm"
+                                                variant="paper"
+                                                shadow
                                                 disabled={busy}
                                                 onClick={() => run(() => addFriend(person.stuId))}
-                                                className="shrink-0 disabled:opacity-40"
+                                                className="shrink-0"
                                             >
                                                 추가
-                                            </RetroButton>
+                                            </Button>
                                         }
                                     />
                                 ))}
@@ -255,11 +264,11 @@ const FriendsManager: React.FC<FriendsManagerProps> = ({
 
                 {busy && (
                     <div className="flex justify-center">
-                        <RetroSpinner size="sm" />
+                        <Spinner size="sm" />
                     </div>
                 )}
             </div>
-        </RetroCard>
+        </Card>
     );
 };
 

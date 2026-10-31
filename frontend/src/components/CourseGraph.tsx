@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Lock, Check } from "lucide-react";
+import { Badge, Icon, Pressable, Surface, Text, paintClass, surfaceClass } from "@studio-baeks/funky-ui";
+import { ACCENT_COLORS } from "@studio-baeks/funky-ui/tokens";
 import {
     ALL_DEPARTMENTS,
     courseState,
@@ -19,28 +21,28 @@ import {
     type Prereq,
 } from "../lib/curriculum";
 
-const STATE_STYLE: Record<CourseState, { box: string; text: string }> = {
-    taken: { box: "bg-retro-green/20 border-retro-green", text: "text-black" },
-    current: { box: "bg-retro-accent5/20 border-retro-accent5", text: "text-black" },
-    inferred: {
-        box: "bg-retro-green/[0.07] border-retro-green border-dashed",
-        text: "text-black/60",
-    },
-    available: { box: "bg-white border-black", text: "text-black" },
-    locked: { box: "bg-black/[0.04] border-black/20", text: "text-black/35" },
+/** 이수 상태가 칸의 면이 됩니다 — 교육과정 노드는 `tinted`(연한 면 + 색 테두리 + 검정 글자) */
+const STATE_FACE: Record<CourseState, string> = {
+    taken: paintClass({ accent: "green", variant: "tinted" }),
+    current: paintClass({ accent: "sky", variant: "tinted" }),
+    inferred: paintClass({ accent: "green", variant: "tinted", borderStyle: "dashed" }),
+    available: paintClass({ variant: "paper" }),
+    locked: surfaceClass({ fill: "well", border: "soft" }),
 };
+const SELECTED_FACE = paintClass({ accent: "pink", variant: "tinted" });
+const STATE_TONE = { inferred: "secondary", locked: "faint" } as const;
 
 export const CourseGraphLegend: React.FC<{ states?: CourseState[] }> = ({
     states = ["taken", "current", "inferred", "available", "locked"],
 }) => (
-    <div className="flex flex-wrap items-center gap-3 text-[10px] font-bold">
+    <Text as="div" variant="micro" weight="bold" className="flex flex-wrap items-center gap-3">
         {states.map((state) => (
             <span key={state} className="flex items-center gap-1.5">
-                <span className={`w-3 h-3 border-2 ${STATE_STYLE[state].box}`} />
+                <span className={`w-3 h-3 ${STATE_FACE[state]}`} />
                 {COURSE_STATE_LABEL[state]}
             </span>
         ))}
-    </div>
+    </Text>
 );
 
 interface CourseGraphProps {
@@ -147,7 +149,7 @@ const CourseGraph: React.FC<CourseGraphProps> = ({
     const plain = !taken && !current;
 
     return (
-        <div className="overflow-x-auto border-2 border-black/10 bg-retro-bg/40 p-4">
+        <Surface fill="canvas" border="subtle" className="overflow-x-auto p-4">
             <svg
                 width={graph.width}
                 height={graph.height}
@@ -166,19 +168,12 @@ const CourseGraph: React.FC<CourseGraphProps> = ({
                             y={lane.y - 10}
                             width={graph.width + 16}
                             height={lane.height + 20}
-                            fill="rgba(0,0,0,0.025)"
-                            stroke="rgba(0,0,0,0.1)"
                             strokeWidth={2}
+                            style={{ fill: "var(--fk-surface-well)", stroke: "var(--fk-line-subtle)" }}
                         />
-                        <text
-                            x={-4}
-                            y={lane.y - 14}
-                            className="text-[10px] font-black uppercase"
-                            fill="rgba(0,0,0,0.45)"
-                            style={{ letterSpacing: "0.12em" }}
-                        >
+                        <Text as="text" variant="overline" x={-4} y={lane.y - 14} fill="currentColor">
                             {lane.department}
-                        </text>
+                        </Text>
                     </g>
                 ))}
 
@@ -194,10 +189,10 @@ const CourseGraph: React.FC<CourseGraphProps> = ({
                             fill="none"
                             stroke={
                                 linked
-                                    ? "#ff4eba"
+                                    ? ACCENT_COLORS.pink.solid
                                     : focused === edge.before || focused === edge.after
-                                      ? "#000000"
-                                      : "rgba(0,0,0,0.25)"
+                                      ? "var(--fk-line-base)"
+                                      : "var(--fk-ink-faint)"
                             }
                             // 굵기는 항상 2 — 노드 테두리도 2px 이라, 짚은 선만 굵어지면
                             // 같은 핑크인데 선과 테두리 두께가 어긋납니다
@@ -218,7 +213,7 @@ const CourseGraph: React.FC<CourseGraphProps> = ({
                               inferred ?? new Set(),
                               prereqIndex,
                           );
-                    const style = STATE_STYLE[state];
+                    const tone = state === "inferred" || state === "locked" ? STATE_TONE[state] : undefined;
                     const grade = grades?.[node.name];
                     const togglable = Boolean(onSelect) && !fixed?.has(node.name);
                     const showDept = isAll || node.course.department !== department;
@@ -236,7 +231,8 @@ const CourseGraph: React.FC<CourseGraphProps> = ({
                             height={NODE_HEIGHT}
                             opacity={faded ? 0.25 : 1}
                         >
-                            <button
+                            <Pressable
+                                motion={focused === node.name || isSelected ? "still" : "raise"}
                                 onClick={() => {
                                     // 같은 과목을 다시 누르면 강조를 풉니다
                                     setSelected(isSelected ? null : node.name);
@@ -244,61 +240,49 @@ const CourseGraph: React.FC<CourseGraphProps> = ({
                                     if (togglable) onSelect?.(node.name);
                                 }}
                                 onMouseEnter={() => onFocus(node.name)}
-                                className={`w-full h-full border-2 px-2 flex flex-col items-start justify-center gap-0.5 text-left cursor-pointer transition-all duration-100 ${
-                                    isSelected
-                                        ? "bg-retro-primary/25 border-retro-primary text-black"
-                                        : `${style.box} ${style.text}`
-                                } hover:shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] ${
-                                    focused === node.name || isSelected
-                                        ? "shadow-[3px_3px_0_0_rgba(0,0,0,0.2)]"
-                                        : ""
-                                }`}
+                                className={`${isSelected ? SELECTED_FACE : STATE_FACE[state]} w-full h-full px-2 flex flex-col items-start justify-center gap-0.5 text-left`}
                             >
-                                <span className="flex items-center gap-1 w-full">
+                                <Text as="span" tone={tone} className="flex items-center gap-1 w-full">
                                     {state === "locked" && (
-                                        <Lock size={10} strokeWidth={3} className="shrink-0" />
+                                        <Icon icon={Lock} size="xs" strokeWidth={3} tone="inherit" className="shrink-0" />
                                     )}
                                     {recorded?.has(node.name) && (
-                                        <Check
-                                            size={10}
-                                            strokeWidth={3}
-                                            className="shrink-0 text-retro-green"
-                                        />
+                                        <Icon icon={Check} size="xs" strokeWidth={3} tone="green" className="shrink-0" />
                                     )}
-                                    <span className="text-[11px] font-black truncate">
+                                    <Text variant="label" truncate>
                                         {node.course.name}
-                                    </span>
+                                    </Text>
                                     {grade && (
-                                        <span className="ml-auto shrink-0 border-2 border-black bg-white px-1 text-[9px] font-black">
+                                        <Badge size="sm" variant="paper" className="ml-auto shrink-0">
                                             {grade}
-                                        </span>
+                                        </Badge>
                                     )}
-                                </span>
-                                <span className="w-full truncate text-[9px] font-bold opacity-60">
+                                </Text>
+                                <Text as="span" variant="micro" weight="bold" tone={tone} className="w-full truncate opacity-60">
                                     {/* 다른 학과 선수는 판에 안 그리고 여기 글로 답니다 */}
                                     {outsideLine ? (
-                                        <span className="text-retro-secondary">
+                                        <Text variant="micro" weight="bold" tone="purple">
                                             선수 {outsideLine}
-                                        </span>
+                                        </Text>
                                     ) : (
                                         <>
                                             {showDept && !isAll && (
-                                                <span className="text-retro-secondary">
+                                                <Text variant="micro" weight="bold" tone="purple">
                                                     {node.course.department}{" · "}
-                                                </span>
+                                                </Text>
                                             )}
                                             {node.course.credits}학점
                                             {englishTaken?.has(node.name) && " · EC 수강"}
                                             {node.course.is_pf && " · P/F"}
                                         </>
                                     )}
-                                </span>
-                            </button>
+                                </Text>
+                            </Pressable>
                         </foreignObject>
                     );
                 })}
             </svg>
-        </div>
+        </Surface>
     );
 };
 

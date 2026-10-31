@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import api from "../lib/api";
-import RetroCard from "../components/atoms/RetroCard";
-import RetroButton from "../components/atoms/RetroButton";
+import { Button, Card, FormField, Input, Notice, Surface, Text, Wordmark } from "@studio-baeks/funky-ui";
 
 interface LoginPageProps {
     onLogin: (token: string) => void;
@@ -44,76 +43,61 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         }
     };
 
-    const inputClass =
-        "w-full border-2 border-black px-4 py-3 text-sm font-bold bg-white shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] focus:shadow-none outline-none transition-all duration-100";
-
     return (
-        <div className="min-h-screen bg-retro-bg flex items-center justify-center p-4">
+        <Surface fill="canvas" className="flex min-h-screen items-center justify-center p-4">
             <div className="w-full max-w-sm">
                 <div className="mb-8 text-center">
-                    <h1 className="text-3xl font-black tracking-tighter text-black uppercase transform -skew-x-6 inline-block">
+                    <Wordmark as="h1" size="lg">
                         Class Explorer
-                    </h1>
-                    <p className="text-[11px] font-black text-black/40 uppercase tracking-[0.2em] mt-2">
+                    </Wordmark>
+                    <Text as="p" variant="overline" className="mt-2">
                         KSA Timetable System
-                    </p>
+                    </Text>
                 </div>
 
-                <RetroCard shadow="lg" className="bg-white p-8">
+                <Card shadow="none" padding="0" className="shadow-[8px_8px_0_0_rgba(0,0,0,0.2)] p-8">
                     <form onSubmit={handleSubmit} className="space-y-5">
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-black/40 uppercase tracking-widest block">
-                                Username
-                            </label>
-                            <input
+                        <FormField label="Username">
+                            <Input
                                 type="text"
+                                shadow
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className={inputClass}
                                 autoComplete="username"
                                 autoFocus
                                 required
                             />
-                        </div>
+                        </FormField>
 
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-black/40 uppercase tracking-widest block">
-                                Password
-                            </label>
-                            <input
+                        <FormField label="Password">
+                            <Input
                                 type="password"
+                                shadow
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className={inputClass}
                                 autoComplete="current-password"
                                 required
                             />
-                        </div>
+                        </FormField>
 
-                        <RetroButton
-                            type="submit"
-                            variant="black"
-                            size="md"
-                            className="w-full"
-                            disabled={loading}
-                        >
+                        <Button type="submit" variant="filled" shadow size="md" fullWidth disabled={loading}>
                             {loading ? "로그인 중..." : "로그인"}
-                        </RetroButton>
+                        </Button>
 
-                        <p className="text-[10px] font-bold leading-relaxed text-black/40">
+                        <Text as="p" variant="micro" weight="bold" tone="muted" leading="relaxed">
                             계정은 관리자가 만들어 줍니다. 처음 들어오시면 학교 구글 계정으로
                             학번을 한 번 확인합니다 — 그동안 기록한 내용은 그대로 남습니다.
-                        </p>
+                        </Text>
                     </form>
 
                     {error && (
-                        <p className="mt-5 border-2 border-retro-primary bg-retro-primary/10 px-3 py-2 text-xs font-bold text-retro-primary">
+                        <Notice role="alert" className="mt-5">
                             {error}
-                        </p>
+                        </Notice>
                     )}
-                </RetroCard>
+                </Card>
             </div>
-        </div>
+        </Surface>
     );
 };
 

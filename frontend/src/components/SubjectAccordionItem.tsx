@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from "react";
-import RetroChip from "./atoms/RetroChip";
-import RetroTooltip from "./atoms/RetroTooltip";
-import { ChevronDown, FolderOpen, Users } from "lucide-react";
+import { Accordion, Badge, Button, Divider, Link, Popover, Surface, Text } from "@studio-baeks/funky-ui";
+import { FolderOpen, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { SubjectData, Section, Term } from "../types";
 import { extractSearchTerms, getKoreanName } from "../lib/utils";
@@ -74,138 +73,136 @@ const SubjectAccordionItem: React.FC<SubjectAccordionItemProps> = ({
         : `${subject.section_count} SECTIONS`;
 
     return (
-        <div className="border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.2)] bg-white overflow-hidden rounded-none w-full mb-6 last:mb-0">
-            <button
-                onClick={onToggle}
-                className="w-full px-4 py-4 sm:px-6 sm:py-6 flex items-center justify-between hover:bg-retro-accent1/10 focus:outline-none group transition-colors"
-            >
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 flex-1 mr-4 sm:mr-6 text-left overflow-hidden">
-                    <span className="text-base sm:text-xl font-black text-black tracking-tight uppercase truncate flex-1">
-                        {getKoreanName(subject.subject)}
-                    </span>
-                    <div className="flex gap-2 sm:gap-3 shrink-0">
-                        <RetroChip
-                            className={`${isSingleStudentSearch ? "bg-retro-accent1" : "bg-retro-accent2"} border-2 border-black text-xs sm:text-sm font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-2 sm:px-3 h-auto py-1 sm:py-1.5 uppercase`}
-                        >
-                            {sectionDisplayText}
-                        </RetroChip>
-                        <RetroChip
-                            className="bg-retro-accent3 border-2 border-black text-xs sm:text-sm font-black rounded-none shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] px-2 sm:px-3 h-auto py-1 sm:py-1.5"
-                        >
-                            {visibleStudentCount} STUDENTS
-                        </RetroChip>
-                    </div>
+        <Accordion
+            title={<span className="uppercase text-black max-sm:text-base">{getKoreanName(subject.subject)}</span>}
+            size="lg"
+            trailing={
+                <div className="flex gap-2 sm:gap-3 shrink-0">
+                    <Badge size="xl" shadow accent={isSingleStudentSearch ? "cyan" : "yellow"} variant="solid" className="max-sm:h-7 max-sm:px-2 max-sm:text-xs">
+                        {sectionDisplayText}
+                    </Badge>
+                    <Badge size="xl" shadow accent="pink" variant="solid" className="max-sm:h-7 max-sm:px-2 max-sm:text-xs">
+                        {visibleStudentCount} STUDENTS
+                    </Badge>
                 </div>
-                <ChevronDown
-                    size={20}
-                    style={{ transition: "none" }}
-                    className={`text-black shrink-0 ${
-                        isOpen ? "rotate-180" : ""
-                    }`}
-                />
-            </button>
+            }
+            open={isOpen}
+            onOpenChange={() => onToggle()}
+            className="w-full mb-6 last:mb-0"
+        >
+            <div className="space-y-6">
+                <SyllabusPanel subject={subject} term={term} />
+                <Surface
+                    border="line"
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-4 p-2.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]"
+                >
+                    <Text variant="subtitle" className="flex items-center gap-2">
+                        <Users size={16} /> Teachers :
+                    </Text>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        {Object.entries(teacherSummary).map(
+                            ([name, nums]) => {
+                                const isSearching =
+                                    effectiveSearchTerms.some((term) =>
+                                        name
+                                            .toLowerCase()
+                                            .includes(term),
+                                    );
+                                const teacherInfo =
+                                    teacherSubjectMap[name] || {};
+                                const teacherClasses = Object.entries(
+                                    teacherInfo,
+                                ).map(([sub, sections]) => {
+                                    const cleanSub = getKoreanName(sub);
+                                    const secStr = sections
+                                        .map((s) =>
+                                            s.replace(/[^0-9]/g, ""),
+                                        )
+                                        .sort()
+                                        .join(",");
+                                    return `${cleanSub}(${secStr})`;
+                                });
 
-            {isOpen && (
-                <div className="overflow-hidden border-t-2 border-black bg-retro-bg/10">
-                    <div className="px-4 pb-4 pt-4 space-y-6">
-                        <SyllabusPanel subject={subject} term={term} />
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-white/50 border-2 border-black p-2.5 mb-4 shadow-[4px_4px_0_0_rgba(0,0,0,0.1)]">
-                            <span className="text-sm font-black uppercase text-black/50 flex items-center gap-2">
-                                <Users size={16} /> Teachers :
-                            </span>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1">
-                                {Object.entries(teacherSummary).map(
-                                    ([name, nums]) => {
-                                        const isSearching =
-                                            effectiveSearchTerms.some((term) =>
-                                                name
-                                                    .toLowerCase()
-                                                    .includes(term),
-                                            );
-                                        const teacherInfo =
-                                            teacherSubjectMap[name] || {};
-                                        const teacherClasses = Object.entries(
-                                            teacherInfo,
-                                        ).map(([sub, sections]) => {
-                                            const cleanSub = getKoreanName(sub);
-                                            const secStr = sections
-                                                .map((s) =>
-                                                    s.replace(/[^0-9]/g, ""),
-                                                )
-                                                .sort()
-                                                .join(",");
-                                            return `${cleanSub}(${secStr})`;
-                                        });
-
-                                        return (
-                                                                                        <RetroTooltip
-                                                key={name}
-                                                isOpen={
-                                                    isModifierPressed &&
-                                                    hoveredTeacher === name
+                                return (
+                                    <Popover
+                                        key={name}
+                                        trigger="manual"
+                                        open={
+                                            isModifierPressed &&
+                                            hoveredTeacher === name
+                                        }
+                                        padding="0"
+                                        content={
+                                            <TeacherCard
+                                                name={name}
+                                                subjects={teacherClasses}
+                                            />
+                                        }
+                                    >
+                                        <Text
+                                            weight="black"
+                                            tone={isSearching ? "purple" : undefined}
+                                            decoration={isSearching ? "underline" : undefined}
+                                        >
+                                            <Link
+                                                as="button"
+                                                type="button"
+                                                underline="hover"
+                                                accent="purple"
+                                                onMouseEnter={() =>
+                                                    setHoveredTeacher(name)
                                                 }
-                                                content={
-                                                    <TeacherCard
-                                                        name={name}
-                                                        subjects={teacherClasses}
-                                                    />
+                                                onMouseLeave={() =>
+                                                    setHoveredTeacher(null)
+                                                }
+                                                onClick={() =>
+                                                    handleSearchToggle(
+                                                        name,
+                                                        true,
+                                                    )
                                                 }
                                             >
-                                                <button
-                                                    className={`text-sm font-black transition-colors hover:text-retro-secondary cursor-pointer ${isSearching ? "text-retro-secondary underline decoration-2 underline-offset-4" : "text-black"}`}
-                                                    onMouseEnter={() =>
-                                                        setHoveredTeacher(name)
-                                                    }
-                                                    onMouseLeave={() =>
-                                                        setHoveredTeacher(null)
-                                                    }
-                                                    onClick={() =>
-                                                        handleSearchToggle(
-                                                            name,
-                                                            true,
-                                                        )
-                                                    }
-                                                >
-                                                    {name}(
-                                                    {nums.sort().join(",")})
-                                                </button>
-                                            </RetroTooltip>
-                                        );
-                                    },
-                                )}
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => navigate(`/materials?subject=${subject.subject_id}`)}
-                                className="ml-auto flex shrink-0 items-center gap-1.5 border-2 border-black bg-retro-accent1 px-3 py-1.5 text-[10px] font-black uppercase shadow-[3px_3px_0_0_rgba(0,0,0,0.16)] transition-all duration-100 hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none"
-                            >
-                                <FolderOpen size={13} strokeWidth={2.5} /> 자료실 가기
-                            </button>
-                        </div>
-
-                        {subject.sections.map(
-                            (section: Section, idx: number) => (
-                                <React.Fragment key={section.id}>
-                                    {idx > 0 && (
-                                        <div className="mb-4 h-px bg-black opacity-20" />
-                                    )}
-                                    <SectionCard
-                                        section={section}
-                                        searchTerm={searchTerm}
-                                        handleSearchToggle={handleSearchToggle}
-                                        studentSubjectMap={studentSubjectMap}
-                                        teacherSubjectMap={teacherSubjectMap}
-                                        isModifierPressed={isModifierPressed}
-                                        selectedYears={selectedYears}
-                                        searchMode={searchMode}
-                                    />
-                                </React.Fragment>
-                            ),
+                                                {name}(
+                                                {nums.sort().join(",")})
+                                            </Link>
+                                        </Text>
+                                    </Popover>
+                                );
+                            },
                         )}
                     </div>
-                </div>
-            )}
-        </div>
+                    <Button
+                        size="xs"
+                        accent="cyan"
+                        variant="solid"
+                        shadow
+                        icon={FolderOpen}
+                        onClick={() => navigate(`/materials?subject=${subject.subject_id}`)}
+                        className="ml-auto shrink-0"
+                    >
+                        자료실 가기
+                    </Button>
+                </Surface>
+
+                {subject.sections.map(
+                    (section: Section, idx: number) => (
+                        <React.Fragment key={section.id}>
+                            {idx > 0 && <Divider tone="soft" className="mb-4" />}
+                            <SectionCard
+                                section={section}
+                                searchTerm={searchTerm}
+                                handleSearchToggle={handleSearchToggle}
+                                studentSubjectMap={studentSubjectMap}
+                                teacherSubjectMap={teacherSubjectMap}
+                                isModifierPressed={isModifierPressed}
+                                selectedYears={selectedYears}
+                                searchMode={searchMode}
+                            />
+                        </React.Fragment>
+                    ),
+                )}
+            </div>
+        </Accordion>
     );
 };
 

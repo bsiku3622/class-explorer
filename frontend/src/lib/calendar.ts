@@ -185,19 +185,6 @@ export const CATEGORY_LABEL: Record<EventCategory, string> = {
     event: "행사",
 };
 
-/**
- * 성격별 색. 디자인 가이드의 "한 색은 한 뜻" 규칙을 따릅니다 — 여기서 쓰는 색은
- * 다른 화면에서 다른 뜻으로 쓰이지 않아야 합니다.
- */
-export const CATEGORY_STYLE: Record<EventCategory, { dot: string; chip: string }> = {
-    holiday: { dot: "bg-retro-primary", chip: "bg-retro-primary/15 text-retro-primary" },
-    exam: { dot: "bg-retro-secondary", chip: "bg-retro-secondary/15 text-retro-secondary" },
-    term: { dot: "bg-retro-accent4", chip: "bg-retro-accent4/20 text-black" },
-    dorm: { dot: "bg-retro-accent5", chip: "bg-retro-accent5/20 text-black" },
-    academic: { dot: "bg-black/50", chip: "bg-black/[0.07] text-black/70" },
-    event: { dot: "bg-black/25", chip: "bg-black/[0.05] text-black/60" },
-};
-
 export const MONTH_LABEL = [
     "1월", "2월", "3월", "4월", "5월", "6월",
     "7월", "8월", "9월", "10월", "11월", "12월",

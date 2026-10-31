@@ -13,7 +13,7 @@
 ## 스타일
 ```
 fixed top-0 left-0 right-0  z-50
-bg-retro-secondary  text-white          ← 값은 index.css 의 @theme
+funky-ui 의 AppBar (Surface fill="brand", 흰 글자)
 height: h-20 (pt-20으로 컨텐츠 밀어냄)
 ```
 

@@ -4,35 +4,6 @@
 
 ## Molecules
 
-### PageHeader
-```tsx
-<PageHeader
-  tag="Feature: Search Engine"
-  title="Class Explorer"
-  subtitle="Find classes, teachers, rooms"
-  icon={SearchIcon}
-  action={<RetroButton>...</RetroButton>}
->
-  {/* 추가 내용 */}
-</PageHeader>
-```
-- `RetroCard` 기반
-- `action`: 우측 버튼 영역
-
-### AccordionSection
-```tsx
-<AccordionSection
-  title="Teaching Load"
-  icon={Clock}
-  isOpen={openSections.teachers}
-  onToggle={() => toggleSection("teachers")}
->
-  {/* 내용 */}
-</AccordionSection>
-```
-- 헤더 클릭으로 `onToggle` 호출 (상태는 외부에서 관리)
-- 펼침 시 fade-in 애니메이션
-
 ### BarChartRow
 ```tsx
 <BarChartRow
@@ -41,11 +12,10 @@
   maxValue={100}
   caption="42 Students"
   layout="horizontal" | "vertical"
-  captionClassName="text-retro-primary"
   onLabelClick={() => handleSearch("수학")}
 />
 ```
-- 바 색상: `bg-retro-primary`, 호버: `bg-[#ff7e7e]`
+- funky-ui `Meter accent="pink"` 를 그립니다
 - `onLabelClick`: 라벨 클릭 시 검색 트리거
 
 ---
@@ -55,7 +25,7 @@
 ### Navigation
 - 상단 고정 (`fixed top-0`), `z-50`
 - "Class Explorer" 로고 — 클릭 시 검색 초기화 + `/` 이동
-- `bg-retro-secondary` (다크)
+- funky-ui `AppBar` (`Surface fill="brand"`)
 
 ### Sidebar
 - 좌측 고정 (`fixed left-0`), 모바일 숨김 (`hidden md:block`)
@@ -85,7 +55,7 @@
 
 ### StatsCards
 - 3열 그리드: 전체 과목 수, 전체 분반 수, 재학생 수
-- `RetroCard + bg-white` 스타일
+- funky-ui `Paint` + `Stat` (네온 면 위 이름표는 `labelTone="inherit"`)
 
 ### TimetableGrid
 - 요일(MON~FRI) × 교시(1~11) 격자

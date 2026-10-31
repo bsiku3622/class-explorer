@@ -144,16 +144,19 @@ KEIS API → cli/parser_run.py (학기 단위) → ksa_timetable.db
 
 ## Design Rules
 
-- `border-2 border-black` — 모든 카드/버튼
-- Hard shadow: `shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]` → hover 시 `translate-x-1 translate-y-1`로 숨김
-- 선택된 버튼: `scale-105` + hover 시 shadow만 숨김 (translate 없음)
-- `transition-all duration-100`
-- atom 컴포넌트 인라인 재구현 금지: `RetroButton`, `RetroCard`, `RetroSubTitle`, `StudentBadge` 사용
-- `RetroSubTitle` 스타일 고정: `text-sm font-bold text-black/40 uppercase tracking-widest`
+**UI 는 funky-ui 로 그립니다** (`@studio-baeks/funky-ui`, 사본은 `frontend/vendor/funky-ui`). 자세한 규칙은
+`frontend/design-guide.md`, 사본을 맞추는 법은 `frontend/CLAUDE.md` 의 `디자인 시스템` 절입니다.
+
+- 부품을 다시 만들지 않습니다: `Button`, `Card`, `Badge`, `Input`, `Modal`, `SectionTitle`, `PageHeader`, `StudentBadge`.
+  빠진 것은 앱에 베끼지 말고 funky-ui 를 먼저 고친 뒤 사본을 맞춥니다
+- hex 를 적지 않습니다. `accent="pink"` 처럼 이름으로 고르고, 실행 중에 정해지는 색(학과·학번)은 Tone 부품
+  (`ToneButton`·`ToneChip`·`ToneBox`·`ToneText`)으로 칠합니다
+- 선택된 버튼은 `selected` 로 표시합니다. 색 버튼까지 **예외 없이 105%** 로 커지고, 크기는 funky-ui 가 맡습니다
 - 학생 색상: 반드시 `getStudentColor()` 사용 (23=Purple, 24=Orange, 25=Green, 26=Cyan)
-- **UI 라이브러리를 새로 들이지 마세요.** HeroUI 를 걷어낸 자리입니다 — 컴포넌트
-  일곱 개를 쓰자고 첫 로딩 JS 의 절반(103KB)을 얹고 있었고, 생김새는 어차피 `Retro*`
-  로 따로 만들어 쓰고 있었습니다. 필요한 것은 `atoms/` 에 직접 만듭니다
+- ⚠️ `src/index.css` 맨 위의 `@layer theme, base, fk, components, utilities;` 와 `main.tsx` 의 import 순서(`index.css`
+  먼저)를 바꾸지 마세요. `fk` 가 `base` 앞에 서면 Tailwind preflight 가 funky 의 여백·테두리를 전부 지웁니다
+- **다른 UI 라이브러리를 들이지 마세요.** HeroUI 를 걷어낸 자리입니다. 컴포넌트 일곱 개를 쓰자고 첫 로딩 JS 의
+  절반(103KB)을 얹고 있었고, 생김새는 어차피 따로 만들어 쓰고 있었습니다
 - Tailwind v4 `@theme` / `@custom-variant` LSP 경고는 정상 — 수정 시도 금지
 
 ---

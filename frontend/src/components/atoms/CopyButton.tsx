@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Copy, Check } from "lucide-react";
+import { Button } from "@studio-baeks/funky-ui";
 
 interface CopyButtonProps {
     /** 클립보드에 넣을 내용 */
@@ -13,7 +14,7 @@ interface CopyButtonProps {
 const CopyButton: React.FC<CopyButtonProps> = ({
     text,
     label = "복사",
-    className = "",
+    className,
     title,
 }) => {
     const [copied, setCopied] = useState(false);
@@ -41,22 +42,18 @@ const CopyButton: React.FC<CopyButtonProps> = ({
     }, [text]);
 
     return (
-        <button
+        <Button
+            size="xs"
+            accent={copied ? "green" : undefined}
+            variant={copied ? "filled" : "paper"}
+            shadow={copied ? false : "hover"}
+            icon={copied ? Check : Copy}
             onClick={copy}
             title={title ?? text}
-            className={`flex items-center gap-1.5 border-2 px-2 py-1 text-[10px] font-black uppercase tracking-widest transition-all duration-100 ${
-                copied
-                    ? "bg-retro-green text-black border-retro-green"
-                    : "bg-white border-black hover:shadow-[2px_2px_0_0_rgba(0,0,0,0.2)]"
-            } ${className}`}
+            className={className}
         >
-            {copied ? (
-                <Check size={12} strokeWidth={3} />
-            ) : (
-                <Copy size={12} strokeWidth={2.5} />
-            )}
             {copied ? "복사됨" : label}
-        </button>
+        </Button>
     );
 };
 

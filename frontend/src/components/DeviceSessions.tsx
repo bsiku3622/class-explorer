@@ -34,9 +34,7 @@ import {
     revokeSession,
     type DeviceSession,
 } from "../lib/sessionsApi";
-import RetroCard from "./atoms/RetroCard";
-import RetroSubTitle from "./atoms/RetroSubTitle";
-import RetroSpinner from "./atoms/RetroSpinner";
+import { Badge, Button, Card, IconButton, SectionTitle, Spinner, Surface, Text } from "@studio-baeks/funky-ui";
 
 /**
  * `"2026-08-18T01:20:00"` → `"2시간 전"`.
@@ -123,73 +121,77 @@ const DeviceSessions: React.FC = () => {
     };
 
     return (
-        <RetroCard className="bg-white p-6">
+        <Card padding="0" className="p-6">
             <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                    <RetroSubTitle title="Devices" icon={MonitorSmartphone} />
+                    <SectionTitle title="Devices" icon={MonitorSmartphone} />
                     <div className="flex shrink-0 items-center gap-2">
                         {max > 0 && (
-                            <span className="text-[11px] font-bold tabular-nums text-black/35">
+                            <Text variant="label" weight="bold" tone="muted" numeric>
                                 {max}대 중 {sessions.length}대
-                            </span>
+                            </Text>
                         )}
-                        <button
-                            type="button"
+                        <IconButton
+                            icon={RefreshCw}
+                            label="새로고침"
+                            size="xs"
                             onClick={() => void load()}
-                            className="text-black/40 transition-colors hover:text-black"
-                            aria-label="새로고침"
-                        >
-                            <RefreshCw size={14} strokeWidth={2.5} />
-                        </button>
+                        />
                     </div>
                 </div>
 
-                <p className="text-xs font-bold text-black/40">
+                <Text as="p" variant="caption" tone="muted">
                     한 계정으로 {max || 5}대까지 동시에 쓸 수 있습니다. 그 이상 로그인하면
                     가장 오래 안 쓴 기기부터 끊깁니다.
-                </p>
+                </Text>
 
                 {loading ? (
                     <div className="flex justify-center py-6">
-                        <RetroSpinner />
+                        <Spinner />
                     </div>
                 ) : error ? (
-                    <p className="py-4 text-center text-xs font-bold text-black/40">{error}</p>
+                    <Text as="p" variant="caption" tone="muted" align="center" className="py-4">
+                        {error}
+                    </Text>
                 ) : (
                     /* 줄에는 테두리를 두르지 않습니다 — 카드 안에 카드가 다섯 개 든
                        꼴이 되면 전부 같은 무게로 떠듭니다 (`design-guide.md`) */
-                    <div className="divide-y divide-black/10 border-y-2 border-black">
-                        {sessions.map((session) => (
-                            <div
+                    <Surface fill="none" border="line" borderSide="y">
+                        {sessions.map((session, i) => (
+                            <Surface
                                 key={session.id}
+                                fill="none"
+                                border={i > 0 ? "subtle" : "none"}
+                                borderSide="top"
                                 className="flex items-center justify-between gap-3 py-2.5"
                             >
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-1.5">
-                                        <span className="truncate text-sm font-black">
+                                        <Text weight="black" truncate>
                                             {nameOf(session)}
-                                        </span>
+                                        </Text>
                                         {session.current && (
-                                            <span className="shrink-0 bg-black px-1 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">
+                                            <Badge size="sm" variant="filled" className="shrink-0">
                                                 이 기기
-                                            </span>
+                                            </Badge>
                                         )}
                                     </div>
-                                    <p className="mt-0.5 text-[11px] font-bold text-black/40">
+                                    <Text as="p" variant="label" weight="bold" tone="muted" className="mt-0.5">
                                         {timeAgo(session.last_used_at)} 사용
-                                    </p>
+                                    </Text>
                                 </div>
 
                                 {/* 지금 보고 있는 기기에는 끊기를 안 답니다 — 누르면 그
                                     자리에서 로그인 화면으로 튕깁니다 */}
                                 {!session.current && (
-                                    /* ⚠️ 상자를 먼저 고정합니다(`h-7` + `w-` 없음 대신
-                                       `whitespace-nowrap`). 글자가 "끊기" ↔ "정말요?"
-                                       로 바뀌는 동안 폭이 애니메이션되면 글자가 두 줄이
-                                       되어 상자 밖으로 나옵니다 — `transition-colors`
-                                       만 겁니다 (`design-guide.md`) */
-                                    <button
-                                        type="button"
+                                    /* ⚠️ 상자를 먼저 고정합니다(`w-` 없이 `whitespace-nowrap`).
+                                       글자가 "끊기" ↔ "정말요?" 로 바뀌는 동안 폭이
+                                       애니메이션되면 글자가 두 줄이 되어 상자 밖으로
+                                       나옵니다 — 폭은 건드리지 않고 색만 바뀝니다
+                                       (`design-guide.md`) */
+                                    <Button
+                                        size="xs"
+                                        variant={confirming === session.id ? "filled" : "paper"}
                                         disabled={busy}
                                         onClick={() => void handleRevoke(session.id)}
                                         onBlur={() =>
@@ -197,40 +199,35 @@ const DeviceSessions: React.FC = () => {
                                                 id === session.id ? null : id,
                                             )
                                         }
-                                        className={`h-7 shrink-0 whitespace-nowrap border-2 border-black px-2 text-[11px] font-black uppercase transition-colors duration-100 disabled:opacity-40 ${
-                                            confirming === session.id
-                                                ? "bg-black text-white"
-                                                : "bg-white hover:bg-retro-accent-light"
-                                        }`}
+                                        className="shrink-0 whitespace-nowrap"
                                     >
                                         {confirming === session.id ? "정말요?" : "끊기"}
-                                    </button>
+                                    </Button>
                                 )}
-                            </div>
+                            </Surface>
                         ))}
-                    </div>
+                    </Surface>
                 )}
 
                 {/* 한 대뿐이면 끊을 "다른 기기" 가 없습니다 */}
                 {!loading && !error && sessions.length > 1 && (
-                    <button
-                        type="button"
+                    <Button
+                        size="sm"
+                        variant={confirming === -1 ? "filled" : "paper"}
+                        shadow
+                        fullWidth
                         disabled={busy}
                         onClick={() => void handleRevokeOthers()}
                         onBlur={() => setConfirming((id) => (id === -1 ? null : id))}
-                        className={`h-9 w-full whitespace-nowrap border-2 border-black text-xs font-black uppercase shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-colors duration-100 hover:shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] disabled:opacity-40 ${
-                            confirming === -1
-                                ? "bg-black text-white"
-                                : "bg-white hover:bg-retro-accent-light"
-                        }`}
+                        className="whitespace-nowrap"
                     >
                         {confirming === -1
                             ? "정말 끊을까요? 한 번 더 누르세요"
                             : "다른 기기 모두 로그아웃"}
-                    </button>
+                    </Button>
                 )}
             </div>
-        </RetroCard>
+        </Card>
     );
 };
 

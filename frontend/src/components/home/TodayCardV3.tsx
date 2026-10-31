@@ -56,14 +56,26 @@ import {
     periodLabel as periodsLabel,
 } from "../../lib/homeView";
 import { getDepartmentColor, getKoreanName, hhmm } from "../../lib/utils";
-import { CATEGORY_STYLE, timeLabel } from "../../lib/calendar";
-import RetroCard from "../atoms/RetroCard";
-import RetroSubTitle from "../atoms/RetroSubTitle";
+import { timeLabel } from "../../lib/calendar";
+import { CATEGORY_DOT } from "../calendarAccent";
 import DayRuler from "../DayRuler";
 import MealCard from "../MealCard";
 import TodayTimeline from "../TodayTimeline";
 import WeekTimetable from "./WeekTimetable";
 import VacationBar from "../VacationBar";
+import {
+    Badge,
+    Button,
+    Card,
+    IconButton,
+    Icon,
+    Paint,
+    SectionTitle,
+    Surface,
+    Swatch,
+    Text,
+    ToneText,
+} from "@studio-baeks/funky-ui";
 
 /** 일정 칸이 히어로보다 길어지면 행의 주인공이 뒤바뀝니다 */
 const EVENT_LIMIT = 5;
@@ -282,8 +294,9 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
             {/* ⚠️ **급식은 여기, 오늘 카드가 아닙니다.** 아래로 내려두면 하루를 훑는
                 물건(자·목록) 사이에 끼어 흐름이 끊깁니다 — 급식은 "지금 몇 교시" 와
                 같은 층의 **상태 정보**라 머리에 붙습니다 */}
-            <RetroCard
-                className={`grid overflow-hidden bg-white ${
+            <Card
+                padding="0"
+                className={`grid overflow-hidden ${
                     hasEvents
                         ? "lg:grid-cols-[minmax(0,1fr)_16rem] xl:grid-cols-[minmax(0,1fr)_16rem_17rem]"
                         : "lg:grid-cols-[minmax(0,1fr)_17rem]"
@@ -306,21 +319,21 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                         <span className="flex min-w-0 items-baseline gap-2">
                             {/* 아래 `창5702 · 정현우 · 1분반` 줄과 **같은 글씨**입니다 —
                                 히어로 안에서 부연은 한 크기로 통일합니다 */}
-                            <span className="truncate text-[13px] font-bold text-black/45">
+                            <Text as="span" tone="muted" truncate>
                                 {dateLabel(now.date)}
                                 {session.timetable_override && (
-                                    <span className="ml-2 inline-block border border-black/30 px-1.5 py-0.5 align-middle text-[9px] font-black uppercase tracking-wide">
+                                    <Badge size="sm" variant="muted" className="ml-2 align-middle">
                                         {session.timetable_override.title}
-                                    </span>
+                                    </Badge>
                                 )}
-                            </span>
+                            </Text>
                             {/* 계획을 보는 중이라는 말은 **날짜 옆**에 붙습니다 —
                                 이 줄이 "언제·무엇을 보고 있는가" 를 말하는 자리입니다.
                                 색은 Trade 와 같은 시안입니다 (`design-guide.md`) */}
                             {planned && (
-                                <span className="shrink-0 border-2 border-black bg-retro-accent1 px-1.5 py-0.5 text-[10px] font-black">
+                                <Badge accent="cyan" variant="solid" size="sm" className="shrink-0">
                                     계획 미리보기
-                                </span>
+                                </Badge>
                             )}
                         </span>
                         {/* 시계는 두지 않습니다 — 이 화면의 단위는 교시이고, 시각은
@@ -328,19 +341,16 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                         {/* ⚠️ **핑크는 "지금" 이라는 뜻입니다.** 앞뒤로 넘겨 보는
                             중이면 그 칠을 빼야 합니다 — 안 그러면 지난 수업을 보면서
                             지금이라고 읽습니다 */}
-                        {(browsing ? true : periodLabel) && (
-                            <span
-                                className={`shrink-0 text-[11px] font-black ${
-                                    current && !browsing
-                                        ? "border-2 border-black bg-retro-primary px-1.5 py-0.5"
-                                        : "text-black/40"
-                                }`}
-                            >
-                                {browsing
-                                    ? periodsLabel(browsing.periods)
-                                    : periodLabel}
-                            </span>
-                        )}
+                        {(browsing ? true : periodLabel) &&
+                            (current && !browsing ? (
+                                <Badge accent="pink" variant="solid" size="sm" className="shrink-0">
+                                    {periodLabel}
+                                </Badge>
+                            ) : (
+                                <Text as="span" variant="label" tone="muted" className="shrink-0">
+                                    {browsing ? periodsLabel(browsing.periods) : periodLabel}
+                                </Text>
+                            ))}
                     </div>
 
                     {/* ── 앞뒤로 넘기기 ────────────────────────────────
@@ -349,35 +359,34 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                         되돌릴 방법과 함께 알려 줍니다 */}
                     {blocks.length > 0 && (
                         <div className="mt-3 flex items-center gap-1.5">
-                            <button
-                                type="button"
+                            <IconButton
+                                icon={ChevronLeft}
+                                label="이전 수업"
+                                title="이전 수업"
+                                size="sm"
+                                variant="paper"
                                 onClick={() => step(-1)}
                                 disabled={cursor <= 0}
-                                title="이전 수업"
-                                aria-label="이전 수업"
-                                className="flex h-7 w-7 items-center justify-center border-2 border-black/20 bg-white transition-colors duration-100 hover:border-black disabled:cursor-not-allowed disabled:opacity-25 disabled:hover:border-black/20"
-                            >
-                                <ChevronLeft size={14} strokeWidth={3} />
-                            </button>
-                            <button
-                                type="button"
+                            />
+                            <IconButton
+                                icon={ChevronRight}
+                                label="다음 수업"
+                                title="다음 수업"
+                                size="sm"
+                                variant="paper"
                                 onClick={() => step(1)}
                                 disabled={cursor >= blocks.length - 1}
-                                title="다음 수업"
-                                aria-label="다음 수업"
-                                className="flex h-7 w-7 items-center justify-center border-2 border-black/20 bg-white transition-colors duration-100 hover:border-black disabled:cursor-not-allowed disabled:opacity-25 disabled:hover:border-black/20"
-                            >
-                                <ChevronRight size={14} strokeWidth={3} />
-                            </button>
+                            />
                             {browsing && (
-                                <button
-                                    type="button"
+                                <Button
+                                    size="xs"
+                                    variant="filled"
+                                    icon={LocateFixed}
                                     onClick={() => setBrowseIndex(null)}
-                                    className="ml-1 flex items-center gap-1 border-2 border-black bg-black px-2 py-1 text-[10px] font-black uppercase tracking-widest text-white transition-colors duration-100 hover:bg-black/80"
+                                    className="ml-1"
                                 >
-                                    <LocateFixed size={11} strokeWidth={3} />
                                     지금으로
-                                </button>
+                                </Button>
                             )}
                         </div>
                     )}
@@ -385,32 +394,43 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                     {/* 화면에서 제일 큰 글자 — 여기가 시선이 처음 닿는 자리입니다.
                         **과목명 자체가 학과색을 입습니다** — 왼쪽 띠와 같은 색이라
                         띠가 무슨 뜻인지 따로 설명하지 않아도 읽힙니다 */}
-                    <p
-                        className={`mt-2.5 text-[28px] font-black leading-[1.05] tracking-tight md:text-[34px] ${
-                            shown ? "" : !isSchoolDay ? "text-black" : "text-black/40"
-                        }`}
-                        style={
-                            shown
-                                ? { color: getDepartmentColor(shown.department) }
-                                : undefined
-                        }
-                    >
-                        {browsing ? getKoreanName(browsing.klass.subject) : headline}
-                    </p>
+                    {shown ? (
+                        <ToneText
+                            as="p"
+                            variant="title"
+                            tone={getDepartmentColor(shown.department)}
+                            className="mt-2.5 text-[28px] leading-[1.05] md:text-[34px]"
+                        >
+                            {browsing ? getKoreanName(browsing.klass.subject) : headline}
+                        </ToneText>
+                    ) : (
+                        <Text
+                            as="p"
+                            variant="title"
+                            tone={!isSchoolDay ? "primary" : "muted"}
+                            className="mt-2.5 text-[28px] leading-[1.05] md:text-[34px]"
+                        >
+                            {browsing ? getKoreanName(browsing.klass.subject) : headline}
+                        </Text>
+                    )}
 
                     {shown ? (
-                        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-bold text-black/45">
-                            <MapPin size={14} strokeWidth={2.75} className="shrink-0" />
-                            <span className="font-black text-black">{shown.room}</span>
+                        <Text
+                            as="p"
+                            tone="muted"
+                            className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1"
+                        >
+                            <Icon icon={MapPin} size={14} strokeWidth={2.75} className="shrink-0" />
+                            <Text as="span" weight="black" tone="primary">{shown.room}</Text>
                             <span>· {shown.teacher}</span>
                             <span>· {shown.section.replace(/[^0-9]/g, "")}분반</span>
-                        </p>
+                        </Text>
                     ) : (
-                        <p className="mt-2 text-[13px] font-bold text-black/45">
+                        <Text as="p" tone="muted" className="mt-2">
                             {untilNext !== null && untilNext > 0
                                 ? `다음 수업까지 ${duration(untilNext)}`
                                 : (quip ?? "오늘 수업은 모두 끝났습니다.")}
-                        </p>
+                        </Text>
                     )}
 
                     {session.off_reason === "vacation" && session.resumes_on && (
@@ -427,19 +447,26 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                         지금 그 수업이 얼마나 남았는지는 모릅니다 */}
                     {shownStart && shownEnd && shownRemain !== null && (
                         <div className="mt-4">
-                            <div className="flex items-baseline justify-between gap-3 text-[11px] font-black tabular-nums">
-                                <span className="text-black/40">
+                            <Text
+                                as="div"
+                                variant="label"
+                                numeric
+                                className="flex items-baseline justify-between gap-3"
+                            >
+                                <Text as="span" variant="label" tone="muted" numeric>
                                     {hhmm(shownStart.start_minute)} –{" "}
                                     {hhmm(shownEnd.end_minute)}
-                                </span>
-                                <span className={browsing ? "text-black/45" : ""}>
+                                </Text>
+                                <Text as="span" variant="label" tone={browsing ? "muted" : "primary"} numeric>
                                     {shownRemain}
-                                </span>
-                            </div>
+                                </Text>
+                            </Text>
                             {/* 채우는 색은 핑크 하나 — 이것도 "지금" 입니다 */}
-                            <div className="mt-1.5 h-3 border-2 border-black bg-white">
-                                <div
-                                    className="h-full bg-retro-primary transition-[width] duration-700"
+                            <Surface border="line" className="mt-1.5 h-3">
+                                <Paint
+                                    accent="pink"
+                                    variant="filled"
+                                    className="h-full border-0 transition-[width] duration-700"
                                     style={{
                                         width: `${Math.min(
                                             100,
@@ -453,7 +480,7 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                                         )}%`,
                                     }}
                                 />
-                            </div>
+                            </Surface>
                         </div>
                     )}
 
@@ -462,35 +489,35 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                         때만 다음을 말해서, 정작 "이거 끝나고 어디로 가지" 에는 답이
                         없었습니다 */}
                     {shownNext && (
-                        <div className="mt-4 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-t-2 border-black/10 pt-3">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-black/30">
+                        <Surface
+                            fill="none"
+                            border="subtle"
+                            borderSide="top"
+                            className="mt-4 flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-3"
+                        >
+                            <Text as="span" variant="overline">
                                 Next
-                            </span>
-                            <ArrowRight
-                                size={13}
-                                strokeWidth={3}
-                                className="shrink-0 text-black/25"
-                            />
-                            <span className="min-w-0 truncate text-[13px] font-black">
+                            </Text>
+                            <Icon icon={ArrowRight} size={13} strokeWidth={3} tone="faint" className="shrink-0" />
+                            <Text as="span" weight="black" truncate className="min-w-0">
                                 {shownNext.period}교시 {getKoreanName(shownNext.subject)}
-                            </span>
-                            <span className="text-[11px] font-bold text-black/40">
+                            </Text>
+                            <Text as="span" variant="label" weight="bold" tone="muted">
                                 {shownNext.room}
-                            </span>
+                            </Text>
                             {shownNextStart !== null && (
-                                <span className="text-[11px] font-black tabular-nums text-black/40">
+                                <Text as="span" variant="label" tone="muted" numeric>
                                     {hhmm(shownNextStart)}
-                                </span>
+                                </Text>
                             )}
                             {/* 건물을 옮겨야 하는지 — 쉬는시간 10분을 어떻게 쓸지가
                                 여기서 갈립니다 */}
                             {shownMoving && (
-                                <span className="flex items-center gap-1 border-2 border-black px-1.5 py-0.5 text-[10px] font-black">
-                                    <Footprints size={11} strokeWidth={3} />
+                                <Badge size="sm" variant="frameline" icon={Footprints}>
                                     교실 이동
-                                </span>
+                                </Badge>
                             )}
-                        </div>
+                        </Surface>
                     )}
                 </div>
 
@@ -499,8 +526,8 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                     V2 는 둘을 한 칸에 세로로 붙여 뒀는데, 그래서 주인공 칸이 절반으로
                     쪼개져 있었습니다 */}
                 {hasEvents && (
-                    <div className="flex min-w-0 flex-col border-t-2 border-black/10 p-5 lg:border-l-2 lg:border-t-0">
-                        <RetroSubTitle title="Events" icon={CalendarDays} iconSize={14} />
+                    <div className="flex min-w-0 flex-col border-t-2 border-[var(--fk-line-subtle)] p-5 lg:border-l-2 lg:border-t-0">
+                        <SectionTitle title="Events" icon={CalendarDays} />
                         <ul className="mt-3 space-y-2">
                             {events.slice(0, EVENT_LIMIT).map((event) => (
                                 /* 왼쪽 색 막대가 곧 분류입니다 — 점보다 눈에 걸리고
@@ -509,48 +536,57 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                                     key={event.id}
                                     className="flex items-stretch gap-2"
                                 >
-                                    <span
-                                        className={`w-1 shrink-0 ${CATEGORY_STYLE[event.category].dot}`}
+                                    <Swatch
+                                        {...CATEGORY_DOT[event.category]}
+                                        shape="rail"
+                                        className="shrink-0"
                                     />
                                     <span className="min-w-0 flex-1">
                                         {/* 옆 칸(급식)과 **크기도 굵기도 같습니다** —
                                             한 행에 나란히 선 두 칸은 같은 층의 정보라,
                                             한쪽만 굵으면 무게가 달라 보입니다 */}
-                                        <span className="block truncate text-[13.5px] font-bold">
+                                        <Text as="span" truncate>
                                             {event.title}
-                                        </span>
+                                        </Text>
                                         {timeLabel(event) && (
-                                            <span className="block text-[10px] font-bold tabular-nums text-black/35">
+                                            <Text
+                                                as="span"
+                                                variant="micro"
+                                                weight="bold"
+                                                tone="muted"
+                                                numeric
+                                                className="block"
+                                            >
                                                 {timeLabel(event)}
-                                            </span>
+                                            </Text>
                                         )}
                                     </span>
                                 </li>
                             ))}
                         </ul>
                         {events.length > EVENT_LIMIT && (
-                            <p className="mt-2 text-[12px] font-bold text-black/25">
+                            <Text as="p" variant="caption" tone="muted" className="mt-2">
                                 외 {events.length - EVENT_LIMIT}개
-                            </p>
+                            </Text>
                         )}
                     </div>
                 )}
 
                 {/* 급식 — 없어도 칸은 남깁니다(`KSAIN_API_KEY` 가 없으면 서버가
                     `meal: null` 을 줍니다). 지우면 기능이 사라진 것처럼 보입니다 */}
-                <div className="flex min-h-0 min-w-0 flex-col overflow-hidden border-t-2 border-black/10 lg:border-l-2 lg:border-t-0">
+                <div className="flex min-h-0 min-w-0 flex-col overflow-hidden border-t-2 border-[var(--fk-line-subtle)] lg:border-l-2 lg:border-t-0">
                     {meal ? (
                         <MealCard meal={meal} bare fill />
                     ) : (
                         <div className="flex flex-1 items-center justify-center p-5">
-                            <p className="flex items-center gap-2 text-[12px] font-bold text-black/25">
-                                <CalendarOff size={16} className="shrink-0" />
+                            <Text as="p" variant="caption" tone="muted" className="flex items-center gap-2">
+                                <Icon icon={CalendarOff} size={16} className="shrink-0" />
                                 급식 정보가 없습니다
-                            </p>
+                            </Text>
                         </div>
                     )}
                 </div>
-            </RetroCard>
+            </Card>
 
             {/* ══ 아래 행 — 하루 | 이 학기 ═══════════════════════════
                 **오늘(왼쪽)과 한 주(오른쪽)를 나란히 둡니다.** 주간 격자를 전폭으로
@@ -564,35 +600,35 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                     바꿉니다(`xl:order-2`) */}
                 {/* ⚠️ **조건을 카드 바깥에 두지 마세요.** 수업이 없는 날에도 이 칸은
                     남아야 합니다 — 카드째 지우면 옆의 주간 격자만 덩그러니 남고,
-                    조건을 `RetroCard` 안에 두면 테두리와 그림자만 그려져 높이 0 짜리
+                    조건을 `Card` 안에 두면 테두리와 그림자만 그려져 높이 0 짜리
                     검은 줄이 박힙니다. 둘 다 아니고 **빈 상태를 그리는 것**이 답입니다 */}
                 <div className="flex min-w-0 flex-col gap-4 md:gap-5 xl:order-2">
-                    <RetroCard className="flex flex-col overflow-hidden bg-white xl:min-h-0 xl:flex-1">
+                    <Card padding="0" className="flex flex-col overflow-hidden xl:min-h-0 xl:flex-1">
                         {hasTimetable ? (
                             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4 md:p-5">
                                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                                    <RetroSubTitle
+                                    <SectionTitle
                                         title="Today"
                                         icon={CalendarDays}
-                                        iconSize={15}
                                     />
                                     <span className="flex items-baseline gap-3">
-                                        <span className="text-[11px] font-bold tabular-nums text-black/35">
+                                        <Text as="span" variant="label" weight="bold" tone="muted" numeric>
                                             수업 {today.length}개
                                             {freeMinutes > 0 &&
                                                 ` · 공강 ${duration(freeMinutes)}`}
-                                        </span>
+                                        </Text>
                                         {/* 되돌아가는 길. 스크롤을 앱이 되돌리지 않는
                                             대신, 여기로 언제든 돌아올 수 있어야 합니다 */}
-                                        <button
-                                            type="button"
+                                        <Button
+                                            size="xs"
+                                            variant="ghostMuted"
+                                            icon={LocateFixed}
                                             onClick={() => placeNow(true)}
                                             title="지금 교시가 가운데 오도록 목록을 되돌립니다"
-                                            className="flex shrink-0 items-center gap-1 text-[11px] font-black text-black/45 transition-colors duration-100 hover:text-black"
+                                            className="shrink-0"
                                         >
-                                            <LocateFixed size={12} strokeWidth={2.5} />
                                             지금
-                                        </button>
+                                        </Button>
                                     </span>
                                 </div>
 
@@ -613,7 +649,12 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                                     제 테두리를 갖고 있으면 그게 같이 스크롤돼서, 잘린
                                     첫 줄이 **글자가 반쯤 지워진 것처럼** 보입니다 — 선이
                                     고정돼 있어야 "여기서 잘린다" 로 읽힙니다 */}
-                                <div className="relative mt-5 h-60 min-h-0 border-y-2 border-black/10 lg:h-auto lg:min-h-[17rem] lg:flex-1 xl:min-h-[12rem]">
+                                <Surface
+                                    fill="none"
+                                    border="subtle"
+                                    borderSide="y"
+                                    className="relative mt-5 h-60 min-h-0 lg:h-auto lg:min-h-[17rem] lg:flex-1 xl:min-h-[12rem]"
+                                >
                                     <div ref={boxRef} className="absolute inset-0 overflow-y-auto">
                                         <TodayTimeline
                                             today={today}
@@ -625,24 +666,23 @@ const TodayCardV3: React.FC<TodayCardV3Props> = ({
                                             focusRef={rowRef}
                                         />
                                     </div>
-                                </div>
+                                </Surface>
                             </div>
                         ) : (
                             <div className="flex min-h-0 min-w-0 flex-1 flex-col p-4 md:p-5">
-                                <RetroSubTitle
+                                <SectionTitle
                                     title="Today"
                                     icon={CalendarDays}
-                                    iconSize={15}
                                 />
                                 <div className="flex flex-1 items-center justify-center py-12">
-                                    <p className="flex items-center gap-2 text-[12px] font-bold text-black/25">
-                                        <CalendarOff size={16} className="shrink-0" />
+                                    <Text as="p" variant="caption" tone="muted" className="flex items-center gap-2">
+                                        <Icon icon={CalendarOff} size={16} className="shrink-0" />
                                         오늘은 정해진 일정이 없습니다
-                                    </p>
+                                    </Text>
                                 </div>
                             </div>
                         )}
-                    </RetroCard>
+                    </Card>
                 </div>
 
                 {/* 위 카드가 **오늘**이라면 여기는 **이 학기**입니다 */}

@@ -64,14 +64,24 @@ import { isTradeAvailable, type TradeConfig } from "../lib/features";
 import { applyHomeDemo, HOME_DEMOS, type HomeDemoKey } from "../lib/homeDemo";
 import { applyPlanToHome, buildDepartmentMap } from "../lib/plannedHome";
 import { useTradePlan } from "../hooks/useTradePlan";
-import RetroSpinner from "../components/atoms/RetroSpinner";
-import MarqueeText from "../components/atoms/MarqueeText";
 import MealCard from "../components/MealCard";
 import TodayCardV1 from "../components/home/TodayCardV1";
 import TodayCardV2 from "../components/home/TodayCardV2";
 import TodayCardV3 from "../components/home/TodayCardV3";
 import WeekTimetable from "../components/home/WeekTimetable";
 import MySubjects from "../components/home/MySubjects";
+import {
+    Button,
+    Card,
+    Icon,
+    Marquee,
+    Pressable,
+    SegmentedControl,
+    Spinner,
+    Surface,
+    Text,
+    paintClass,
+} from "@studio-baeks/funky-ui";
 
 /**
  * 수업 없는 날에 덧붙이는 한마디. 날짜로 골라서 **하루 안에는 안 바뀝니다** —
@@ -307,7 +317,7 @@ const HomePage: React.FC<HomePageProps> = ({
     if (loading) {
         return (
             <div className="flex flex-col items-center gap-3 py-32">
-                <RetroSpinner size="lg" />
+                <Spinner size="lg" />
             </div>
         );
     }
@@ -318,18 +328,20 @@ const HomePage: React.FC<HomePageProps> = ({
      */
     if (!home || liveMinute === null) {
         return (
-            <div className="border-2 border-black bg-white px-5 py-12 text-center shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]">
-                <p className="text-sm font-bold text-black/50">
+            <Card shadow="raised" padding="0" className="px-5 py-12 text-center">
+                <Text as="p" tone="secondary">
                     화면을 불러오지 못했습니다.
-                </p>
-                <button
-                    type="button"
+                </Text>
+                <Button
+                    variant="paper"
+                    shadow
+                    size="sm"
+                    className="mt-4"
                     onClick={() => void reload()}
-                    className="mt-4 border-2 border-black bg-white px-3 py-1.5 text-[12px] font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none"
                 >
                     다시 시도
-                </button>
-            </div>
+                </Button>
+            </Card>
         );
     }
 
@@ -344,54 +356,45 @@ const HomePage: React.FC<HomePageProps> = ({
                 수업 중 화면을 확인할 방법이 없습니다. 배치 스위치로 옛 판본(V1)도
                 되돌아볼 수 있고, 이 바와 V1 은 프로덕션 번들에 안 남습니다 */}
             {import.meta.env.DEV && (
-                <div className="flex flex-col gap-2 border-2 border-dashed border-black/25 px-3 py-2">
+                <Surface
+                    fill="none"
+                    border="soft"
+                    borderStyle="dashed"
+                    className="flex flex-col gap-2 px-3 py-2"
+                >
                     <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="mr-1 w-8 text-[10px] font-black uppercase tracking-widest text-black/30">
+                        <Text variant="overline" tone="faint" className="mr-1 w-8">
                             상태
-                        </span>
-                        {[{ key: null, label: "실제" }, ...HOME_DEMOS].map(
-                            ({ key, label }) => (
-                                <button
-                                    key={label}
-                                    type="button"
-                                    onClick={() => setDemo(key as HomeDemoKey | null)}
-                                    className={`border-2 border-black px-2 py-0.5 text-[11px] font-black transition-all duration-100 ${
-                                        demo === key
-                                            ? "bg-black text-white"
-                                            : "bg-white hover:bg-retro-accent-light"
-                                    }`}
-                                >
-                                    {label}
-                                </button>
-                            ),
-                        )}
+                        </Text>
+                        <SegmentedControl
+                            aria-label="상태 미리보기"
+                            size="xs"
+                            options={[{ key: null, label: "실제" }, ...HOME_DEMOS].map(
+                                ({ key, label }) => ({ value: key ?? "", label }),
+                            )}
+                            value={demo ?? ""}
+                            onChange={(value) =>
+                                setDemo(value === "" ? null : (value as HomeDemoKey))
+                            }
+                        />
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="mr-1 w-8 text-[10px] font-black uppercase tracking-widest text-black/30">
+                        <Text variant="overline" tone="faint" className="mr-1 w-8">
                             배치
-                        </span>
-                        {(
-                            [
-                                { key: "v3", label: "V3 (배포)" },
-                                { key: "v2", label: "V2 (구)" },
-                                { key: "v1", label: "V1 (구)" },
-                            ] as const
-                        ).map(({ key, label }) => (
-                            <button
-                                key={key}
-                                type="button"
-                                onClick={() => setLayout(key)}
-                                className={`border-2 border-black px-2 py-0.5 text-[11px] font-black transition-all duration-100 ${
-                                    layout === key
-                                        ? "bg-black text-white"
-                                        : "bg-white hover:bg-retro-accent-light"
-                                }`}
-                            >
-                                {label}
-                            </button>
-                        ))}
+                        </Text>
+                        <SegmentedControl
+                            aria-label="배치"
+                            size="xs"
+                            options={[
+                                { value: "v3", label: "V3 (배포)" },
+                                { value: "v2", label: "V2 (구)" },
+                                { value: "v1", label: "V1 (구)" },
+                            ]}
+                            value={layout}
+                            onChange={(value) => setLayout(value as Layout)}
+                        />
                     </div>
-                </div>
+                </Surface>
             )}
 
             {/* ── 못 받았을 때 ─────────────────────────────────────────
@@ -402,55 +405,68 @@ const HomePage: React.FC<HomePageProps> = ({
                 색은 쓰지 않습니다 — 핑크·시안은 이 화면에서 뜻이 정해져 있고
                 (`design-guide.md`), 이건 상태가 아니라 **사정**을 알리는 줄입니다 */}
             {failed && (
-                <div className="flex items-center gap-2 border-2 border-black bg-white px-3 py-2 text-[12px] font-bold text-black/50 shadow-[2px_2px_0_0_rgba(0,0,0,0.2)]">
-                    <WifiOff size={14} strokeWidth={2.75} className="shrink-0" />
-                    <span className="min-w-0 flex-1 truncate">
+                <Surface
+                    border="line"
+                    shadow="raised"
+                    className="flex items-center gap-2 px-3 py-2"
+                >
+                    <Icon icon={WifiOff} size={14} strokeWidth={2.75} tone="muted" className="shrink-0" />
+                    <Text variant="caption" tone="muted" truncate className="min-w-0 flex-1">
                         연결이 끊겨{" "}
                         {staleMinutes < 1 ? "방금" : `${staleMinutes}분 전`} 받은 화면을
                         보여 주고 있습니다
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => void reload()}
-                        className="shrink-0 border-2 border-black px-2 py-0.5 text-[11px] font-black text-black transition-all duration-100 hover:bg-retro-accent-light"
-                    >
+                    </Text>
+                    <Button size="xs" variant="paper" className="shrink-0" onClick={() => void reload()}>
                         다시 시도
-                    </button>
-                </div>
+                    </Button>
+                </Surface>
             )}
 
             {home.exam_period?.open && (
-                <Link to="/exams" className="group flex items-center justify-between gap-3 border-2 border-black bg-retro-accent2 px-4 py-3 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-1 hover:translate-y-1 hover:shadow-none">
+                <Pressable
+                    as={Link}
+                    to="/exams"
+                    motion="sink"
+                    className={`${paintClass({ accent: "yellow", variant: "solid", hoverable: true })} flex items-center justify-between gap-3 px-4 py-3`}
+                >
                     <span className="flex items-center gap-2.5 min-w-0">
-                        <ClipboardList size={18} strokeWidth={2.75} className="shrink-0" />
-                        <span className="min-w-0"><span className="block text-[13px] font-black">{home.exam_period.kind === "midterm" ? "중간고사" : home.exam_period.kind === "final" ? "기말고사" : "시험"} 시간표 보러가기</span><span className="block text-xs font-bold text-black/60">{home.exam_period.start_date.slice(5).replace("-", "/")}–{home.exam_period.end_date.slice(5).replace("-", "/")}</span></span>
+                        <Icon icon={ClipboardList} size={18} strokeWidth={2.75} className="shrink-0" />
+                        <span className="min-w-0">
+                            <Text as="span" weight="black" className="block">{home.exam_period.kind === "midterm" ? "중간고사" : home.exam_period.kind === "final" ? "기말고사" : "시험"} 시간표 보러가기</Text>
+                            <Text as="span" variant="caption" tone="secondary" className="block">{home.exam_period.start_date.slice(5).replace("-", "/")}–{home.exam_period.end_date.slice(5).replace("-", "/")}</Text>
+                        </span>
                     </span>
-                    <ArrowRight size={18} strokeWidth={2.75} className="shrink-0" />
-                </Link>
+                    <Icon icon={ArrowRight} size={18} strokeWidth={2.75} className="shrink-0" />
+                </Pressable>
             )}
 
             {/* ── 수강 변경 기간에만 ─────────────────────────────────────
                 핑크가 "지금" 으로 옮겨 가면서 배너는 시안을 씁니다 — 한 화면에서 같은
                 색이 두 뜻을 가지면 안 됩니다 */}
             {tradeAvailable && (
-                <Link
+                <Pressable
+                    as={Link}
                     to="/trade"
-                    className="group flex items-center justify-between gap-3 border-2 border-black bg-retro-accent1 px-4 py-2.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-1 hover:translate-y-1 hover:shadow-none"
+                    motion="sink"
+                    className={`${paintClass({ accent: "cyan", variant: "solid", hoverable: true })} group flex items-center justify-between gap-3 px-4 py-2.5`}
                 >
                     <span className="flex min-w-0 items-center gap-2.5">
-                        <Repeat size={16} strokeWidth={2.75} className="shrink-0" />
+                        <Icon icon={Repeat} size={16} strokeWidth={2.75} className="shrink-0" />
                         {/* 문장 전체가 곧 내용이라 자르지 않습니다 — 좁으면 훑고 돌아옵니다 */}
-                        <MarqueeText className="text-[13px] font-black">
-                            지금은 수강 정정 기간입니다. Class Explorer와 함께 트레이드 조합을 찾아보세요
-                        </MarqueeText>
+                        <Text as="span" weight="black" className="min-w-0">
+                            <Marquee>
+                                지금은 수강 정정 기간입니다. Class Explorer와 함께 트레이드 조합을 찾아보세요
+                            </Marquee>
+                        </Text>
                     </span>
 
-                    <ArrowRight
+                    <Icon
+                        icon={ArrowRight}
                         size={16}
                         strokeWidth={2.75}
                         className="shrink-0 transition-transform duration-100 group-hover:translate-x-0.5"
                     />
-                </Link>
+                </Pressable>
             )}
 
             {/* ── 어느 시간표를 볼 것인가 ──────────────────────────────────
@@ -470,26 +486,20 @@ const HomePage: React.FC<HomePageProps> = ({
                             { key: "current", label: "기존 시간표" },
                             { key: "trade", label: "트레이드 계획" },
                         ] as const
-                    ).map(({ key, label }) => {
-                        const on = view === key;
-                        return (
-                            <button
-                                key={key}
-                                type="button"
-                                onClick={() => chooseView(key)}
-                                aria-pressed={on}
-                                className={`border-2 border-black px-3 py-1.5 text-[12px] font-black shadow-[3px_3px_0_0_rgba(0,0,0,0.2)] transition-all duration-100 hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none ${
-                                    on
-                                        ? key === "trade"
-                                            ? "bg-retro-accent1 text-black"
-                                            : "bg-black text-white"
-                                        : "bg-white hover:bg-retro-accent-light"
-                                }`}
-                            >
-                                {label}
-                            </button>
-                        );
-                    })}
+                    ).map(({ key, label }) => (
+                        <Button
+                            key={key}
+                            size="sm"
+                            variant="paper"
+                            shadow
+                            // 계획 쪽만 시안(= Trade 색)으로 켜집니다
+                            accent={key === "trade" && view === key ? "cyan" : undefined}
+                            selected={view === key}
+                            onClick={() => chooseView(key)}
+                        >
+                            {label}
+                        </Button>
+                    ))}
                 </div>
             )}
 

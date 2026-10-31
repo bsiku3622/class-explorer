@@ -28,7 +28,6 @@
 
 ## 각 학년 버튼 스타일
 ```
-isSelected=true:  RetroButton variant="black" (기본)
-isSelected=false: RetroButton variant="white"
-학번 색상으로 테두리/배경 오버라이드
+ToneChip tone={getStudentColor(year)} selected={isSelected}
+켜짐: 학번색 12% 면 + 그림자 위 / 꺼짐: 흐린 회색으로 물러남
 ```

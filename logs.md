@@ -1,3 +1,42 @@
+## 2026-10-31 — 칩·입력칸·표 선 다듬기 (재원님 지적)
+
+- 변경 파일: `frontend/vendor/funky-ui/`, `UploadPage`, `MaterialsPage`, `MaterialReviewPanel`, `zamong/Roadmap`, `zamong/CourseCard`, `CalendarGrid`, `TodayTimeline`, `EventFormModal`, `TradePage`, `CalendarPage`, `AdminPage`, `admin/FactsPanel`, `atoms/SearchInput`
+- 요약: 그림자 없는 칩은 골라져도 커지지 않고, Upload 입력칸의 그림자를 뺐고, Zamong 학기 버튼을 테두리·그림자 없는 약한 글자로 바꿨고, 표·달력·오늘 목록의 안쪽 선을 1px 로 맞췄습니다.
+- Upload 입력칸의 그림자와 Zamong 학기 버튼의 모양은 원본에 있던 것을 재원님 판단으로 **바꾼** 것입니다. 원본과 맞춘다고 되돌리지 마세요.
+- `xl` 을 넣으면서 `SearchInput` 기본이 64px 이 되어 Files 의 검색칸이 옆 Select 보다 높아졌습니다. 나란히 놓는 자리는 `size="sm"` 입니다.
+- Files 의 검색칸·과목 선택과 Analysis 의 학생 검색칸도 재원님 판단으로 그림자를 뺐습니다. 원본에는 있던 그림자입니다.
+- 사이드바의 검은 띠: 활성 메뉴가 스크롤에 잘려 상태 카드에 맞닿아 테두리처럼 보였습니다. 첫 점검 때 "스크롤 클립이라 버그 아님" 으로 넘겼는데 낮은 창에서는 실제로 이렇게 보입니다. 메뉴와 카드 사이에 12px 를 두고, 지금 화면의 메뉴가 잘리면 메뉴 안에서만 옮겨 보여 줍니다(funky-ui `SideNav`).
+
+## 2026-10-31 — funky-ui 이관 후 원본과 달라진 곳 복구
+
+- 변경 파일: `frontend/vendor/funky-ui/`(`xl` 크기·상태색·글자 역할), `StatsCards`, `SearchInput`, `SubjectAccordionItem`, `MajorPicker`, `MajorSettings`, `Sidebar`, `BarChartRow`, `CalendarGrid`, `FilterSection`, `zamong/Roadmap`, `zamong/CourseBoard`, `AdminPage`, `AnalysisPage` 외 `Card` 쓰는 화면, 가이드 문서
+- 요약: 재원님이 짚은 곳부터 고치고, 이관 전 앱과 지금 앱의 전 화면 스타일을 글자 단위로 대조해 체계적인 차이를 funky-ui 토큰에서 되돌렸습니다.
+- 대조 방법: 이관 전 커밋을 `~/Bufs/Claude Files/2026-10-31/ce-base` 에 풀어 5192 에 띄우고, 같은 16개 화면의 계산된 스타일을 수집해 글자별로 비교했습니다(`compare.py`). 눈으로만 보면 또 어긋날 자리입니다.
+- ⚠️ `tone` 의 색 이름을 다시 원색으로 돌렸습니다. AA 를 맞춘다고 진한 글자로 모았던 것이 "글자가 어둡다" 는 지적으로 돌아왔습니다. 이 앱은 원래 원색 글자를 씁니다.
+- ⚠️ 빨강·주황 경고·연결 상태는 네온이 아니라 상태색(`error`·`warning`·`success`·`info`)입니다. `tone="red"` 로 되돌리면 네온 빨강(#ff3b3b)이 나옵니다.
+- ⚠️ `Button` 의 기본 크기는 40px 이고 이 앱의 기본 버튼은 48px(`size="lg"`)입니다. `size` 를 빼면 한 단 작아집니다. `Card` 기본 그림자는 6px 이고 카드 안의 작은 카드는 `shadow="raised"` 입니다.
+- 폭을 꽉 채운 버튼은 골라져도 커지지 않습니다. 105% 가 폭에 비례해서 Major 의 넓은 버튼이 옆 칸을 덮었습니다. "색 버튼도 예외 없이 커짐" 결정의 유일한 예외입니다.
+- Zamong 의 스크롤 그림자는 원본에도 있던 "옆으로 더 있음" 표시입니다. 없애지 않고 원본 농도(검정 20%)로 돌렸습니다.
+
+## 2026-10-31 — 포커스 링을 Tab 으로 왔을 때만 표시
+
+- 변경 파일: `frontend/vendor/funky-ui/`, `frontend/CLAUDE.md`, `frontend/design-guide.md`
+- 요약: 로그인 칸을 마우스로 눌러도 핑크 링이 뜨던 것을 고쳤습니다. 본체 수정은 funky-ui 에 있고 여기는 사본을 맞췄습니다.
+- ⚠️ `vendor/funky-ui/package.json` 의 `sideEffects` 를 지우지 마세요. `rsync` 대상이 아니라 따로 관리하며, 빠지면 배포본에서만 링이 돌아옵니다. 빌드 뒤 `grep -l fkFocus dist/assets/*.js` 로 확인합니다.
+- 입력칸이 포커스 때 그림자를 거두는 동작은 그대로 뒀습니다. 요청이 링에 대한 것이었고, 포커스에 내려앉는 것은 이 앱의 원래 모양입니다.
+
+## 2026-10-31 — UI 를 funky-ui 디자인 시스템으로 이관
+
+- 변경 파일: `frontend/vendor/funky-ui/`, `frontend/{package.json,package-lock.json,vite.config.ts,eslint.config.js}`, `frontend/src/{main.tsx,index.css,App.tsx}`, `frontend/src/components/**`, `frontend/src/pages/**`, `dev-start.sh`, 가이드 문서
+- 요약: `Retro*` 부품과 `@theme` 색을 걷어내고 모든 화면을 funky-ui 로 옮겼습니다. `InventoryPage` 는 할 일을 마쳐 지웠습니다. 서버 코드는 손대지 않았습니다.
+- ⚠️ `index.css` 맨 위의 `@layer theme, base, fk, components, utilities;` 와 `main.tsx` 의 import 순서(`index.css` 먼저)를 바꾸지 마세요. `fk` 가 `base` 앞에 서면 preflight 가 funky 의 여백·테두리를 전부 지웁니다. 처음에 funky 문서대로 `fk` 를 맨 앞에 뒀다가 그렇게 깨졌고, 문서 쪽을 고쳤습니다.
+- ⚠️ 학과색 다섯(화학·생물학·지구과학·외국어·예체능)의 면 위 글자가 흰색에서 검정으로 바뀐 것은 버그가 아닙니다. `readableInk` 의 경계 0.35 는 이 색들에서 2.94~3.74:1 이었고, `toneInk` 의 0.179 로 5.61~7.15:1 이 됩니다. 맞춘다고 되돌리면 AA 가 깨집니다.
+- 패키지를 npm 에 올리지 않아 소스 사본을 `frontend/vendor/funky-ui` 에 두고 `file:` 로 읽습니다. 사본은 직접 고치지 않고 funky-ui 를 고친 뒤 `rsync` 로 맞춥니다(`frontend/CLAUDE.md` 의 `디자인 시스템` 절).
+- 일부러 바뀐 모양: 고른 색 버튼도 105% 로 커집니다(결정). 통계 막대의 값 글자는 크림 위 네온 핑크가 AA 미달이라 검정이 됐고, 그래서 쓰는 곳이 없어진 `BarChartRow` 의 `captionClassName` 을 지웠습니다. 값이 흩어져 있던 크기·색은 funky-ui 사다리의 가까운 칸으로 모였습니다.
+- 복사해 쓰지 않은 앱 조각: `withAlpha`·`readableInk`(`lib/utils.ts`), `CATEGORY_STYLE`(`lib/calendar.ts`). 일정 분류색은 `components/calendarAccent.ts` 로 옮겼습니다.
+- 함정: Zamong 사이드바의 검은 띠처럼 보이는 것은 상태 카드에 가려 스크롤로 잘린 활성 메뉴입니다(사이드바 메뉴만 스크롤합니다). `Text` 역할은 funky 의 `fk.utilities` 라 Tailwind 유틸리티는 이기지만 funky 안의 `fk.components` 는 지므로, 필요한 값은 `Text uppercase` · `Stat labelTone` 처럼 prop 으로 열었습니다.
+- 검증: `npm run build` · `npm run lint`(남은 12건은 작업 전과 같은 파일·규칙), 복사본 DB 로 전 화면을 데스크톱과 390px 에서 눌러 봤습니다. 원본 DB 는 그대로입니다.
+
 ## 2026-10-30 — 멘토링 아카이브 내용 색인 (2단계: 기출·모의고사·책자·설명회)
 
 - 변경 파일: `backend/cli/index_archive.py`, `backend/agent/chat.py`(`_TOOL_MARK`·`_named`), `backend/agent/tools.py`, 서버 `data/archive.db`

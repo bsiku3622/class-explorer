@@ -2,49 +2,57 @@
 
 > [← Frontend Guide](CLAUDE.md) | 상세: [Atoms](component-guide-atoms.md) | [Molecules & Organisms](component-guide-organisms.md)
 
+## funky-ui (`@studio-baeks/funky-ui`)
+
+버튼·카드·칩·툴팁·스피너·아코디언·페이지 머리는 앱에 두지 않습니다. 어떤 부품이 무슨 prop 을 받는지는
+[funky-ui 문서](https://funky-ui.bsiku.dev)가 원본입니다. 옛 이름으로 코드를 찾을 때는 아래 표를 보세요.
+
+| 예전 | 지금 |
+|---|---|
+| `RetroButton` | `Button` · `IconButton`, 색 버튼은 `ToneButton` |
+| `RetroCard` | `Card` |
+| `RetroStatItem` | `Stat` |
+| `RetroSubTitle` | `SectionTitle` |
+| `RetroSpinner` | `Spinner` |
+| `RetroChip` | `Badge` |
+| `RetroTooltip` | `Popover trigger="manual"` (Cmd/Ctrl 을 누른 채 호버할 때만 뜨는 자리) |
+| `MarqueeText` | `Marquee` |
+| `TermSwitcher` | funky-ui 의 `TermSwitcher` |
+| `PageHeader` | funky-ui 의 `PageHeader` |
+| `AccordionSection` | `Accordion titleStyle="section"` |
+
 ## Atoms (`src/components/atoms/`)
 | 컴포넌트 | Props 요약 | 역할 |
 |----------|-----------|------|
-| `RetroButton` | `variant`, `color`, `size`, `isSelected`, `icon`, `onClick` | 물리 피드백 버튼. `color`(hex)를 주면 **고른 것만 그 색으로 꽉 차고 나머지는 흰색** — 값이 런타임에 정해지는 버튼용(끼니·학과)입니다 |
-| `RetroCard` | `shadow` (none/sm/md/lg), `className` + div 속성 | 테두리+쉐도우 컨테이너. `none`은 바깥에서 그림자를 걸 때 (탭처럼 카드와 붙는 요소가 있는 경우). `onMouseEnter` 같은 div 속성은 그대로 넘어갑니다 |
-| `RetroStatItem` | `label`, `value`, `unit`, `size` (sm/lg) | 숫자 통계 아이템 |
-| `RetroSubTitle` | `title`, `icon` | 섹션 소제목 (표준 스타일 고정) |
-| `StudentBadge` | `studentId`, `studentName`, `size`, `onClick` | 학번색 뱃지 |
+| `StudentBadge` | `studentId`, `studentName`, `size`, `fullId`, `buzz`, `onClick` | 학번을 기수와 색으로 풀어 funky-ui 의 `StudentBadge` 에 넘깁니다 |
 | `CopyButton` | `text`, `label`, `title` | 클립보드 복사 + 1.5초간 "복사됨" 표시. https가 아닌 환경은 execCommand로 폴백 |
-| `RetroSpinner` | `size` (sm/md/lg), `label` | 도는 원 (paper-ui `Spinner` 이식). **`node_modules` 안에 클래스가 있는 컴포넌트는 Tailwind v4 가 유틸리티를 만들지 않습니다** — 예전 HeroUI `<Spinner />` 가 회전 없이 4px 세로선으로 보이던 이유입니다 |
-| `MarqueeText` | `children`, `className` | 한 줄이 자리에 안 들어갈 때 **`…` 로 자르는 대신 좌우로 훑고 돌아옵니다.** 잘린 문장은 뒷말을 영영 못 읽습니다 — 배너처럼 문장 전체가 곧 내용인 자리에 씁니다. **넘칠 때만** 움직이고(`ResizeObserver` 로 다시 잼), `prefers-reduced-motion` 이면 안 움직입니다. 속도는 거리와 무관하게 일정 |
-| `SearchInput` | `value`, `onChange`, `placeholder`, `size` (lg/sm), `autoFocus`, `className`, `onEnter` | 검색 입력 필드. `sm`은 모달·패널 안에서 — 주인공이 아닌 자리에 `lg`를 두면 검색창이 화면을 다 차지합니다. `onEnter` 는 **Enter 로 확정하는 검색**용입니다(글자마다 서버에 물을 수 없을 때 — Admin 기억 패널). 한글 조합 중의 Enter 는 **이 안에서** 거르므로 쓰는 쪽이 `isComposing` 을 다시 볼 필요가 없습니다. ✕ 는 `onChange("")` 를 부를 뿐이라, 지우면 결과도 되돌릴지는 쓰는 쪽이 정합니다 |
-| `RetroTooltip` | `isOpen`, `content`, `offset`, `children` | 위쪽에 뜨는 툴팁. **열림 여부는 부모가 정합니다** — 호버·포커스·지연을 듣지 않습니다(Cmd/Ctrl 을 누른 채 호버할 때만 뜨는 용도라 그렇습니다). 자식은 `display:contents` 래퍼로 감싸므로 레이아웃이 바뀌지 않고, 툴팁 자체는 portal 로 `body` 에 붙어 잘리지 않습니다 |
-| `RetroChip` | `className`, `children` | 숫자·라벨을 담는 작은 배지. 색·테두리·그림자는 쓰는 쪽이 `className` 으로 줍니다 |
-| `StudentCard` | `stuId`, `name`, `subjects`, `onClick` | 학생 프로필 카드 (툴팁용) |
-| `TeacherCard` | `name`, `subjects`, `onClick` | 교사 프로필 카드 (툴팁용) |
+| `SearchInput` | `value`, `onChange`, `placeholder`, `size` (lg/sm), `autoFocus`, `className`, `onEnter` | funky-ui `SearchField` 에 최근 검색어를 얹습니다. `sm`은 모달·패널 안에서 — 주인공이 아닌 자리에 `lg`를 두면 검색창이 화면을 다 차지합니다. `onEnter` 는 **Enter 로 확정하는 검색**용입니다(글자마다 서버에 물을 수 없을 때 — Admin 기억 패널). 한글 조합 중의 Enter 는 **이 안에서** 거르므로 쓰는 쪽이 `isComposing` 을 다시 볼 필요가 없습니다. ✕ 는 `onChange("")` 를 부를 뿐이라, 지우면 결과도 되돌릴지는 쓰는 쪽이 정합니다 |
+| `StudentCard` | `stuId`, `name`, `subjects`, `onClick` | 학생 프로필 카드 (툴팁용). funky-ui `PersonCard` 를 씁니다 |
+| `TeacherCard` | `name`, `subjects`, `onClick` | 교사 프로필 카드 (툴팁용). funky-ui `PersonCard` 를 씁니다 |
 
 ## Molecules (`src/components/molecules/`)
 | 컴포넌트 | Props 요약 | 역할 |
 |----------|-----------|------|
-| `PageHeader` | `tag`, `title`, `subtitle`, `icon`, `action`, `children` | 페이지 상단 헤더 블록 |
-| `AccordionSection` | `title`, `icon`, `isOpen`, `onToggle`, `children` | 토글 가능한 패널 |
-| `BarChartRow` | `label`, `value`, `maxValue`, `caption`, `layout`, `onLabelClick` | 바 차트 행 |
+| `BarChartRow` | `label`, `value`, `maxValue`, `caption`, `captionTone`, `layout`, `onLabelClick`, `tooltipContent` | 바 차트 행. funky-ui `Meter` 를 씁니다 |
 
 ## Organisms (`src/components/`)
 | 컴포넌트 | 역할 |
 |----------|------|
 | `Navigation` | 상단 고정 바 (`onLogoClick`, `onLogout`, `isAdmin`, `username`, `terms`, `currentTerm`, `onTermChange`). **좁은 화면에는 로고와 학기 선택 둘만** 둡니다 — 계정 이름·로그아웃까지 넣었더니 390px 에서 서로를 밀어내 잘렸습니다. 로그아웃은 `BottomNav` 의 More 안으로 갔습니다 |
-| `TermSwitcher` | 학기 선택 드롭다운 (`terms`, `current`, `onChange`). Navigation 전용 — 다크 배경 기준 스타일, 학기 1개면 미렌더. 바깥 클릭·Esc로 닫힘 |
-| `SectionsTimetable` | 한 과목의 **모든 분반**을 한 그리드에 겹쳐 표시 (`sections`, `currentSectionId`, `busySlots`). 칸에 분반 번호만 넣고, 호버하면 그리드 아래 바에 상세(교사·강의실·시간·인원·상태)를 띄웁니다. 내 분반 `retro-accent1` 진하게 / 이동 가능 연하게 / 충돌 회색 |
+| `SectionsTimetable` | 한 과목의 **모든 분반**을 한 그리드에 겹쳐 표시 (`sections`, `currentSectionId`, `busySlots`). 칸에 분반 번호만 넣고, 호버하면 그리드 아래 바에 상세(교사·강의실·시간·인원·상태)를 띄웁니다. 내 분반 시안 진하게 / 이동 가능 연하게 / 충돌 회색 |
 | `CourseGraph` | 교육과정 선수관계 그래프. 학과 하나 또는 `ALL_DEPARTMENTS`(전체 — 학과를 가로 레인으로). 이수 상태를 넘기지 않으면 구조만 그립니다. 과목을 누르면 그 과목과 직접 이어진 것만 남고 나머지는 흐려집니다 |
 | `GoogleLoginButton` | 학교 구글 계정 확인 버튼 (`onStart`, `disabled`). **로그인이 아니라 학번 확인용** — `GoogleLinkModal`에서만 씁니다. **그냥 버튼입니다** — 누르면 `startGoogleLogin()`이 구글로 페이지를 넘기고, 돌아오는 건 모달이 받습니다. ⚠️ 예전처럼 **구글이 그린 버튼(GSI)을 투명하게 겹쳐 두지 마세요** — 그 버튼은 구글 iframe 안에서 팝업을 여는데 iOS Safari·인앱 브라우저가 그걸 막아서 모바일에서 눌러도 아무 일도 안 일어났습니다 |
 | `CalendarGrid` | 월 달력 격자(항상 6주). **그날 시작하는** 일정만 칩으로 쌓고, 걸쳐 있는 건 `⋯ N` 으로 접습니다 — 장기 일정이 달력을 도배하지 않게 |
 | `EventFormModal` | 일정 입력 창. `purpose`(personal/shared/request)에 따라 칸이 달라집니다. 시간은 종일·시각·교시 중 선택. 학사일정·제안에는 대상 학년과 **대상 전공** 칩이 붙습니다 — 공지가 학부 단위로 오는 일이 많아서 **학부 칩은 두 트랙을 한꺼번에** 고르고 풉니다(`lib/majors.ts` 의 `toggleMajors`). 안 고르면 전공 무관 |
 | `RequestSidebar` | 접었다 펴는 제안 서랍. 매니저면 허용·거절, 아니면 내가 낸 제안 상태만. 빨간 배지는 매니저에게만. 대상 학년·전공도 적습니다(`majorLabel` — 학부가 통째면 학부 이름) |
 | `MajorPrompt` | 전공을 묻는 창(`Major Survey`) — `major_answered === false` 인 학생에게 `App` 이 **lazy** 로 붙입니다. 예전 "실라버스를 공유해주세요" 창 자리라 보라 띠 + 흰 ✕ 모양을 이어받았습니다. **저장은 사람이 누를 때만** — 서버가 수강 이력으로 짐작한 트랙은 학과색 상자와 "추천" 표식으로만 보여 주고 미리 골라 두지 않습니다(위 학번은 열에 서넛 틀립니다). "아직 정하지 않았어요" 는 `null` 로 답한 것이라 다시 안 묻고, "나중에"·✕·바깥·Esc 는 **그날 하루만** 미룹니다(계정별 키). 좁은 화면에서는 저장이 맨 아래 한 줄을 통째로 씁니다. 창 위 24 는 상단 바 자리라, 길면 바 밑으로 들어가지 않고 덮개 안에서 흐릅니다 |
-| `MajorPicker` | 트랙 고르기 — `MajorPrompt` 와 `MajorSettings` 가 같이 씁니다. 학부별로 두 트랙씩, 고른 것만 **학과색**으로 채웁니다(`RetroButton` 의 `color`). 심화필수 조건은 **고른 트랙 하나만** 아래 상자에 펼칩니다 — 여섯 개를 다 늘어놓으면 물리학 한 줄이 세 줄이라 창이 화면을 넘깁니다. 상자는 고르기 전에도 자리를 지켜 고르는 순간 아래 단추가 밀리지 않습니다 |
-| `MajorSettings` | `/about` 의 전공 칸(`Major`). 고르기만 해서는 안 바뀌고 **저장을 눌러야** 바뀝니다 — 훑다가 손가락이 닿은 걸로 전공이 바뀌면 안 됩니다. `미정으로 두기` 는 계정의 전공을 비웁니다(답한 것으로는 남습니다). 넓은 화면에서 카드 폭을 다 쓰면 트랙 단추가 500px 넘게 늘어나서 `max-w-lg` 에서 멈춥니다 |
+| `MajorPicker` | 트랙 고르기 — `MajorPrompt` 와 `MajorSettings` 가 같이 씁니다. 학부별로 두 트랙씩, 고른 것만 **학과색**으로 채웁니다(`ToneButton`). 칸 폭으로 재서(`@container`) 묻는 창에서는 쌓이고 `/about` 의 넓은 카드에서는 학부 셋이 한 줄에 섭니다. 심화필수 조건은 **고른 트랙 하나만** 아래 상자에 펼칩니다 — 여섯 개를 다 늘어놓으면 물리학 한 줄이 세 줄이라 창이 화면을 넘깁니다. 상자는 고르기 전에도 자리를 지켜 고르는 순간 아래 단추가 밀리지 않습니다 |
+| `MajorSettings` | `/about` 의 전공 칸(`Major`). 고르기만 해서는 안 바뀌고 **저장을 눌러야** 바뀝니다 — 훑다가 손가락이 닿은 걸로 전공이 바뀌면 안 됩니다. `미정으로 두기` 는 계정의 전공을 비웁니다(답한 것으로는 남습니다). |
 | `GoogleLinkModal` | 학번을 확인하라고 요구하는 창. **닫을 수 없고** 로그아웃만 가능합니다 |
 | `DeviceSessions` | 로그인해 둔 기기 목록 + 폐기. **`/about` 에 있습니다.** 다중 기기 로그인(계정당 5대)을 열면서 같이 생긴 화면이라, 밀려난 기기가 왜 튕겼는지 볼 수 있는 유일한 자리입니다. ⚠️ **"이 기기"(`current`) 표시가 안전장치입니다** — 그 줄에는 끊기 버튼을 아예 안 답니다(누르면 그 자리에서 로그인 화면으로 튕깁니다). 끊기는 **두 번 눌러야** 실행되고 상자를 미리 고정합니다(`h-7` + `transition-colors`). 시각은 상대(`8분 전`)로 — 절대 시각이면 어느 게 오래된 건지 빼기를 해야 압니다. ⚠️ 서버가 UTC 를 시간대 없이 주므로 `Z` 를 붙여 파싱합니다. `device_label` 이 `null` 인 옛 세션은 `웹`/`모바일` 로 대신 표시 |
 | `FriendsManager` | 친구 등록·삭제 + "지금 공강". **Browse 의 Friends 탭**에 있습니다. 검색창 하나가 등록한 사람을 거르고, 거기 없으면 전교생에서 찾아 "추가"를 내밉니다 (두 글자부터·8명까지). 등록은 단방향 |
 | `home/TodayCardV1` | 홈 배치 **V1** — 세로로 긴 카드. **개발 전용**(프로덕션 번들에 안 들어갑니다). 머리(날짜·시계) + `DayRuler` + `TodayTimeline` 전체. 하루가 다 보이는 대신 깁니다 |
-| `home/TodayCardV3` | 홈 배치 **V3 — 배포본**. **머리 한 줄**(지금 \| Events \| Meal) + **본문 두 칸**(주간 격자 \| 오늘). `WeekTimetable` 을 **자기가 그립니다** — 오늘과 나란히 놓아야 해서 `HomePage` 아래에 따로 붙이면 어긋납니다. DOM 은 오늘이 먼저고 `xl:order-2` 로 넓을 때만 자리를 바꿉니다(좁으면 한 주가 오늘 위로 올라갑니다). 급식은 **머리 줄**입니다 — 아래로 내리면 자·목록 사이에 끼어 흐름이 끊기고, `meal` 이 `null` 이어도 칸을 남겨 "급식 정보가 없습니다" 를 띄웁니다. 히어로는 목록이 못 하는 말만 합니다 — 남은 시간(진행바)·다음 수업·**교실 이동**(`current.room !== next.room`), 그리고 **연강 단위**(`currentPeriods`)로 잡아야 20:20 에 끝난다면서 NEXT 에 같은 과목을 또 거는 일이 없습니다. 히어로는 `‹ ›` 로 **하루를 앞뒤로 훑습니다** — 화살표를 누르면 카드 전체가 그 수업이 되고 `지금으로` 가 붙습니다. ⚠️ 그때 **교시 뱃지의 핑크를 뺍니다** — 핑크는 "지금" 이라는 뜻이라, 지난 수업을 보면서 지금이라고 읽으면 안 됩니다. 진행바는 지난 수업이면 꽉 차고 아직 안 온 수업이면 비며, 옆 글자도 `이미 끝남`·`n분 뒤` 로 갈립니다. 넘기는 단위는 `homeView` 의 `dayBlocks` 라 **연강이 한 칸**이고, 응답이 갈리면(재요청·계획 전환) 넘겨 보던 것을 접습니다. 오늘 목록은 **열 때 한 번만** 지금 줄을 가운데로 맞춥니다 — ⚠️ 교시가 바뀔 때마다 다시 맞추면 **읽는 도중에 화면이 제멋대로 돌아갑니다.** 스크롤은 사용자가 마지막으로 정한 자리이므로 앱이 되돌리지 않고, 대신 머리에 `지금` 버튼을 둡니다. 날짜가 넘어가거나 계획↔기존을 갈아 끼우면 목록이 통째로 다른 하루라 그때는 다시 맞춥니다. ⚠️ **수업이 없는 날(주말·방학)에도 오늘 칸은 남습니다** — 대신 안에 "오늘은 정해진 일정이 없습니다" 를 그립니다(급식 칸과 같은 몸짓). 카드째 지우면 옆의 주간 격자만 덩그러니 남고, 반대로 조건을 `RetroCard` **안**에 두면 테두리와 그림자만 그려져 높이 0 짜리 **검은 줄**이 박힙니다. 답은 둘 중 하나가 아니라 **빈 상태를 그리는 것**입니다. `planned` 를 켜면 날짜 옆에 `계획 미리보기` 표식이 붙고 `WeekTimetable` 에도 그대로 넘깁니다 — 계획은 아직 등록된 시간표가 아니라서 어느 쪽을 보는지 헷갈리면 엉뚱한 교실로 갑니다 |
+| `home/TodayCardV3` | 홈 배치 **V3 — 배포본**. **머리 한 줄**(지금 \| Events \| Meal) + **본문 두 칸**(주간 격자 \| 오늘). `WeekTimetable` 을 **자기가 그립니다** — 오늘과 나란히 놓아야 해서 `HomePage` 아래에 따로 붙이면 어긋납니다. DOM 은 오늘이 먼저고 `xl:order-2` 로 넓을 때만 자리를 바꿉니다(좁으면 한 주가 오늘 위로 올라갑니다). 급식은 **머리 줄**입니다 — 아래로 내리면 자·목록 사이에 끼어 흐름이 끊기고, `meal` 이 `null` 이어도 칸을 남겨 "급식 정보가 없습니다" 를 띄웁니다. 히어로는 목록이 못 하는 말만 합니다 — 남은 시간(진행바)·다음 수업·**교실 이동**(`current.room !== next.room`), 그리고 **연강 단위**(`currentPeriods`)로 잡아야 20:20 에 끝난다면서 NEXT 에 같은 과목을 또 거는 일이 없습니다. 히어로는 `‹ ›` 로 **하루를 앞뒤로 훑습니다** — 화살표를 누르면 카드 전체가 그 수업이 되고 `지금으로` 가 붙습니다. ⚠️ 그때 **교시 뱃지의 핑크를 뺍니다** — 핑크는 "지금" 이라는 뜻이라, 지난 수업을 보면서 지금이라고 읽으면 안 됩니다. 진행바는 지난 수업이면 꽉 차고 아직 안 온 수업이면 비며, 옆 글자도 `이미 끝남`·`n분 뒤` 로 갈립니다. 넘기는 단위는 `homeView` 의 `dayBlocks` 라 **연강이 한 칸**이고, 응답이 갈리면(재요청·계획 전환) 넘겨 보던 것을 접습니다. 오늘 목록은 **열 때 한 번만** 지금 줄을 가운데로 맞춥니다 — ⚠️ 교시가 바뀔 때마다 다시 맞추면 **읽는 도중에 화면이 제멋대로 돌아갑니다.** 스크롤은 사용자가 마지막으로 정한 자리이므로 앱이 되돌리지 않고, 대신 머리에 `지금` 버튼을 둡니다. 날짜가 넘어가거나 계획↔기존을 갈아 끼우면 목록이 통째로 다른 하루라 그때는 다시 맞춥니다. ⚠️ **수업이 없는 날(주말·방학)에도 오늘 칸은 남습니다** — 대신 안에 "오늘은 정해진 일정이 없습니다" 를 그립니다(급식 칸과 같은 몸짓). 카드째 지우면 옆의 주간 격자만 덩그러니 남고, 반대로 조건을 `Card` **안**에 두면 테두리와 그림자만 그려져 높이 0 짜리 **검은 줄**이 박힙니다. 답은 둘 중 하나가 아니라 **빈 상태를 그리는 것**입니다. `planned` 를 켜면 날짜 옆에 `계획 미리보기` 표식이 붙고 `WeekTimetable` 에도 그대로 넘깁니다 — 계획은 아직 등록된 시간표가 아니라서 어느 쪽을 보는지 헷갈리면 엉뚱한 교실로 갑니다 |
 | `home/TodayCardV2` | 홈 배치 **V2** — **개발 전용**(프로덕션 번들에 안 들어갑니다). 낮고 가로로 긴 카드. 왼쪽 1/3 에 지금 상태 + 오늘 학사일정, 가운데에 **지금을 가운데 둔 스크롤 목록**(공강도 한 교시씩), 오른쪽에 급식까지 **한 카드 안**. 너비는 내용이 정하고(18rem/1fr/17rem), 시간표가 없는 날은 그 칸을 아예 없앱니다. 시계는 두지 않습니다 |
 | `home/WeekTimetable` | 홈 본문 왼쪽의 **주간 격자** — 위 카드가 오늘이라면 여기는 **이 학기**입니다. 그래서 `today` 와 달리 **방학·주말에도 그립니다**. 칩은 **학과색**(테두리 100% + 채움 8%)이고 과목명·분반·교사·교실 세 층입니다. 행 높이는 **칸이 4:3** 이 되는 값(`h-24 md:h-28 xl:h-20`)이고, 점심·저녁 구멍은 **교시 칸에 비례**합니다(70분 점심이 16px 이면 50분 수업보다 짧아 보입니다). 요일 머리는 옅은 회색 바에 **오늘만 핑크**, 그 아래로 **핑크 기둥**이 열 전체를 관통합니다 — ⚠️ `gridRow: "2 / -1"` 은 행이 암시적이라 헤더 한 칸으로 쪼그라듭니다(`2 / span {행 수}`). 연강은 과목·분반·**교실**·**시간 인접** 넷이 다 맞아야 잇습니다. 격자만 제 안에서 스크롤하고(`max-h`), **좁은 화면에서는 `min-w-[35rem]` 으로 가로 스크롤**합니다(`xl:min-w-0`) — 교시 열과 요일 머리는 `sticky` 로 남고, 열 때 **오늘 열을 가운데**로 맞춥니다. ⚠️ 고정된 칸의 배경은 **불투명**이어야 합니다(`#f7f7f7`·`#ffd3ee`) — 반투명이면 칩이 요일 글자를 통과해 보입니다. 머리의 **PNG 버튼**으로 내보냅니다(스크롤 상자가 아니라 **안쪽 격자**를 찍어야 잘린 교시까지 담깁니다). `planned` 면 제목 옆에 `계획` 표식이 붙고 PNG 이름에도 `_계획` 이 들어갑니다 — 찍어 둔 그림에는 홈 위쪽 표식이 안 담깁니다. 제목은 **`Timetable`** 이고, 칩의 **과목명·분반·교사는 검색 링크**입니다(`searchEngine` 의 `subjectQuery`·`sectionQuery`·`teacherQuery`). 머리의 `현재 요일 표시` 체크박스(기본 켜짐)를 끄면 **오늘 열·요일 머리·지금 칩의 핑크가 화면에서 사라지고**, PNG 도 보이는 그대로 찍힙니다 — ⚠️ 내보내기 전용 옵션으로 되돌리지 마세요. 화면에서 확인할 수 없는 설정이 되고, 찍는 순간에만 상태를 바꿨다 되돌리는 곡예가 따라붙습니다 |
 | `DayRuler` | 하루를 **가로로 흐르는 자**로. 교시를 등간격이 아니라 **실제 시각에 비례해서** 놓아 점심·저녁의 구멍이 그대로 보입니다. 트랙에 `min-w-[60rem]`(칸이 4:3 이 되는 폭)을 주고 `overflow-x-auto` 로 흘리며, 열 때 **지금을 가운데**로 스크롤합니다. ⚠️ `overflow-x-auto` 만 주면 `overflow-y` 가 auto 로 계산돼 하드 쉐도우 때문에 **세로 스크롤이 생깁니다** — `overflow-y-hidden` + `py-1`. **연강은 한 칸**(`10–11`)이고 칸마다 교시 번호를 답니다. 색은 **학과색**(테두리 100% + 채움 14%)이고 **지남은 회색이 아니라 `opacity: 0.4`** 입니다 — 회색으로 덮으면 뭘 들었는지가 지워집니다. 공강은 점선, **지금만** 핑크(22% 채움 + `#ff4eba` 테두리)입니다. ⚠️ **공강·점심은 강조하지 않습니다** — 검은 캐럿만 짚고 지나갑니다 |
@@ -56,7 +64,7 @@
 | `BottomNav` | 하단 고정 메뉴 (모바일). **버튼 다섯 개 — 자주 여는 넷 + 나머지를 여는 햄버거.** 여덟 개를 폭에 욱여넣으면 글자가 4px 이 되고 손가락이 옆 버튼을 누릅니다. 펼친 판은 **햄버거 바로 위 오른쪽 구석**(`w-52`)에 박힙니다. 로그아웃은 판 우상단의 작은 정사각형이고 **두 번 눌러야** 실행됩니다 — 확인은 왼쪽에 나타나고 방금 누른 자리는 취소가 됩니다 |
 | `FilterSection` | 학년 선택 필터 + 새로고침 |
 | `SearchResultDisplay` | 검색 결과 표시 (통합/그리드 뷰) |
-| `SectionCard` | 개별 분반 카드 (학생 배지, 교사, 강의실, 시간). **명단은 전원 제 색으로 보입니다** — 검색어와 맞는 배지만 `animate-badge-buzz` 로 **짧게 진동**하고(떨림 + 쉼이 한 주기), **호버 효과는 없습니다**(호버로 커지면 정작 진동이 묻힙니다), ⚠️ 예전처럼 나머지를 `grayscale opacity-30` 으로 지우지 마세요(명단을 보는 이유의 절반이 "누구랑 같이 듣나" 입니다). 정지 화면에서도 구분되게 맞는 배지는 면을 더 채우고 그림자를 세게 둡니다 |
+| `SectionCard` | 개별 분반 카드 (학생 배지, 교사, 강의실, 시간). **명단은 전원 제 색으로 보입니다** — 검색어와 맞는 배지만 `buzz` 로 **짧게 진동**하고(떨림 + 쉼이 한 주기), **호버 효과는 없습니다**(호버로 커지면 정작 진동이 묻힙니다), ⚠️ 예전처럼 나머지를 `grayscale opacity-30` 으로 지우지 마세요(명단을 보는 이유의 절반이 "누구랑 같이 듣나" 입니다). 정지 화면에서도 구분되게 맞는 배지는 면을 더 채우고 그림자를 세게 둡니다 |
 | `SubjectAccordionItem` | 과목 아코디언 (분반 목록 토글) |
 | `SyllabusPanel` | 2026-1 과목별 강의계획서 목록 + PDF preview/download (서버에서 로그인한 채로 Blob 으로 받습니다) |
 | `StatsCards` | 3열 통계 카드 (과목수, 분반수, 학생수) |
@@ -83,7 +91,6 @@
 | `zamong/CourseCard` | — | 과목 카드 — 학기·평어를 바로 고릅니다 (체크박스 없음) |
 | `CalendarPage` | `/calendar` | 학사일정 달력 — 월 격자 + 날짜 상세 + 개인 일정(반복 가능) + 제안 서랍. **"2학년·물리학 것만"** 거르개는 대상 학년·전공이 나를 빼는 공용 일정을 숨깁니다(대상이 빈 일정과 개인 일정은 늘 남고, 전공이 미정이면 전공으로 거르지 않습니다 — `lib/calendar.ts` 의 `isForMe`). 학년은 **보고 있는 달**로 셉니다(`gradeOf` — 학년도는 3월에 바뀝니다) |
 | `SettingsPage` | `/about` | 기능 가이드북 + 전공(`MajorSettings`) + 로그인한 기기(`DeviceSessions`) + About. 뭔가를 하는 두 칸은 가이드와 앱 정보 사이에 둡니다 — 끝에 붙이면 못 찾습니다 |
-| `InventoryPage` | `/inventory` | **개발 전용** (`import.meta.env.DEV`) — 이 앱이 실제로 그리는 버튼·인풋·카드·색의 표본집. funky-ui 토큰 재설계용 작업대라 메뉴에 올리지 않습니다. 표본마다 원본 `파일:줄` 이 붙어 있고, 숫자 옆에 지난 회차 값이 같이 놓입니다. ⚠️ **다시 셀 때 숫자만 고치지 마세요** — 줄 번호가 어긋나면 대조가 안 되므로 `src` 도 같이 갱신합니다. 회차: 1회 2026-08-01 · 2회 2026-08-30. 이관이 끝나면 삭제합니다 |
 
 ## 상세 가이드
 - [component-guide-atoms.md](component-guide-atoms.md) — Atoms props 상세 + 사용 예시
@@ -91,8 +98,8 @@
 
 ## 디자인 규칙
 모든 컴포넌트는 [design-guide.md](design-guide.md)의 규칙을 따릅니다.
-- `RetroButton`의 `isSelected`로 선택 상태 처리 (직접 className 조작 금지)
-- `RetroSubTitle`로 소제목 표준 스타일 강제 유지
+- 선택 상태는 `Button` 의 `selected` 로 처리 (직접 className 조작 금지)
+- 소제목은 `SectionTitle` 로 표준 스타일 유지
 - `StudentBadge`로 학번색 자동 매핑 (색상 직접 하드코딩 금지)
 
 ### Zamong TermPanel

@@ -3,7 +3,7 @@
 > [← Component Guide](../../../../../frontend/component-guide.md)
 
 ## 역할
-수평/수직 바 차트 행. AnalysisPage의 통계 시각화에 사용.
+funky-ui `Meter` 에 이 앱의 핑크와 대문자 이름을 얹은 막대 한 줄. AnalysisPage 의 통계와 Admin 의 전공 조사에 씁니다.
 
 ## Props
 | prop | 타입 | 기본값 | 설명 |
@@ -12,9 +12,10 @@
 | `value` | `number` | 필수 | 현재 값 |
 | `maxValue` | `number` | 필수 | 최대 값 (바 길이 계산용) |
 | `caption` | `string` | - | 바 옆 보조 텍스트 |
-| `layout` | `"horizontal" \| "vertical"` | `"horizontal"` | 레이아웃 방향 |
-| `captionClassName` | `string` | - | 캡션 추가 클래스 |
+| `captionTone` | `Tone` | - | 보조 텍스트의 색. Analysis 는 `pink` |
+| `layout` | `"horizontal" \| "vertical"` | `"vertical"` | `horizontal` 은 넓은 화면에서 한 줄(`Meter layout="row"`), `vertical` 은 쌓기 |
 | `onLabelClick` | `() => void` | - | 라벨 클릭 핸들러 |
+| `tooltipContent` | `ReactNode` | - | 막대에 올렸을 때 위에 뜨는 판 (`Meter tooltip`) |
 
 ## 레이아웃
 ```
@@ -29,10 +30,8 @@ vertical:
 
 ## 바 스타일
 ```
-높이:   h-5 고정
-색상:   bg-retro-primary        ← 값은 index.css 의 @theme
-호버:   group-hover:bg-[#ff7e7e] (primary 를 밝힌 값 — 같이 고쳐야 합니다)
-비율:   width = (value / maxValue) * 100%
+높이(20px)·홈·채움:  Meter 가 정합니다 (accent="pink")
+비율:          width = (value / maxValue) * 100%, maxValue 는 0 이어도 1 로 받습니다
 ```
 
 ## 라벨 클릭
@@ -49,13 +48,12 @@ vertical:
   onLabelClick={() => handleSearch(getKoreanName(subject.name))}
 />
 
-// 교사 통계 (캡션 색상 강조)
+// 교사 통계
 <BarChartRow
   label={`${teacher.name} T.`}
   value={teacher.periods}
   maxValue={maxPeriods}
   caption={`${teacher.periods} PDS | ${teacher.sections} Sections`}
-  captionClassName="text-retro-primary"
   onLabelClick={() => handleSearch(teacher.name, true)}
 />
 ```

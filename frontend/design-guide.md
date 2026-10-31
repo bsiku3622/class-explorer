@@ -1,34 +1,41 @@
 # Frontend Design Guide
 
-> [← 프로젝트 전체 가이드](../CLAUDE.md) | 토큰 원본: [`src/index.css`](src/index.css) 의 `@theme`
+> [← 프로젝트 전체 가이드](../CLAUDE.md) | 부품·값의 원본: [funky-ui](https://funky-ui.bsiku.dev) (사본은 `vendor/funky-ui`)
 
 **스타일**: 레트로 브루탈리즘 — 굵은 테두리, 하드 쉐도우, 물리적 버튼 피드백
 
-## 색상 토큰
+이 문서는 **이 앱의 규칙**(색의 뜻, 기능별 문법)을 적습니다. 버튼이 어떻게 눌리고 그림자가
+몇 px 인지는 funky-ui 가 정하므로 여기 옮겨 적지 않습니다.
 
-**값의 원본은 `src/index.css` 의 `@theme` 하나뿐입니다.** 아래 표는 그걸 옮겨 적은
-것이라, 토큰을 고치면 여기도 같이 고쳐야 합니다 — 한동안 이 표가 실제 값과 전부
-어긋나 있었고, 표를 믿고 색을 고른 화면이 엉뚱한 색으로 나왔습니다.
+## 색상
 
-| 토큰 | 값 | 쓰이는 곳 |
+**값의 원본은 funky-ui 의 `tokens/palette.ts` 하나뿐입니다.** 앱에서는 hex 를 적지 않고
+이름으로 고릅니다. 값이 꼭 필요한 자리(SVG 등)는 `@studio-baeks/funky-ui/tokens` 의
+`ACCENT_COLORS` 나 `--fk-*` 변수를 읽습니다.
+
+| 고르는 법 | 색 | 쓰이는 곳 |
 |------|----|------|
-| `retro-bg` | `#fff5d1` | 전체 배경 (크림). 사이드바도 같은 색입니다 |
-| `retro-fg` | `#222222` | 기본 글자색. **테두리는 이게 아니라 `black`(#000) 입니다** |
-| `retro-primary` | `#ff4eba` | 핑크. 홈에서는 **"지금"**, 통계 막대 기본색 |
-| `retro-secondary` | `#7828c8` | 보라. 상단 바·하단 바 같은 **어두운 면** |
-| `retro-accent-light` | `#f0fdff` | 아주 옅은 시안. 목록·버튼 호버 배경 |
-| `retro-accent1` | `#3decfd` | 시안. 홈의 Trade 배너, 강조 칸 |
-| `retro-accent2` | `#ffd500` | 노랑. 급식 아침, 여름방학 막대 |
-| `retro-accent3` | `#ff4eba` | 핑크 — ⚠️ `retro-primary` 와 **같은 값**입니다 |
-| `retro-accent4` | `#ff9100` | 주황. 급식 점심, 분반 상태 |
-| `retro-accent5` | `#00c8ff` | 하늘. 겨울방학 막대, 생활관 일정 |
-| `retro-green` | `#00c22a` | 초록. 빈 교실, 성공 상태 |
+| `Surface fill="canvas"` | 크림 | 전체 배경. 사이드바도 같은 색입니다 |
+| `Surface fill="brand"` | 보라 | 상단 바·하단 바 같은 **어두운 면** |
+| `accent="pink"` | 핑크 | 홈에서는 **"지금"**, 통계 막대 |
+| `accent="cyan"` | 시안 | 홈의 Trade 배너, 강조 칸 |
+| `accent="yellow"` | 노랑 | 급식 아침, 여름방학 막대 |
+| `accent="orange"` | 주황 | 급식 점심, 분반 상태 |
+| `accent="sky"` | 하늘 | 겨울방학 막대, 생활관 일정 |
+| `accent="green"` | 초록 | 빈 교실 |
+| `accent="success"` | 초록(고정) | 상태 — 연결됨, 저장됨 |
+| `accent="error"` | 빨강(고정) | 상태 — 오류, 삭제 |
+| `accent="warning"` | 주황(고정) | 상태 — 경고, 충돌 |
+| `accent="info"` | 파랑(고정) | 상태 — 안내 |
 
-⚠️ **`retro-primary` 와 `retro-accent3` 은 같은 핑크입니다.** 한쪽만 바꾸면 같은 뜻이던
-두 자리가 조용히 갈라집니다 — 색을 바꿀 일이 생기면 둘 다 보세요.
+⚠️ **뜻을 말하는 색과 브랜드 색을 가르세요.** 네온(`green`·`red`·`orange`)은 면과 구조에 쓰고, 맞다·틀리다·조심은
+상태색으로 씁니다. `tone="pink"`·`tone="error"` 는 그 색의 원색입니다. 진한 글자가 필요하면 Paint 안에서 `tone="accent"` 입니다.
 
-⚠️ **테두리에 `retro-fg` 를 쓰지 마세요.** 글자는 `#222222`, 테두리는 순수 검정입니다
-(`border-2 border-black`). 브루탈리즘의 굵은 선은 완전한 검정일 때만 제대로 섭니다.
+⚠️ **실행 중에 정해지는 색은 Tone 부품으로 칠합니다** — 면은 `ToneBox`·`ToneButton`,
+칩은 `ToneChip`, 글자는 `ToneText`. 면을 꽉 채운 칸의 글자색은 `toneInk` 가 고릅니다.
+
+⚠️ **테두리는 순수 검정, 글자는 `#222` 입니다.** 브루탈리즘의 굵은 선은 완전한 검정일 때만
+제대로 섭니다. `Surface border="line"` 이 이 선입니다.
 
 ## 학과별 색상 (홈)
 
@@ -45,7 +52,7 @@
 | 생물학 | `#16a34a` | | 융합 | `#64748b` |
 | 지구과학 | `#0d9488` | | (없음) | `#64748b` |
 
-⚠️ **핑크(`retro-primary`) 계열을 넣지 마세요.** 그건 "지금" 한 뜻으로 예약돼 있고,
+⚠️ **핑크(`accent="pink"`) 계열을 넣지 마세요.** 그건 "지금" 한 뜻으로 예약돼 있고,
 학과색은 8~14%로만 깔리므로 100%로 채우는 "지금"과 섞이지 않습니다.
 
 **칠하는 법은 자리마다 같습니다** — `배경 = 학과색 8~14%`, `테두리 = 학과색 100%`,
@@ -92,7 +99,7 @@
 
 ## 제목은 영어입니다
 
-**섹션 소제목(`RetroSubTitle`)과 페이지 제목·부제(`PageHeader`)는 전부 영어**입니다 —
+**섹션 소제목(`SectionTitle`)과 페이지 제목·부제(`PageHeader`)는 전부 영어**입니다 —
 `Today` · `Timetable` · `Events` · `Meal` · `Subjects` · `Devices` · `Curriculum Progress`.
 
 한동안 `오늘 일정` 옆에 `MEAL` 이 서 있는 식으로 섞여 있었는데, **한 행에 나란히 선 두
@@ -101,44 +108,41 @@
 
 ## 타이포그래피
 - **폰트**: Pretendard Variable
-- **섹션 소제목**: `text-sm font-bold text-black/40 uppercase tracking-widest flex items-center gap-2`
-- **아이콘 (소제목)**: `size={18} className="text-black/40"`
-- **대형 제목**: `text-4xl font-black tracking-tighter uppercase`
-- **통계 라벨**: `text-sm font-black uppercase`
-- **배지**: `text-[10px] font-black`
+- **글자**: `Text variant` 하나로 크기·굵기·자간을 고릅니다 (`hero`·`title`·`heading`·`caption`·`overline` 등)
+- **섹션 소제목**: `SectionTitle` (아이콘까지 맡습니다)
+- **페이지 제목**: `PageHeader`
+- **통계**: `Stat` (네온 면 위에서는 `labelTone="inherit"`)
+- **배지**: `Badge`
 
 ## 테두리 & 구분선
 ```
-카드/버튼/컨테이너:  border-2 border-black
-내부 구분선:        border-black/10  또는  divide-black/10
+카드/버튼/컨테이너:  Surface · Card 의 border="line" (2px 검정)
+내부 구분선:        Divider  또는  var(--fk-line-subtle)
 ```
 
 ## 쉐도우 & 애니메이션 (핵심)
-"그림자가 버튼 안으로 숨는 물리 피드백" 패턴:
-```
-기본:       shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]
-호버:       shadow-[0_0_0_0_rgba(0,0,0,0.2)] translate-x-1 translate-y-1
-전환:       transition-all duration-100
-카드(큰):   shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]
-```
+"그림자가 버튼 안으로 숨는 물리 피드백" 은 funky-ui `Pressable` 의 몸짓입니다.
+손으로 `translate`·`shadow-[…]` 를 적지 않고 `motion` 으로 고릅니다.
 
-선택된 버튼 (검정 배경):
-```
-normal:  scale-105 shadow-[4px_4px_0_0_rgba(0,0,0,0.2)]
-hover:   shadow-[0_0_0_0_rgba(0,0,0,0.2)]  (translate 없음)
-active:  scale-100
-```
+| `motion` | 자리 |
+|---|---|
+| `sink` | 버튼 기본 — 그림자 속으로 가라앉습니다 |
+| `raise` · `lift` | 평평한 카드 · 탐색 카드 |
+| `shrink` | Ask 플로팅 버튼 · 창 머리 단추 — 그림자는 그대로 두고 살짝 줄어듭니다 |
+| `still` | 움직이지 않는 자리 |
 
-⚠️ **`color` 를 준 버튼에는 `scale-105` 를 걸지 않습니다.** 확대하면 테두리도 같이
-2px → 2.1px 로 커져서 **선이 굵어진 것처럼** 보이는데, 나란히 붙은 버튼 무리(급식
-끼니 같은)에서는 그게 크기 차이가 아니라 굵기 차이로 읽힙니다. 색이 이미 "골랐다" 를
-충분히 말하므로 확대는 덧붙임일 뿐입니다.
+포커스 링은 **Tab 으로 왔을 때만** 보입니다. 마우스로 누른 입력칸은 링 없이 그림자만 거두고 내려앉습니다.
+
+선택된 버튼은 `selected` 만 넘깁니다. 고른 면 + **105%** + hover 때 translate 없이 그림자만 숨김.
+
+⚠️ **색 버튼(`ToneButton`)도 예외 없이 105% 로 커집니다** (2026-10-30 결정). 한때 "테두리가
+굵어 보인다" 며 색 버튼만 뺐는데, 규칙을 하나로 모았습니다. 칩(`ToneChip`)은 기본으로 전부
+켜 두는 줄이라 커지지 않습니다.
 
 ## 카드 패턴
 ```
-기본 카드:     bg-white border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,0.2)]
-호버 카드:     hover:-translate-y-1.5 transition-transform
-RetroCard:    border-2 border-black (bg 없음 — className으로 별도 지정)
+기본 카드:     <Card> — 흰 면 + 2px 선 + 그림자
+누르는 카드:   <Card motion="lift" onClick={…}>
 ```
 
 ⚠️ **속이 빌 수 있는 카드에는 빈 상태를 그려 넣으세요.** 테두리와 그림자는 내용과
@@ -146,9 +150,9 @@ RetroCard:    border-2 border-black (bg 없음 — className으로 별도 지정
 남습니다.
 
 ```tsx
-<RetroCard>{cond && <Body/>}</RetroCard>              // ✗ cond 가 false 면 검은 줄
-{cond && <RetroCard><Body/></RetroCard>}              // △ 자리까지 사라집니다
-<RetroCard>{cond ? <Body/> : <Empty/>}</RetroCard>    // ✓
+<Card>{cond && <Body/>}</Card>              // ✗ cond 가 false 면 검은 줄
+{cond && <Card><Body/></Card>}              // △ 자리까지 사라집니다
+<Card>{cond ? <Body/> : <Empty/>}</Card>    // ✓
 ```
 
 카드를 통째로 빼는 것도 대개 답이 아닙니다. 나란히 놓인 카드 중 하나만 사라지면 남은
@@ -160,12 +164,12 @@ RetroCard:    border-2 border-black (bg 없음 — className으로 별도 지정
 
 ### 시간표 그리드 (빈 교실 / 비교)
 ```
-빈 교실:   bg-retro-green/20          (RoomsPage)
+빈 교실:   초록 20%                   (RoomsPage)
 점유됨:    bg-black/[0.07] grayscale
 선택됨:    bg-black
 ```
 
-**초록 마름모**(`h-1.5 w-1.5 rotate-45 bg-retro-green`)는 여기가 아니라 **달력의 개인
+**초록 마름모**(`h-1.5 w-1.5 rotate-45`)는 여기가 아니라 **달력의 개인
 일정 표식**입니다 (`CalendarGrid`·`CalendarPage`). 같은 모양을 다른 뜻으로 쓰지 마세요.
 
 ### 하루 시간 축 (홈의 `DayRuler` + `TodayTimeline`)
@@ -197,7 +201,7 @@ RetroCard:    border-2 border-black (bg 없음 — className으로 별도 지정
                ↳ 공강도 같은 한 칸. 같은 시간인데 높이가 다르면 목록이 시간을 재는
                  물건이 아니게 됩니다
 목록 · 왼쪽 띠:  w-1 학과색 (지금이면 #ff4eba)
-줄 · 지금:      border-y-2 border-retro-primary + bg 12% + 과목명 핑크
+줄 · 지금:      위아래 2px 핑크 + bg 12% + 과목명 핑크
 줄 · 지남:      opacity-55  (40 은 "지났다" 가 아니라 "안 읽힌다" 였습니다)
 글자 하한:      **12px** — `김정은 · 1분반` 같은 부연을 10px 로 줄였더니 안 읽혔습니다.
                줄이 답답하면 글자가 아니라 **여백**(줄 높이)을 건드립니다
@@ -254,10 +258,10 @@ RetroCard:    border-2 border-black (bg 없음 — className으로 별도 지정
 행 높이:        h-24 md:h-28 xl:h-20   ← 칸이 4:3 이 되는 값. xl 은 오늘 목록과
                                         나란히 서면서 격자 폭이 절반이 됩니다
 교시 번호 열:    4rem · 12px black/45 · **세로 가운데** · `1교시` 처럼 단위까지
-요일 머리:      bg-black/[0.03] 13px · **오늘만 bg-retro-primary/25 + 핑크 글자**
+요일 머리:      bg-black/[0.03] 13px · **오늘만 핑크 25% + 핑크 글자**
                ↳ ⚠️ 위아래를 굵은 검정(`border-2`)으로 감싸지 마세요 — 격자에서
                  제일 무거운 덩어리가 **정보가 제일 적은 줄**이 됩니다
-오늘 열 기둥:    bg-retro-primary/[0.07] · `gridRow: 2 / span {행 수}`
+오늘 열 기둥:    핑크 7% · `gridRow: 2 / span {행 수}`
                ↳ ⚠️ `2 / -1` 은 **안 됩니다.** 행이 암시적 그리드라 `-1` 이 끝을
                  못 짚고 조용히 **헤더 한 칸 높이**로 쪼그라듭니다
 바탕 격자선:     border-black/10 — 가로·세로 둘 다 (**요일 머리에도** 세로선)
@@ -337,11 +341,8 @@ PNG 내보내기:    `html-to-image` 의 `toPng` · **스크롤 상자가 아니
 지면 그때 어디로 보낼지부터 정하세요.
 
 ### 통계 바 차트
-```
-바 높이:   h-5
-기본색:    bg-retro-primary
-호버:      group-hover:bg-[#ff7e7e]
-```
+`BarChartRow` 가 funky-ui `Meter accent="pink"` 를 그립니다. 높이·홈·채움은 Meter 가 정합니다.
+값 글자(`42 Students`)는 Analysis 에서 핑크입니다(`captionTone="pink"`).
 
 ### 학생 배지
 ```
@@ -349,11 +350,11 @@ PNG 내보내기:    `html-to-image` 의 `toPng` · **스크롤 상자가 아니
 테두리: border-2  (학번 색상)
 배경:  bg-[color]/15   (검색어와 맞으면 조금 더 채웁니다 — 20 → 38)
 글자:  학번 색상
-찾는 사람: .animate-badge-buzz + shadow-[3px_3px_…0.2]
+찾는 사람: `buzz` (진한 면 + 그림자 + 떨림)
           ↳ 좌우 ±1.5px + **기울기 ±1도**로 짧게 떨고(주기의 앞 20%) 나머지는 가만히
           ↳ 평행이동만 하면 판이 미끄러지는 느낌이라 "밀림" 에 가깝습니다 — 같이
             기울어져야 진동으로 읽힙니다. ±1도면 글자를 읽는 데 지장이 없습니다
-호버:    **없습니다** (누를 때만 `active:scale-95`) — 배지는 늘어놓고 **읽는 물건**입니다
+호버:    **없습니다** — 배지는 늘어놓고 **읽는 물건**입니다
 ```
 
 ⚠️ **안 맞는 사람을 흐리게 만들지 마세요.** 한동안 검색어와 맞는 배지만 남기고 나머지를
@@ -370,7 +371,7 @@ PNG 내보내기:    `html-to-image` 의 `toPng` · **스크롤 상자가 아니
 ⚠️ 움직임 **하나에만** 기대지 않습니다. `prefers-reduced-motion` 이면 애니메이션이 꺼지
 므로, 맞는 배지는 면을 조금 더 채우고 그림자를 세게 둬서 정지 화면에서도 구분됩니다.
 
-### UI 라이브러리를 두지 않습니다
+### UI 라이브러리는 funky-ui 하나입니다
 
 HeroUI 를 쓰다가 2026-08-21 에 걷어냈습니다. `Tooltip`·`Input`·`Chip`·`Divider`·
 `Navbar` 뼈대까지 일곱 개를 쓰자고 **첫 로딩 JS 의 절반(gzip 103KB)** 을 모든 페이지가
@@ -380,15 +381,15 @@ HeroUI 를 쓰다가 2026-08-21 에 걷어냈습니다. `Tooltip`·`Input`·`Chi
 HeroUI 가 주는 것과 정반대라, **모서리를 전역으로 눌러 없애는 오버라이드까지 얹고**
 있었습니다. 라이브러리를 쓰면서 그 라이브러리를 계속 무효화하고 있었던 셈입니다.
 
-지금은 필요한 것을 `atoms/` 에 직접 만듭니다 (`RetroTooltip`, `RetroChip`).
-**새 UI 라이브러리를 들이지 마세요** — 같은 일이 반복됩니다.
+지금은 이 생김새를 그대로 부품으로 만든 funky-ui 를 씁니다(2026-10-31 이관). 빠진 부품은
+앱에 베끼지 말고 funky-ui 에 더합니다. **다른 UI 라이브러리를 들이지 마세요** — 같은 일이 반복됩니다.
 
 ## 좁은 화면 (390px 이 바닥입니다)
 
 가로로 나열한 것은 **`sm`(640px) 미만에서 접히게** 해 둡니다. 이 앱은 카드마다
-`border-2` + 하드 쉐도우가 붙고 `RetroCard` 가 `overflow-hidden` 이라, 넘친 것이
-스크롤로 드러나지 않고 **그냥 잘려 사라집니다**. 실제로 지우기 버튼과 강의실 탭이
-그렇게 없어져 있었습니다.
+테두리와 하드 쉐도우가 붙고 한때 카드가 `overflow-hidden` 이어서, 넘친 것이 스크롤로
+드러나지 않고 **그냥 잘려 사라졌습니다**. 실제로 지우기 버튼과 강의실 탭이 그렇게 없어져
+있었습니다.
 
 ```
 버튼 여러 개 한 줄     flex-wrap        ← 줄이 늘어나는 편이 잘리는 것보다 낫습니다
@@ -409,7 +410,7 @@ Requests 서랍 손잡이가 `md:pr-12` 로만 자리를 잡고 있어서, 좁�
 
 ## 넘치는 한 줄
 
-문장 전체가 곧 내용인 자리(배너 등)는 `…` 로 자르지 말고 `MarqueeText` 를 씁니다 —
+문장 전체가 곧 내용인 자리(배너 등)는 `…` 로 자르지 말고 funky-ui 의 `Marquee` 를 씁니다 —
 자르면 뒷말을 영영 못 읽습니다.
 
 ```
@@ -449,18 +450,9 @@ whitespace-nowrap        ← 좁아지는 순간 글자가 접혀 아래로 삐�
 
 ## 로딩 표시
 
-`RetroSpinner` 를 씁니다. (예전에 쓰던 HeroUI `<Spinner />` 도 이 프로젝트에서는 동작하지 않았습니다 —
-`animate-spinner-ease-spin`·`w-5` 같은 클래스가 `node_modules` 안에만 있어서 Tailwind v4
-가 유틸리티를 생성하지 않고, 회전 없는 **4px 세로선**으로 그려집니다. 원형 스피너는
-전역 `rounded-none!` 오버라이드와도 싸웁니다.
-
-생김새는 **paper-ui 의 `Spinner`** 를 옮겼습니다 — 옅은 링에 위쪽 한 조각만 진해서
-회전이 읽힙니다.
-
-```
-rounded-full · border-black/15 · border-t-black · 900ms linear
-sm 16px(2px) · md 20px(2px) · lg 28px(3px)
-```
+funky-ui 의 `Spinner` 를 씁니다. 옅은 링에 위쪽 한 조각만 진해서 회전이 읽힙니다. 영역 전체를
+기다리는 자리는 `Busy`, 글자 자리를 지키는 "Loading…" 은 `Text pulse` 입니다.
 
 ## 관련 가이드
-- [component-guide.md](component-guide.md) — 컴포넌트 props & 사용법
+- [component-guide.md](component-guide.md) — 앱 컴포넌트 props & 사용법
+- [funky-ui 문서](https://funky-ui.bsiku.dev) — 부품 · 토큰
