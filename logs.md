@@ -1,3 +1,15 @@
+## 2026-10-31 — 지난 학기 계획서로 이번 학기 날짜를 만들지 않게
+
+- 변경 파일: `backend/agent/tools.py`(`_schedule_item`·`_school_exam`), `backend/agent/chat.py`(지시문), `backend/agent.guide.md`
+- 요약: 지난 학기 계획서의 주차를 이번 학기 날짜로 옮기던 것을 멈췄습니다. "2025-1 계획서 기준 16주차" 로만 주고, 중간·기말은 학사일정의 공식 기간을 붙입니다.
+
+평가표를 만들 때 "지난 학기의 적힌 날짜는 안 옮긴다" 고 해 놓고 주차는 옮겼습니다. 정보과학3(2025-1)의 기말이 `16주차(11-30~12-06)` 로 나갔는데 올해 기말은 12-07~12-11 입니다.
+재 보니 지난 학기 계획서 시험 193건이 날짜를 달고 있었고 기말 10건이 공식 기간 밖이었습니다. 과목 109개 중 이번 학기 계획서가 9개뿐이라 대부분의 과목이 해당됩니다.
+
+- ⚠️ "다를 수 있다" 는 경고로 때우지 마세요. 경고는 모델이 빼먹을 수 있고, 붙어도 날짜가 확실해 보입니다. 틀릴 수 있는 날짜는 아예 만들지 않습니다
+- 주차표(`this_term.weeks`)도 지난 학기 계획서 답과 내 과목 전부 답에서 뺐습니다 — 주면 모델이 직접 옮깁니다
+- 이번 작업 중 main 에 funky-ui 작업이 들어왔습니다. ⚠️ `commit-tree <브랜치>^{tree}` 는 브랜치가 main 을 포함할 때만 씁니다 — 안 합치고 만들면 main 의 변경을 조용히 되돌립니다
+
 ## 2026-10-31 — 칩·입력칸·표 선 다듬기 (재원님 지적)
 
 - 변경 파일: `frontend/vendor/funky-ui/`, `UploadPage`, `MaterialsPage`, `MaterialReviewPanel`, `zamong/Roadmap`, `zamong/CourseCard`, `CalendarGrid`, `TodayTimeline`, `EventFormModal`, `TradePage`, `CalendarPage`, `AdminPage`, `admin/FactsPanel`, `atoms/SearchInput`
