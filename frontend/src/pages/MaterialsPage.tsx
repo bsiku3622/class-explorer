@@ -197,6 +197,8 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
                 <Card.Header title="Find Materials" tone="bar" accent="cyan" />
                 <div className="grid gap-3 p-4 lg:grid-cols-[1fr_15rem]">
                     <SearchInput
+                        size="sm"
+                        shadow
                         value={query}
                         onChange={setQuery}
                         placeholder="자료명 또는 과목 검색"
@@ -217,7 +219,7 @@ const MaterialsPage: React.FC<MaterialsPageProps> = ({ term, allClassesData }) =
                 <Surface fill="none" border="line" borderSide="top" className="px-4 py-3">
                     <SegmentedControl<MaterialCategory | "all">
                         aria-label="자료 유형"
-                        size="xs"
+                        className="[&>button]:text-[10px]"
                         value={category}
                         onChange={setCategory}
                         options={[

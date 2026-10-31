@@ -246,7 +246,7 @@ const CalendarPage: React.FC<CalendarPageProps> = ({ role, stuId, major }) => {
 
                     <div className="flex flex-wrap items-center gap-2">
                         {mineLabel && (
-                            <Button
+                            <Button grow={false}
                                 size="sm"
                                 variant="muted"
                                 selected={onlyMine}

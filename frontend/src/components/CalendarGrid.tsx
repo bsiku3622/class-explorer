@@ -89,7 +89,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                             fill={isSelected || outside ? "well" : "none"}
                             hoverable={!outside}
                             onClick={() => onSelect(key)}
-                            className={`relative min-h-[92px] border-b-2 border-r-2 border-[var(--fk-line-subtle)] p-1.5 text-left align-top ${
+                            className={`relative min-h-[92px] border-b border-r border-[var(--fk-line-subtle)] p-1.5 text-left align-top ${
                                 index % 7 === 6 ? "border-r-0" : ""
                             } ${index >= 35 ? "border-b-0" : ""}`}
                         >

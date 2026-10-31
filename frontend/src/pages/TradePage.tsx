@@ -822,7 +822,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                     })()}
                                                 </div>
                                                 <div className="flex items-center gap-1">
-                                                    <Button
+                                                    <Button grow={false}
                                                         size="xs"
                                                         accent="green"
                                                         variant="outline"
@@ -841,7 +841,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                             )?.blockers ?? [];
                                                         const blocked = sibBlockers.length;
                                                         return (
-                                                            <Button
+                                                            <Button grow={false}
                                                                 key={sib.id}
                                                                 size="xs"
                                                                 accent={blocked ? "orange" : "green"}
@@ -861,7 +861,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                             </Button>
                                                         );
                                                     })}
-                                                    <Button
+                                                    <Button grow={false}
                                                         size="xs"
                                                         accent={isOpen ? "black" : undefined}
                                                         variant="outline"
@@ -1029,7 +1029,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                 </div>
                                                 <div className="flex items-center gap-1">
                                                     {ACTION_ORDER.map((a) => (
-                                                        <Button
+                                                        <Button grow={false}
                                                             key={a}
                                                             size="xs"
                                                             selected={action === a}
@@ -1064,7 +1064,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                     {isMoving && (
                                                         <>
                                                             <Divider orientation="vertical" tone="soft" className="mx-0.5 h-5" />
-                                                            <Button
+                                                            <Button grow={false}
                                                                 size="xs"
                                                                 accent="sky"
                                                                 variant="framelineMuted"
@@ -1092,7 +1092,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                                     const blocked =
                                                                         sibBlockers.length;
                                                                     return (
-                                                                        <Button
+                                                                        <Button grow={false}
                                                                             key={sib.id}
                                                                             size="xs"
                                                                             accent={blocked ? "orange" : "sky"}
@@ -1116,7 +1116,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                                         </>
                                                     )}
 
-                                                    <Button
+                                                    <Button grow={false}
                                                         size="xs"
                                                         accent={isOpen ? "black" : isMoving ? "sky" : undefined}
                                                         variant={isDropped ? "outline" : "framelineMuted"}
@@ -1323,7 +1323,7 @@ const TradePage: React.FC<TradePageProps> = ({ allClassesData, term, myStuId }) 
                                         // 있지만 눈에 덜 띄게 눕혀 둡니다
                                         const dim = state !== "open";
                                         return (
-                                            <Button
+                                            <Button grow={false}
                                                 key={subject}
                                                 size="xs"
                                                 variant={dim ? "muted" : "paper"}

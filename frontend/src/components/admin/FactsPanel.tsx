@@ -469,6 +469,8 @@ const FactsPanel: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <SegmentedControl
                     aria-label="기억 거르개"
+                    variant="paper"
+                    shadow
                     value={FILTERS.find((filter) => filter.value === query.status)?.label ?? ""}
                     onChange={(label) => {
                         const filter = FILTERS.find((item) => item.label === label);

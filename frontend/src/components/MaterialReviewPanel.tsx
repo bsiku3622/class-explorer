@@ -155,6 +155,7 @@ const MaterialReviewPanel: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <SegmentedControl
                     aria-label="검수 상태"
+                    className="[&>button]:text-[10px]"
                     value={filter}
                     onChange={setFilter}
                     options={(["pending", "approved", "rejected", "all"] as ReviewFilter[]).map((item) => ({

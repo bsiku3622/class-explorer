@@ -252,3 +252,4 @@
 - [x] UI 를 funky-ui 디자인 시스템으로 이관 — vendor 사본, 전 화면 교체, Retro* · `@theme` 색 · `InventoryPage` 제거
 - [x] 포커스 링을 Tab 으로 왔을 때만 보이게 변경 (funky-ui)
 - [x] funky-ui 이관 후 원본과 달라진 곳 복구 — 전 화면 대조, 버튼·칩·제목 크기, 글자색, 카드 그림자, Major·Admin·System Status, 상태색 추가
+- [x] 칩·입력칸·표 선 다듬기 — 평평한 칩 줄 선택 표시, Upload 입력칸 그림자 제거, Zamong 학기 버튼 약한 글자로, 표 안쪽 선 1px

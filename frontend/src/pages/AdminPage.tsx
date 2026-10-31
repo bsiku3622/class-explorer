@@ -789,7 +789,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ myStuId, myName }) => {
                             {/* 시연 계정 — 학교 구글 계정이 없는 사람에게 주는 통로입니다.
                                 누구로 보일지는 여기서 정해지고, 고를 수 있는 건 본인뿐입니다 */}
                             <div className="flex flex-wrap items-center gap-2">
-                                <Button
+                                <Button grow={false}
                                     size="xs"
                                     accent="orange"
                                     variant="muted"

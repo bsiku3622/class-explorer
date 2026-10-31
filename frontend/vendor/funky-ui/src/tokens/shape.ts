@@ -11,6 +11,8 @@ import type { BadgeSize, ControlSize, IconSize } from "./vocabulary";
  * 오늘 목록의 학과 띠)에 씁니다. 사람 카드 안의 작은 띠는 테두리와 같은 2px 입니다.
  */
 export const STROKE = {
+  /** 표 · 격자의 안쪽 선. 바깥 틀은 `base` 입니다 */
+  hair: 1,
   base: 2,
   rail: 4,
 } as const;

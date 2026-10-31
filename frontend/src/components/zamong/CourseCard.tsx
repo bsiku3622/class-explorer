@@ -184,7 +184,7 @@ const CourseCard: React.FC<CourseCardProps> = ({
                 <span className="flex w-8 shrink-0 justify-end">
                     {course.has_ec && (
                         // EC 여부는 과목이 아니라 **분반**이 정합니다
-                        <Button
+                        <Button grow={false}
                             size="xs"
                             variant="muted"
                             selected={Boolean(entry?.isEc)}

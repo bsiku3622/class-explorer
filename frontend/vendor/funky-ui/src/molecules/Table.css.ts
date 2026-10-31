@@ -28,16 +28,16 @@ export const tableHeadCell = styleVariants({
   inverse: c({ ...headCell, backgroundColor: vars.surface.inverse, color: vars.ink.inverse }),
   well: c({ ...headCell, backgroundColor: vars.surface.well, color: vars.ink.primary, borderBottom: `${vars.stroke.base} solid ${vars.line.base}` }),
   // 워크북처럼 숫자가 빽빽한 표 — 면도 굵은 선도 없이 1px 선만 지나갑니다
-  plain: c({ ...headCell, fontSize: px(TEXT_ROLES.label.size), lineHeight: px(TEXT_ROLES.label.leading), letterSpacing: em(0.05), color: vars.ink.muted, borderBottom: `1px solid ${vars.line.subtle}` }),
+  plain: c({ ...headCell, fontSize: px(TEXT_ROLES.label.size), lineHeight: px(TEXT_ROLES.label.leading), letterSpacing: em(0.05), color: vars.ink.muted, borderBottom: `${vars.stroke.hair} solid ${vars.line.subtle}` }),
 } satisfies Record<TableHead, object>);
 
-export const tableCell = style(c({ paddingInline: px(SPACE.lg), paddingBlock: px(SPACE.md), borderTop: `${vars.stroke.base} solid ${vars.line.subtle}`, textAlign: "start", verticalAlign: "middle" }));
+export const tableCell = style(c({ paddingInline: px(SPACE.lg), paddingBlock: px(SPACE.md), borderTop: `${vars.stroke.hair} solid ${vars.line.subtle}`, textAlign: "start", verticalAlign: "middle" }));
 export const tableRowHeader = style(c({ fontWeight: WEIGHT.black, backgroundColor: vars.surface.well }));
 export const tableNumeric = style(c({ textAlign: "end", fontVariantNumeric: "tabular-nums" }));
 /** 열 묶음의 왼쪽 선 */
-export const tableDivided = style(c({ borderLeft: `${vars.stroke.base} solid ${vars.line.base}` }));
+export const tableDivided = style(c({ borderLeft: `${vars.stroke.hair} solid ${vars.line.base}` }));
 
 /** `plain` 표의 칸 — 줄 사이 선과 머리 칸의 면을 뺍니다. 위 규칙들을 덮어야 해서 뒤에 둡니다 */
 export const tableCellPlain = style(c({ borderTop: 0, backgroundColor: "transparent" }));
-export const tableDividedPlain = style(c({ borderLeft: `1px solid ${vars.line.subtle}` }));
+export const tableDividedPlain = style(c({ borderLeft: `${vars.stroke.hair} solid ${vars.line.subtle}` }));
 export const tableRowHover = style(c({ selectors: { "&:hover": { backgroundImage: `linear-gradient(${vars.state.hover}, ${vars.state.hover})` } } }));

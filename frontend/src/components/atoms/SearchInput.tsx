@@ -10,6 +10,8 @@ interface SearchInputProps {
     className?: string;
     /** `sm`은 모달·패널 안에서 씁니다 — 페이지의 주인공이 아닌 자리에 `lg`를 두면 검색창이 화면을 다 차지합니다 */
     size?: "lg" | "sm";
+    /** 기본은 `lg` 만 그림자를 갖습니다. 옆 칸과 맞춰야 하면 직접 줍니다 */
+    shadow?: boolean;
     enableHistory?: boolean;
     /** 외부에서 searchTerm이 확정됐을 때 히스토리 저장 트리거 */
     committedTerm?: string;
@@ -29,6 +31,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
     placeholder = "Search...",
     className,
     size = "lg",
+    shadow,
     enableHistory = false,
     committedTerm,
     autoFocus = false,
@@ -50,7 +53,7 @@ const SearchInput: React.FC<SearchInputProps> = ({
             clearLabel="검색어 지우기"
             placeholder={placeholder}
             size={size === "lg" ? "xl" : "md"}
-            shadow={size === "lg"}
+            shadow={shadow ?? size === "lg"}
             autoFocus={autoFocus}
             enterKeyHint={onEnter ? "search" : undefined}
             onKeyDown={(e) => {

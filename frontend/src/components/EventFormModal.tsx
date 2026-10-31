@@ -262,7 +262,7 @@ const EventFormModal: React.FC<EventFormModalProps> = ({
                             <Text as="p" variant="overline" className="mb-1">대상 학년 (안 고르면 전학년)</Text>
                             <div className="flex gap-1.5">
                                 {[1, 2, 3].map((g) => (
-                                    <Button
+                                    <Button grow={false}
                                         key={g}
                                         size="xs"
                                         variant="muted"
@@ -287,7 +287,7 @@ const EventFormModal: React.FC<EventFormModalProps> = ({
                             <div className="space-y-1.5">
                                 {MAJOR_DIVISIONS.map(({ division, majors: pair }) => (
                                     <div key={division} className="flex flex-wrap gap-1.5">
-                                        <Button
+                                        <Button grow={false}
                                             size="xs"
                                             variant="muted"
                                             selected={pair.every((m) => majors.includes(m))}
@@ -296,7 +296,7 @@ const EventFormModal: React.FC<EventFormModalProps> = ({
                                             {division}
                                         </Button>
                                         {pair.map((m) => (
-                                            <Button
+                                            <Button grow={false}
                                                 key={m}
                                                 size="xs"
                                                 variant="muted"

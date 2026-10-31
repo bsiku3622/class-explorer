@@ -1,3 +1,10 @@
+## 2026-10-31 — 칩·입력칸·표 선 다듬기 (재원님 지적)
+
+- 변경 파일: `frontend/vendor/funky-ui/`, `UploadPage`, `MaterialsPage`, `MaterialReviewPanel`, `zamong/Roadmap`, `zamong/CourseCard`, `CalendarGrid`, `TodayTimeline`, `EventFormModal`, `TradePage`, `CalendarPage`, `AdminPage`, `admin/FactsPanel`, `atoms/SearchInput`
+- 요약: 그림자 없는 칩은 골라져도 커지지 않고, Upload 입력칸의 그림자를 뺐고, Zamong 학기 버튼을 테두리·그림자 없는 약한 글자로 바꿨고, 표·달력·오늘 목록의 안쪽 선을 1px 로 맞췄습니다.
+- Upload 입력칸의 그림자와 Zamong 학기 버튼의 모양은 원본에 있던 것을 재원님 판단으로 **바꾼** 것입니다. 원본과 맞춘다고 되돌리지 마세요.
+- `xl` 을 넣으면서 `SearchInput` 기본이 64px 이 되어 Files 의 검색칸이 옆 Select 보다 높아졌습니다. 나란히 놓는 자리는 `size="sm"` 입니다. 그래서 `shadow` 를 따로 받습니다.
+
 ## 2026-10-31 — funky-ui 이관 후 원본과 달라진 곳 복구
 
 - 변경 파일: `frontend/vendor/funky-ui/`(`xl` 크기·상태색·글자 역할), `StatsCards`, `SearchInput`, `SubjectAccordionItem`, `MajorPicker`, `MajorSettings`, `Sidebar`, `BarChartRow`, `CalendarGrid`, `FilterSection`, `zamong/Roadmap`, `zamong/CourseBoard`, `AdminPage`, `AnalysisPage` 외 `Card` 쓰는 화면, 가이드 문서

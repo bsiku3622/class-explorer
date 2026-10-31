@@ -18,7 +18,6 @@ import {
     Divider,
     Link,
     Paint,
-    Surface,
     Swatch,
     Text,
     ToneSwatch,
@@ -63,7 +62,7 @@ const rowRoot = (live: boolean, variant: "plain" | "outline"): [ElementType, obj
         : ["li", { className: undefined }];
 
 /** 지나지 않은 줄 사이의 가는 선 — 진행 중인 줄은 자기 핑크 선을 갖습니다 */
-const DIVIDE = "border-t-2 border-[var(--fk-line-subtle)] first:border-t-0";
+const DIVIDE = "border-t border-[var(--fk-line-subtle)] first:border-t-0";
 
 type Row =
     | {
@@ -194,7 +193,7 @@ const TodayTimeline: React.FC<TodayTimelineProps> = ({
         : buildRows(today, periods);
 
     return (
-        <Surface as="ul" fill="none" border="subtle" borderSide="y">
+        <ul className="border-y border-[var(--fk-line-subtle)]">
             {rows.map((row) => {
                 if (row.kind === "free") {
                     const past = nowMinute !== null && nowMinute >= row.time.end_minute;
@@ -425,7 +424,7 @@ const TodayTimeline: React.FC<TodayTimelineProps> = ({
                     </Root>
                 );
             })}
-        </Surface>
+        </ul>
     );
 };
 

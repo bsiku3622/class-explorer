@@ -481,10 +481,9 @@ const TermRow: React.FC<{
             <div className="flex h-7 shrink-0 items-center justify-between md:w-[6rem] md:justify-start">
                 {onOpenTerm ? (
                     <Button
-                        variant="paper"
-                        shadow
+                        variant="ghostMuted"
                         size="sm"
-                        className="h-7 shrink-0 py-0"
+                        className="-ml-2 h-7 shrink-0 px-2 py-0"
                         onClick={onOpenTerm}
                         aria-label={`${name} 상세 입력`}
                         aria-haspopup="dialog"

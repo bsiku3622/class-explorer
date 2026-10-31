@@ -29,7 +29,7 @@ const TREE = {
   /** 지금 accent — `:root` 는 검정(시스템)이고, accent class 가 이 일곱 칸을 덮어씁니다 */
   accent: ACCENT_COLORS.black,
   font: FONT_FAMILY,
-  stroke: { base: pxv(STROKE.base), rail: pxv(STROKE.rail) },
+  stroke: { hair: pxv(STROKE.hair), base: pxv(STROKE.base), rail: pxv(STROKE.rail) },
   focusRing: { width: pxv(FOCUS_RING.width), offset: pxv(FOCUS_RING.offset) },
   space: Object.fromEntries(Object.entries(SPACE).map(([k, v]) => [k, rem(v)])) as Record<keyof typeof SPACE, string>,
   shadow: { raised: shadow(ELEVATION.raised.offset), floating: shadow(ELEVATION.floating.offset) },

@@ -235,7 +235,6 @@ const UploadPage: React.FC<UploadPageProps> = ({ term }) => {
                 <div className="grid gap-5 p-4 sm:p-6 lg:grid-cols-2">
                     <FormField label="Subject *" hint={selectedSubject?.english}>
                         <Select
-                            shadow
                             value={subjectId}
                             onChange={(event) => setSubjectId(Number(event.target.value) || "")}
                         >
@@ -247,7 +246,6 @@ const UploadPage: React.FC<UploadPageProps> = ({ term }) => {
                     </FormField>
                     <FormField label="Type *">
                         <Select
-                            shadow
                             value={category}
                             onChange={(event) => setCategory(event.target.value as MaterialCategory)}
                         >
@@ -258,7 +256,6 @@ const UploadPage: React.FC<UploadPageProps> = ({ term }) => {
                     </FormField>
                     <FormField label="Title *" className="lg:col-span-2">
                         <Input
-                            shadow
                             value={title}
                             maxLength={120}
                             onChange={(event) => setTitle(event.target.value)}
@@ -267,7 +264,6 @@ const UploadPage: React.FC<UploadPageProps> = ({ term }) => {
                     </FormField>
                     <FormField label="Description" className="lg:col-span-2">
                         <Textarea
-                            shadow
                             value={description}
                             maxLength={1000}
                             rows={3}
