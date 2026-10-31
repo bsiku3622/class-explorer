@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
+import React, { useState, useEffect, useEffectEvent, useMemo, useCallback, useRef, Suspense } from "react";
 import axios from "axios";
 import api from "./lib/api";
 import { clearCache } from "./lib/cache";
@@ -224,7 +224,7 @@ const App: React.FC = () => {
         if (getSessionToken()) {
             try {
                 await api.post("/auth/logout", {}, { headers: authHeader() });
-            } catch (_) {
+            } catch {
                 // 서버 오류여도 로컬 세션은 정리
             }
         }
@@ -267,14 +267,17 @@ const App: React.FC = () => {
         }
     }, [location.pathname, location.search, navigate]);
 
-    useEffect(() => {
-        if (location.pathname === "/search") {
-            const q = new URLSearchParams(location.search).get("q") || "";
-            if (q !== searchInput) {
-                setSearchInput(q);
-                setSearchTerm(q);
-            }
+    // ⚠️ `/search` 에 들어올 때 한 번만 주소를 읽습니다. 그 뒤로는 검색어가 주소를 고칩니다 — 주소가 바뀔 때마다
+    // 읽으면 둘이 서로를 되돌립니다
+    const readSearchFromUrl = useEffectEvent(() => {
+        const q = new URLSearchParams(location.search).get("q") || "";
+        if (q !== searchInput) {
+            setSearchInput(q);
+            setSearchTerm(q);
         }
+    });
+    useEffect(() => {
+        if (location.pathname === "/search") readSearchFromUrl();
     }, [location.pathname]);
 
     const isLogicalSearch = useMemo(
@@ -485,26 +488,27 @@ const App: React.FC = () => {
         handleSearch();
     }, [handleSearch]);
 
+    const writeSearchToUrl = useEffectEvent(() => {
+        const currentParams = new URLSearchParams(location.search);
+        if (searchTerm !== currentParams.get("q")) {
+            if (searchTerm) currentParams.set("q", searchTerm);
+            else currentParams.delete("q");
+            const qs = currentParams.toString();
+            navigate(qs ? `/search?${qs}` : "/search", { replace: true });
+        }
+    });
     useEffect(() => {
         if (location.pathname !== "/search") return;
-        const handler = setTimeout(() => {
-            const currentParams = new URLSearchParams(location.search);
-            if (searchTerm !== currentParams.get("q")) {
-                if (searchTerm) currentParams.set("q", searchTerm);
-                else currentParams.delete("q");
-                const qs = currentParams.toString();
-                navigate(qs ? `/search?${qs}` : "/search", { replace: true });
-            }
-        }, 300);
+        const handler = setTimeout(() => writeSearchToUrl(), 300);
         return () => clearTimeout(handler);
-    }, [searchTerm, location.pathname, navigate]);
+    }, [searchTerm, location.pathname]);
 
     useEffect(() => {
         // 학기 분리 이전 버전이 남긴 캐시 정리
         localStorage.removeItem(CACHE_PREFIX);
     }, []);
 
-    useEffect(() => {
+    const loadSession = useEffectEvent(() => {
         if (!sessionToken) { setLoading(false); return; }
         api.get("/auth/me", { headers: authHeader() })
             .then((res) => {
@@ -515,6 +519,9 @@ const App: React.FC = () => {
             })
             .catch(() => handleLogout());
         fetchInitialData();
+    });
+    useEffect(() => {
+        loadSession();
     }, [sessionToken]);
 
     // 캐시를 먼저 그리고 `/auth/me` 가 나중에 오는 순서가 정상입니다 — 둘을 나란히

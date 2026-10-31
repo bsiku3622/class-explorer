@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useReducer } from "react";
 import { Clock } from "lucide-react";
 import { SearchField } from "@studio-baeks/funky-ui";
 import { clearHistory, loadHistory, removeFromHistory, saveToHistory } from "../../lib/searchHistory";
@@ -34,14 +34,16 @@ const SearchInput: React.FC<SearchInputProps> = ({
     autoFocus = false,
     onEnter,
 }) => {
-    const [history, setHistory] = useState<string[]>([]);
+    const [, refreshHistory] = useReducer((tick: number) => tick + 1, 0);
 
     // committedTerm이 바뀔 때 히스토리 저장
     useEffect(() => {
         if (!enableHistory || !committedTerm?.trim()) return;
         saveToHistory(committedTerm);
-        setHistory(loadHistory());
     }, [committedTerm, enableHistory]);
+
+    // 입력이 비어 있을 때만 — 치는 동안에는 결과가 곧바로 아래에 나옵니다. 보여 줄 때마다 읽어서 늘 최신입니다
+    const history = enableHistory && !value ? loadHistory() : [];
 
     return (
         <SearchField
@@ -57,10 +59,9 @@ const SearchInput: React.FC<SearchInputProps> = ({
                 if (onEnter && e.key === "Enter" && !e.nativeEvent.isComposing) onEnter();
             }}
             onFocus={() => {
-                if (enableHistory) setHistory(loadHistory());
+                if (enableHistory) refreshHistory();
             }}
-            // 입력이 비어 있을 때만 — 치는 동안에는 결과가 곧바로 아래에 나옵니다
-            suggestions={enableHistory && !value ? history.map((term) => ({ value: term })) : []}
+            suggestions={history.map((term) => ({ value: term }))}
             suggestionsTitle={
                 <span className="flex items-center gap-1.5">
                     <Clock size={10} /> Recent
@@ -69,11 +70,11 @@ const SearchInput: React.FC<SearchInputProps> = ({
             onSuggestionSelect={onChange}
             onSuggestionRemove={(term) => {
                 removeFromHistory(term);
-                setHistory(loadHistory());
+                refreshHistory();
             }}
             onSuggestionsClear={() => {
                 clearHistory();
-                setHistory([]);
+                refreshHistory();
             }}
             className={className}
         />

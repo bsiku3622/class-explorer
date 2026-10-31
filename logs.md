@@ -1,3 +1,12 @@
+## 2026-10-31 — 린트 오류 정리와 모바일 점검
+
+- 변경 파일: `App.tsx`, `SearchInput`, `SearchResultDisplay`, `RequestSidebar`, `BrowsePage`, `AnalysisPage`, `hooks/useSelectedYears.ts`
+- 요약: `npm run lint` 오류·경고를 0으로 만들었습니다. 390px 16개 화면을 이관 전 앱과 나란히 돌려 가로 넘침 0건을 확인했고, 그 과정에서 찾은 Requests 서랍의 층을 고쳤습니다.
+- `App.tsx` 의 effect 는 의존성 배열을 늘리지 않고 `useEffectEvent` 로 읽는 함수만 뺐습니다. 배열에 넣으면 검색어 ↔ 주소 동기화가 서로를 다시 불러 돕니다.
+- ⚠️ `useSelectedYears` 는 데이터가 새로 올 때 **고른 학년이 비어 있을 때만** 전체로 채웁니다. Browse 에서 학년을 전부 끈 상태는 데이터가 그대로면 유지됩니다(원본과 같은 동작).
+- 최근 검색어는 effect 로 상태에 옮기지 않고 그릴 때 읽습니다. 지우기·선택 뒤에는 `refreshHistory` 로 다시 그립니다.
+- Requests 서랍이 Drawer 기본 층이라 모바일 하단 메뉴까지 덮었습니다. `z-40` 으로 페이지 위, 메뉴 아래에 둡니다.
+
 ## 2026-10-31 — 칩·입력칸·표 선 다듬기 (재원님 지적)
 
 - 변경 파일: `frontend/vendor/funky-ui/`, `UploadPage`, `MaterialsPage`, `MaterialReviewPanel`, `zamong/Roadmap`, `zamong/CourseCard`, `CalendarGrid`, `TodayTimeline`, `EventFormModal`, `TradePage`, `CalendarPage`, `AdminPage`, `admin/FactsPanel`, `atoms/SearchInput`

@@ -32,7 +32,8 @@ const RequestSidebar: React.FC<RequestSidebarProps> = ({
         <Drawer
             open={open}
             aria-label="Requests"
-            className="w-80"
+            // 페이지 위, 하단 메뉴 아래 — Drawer 기본 층은 하단 메뉴까지 덮습니다
+            className="z-40 w-80"
             style={{ top: "5rem" }}
             handle={
                 // 손잡이 — 접혀 있을 때 밖으로 나와 있는 부분입니다

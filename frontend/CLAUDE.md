@@ -40,6 +40,7 @@ src/
 │   ├── useAgentChat.ts       → Ask 대화 한 벌 (App 에 하나 — 페이지·창이 같이 봅니다)
 │   ├── useFollowBottom.ts    → 대화가 늘면 맨 아래로 (위로 올려 읽는 중이면 그대로)
 │   ├── useMediaQuery.ts      → 미디어 쿼리 구독 (폭에 따라 그리는 컴포넌트가 다를 때)
+│   ├── useSelectedYears.ts   → 학년 거르개 — 전체를 끈 상태를 데이터가 다시 와도 유지 (Browse·Analysis)
 │   ├── useSyllabusFiles.ts   → 강의계획서 파일 목록 (`GET /syllabi`, 필요한 곳에서만)
 │   └── useTradePlan.ts       → 홈에서 `/trade` 계획 읽기 (읽기 전용)
 ├── pages/

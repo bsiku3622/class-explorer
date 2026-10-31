@@ -118,7 +118,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
     }) => {
         if (!query) return null;
 
-        const parts = query.split(/([\(\)&+!])/g).filter((p) => p !== "");
+        const parts = query.split(/([()&+!])/g).filter((p) => p !== "");
 
         return (
             <div className="flex flex-wrap items-center gap-x-0.5">
@@ -126,7 +126,7 @@ const SearchResultDisplay: React.FC<SearchResultDisplayProps> = ({
                     <span className="mr-1 text-[var(--fk-ink-muted)]">{prefix}:</span>
                 )}
                 {parts.map((part, i) => {
-                    const isOperator = /[\(\)&+!]/.test(part);
+                    const isOperator = /[()&+!]/.test(part);
                     if (isOperator) {
                         return (
                             <span
